@@ -638,6 +638,15 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         <SubscriptionCatalog />
       ) : path === "/clinic/subscriptions/patient-preview" ? (
         <PatientStorefrontPreview />
+      ) : path === "/clinic/memberships" ? (
+        <section>
+          <h1>Membership management has moved</h1>
+          <p>
+            Manage prospective patients and your public membership page in{" "}
+            <a href="/clinic/growth">Growth</a>. Manage membership packages in
+            the <a href="/clinic/subscriptions">Subscription catalog</a>.
+          </p>
+        </section>
       ) : path === "/clinic/growth" ? (
         <MembershipGrowth />
       ) : path === "/clinic/reminders" ? (

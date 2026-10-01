@@ -38,6 +38,7 @@ export function Login({
   const qaPortal = returnTo === "/qa" || returnTo?.startsWith("/qa?");
   const credentialMode =
     qaPortal ||
+    returnTo?.startsWith("/patient-portal") ||
     (ownerPinRequired &&
       new URLSearchParams(
         typeof window === "undefined" ? "" : window.location.search,
@@ -141,6 +142,9 @@ export function Login({
               initialPortal={developmentPortalFor(returnTo)}
               ownerPinRequired={ownerPinRequired}
             />
+            <Button href="/login?next=%2Fpatient-portal" variant="outlined">
+              Sign in with patient portal account
+            </Button>
             <Button href="/demo" variant="outlined">
               Open visitor demo
             </Button>

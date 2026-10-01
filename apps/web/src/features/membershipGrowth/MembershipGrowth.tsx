@@ -435,11 +435,7 @@ export function MembershipGrowth() {
                         spellCheck: false,
                       },
                     }}
-                    onChange={(event) =>
-                      setSlug(
-                        event.target.value.toLowerCase().replaceAll(" ", "-"),
-                      )
-                    }
+                    onChange={(event) => setSlug(event.target.value)}
                     sx={{ flex: "1 1 360px", maxWidth: 560 }}
                   />
                   <FormControlLabel
@@ -454,7 +450,11 @@ export function MembershipGrowth() {
                   />
                 </Stack>
                 <Stack spacing={1.5} sx={{ maxWidth: 720 }}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: "center" }}
+                  >
                     <Button
                       component="label"
                       variant="outlined"
