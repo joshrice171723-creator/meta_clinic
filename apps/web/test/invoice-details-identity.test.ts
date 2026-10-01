@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import type { BillingPatientLedger } from "../src/api/contracts";
 
 // Real React/MUI reconciliation and Billing handlers, isolated from all servers.
@@ -571,3 +571,71 @@ it("#93 replaces the draft details heading after posting and ledger refresh", as
     await page.close();
   }
 }, 20000);
+
+it("#54 opens the recorded cash receipt and its print control invokes browser printing", async () => {
+  const page = await browser.newPage();
+  await page.addInitScript(() => {
+    (window as any).qaCashPending = false;
+  });
+  await page.goto(`${base}qa?patient_id=77`);
+  await waitRequests(page, 1);
+  await resolve(page, 0, {
+    ...ledger,
+    payments: [
+      {
+        id: 88,
+        amount: "25",
+        currency: "USD",
+        unapplied_amount: "0",
+        created_at: "2026-10-01T00:00:00Z",
+        allocations: [],
+        refunds: [],
+        cash_payment: true,
+        receipt_available: true,
+        cash_refund_available: true,
+      },
+    ],
+  });
+  const link = page.getByRole("link", { name: "Print receipt", exact: true });
+  expect(await link.getAttribute("href")).toBe(
+    "/api/clinic/payment_events/88/receipt",
+  );
+  expect(
+    await page
+      .getByRole("button", { name: "Refund cash", exact: true })
+      .count(),
+  ).toBe(1);
+  // Exercise the actual ERB print button/handler, without claiming Rails rendering or CSP coverage.
+  const template = readFileSync(
+    new URL(
+      "../../api/app/views/clinic/billing/payment_events/receipt.html.erb",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const button = template.match(
+    /<button id="print-receipt"[^>]*>.*?<\/button>/,
+  )![0];
+  const handler = template.match(
+    /<%= javascript_tag nonce: true do %>([\s\S]*?)<% end %>/,
+  )![1];
+  await page
+    .context()
+    .route("**/api/clinic/payment_events/88/receipt", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: `${button}<script>window.printCalls=0;window.print=()=>window.printCalls++;${handler}</script>`,
+      }),
+    );
+  const popupPromise = page.waitForEvent("popup");
+  await link.click();
+  const receipt = await popupPromise;
+  await receipt
+    .getByRole("button", { name: "Print receipt", exact: true })
+    .click();
+  expect(await receipt.evaluate(() => (window as any).printCalls)).toBe(1);
+  expect(
+    (await requests(page)).every((request) => request.method === "GET"),
+  ).toBe(true);
+  await page.context().close();
+}, 30_000);
