@@ -304,7 +304,7 @@ async function review(page: Page, count = 3) {
     .getByRole("button", { name: "Preview selected draft changes" })
     .click();
   const table = page.getByRole("table", {
-    name: "Text changes for destination #202",
+    name: "Selected changes for destination #202",
   });
   await table.waitFor();
   expect(await table.innerText()).toContain("Draft 202");
