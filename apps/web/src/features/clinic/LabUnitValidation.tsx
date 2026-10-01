@@ -17,5 +17,5 @@ export function LabUnitValidation({ receipt, valueKind }: { receipt?: LabUnitVal
     : receipt?.status === "unmapped" ? "Unit/dimension compatibility unvalidated: no configured mapping for this test."
     : receipt?.status === "unconfigured" ? "Unit/dimension compatibility unvalidated: clinic mappings were unconfigured."
     : "Unit/dimension compatibility not recorded for this version.";
-  return <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>;
+  return <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{label}</Typography>;
 }

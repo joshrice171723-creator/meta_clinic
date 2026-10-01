@@ -19,6 +19,7 @@ const attempt: ComponentProps<typeof PrescriptionAttemptEvidence>["attempt"] = {
   correlation_id: "70000000-0000-4000-8000-000000000001",
   review_event_id: 19,
   prior_attempt_id: 50,
+  preparation_id: null, // Existing attempt recorded before durable preparation; no reference is inferred.
   destination_snapshot: {
     id: 30,
     name: "Synthetic saved destination",

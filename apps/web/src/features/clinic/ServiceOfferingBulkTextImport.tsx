@@ -768,11 +768,11 @@ export function ServiceOfferingBulkTextImport({
                                 change.field,
                                 referenceCatalog ?? undefined,
                               )}
-                              <Typography variant="caption" display="block">
+                              <Typography variant="caption" sx={{ display: "block" }}>
                                 Exact value: {JSON.stringify(change.before)}
                               </Typography>
                               {change.beforeLabel && (
-                                <Typography variant="caption" display="block">
+                                <Typography variant="caption" sx={{ display: "block" }}>
                                   Saved reference label: {change.beforeLabel}
                                 </Typography>
                               )}
@@ -788,11 +788,11 @@ export function ServiceOfferingBulkTextImport({
                                 change.field,
                                 referenceCatalog ?? undefined,
                               )}
-                              <Typography variant="caption" display="block">
+                              <Typography variant="caption" sx={{ display: "block" }}>
                                 Exact value: {JSON.stringify(change.after)}
                               </Typography>
                               {change.afterLabel && (
-                                <Typography variant="caption" display="block">
+                                <Typography variant="caption" sx={{ display: "block" }}>
                                   Saved reference label: {change.afterLabel}
                                 </Typography>
                               )}
