@@ -1,10 +1,10 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 148/241. Original dispositions recorded: 241/241.**
+**Issues closed: 151/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
-Branch: `codex/relay-qa-combined-20261001`. Integrated source: `577d2eda1e44de1d6230c5ebbf3360f0e9468e3b`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
+Branch: `codex/relay-qa-combined-20261001`. Integrated source: `f8aec7a56a9f52a1f441e7cd6dec319f0993cc15`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
 
 The earlier80/107/110 numbers were provisional and included partial-claim promotions; this reviewed count supersedes them. #54 and #238 each retain two independent rows. #94 remains historical R2 invalidation at25a23e4b, with no new retest.
 
@@ -28,10 +28,10 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 140 |
-| mixed | 43 |
+| fixed_and_verified | 143 |
+| mixed | 42 |
 | proven_invalid | 8 |
-| unverified | 26 |
+| unverified | 24 |
 
 ## Every original entry
 
@@ -214,11 +214,11 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 175 | #188 | "Resolve" shows no confirmation banner | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 176 | #189 | Dev sign-in form resets on first LOG IN | unverified | Real first-login cookie/bootstrap round trip retains all four selections and intended route;8477 mocked transport pass is narrower. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 177 | #190 | Contradictory save-state copy | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 178 | #191 | Enabled "Create plan" is a dead end that always fails on save | mixed | Original valid open/facility-qualified save workflow and full UI-to-persistence mapping are not fully proven. |
+| 178 | #191 | Enabled "Create plan" is a dead end that always fails on save | fixed_and_verified | Actual facility-qualified open-encounter Goals care-plan dialog sends exact create payload, receives confirmed revision, refreshes readback and survives full reload with one POST. Existing source-equivalent backend proof verifies invalid completed/no-facility contexts cannot mutate and valid creation persists revision. Existing eligibility checks retained. Initial cold timeout preserved; unchanged warm focused case passed within established 20-second case budget with 5-second locators. |
 | 179 | #192 | "Assessment" naming overlap confuses two different features | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 180 | #193 | Sign-in ignores the `next` return URL | fixed_and_verified | Actual session lock creates next; actual Login returns to exact encounter URL including mode=previous and selected practice/site. Five browser checks pass. Destination chart contents and real backend authentication are outside this URL defect proof. |
 | 181 | #196 | Draft recovery is path-dependent and undocumented | fixed_and_verified | Generic and clicked-slot entrypoints share the same appointment draft scope and recover the same stored values. Visible instructions explain review or explicit Start new; confirmed-clear replacement and failure preservation are covered by existing passed interactions. |
-| 182 | #197 | "Checking for a pre-visit note…" loader never resolves | unverified | Original previsit-history request completes or exposes failure/retry; no indefinitely unresolved loader. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
+| 182 | #197 | "Checking for a pre-visit note…" loader never resolves | fixed_and_verified | Mounted actual previsit component resolves successful empty read, shows persisted note after reload, replaces failed and stalled reads with actionable Retry, and resolves the retried request. Actual 30-second API transport deadline exercised using installed browser clock. Three focused cases passed with source and dependency hashes unchanged; existing exact staff GET identity/attestation backend proof reused. Initial CSRF fixture failure preserved; only missing setup corrected. |
 | 183 | #198 | Chart fields render read-only after "Save new revision" until reload | mixed | The actual chart parent refresh/rehydration callback after Save new revision is absent from the fixture. |
 | 184 | #199 | "Save clinic profile" fails with an unresolvable duplicate-record conflict | blocked | Authorized inventory packet libfile_69c7495cf27c8191b2481df86014630a with inherited-profile save/replay conflict evidence. |
 | 185 | #200 | Signed notes cannot be reopened/amended — revision history is display-only | mixed | Connected amendment entry/revision-history reload needs full UI evidence; backend success does not prove all missing controls. |
@@ -249,7 +249,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 210 | #27 | Pre-finalization invite gate | fixed_and_verified | Actual Workspace allows Employees navigation at an unfinished selected site. Actual invitation form succeeds; real backend explicitly verifies finalized=false and persists a creation receipt/token, followed by revoke and replacement. Existing navigation proof composes with focused current checks. |
 | 211 | #41 | Patient registration silently fails (CRITICAL) | fixed_and_verified | Actual existing registration handlers show refusal and require a confirmed receipt before navigation. Real registration POST and exact replay create one patient and committed receipt; repeated patient detail and site-directory GETs verify persistence. |
 | 212 | #42 | Billing credit/adjustment 500s and sticks the dialog | fixed_and_verified | Actual credit success renders persisted history; actual error/reconciliation/reopen preserves amount/reason and exact retry identity then closes on confirmation. Real backend credit persistence, replay, bounds and atomic rollback proof retained. |
-| 213 | #52 | Visit-type "Disable" does nothing; scheduling policy save permission-blocked | unverified | Visit-type disabling and scheduling-policy permission/save both verified for original owner. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
+| 213 | #52 | Visit-type "Disable" does nothing; scheduling policy save permission-blocked | fixed_and_verified | Actual visit-type Deactivate sends one exact PATCH, refreshes to Inactive and remains inactive after reload. Authorized site policy saves expected revision and both flags, refreshes the confirmed revision and persists after reload. Two existing real backend cases passed (19 assertions) including retirement, stale revision and unauthorized denial. Historical owner grant cause remains unknown. |
 | 214 | #54 | Visitor demo tenant isolation | unverified | Two independent visitor sessions have intended tenant isolation and reset boundaries; this54 is NOT statement generation. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 215 | #61 | Waitlist add disabled — zero clinicians configured | fixed_and_verified | Actual configured staff controls enable Add and preserve exact selected patient/site/clinician/type/window through queue reload. Real Rails POST, database reload and two authenticated GETs verify durable creation with eligible configuration. |
 | 216 | #69 | /owner returns 502 Bad Gateway | unverified | Original owner credential/PIN gateway sequence reaches workspace without502 or session-verification failure. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |

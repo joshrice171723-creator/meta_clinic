@@ -1,16 +1,16 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T21:16:17.207117+00:00",
-    "source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
+    "generated_at": "2026-10-01T21:36:58.571025+00:00",
+    "source_revision": "f8aec7a56a9f52a1f441e7cd6dec319f0993cc15",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 148,
-    "remaining": 93,
+    "closed": 151,
+    "remaining": 90,
     "counts": {
-      "mixed": 43,
-      "fixed_and_verified": 140,
+      "mixed": 42,
+      "fixed_and_verified": 143,
       "deferred": 5,
-      "unverified": 26,
+      "unverified": 24,
       "blocked": 19,
       "proven_invalid": 8
     },
@@ -1087,6 +1087,70 @@
         ],
         "integrated_source_revision": "577d2eda1e44de1d6230c5ebbf3360f0e9468e3b",
         "evidence_label": "whole_current_local_claim_verified; existing_valid_evidence_reused_where_stated"
+      },
+      {
+        "key": "52 | Visit-type \"Disable\" does nothing; scheduling policy save permission-blocked",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical cause and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual visit-type Deactivate sends one exact PATCH, refreshes to Inactive and remains inactive after reload. Authorized site policy saves expected revision and both flags, refreshes the confirmed revision and persists after reload. Two existing real backend cases passed (19 assertions) including retirement, stale revision and unauthorized denial. Historical owner grant cause remains unknown."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup52-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup52-state.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-874195a7892c-20261001T212814Z-d729e8\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "f8aec7a56a9f52a1f441e7cd6dec319f0993cc15",
+        "evidence_label": "whole_current_local_claim_verified; passing_source_equivalent_evidence_reused"
+      },
+      {
+        "key": "191 | Enabled \"Create plan\" is a dead end that always fails on save",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local claim verified; historical cause and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual facility-qualified open-encounter Goals care-plan dialog sends exact create payload, receives confirmed revision, refreshes readback and survives full reload with one POST. Existing source-equivalent backend proof verifies invalid completed/no-facility contexts cannot mutate and valid creation persists revision. Existing eligibility checks retained. Initial cold timeout preserved; unchanged warm focused case passed within established 20-second case budget with 5-second locators."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\countplan191.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-191-plan-save-warm-browser-874195a7892c.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-191-plan-save-warm-browser-874195a7892c-stage.json"
+        ],
+        "integrated_source_revision": "f8aec7a56a9f52a1f441e7cd6dec319f0993cc15",
+        "evidence_label": "whole_current_local_claim_verified; passing_source_equivalent_evidence_reused"
+      },
+      {
+        "key": "197 | \"Checking for a pre-visit note…\" loader never resolves",
+        "disposition": "fixed_and_verified",
+        "scope": "Complete current local loader behavior verified; historical hosted cause and acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Mounted actual previsit component resolves successful empty read, shows persisted note after reload, replaces failed and stalled reads with actionable Retry, and resolves the retried request. Actual 30-second API transport deadline exercised using installed browser clock. Three focused cases passed with source and dependency hashes unchanged; existing exact staff GET identity/attestation backend proof reused. Initial CSRF fixture failure preserved; only missing setup corrected."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\previsit197.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-197-browser-f8aec7.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-197-browser-f8aec7-stage.json"
+        ],
+        "integrated_source_revision": "f8aec7a56a9f52a1f441e7cd6dec319f0993cc15",
+        "evidence_label": "whole_current_local_claim_verified; passing_source_equivalent_backend_evidence_reused"
       }
     ]
   },
@@ -4801,25 +4865,24 @@
       "key": "191 | Enabled \"Create plan\" is a dead end that always fails on save",
       "title": "Enabled \"Create plan\" is a dead end that always fails on save",
       "source_line": 371,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical cause and hosted acceptance remain separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Existing care-plan eligibility UI correction checked in six browser cases; later clinical backend checks pass."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original valid open/facility-qualified save workflow and full UI-to-persistence mapping are not fully proven."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual facility-qualified open-encounter Goals care-plan dialog sends exact create payload, receives confirmed revision, refreshes readback and survives full reload with one POST. Existing source-equivalent backend proof verifies invalid completed/no-facility contexts cannot mutate and valid creation persists revision. Existing eligibility checks retained. Initial cold timeout preserved; unchanged warm focused case passed within established 20-second case budget with 5-second locators."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original valid open/facility-qualified save workflow and full UI-to-persistence mapping are not fully proven.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\countplan191.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-191-plan-save-warm-browser-874195a7892c.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-191-plan-save-warm-browser-874195a7892c-stage.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -4892,14 +4955,24 @@
       "key": "197 | \"Checking for a pre-visit note…\" loader never resolves",
       "title": "\"Checking for a pre-visit note…\" loader never resolves",
       "source_line": 379,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local loader behavior verified; historical hosted cause and acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Mounted actual previsit component resolves successful empty read, shows persisted note after reload, replaces failed and stalled reads with actionable Retry, and resolves the retried request. Actual 30-second API transport deadline exercised using installed browser clock. Three focused cases passed with source and dependency hashes unchanged; existing exact staff GET identity/attestation backend proof reused. Initial CSRF fixture failure preserved; only missing setup corrected."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Original previsit-history request completes or exposes failure/retry; no indefinitely unresolved loader. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\previsit197.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-197-browser-f8aec7.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\issue-197-browser-f8aec7-stage.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5604,14 +5677,25 @@
       "key": "52 | Visit-type \"Disable\" does nothing; scheduling policy save permission-blocked",
       "title": "Visit-type \"Disable\" does nothing; scheduling policy save permission-blocked",
       "source_line": 445,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Complete current local claim verified; historical cause and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual visit-type Deactivate sends one exact PATCH, refreshes to Inactive and remains inactive after reload. Authorized site policy saves expected revision and both flags, refreshes the confirmed revision and persists after reload. Two existing real backend cases passed (19 assertions) including retirement, stale revision and unauthorized denial. Historical owner grant cause remains unknown."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Visit-type disabling and scheduling-policy permission/save both verified for original owner. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup52-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\efficient-wave\\setup52-state.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-874195a7892c-20261001T212814Z-d729e8\\focused-closeout-batch-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
