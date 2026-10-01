@@ -416,3 +416,43 @@ it("#120 labels write-off submission separately from invoice void", async () => 
     await page.close();
   }
 }, 15000);
+
+it("#121 shows action-specific credit write-off and void explanations", async () => {
+  const { page, dialog } = await openAdjustableInvoice();
+  try {
+    expect(
+      await dialog.getByText(/A credit reduces recorded charges/).count(),
+    ).toBe(1);
+    await dialog
+      .getByRole("button", {
+        name: "Write off bad debt · available USD 50.00",
+        exact: true,
+      })
+      .click();
+    expect(
+      await dialog.getByText(/A write-off reduces unpaid bad debt/).count(),
+    ).toBe(1);
+    expect(
+      await dialog.getByText(/A credit reduces recorded charges/).count(),
+    ).toBe(0);
+    await dialog
+      .getByRole("button", {
+        name: "Void untouched unpaid invoice",
+        exact: true,
+      })
+      .click();
+    expect(
+      await dialog
+        .getByText(/Voiding cancels an untouched unpaid invoice/)
+        .count(),
+    ).toBe(1);
+    expect(
+      await dialog.getByText(/A credit reduces recorded charges/).count(),
+    ).toBe(0);
+    expect((await requests(page)).filter((r) => r.method !== "GET")).toEqual(
+      [],
+    );
+  } finally {
+    await page.close();
+  }
+}, 15000);
