@@ -310,7 +310,15 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       requested_display: "Synthetic specialist review", destination: "Synthetic specialty clinic"
     }, "closure-referral-create")
     lab_order = fulfillment_order("lab", "closure-referral-lab-order")
-    lab_report = fulfillment_lab_report(lab_order, "closure-referral-lab-report")
+    assert_no_difference "Clinic::Care::LabReport.count" do
+      assert_raises(Clinic::Authorization::Denied) do
+        fulfillment_lab_report(lab_order, "closure-referral-denied-lab-report")
+      end
+    end
+    lab_writer = staff_user("referral-lab-writer", [ "patients.read" ])
+    grant_permissions!(@practice.memberships.find_by!(user: lab_writer), "observations.write",
+      scope_kind: "site", site: @site)
+    lab_report = fulfillment_lab_report(lab_order, "closure-referral-lab-report", actor: lab_writer)
     assert_no_difference "Clinic::Care::ClinicalPlanLink.count" do
       post "#{workspace_path(@patient)}/clinical_plan_workspace/fulfillment_links",
         params: { clinical_plan_link: { source_kind: "service_request", source_revision_id: referral.fetch("id"),
@@ -916,8 +924,8 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     order
   end
 
-  def fulfillment_lab_report(order, key)
-    Clinic::Care::LabReports.create(practice: @practice, actor: @user, patient: @patient,
+  def fulfillment_lab_report(order, key, actor: @user)
+    Clinic::Care::LabReports.create(practice: @practice, actor:, patient: @patient,
       request_key: key, confirmed_patient: true, source_name: "Synthetic fulfillment laboratory",
       external_report_id: key, service_request_revision_id: order.id,
       specimen: { specimen_identifier: key, specimen_type_code: "synthetic-specimen",
