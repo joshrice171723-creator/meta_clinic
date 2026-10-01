@@ -14,7 +14,7 @@ module Clinic
           entries: entries.limit(100).map { |entry| Waitlist.serialize(entry) }, total: total,
           ranking: "First requested, then entry ID; no inferred clinical priority.",
           sites: sites.map { |site| { id: site.id, name: site.name } },
-          clinicians: current_practice.clinician_profiles.order(:id).map { |item| { id: item.id, name: item.display_name } },
+          clinicians: current_practice.clinician_profiles.order(:id).map { |item| { id: item.id, name: item.display_name.presence || item.reference.presence || "Clinician profile ##{item.id}" } },
           visit_types: current_practice.visit_types.active.order(:id).map { |item| { id: item.id, name: item.code } },
           cancellations: cancelled.map { |item| { id: item.id, status: item.status, site_id: item.site_id,
             clinician_id: item.booked_clinician_id, starts_at: item.starts_at.iso8601(6), ends_at: item.ends_at.iso8601(6) } }

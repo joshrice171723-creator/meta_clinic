@@ -48,6 +48,65 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     ).count
   end
 
+  test "capacity rejection cannot create or masquerade as an earlier completed appointment" do
+    practice = @own.fetch(:practice)
+    practice.update!(timezone: "America/Chicago")
+    grant_permissions!(practice.memberships.find_by!(user: @own.fetch(:user)), "appointments.read")
+    prior = practice.appointments.create!(patient: @own.fetch(:patient), site: @own.fetch(:site),
+      booked_clinician: @own.fetch(:clinician), visit_type: @own.fetch(:visit_type),
+      starts_at: Time.iso8601("2026-09-28T09:00:00-05:00"),
+      ends_at: Time.iso8601("2026-09-28T09:30:00-05:00"), status: "completed")
+    prior_attributes = prior.attributes
+    payload = appointment_payload(@own, request_key: "muse-179-capacity-denied").deep_merge(
+      appointment: { starts_at: "2026-09-30T10:00:00-05:00", ends_at: "2026-09-30T10:30:00-05:00" }
+    )
+
+    # The tenant has Thursday capacity only; the requested Wednesday is denied.
+    assert_no_difference [ -> { practice.appointments.count }, -> { Clinic::OperationReceipt.count } ] do
+      submit "/api/clinic/appointments", payload
+      assert_response :unprocessable_entity
+      assert_equal "This time is outside the clinician's capacity template for this site.", response.parsed_body.fetch("error")
+      assert_nil response.parsed_body["appointment"]
+    end
+    assert_equal prior_attributes, prior.reload.attributes
+    get "/api/clinic/appointments", params: { from_date: "2026-09-28", through_date: "2026-09-30" }, headers: @headers
+    assert_response :success
+    assert_equal [ prior.id ], response.parsed_body.fetch("appointments").pluck("id")
+
+    # A deliberate configuration correction permits the same intent. Verify
+    # its identity and instants through an independent server read, not a row label.
+    Clinic::Scheduling::CapacityRule.create!(practice: practice, site: @own.fetch(:site),
+      clinician: @own.fetch(:clinician), kind: "weekly", weekday: 3,
+      start_minute: 600, end_minute: 630, active: true)
+    assert_difference -> { practice.appointments.count }, 1 do
+      submit "/api/clinic/appointments", payload
+      assert_response :created
+    end
+    booked_id = response.parsed_body.fetch("appointment").fetch("id")
+    assert_not_equal prior.id, booked_id
+    receipt = Clinic::OperationReceipt.find_by!(practice: practice, operation_code: "appointments.book",
+      request_key: "muse-179-capacity-denied")
+    assert_equal booked_id.to_s, receipt.resource_id.to_s
+    get "/api/clinic/appointments/#{booked_id}", headers: @headers
+    assert_response :success
+    booked = response.parsed_body.fetch("appointment")
+    assert_equal @own.fetch(:patient).id, booked.fetch("patient_id")
+    assert_equal @own.fetch(:site).id, booked.fetch("site_id")
+    assert_equal "scheduled", booked.fetch("status")
+    assert_equal Time.iso8601("2026-09-30T15:00:00Z"), Time.iso8601(booked.fetch("starts_at"))
+    assert_equal Time.iso8601("2026-09-30T15:30:00Z"), Time.iso8601(booked.fetch("ends_at"))
+    assert_equal prior_attributes, prior.reload.attributes
+
+    # A stale request key cannot silently return the old result for new times.
+    assert_no_difference -> { practice.appointments.count } do
+      submit "/api/clinic/appointments", payload.deep_merge(appointment: {
+        starts_at: "2026-09-28T09:00:00-05:00", ends_at: "2026-09-28T09:30:00-05:00"
+      })
+      assert_response :conflict
+      assert_equal "idempotency_conflict", response.parsed_body.fetch("code")
+    end
+  end
+
   test "legacy appointment creation remains available without a request key" do
     assert_difference -> { @own.fetch(:practice).appointments.count }, 1 do
       submit "/api/clinic/appointments", appointment_payload(@own).except(:request_key)
@@ -265,6 +324,8 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
       duration_minutes: 30, modality: "either")
     offering.offering_sites.create!(practice: practice, site: tenant.fetch(:site))
     offering.update!(status: "published", published_at: Time.current)
+    Clinic::Scheduling::ResourceCompatibility.create!(practice: practice, site: tenant.fetch(:site), service_offering: offering,
+      written_by_membership: practice.memberships.find_by!(user: tenant.fetch(:user)), revision: 1, mode: "not_required")
     offering
   end
 
@@ -275,7 +336,7 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     membership = practice.memberships.create!(user:)
     grant_permissions!(membership, "appointments.book")
     patient = practice.patients.create!(display_name: "Appointment create #{label} patient", reference: "CREATE-#{label.upcase}")
-    site = practice.sites.create!(code: "CREATE-#{label.upcase}")
+    site = practice.sites.create!(code: "CREATE-#{label.upcase}", status: "active")
     clinician = practice.clinician_profiles.create!(membership:, display_name: "Appointment create #{label} clinician")
     visit_type = practice.visit_types.create!(code: "CREATE-#{label.upcase}-VISIT")
     Clinic::Scheduling::CapacityRule.create!(practice:, site:, clinician:, kind: "weekly", weekday: 4,

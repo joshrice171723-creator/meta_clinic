@@ -47,11 +47,31 @@ class ClinicPatientNameLookupS1Test < ActionDispatch::IntegrationTest
     assert_equal [ @patient.id ], response.parsed_body.fetch("patients").pluck("id")
   end
 
+  test "booking name queries immediately find synthetic names independently of their references" do
+    mercer = @practice.patients.create!(display_name: "SYN_Mercer, Alex", reference: "LOOKUP-111-A")
+    vale = @practice.patients.create!(display_name: "SYN_Vale, Briar", reference: "LOOKUP-111-B")
+    queries = {
+      "SYN" => [ mercer.id, vale.id ], "Mercer" => [ mercer.id ],
+      "SYN_Mercer" => [ mercer.id ], "SYN_Mercer, Alex" => [ mercer.id ],
+      "Alex" => [ mercer.id ], "Vale" => [ vale.id ],
+      "SYN_Vale" => [ vale.id ], "Briar" => [ vale.id ]
+    }
+    # Repeat through the actual authorized endpoint; callbacks must have indexed
+    # names synchronously, with no dependency on a matching clinic reference.
+    2.times do
+      queries.each do |query, expected_ids|
+        get "/api/clinic/patients/lookup", params: { q: query }, headers: @headers
+        assert_response :success
+        assert_equal expected_ids, response.parsed_body.fetch("patients").pluck("id"), query
+      end
+    end
+  end
+
   test "identity-only lookup resolves an exact local id without widening chart access" do
     get "/api/clinic/patients/lookup", params: { id: @patient.id }, headers: @headers
     assert_response :success
     assert_equal [ @patient.id ], response.parsed_body.fetch("patients").pluck("id")
-    assert_equal %w[date_of_birth display_name id phone_hint reference],
+    assert_equal %w[date_of_birth display_name id phone_hint primary_site_id reference],
       response.parsed_body.fetch("patients").sole.keys.sort
 
     get "/api/clinic/patients/#{@patient.id}", headers: @headers
