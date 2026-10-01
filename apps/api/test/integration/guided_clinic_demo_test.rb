@@ -273,7 +273,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     first_id = enter_lesson_for(first_session, "sandbox").fetch("id")
     second_id = enter_lesson_for(second_session, "sandbox").fetch("id")
     assert_equal first_id, second_id
-    first_session.post "/api/demo/reset", params: { all: true },
+    first_session.post "/api/demo/run/reset", params: { all: true },
       headers: csrf_headers_for(first_session), as: :json
     assert_equal 200, first_session.response.status
     second_session.get "/api/demo/run", headers: @headers
