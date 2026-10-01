@@ -328,10 +328,12 @@ export function slotBookingAriaLabel({
 }
 
 export function ClinicSchedule({
+  active = true,
   initialPatientId,
   canBook,
   renderBooking,
 }: {
+  active?: boolean;
   initialPatientId?: number;
   canBook: boolean;
   renderBooking: (
@@ -1406,7 +1408,7 @@ export function ClinicSchedule({
         </>
       )}
       <Dialog
-        open={Boolean(currentBooking)}
+        open={active && Boolean(currentBooking)}
         maxWidth="md"
         fullWidth
         aria-labelledby="schedule-appointment-title"
@@ -1430,7 +1432,7 @@ export function ClinicSchedule({
         </DialogContent>
       </Dialog>
       <Dialog
-        open={Boolean(selected)}
+        open={active && Boolean(selected)}
         onClose={() => !busy && setSelected(undefined)}
         fullWidth
         maxWidth="sm"
@@ -1562,7 +1564,7 @@ export function ClinicSchedule({
         </DialogActions>
       </Dialog>
       <Dialog
-        open={cancelConfirmationOpen && Boolean(selected)}
+        open={active && cancelConfirmationOpen && Boolean(selected)}
         onClose={() => !busy && setCancelConfirmationOpen(false)}
         aria-labelledby="cancel-appointment-title"
         aria-describedby="cancel-appointment-description"
@@ -1598,6 +1600,7 @@ export function ClinicSchedule({
         </DialogActions>
       </Dialog>
       <SeriesManagement
+        active={active}
         seriesId={seriesId}
         canChange={canBook}
         canCancel={Boolean(context.capabilities.appointments_status_transition)}

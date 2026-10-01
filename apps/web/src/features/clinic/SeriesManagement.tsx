@@ -35,7 +35,8 @@ type Change = {
 };
 type Attempt = { action: "change_future" | "cancel_future"; body: object };
 
-export function SeriesManagement({ seriesId, canChange, canCancel, onClose, onChanged }: {
+export function SeriesManagement({ active = true, seriesId, canChange, canCancel, onClose, onChanged }: {
+  active?: boolean;
   seriesId: number | null;
   canChange: boolean;
   canCancel: boolean;
@@ -141,7 +142,7 @@ export function SeriesManagement({ seriesId, canChange, canCancel, onClose, onCh
   };
 
   return (
-    <Dialog open={seriesId !== null} onClose={close} fullWidth maxWidth="sm">
+    <Dialog open={active && seriesId !== null} onClose={close} fullWidth maxWidth="sm">
       <DialogTitle>Recurring appointment series</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>

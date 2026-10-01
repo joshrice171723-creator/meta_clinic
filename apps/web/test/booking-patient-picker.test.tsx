@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { BookingPatientPicker } from "../src/features/clinic/BookingPatientPicker";
+import { applyResourceResultIfActive } from "../src/shared/ui";
 import type { Patient } from "../src/api/contracts";
 
 const patient: Patient = {
@@ -78,6 +79,43 @@ describe("booking patient identity", () => {
     expect(input.onSelect).toHaveBeenCalledWith(replacement);
     expect(input.onEditingChange).toHaveBeenCalledWith(false);
     expect(picker.props.isOptionEqualToValue(patient, replacement)).toBe(false);
+  });
+  it("preserves server name matches without a second reference or label filter", () => {
+    const input = { ...props(), patient: undefined, query: "mercer" };
+    const picker =
+      BookingPatientPicker(input).props.children[1].props.children[0];
+    const matches = [
+      { ...patient, display_name: "SYN_Mercer, Alex", reference: "" },
+    ];
+    expect(picker.props.filterOptions(matches, { inputValue: "mercer" })).toBe(
+      matches,
+    );
+    picker.props.onInputChange(null, "SYN_Mercer, Alex", "input");
+    expect(input.onQueryChange).toHaveBeenCalledWith("SYN_Mercer, Alex");
+    input.onQueryChange.mockClear();
+    picker.props.onInputChange(null, "", "reset");
+    expect(input.onQueryChange).not.toHaveBeenCalled();
+  });
+  it("does not let an older empty search erase a newer patient match", async () => {
+    const older = new AbortController();
+    const current = new AbortController();
+    let finishOlder!: (patients: Patient[]) => void;
+    let visible: Patient[] = [];
+    const oldResponse = new Promise<Patient[]>((resolve) => {
+      finishOlder = resolve;
+    });
+    const pending = oldResponse.then((result) =>
+      applyResourceResultIfActive(older.signal, result, (patients) => {
+        visible = patients;
+      }),
+    );
+    older.abort();
+    applyResourceResultIfActive(current.signal, [patient], (patients) => {
+      visible = patients;
+    });
+    finishOlder([]);
+    await pending;
+    expect(visible).toEqual([patient]);
   });
   it("does not invent a full name for a short recorded name", () => {
     const html = renderToStaticMarkup(

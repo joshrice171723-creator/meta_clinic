@@ -293,8 +293,8 @@ export function appointmentDraftRecoveryMessage(
   const age = updatedAt ? Date.now() - Date.parse(updatedAt) : Number.NaN;
   const stale = Number.isFinite(age) && age >= 24 * 60 * 60 * 1_000;
   return stale
-    ? `Recovered stale appointment draft saved ${new Date(updatedAt!).toLocaleString()}. Its patient, time, and scheduling details are from an earlier session; review them before scheduling, or start a new appointment.`
-    : "Recovered appointment draft from an earlier session: review its patient, time, and scheduling details before scheduling, or start a new appointment to clear it.";
+    ? `Recovered stale appointment draft saved ${new Date(updatedAt!).toLocaleString()}. Review its patient, time, and scheduling details before scheduling, or start a new appointment.`
+    : "Recovered appointment draft: review its patient, time, and scheduling details before scheduling, or start a new appointment to clear it.";
 }
 
 /**
@@ -872,8 +872,11 @@ function BookingFormEditor({
         initialSlot.site_id !== Number(resumedAttempt.site_id)),
   );
   const effectiveDraft = boundBooking.draft;
+  // The draft hook retains its recovered snapshot after clearing. Dismiss its
+  // notices only after a confirmed reset, including after a successful booking.
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const draftRecoveryMessage = appointmentDraftRecoveryMessage(
-    initialDraft,
+    recoveryDismissed ? null : initialDraft,
     workingDraft.updatedAt,
   );
   const recoveredDraftDiffersFromSlot = Boolean(
@@ -1349,7 +1352,7 @@ function BookingFormEditor({
         },
       });
       setAssignmentNotice(
-        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} ${repeat === "weekly" ? "for this series period. Preview again before scheduling." : "for this slot. Retry booking."}`,
+        `${selectedClinician.display_name || "Clinician"} is assigned to ${selectedSite.code} ${repeat === "weekly" ? "for this series period. Preview again before scheduling." : "for this slot. Retry booking."} Capacity templates and site hours still apply.`,
       );
     } catch (error) {
       setSubmitError(
@@ -1369,6 +1372,7 @@ function BookingFormEditor({
   const scheduledResourceAppointments =
     scheduledResources.data?.appointments.filter((appointment) => {
       if (!roomId && !clinicianId) return false;
+      if (!["scheduled", "confirmed"].includes(appointment.status)) return false;
       return (
         appointment.room_id === Number(roomId) ||
         appointment.booked_clinician_id === Number(clinicianId)
@@ -1383,6 +1387,10 @@ function BookingFormEditor({
       );
   };
   const reset = () => {
+    setRecoveryDismissed(true);
+    setSubmitError("");
+    setDraftCloseFailed(false);
+    setAssignmentNotice("");
     setBaseline(defaultDraft);
     setPatientId(defaultDraft.patientId);
     setReplacementPatientId(
@@ -1697,6 +1705,12 @@ function BookingFormEditor({
   const seriesPreviewIsCurrent =
     Boolean(seriesPreview) && seriesPreviewPayload === seriesPreviewKey();
   const previewSeries = async () => {
+    if (firstAvailable || !selectedClinician) {
+      setSubmitError(
+        "First available can schedule one appointment only. Choose a configured clinician before creating a recurring series.",
+      );
+      return;
+    }
     if (!patientId || !siteId || !clinicianId || !visitTypeId || intervalError || offeringIssue) {
       setSubmitError("Complete the patient, site, clinician, visit type, and valid time before previewing visits.");
       return;
@@ -1740,6 +1754,12 @@ function BookingFormEditor({
   };
   const scheduleSeries = async () => {
     if (inFlight.current || busy) return;
+    if (!seriesAttempt && (firstAvailable || !selectedClinician)) {
+      setSubmitError(
+        "First available can schedule one appointment only. Choose a configured clinician before creating a recurring series.",
+      );
+      return;
+    }
     if (!seriesAttempt &&
         (!seriesPreview || seriesPreview.some((row) => row.conflict) ||
           seriesPreviewPayload !== seriesPreviewKey())) {
@@ -1802,7 +1822,16 @@ function BookingFormEditor({
     }
   };
   return (
-    <MuiCard variant="outlined" sx={{ overflow: "visible" }}>
+    <MuiCard
+      variant="outlined"
+      sx={{ overflow: "visible" }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.defaultPrevented && onClose) {
+          event.stopPropagation();
+          void saveAndClose();
+        }
+      }}
+    >
       <CardContent
         sx={{ p: { xs: 2, sm: 3 }, "&:last-child": { pb: { xs: 2, sm: 3 } } }}
       >
@@ -1868,7 +1897,7 @@ function BookingFormEditor({
               : draftRecoveryMessage}
           </Alert>
         )}
-        {resumedAttemptDiffersFromSlot && resumedAttempt && (
+        {!recoveryDismissed && resumedAttemptDiffersFromSlot && resumedAttempt && (
           <Alert severity="warning">
             This form is resuming a saved request for {clinicDateTime(
               resumedAttempt.starts_at,
@@ -1877,7 +1906,7 @@ function BookingFormEditor({
             reconcile it, then select the new slot again.
           </Alert>
         )}
-        {initialHoldDeferred && hasWorkingDraft && (
+        {!recoveryDismissed && initialHoldDeferred && hasWorkingDraft && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             A saved appointment draft is open. Resolve its pending request or
             clear that draft before booking the selected hold.
@@ -1954,7 +1983,7 @@ function BookingFormEditor({
             setSubmitError("");
             setAssignmentNotice("");
             if (repeat === "weekly" || seriesAttempt) {
-              if (firstAvailable) {
+              if (firstAvailable && !seriesAttempt) {
                 setSubmitError(
                   "First available can schedule one appointment only. Add a clinician before creating a recurring series.",
                 );
@@ -2246,7 +2275,7 @@ function BookingFormEditor({
                 value={endsAt}
                 error={Boolean(intervalError)}
                 helperText={
-                  intervalError || "End time must follow the start time."
+                  intervalError || "Use YYYY-MM-DDTHH:mm in your device’s time zone."
                 }
                 onChange={(event) => setEndsAt(event.target.value)}
                 placeholder="YYYY-MM-DDTHH:mm"
@@ -2638,6 +2667,7 @@ function BookingFormEditor({
                       <TextField
                         type="number"
                         label="Every (weeks)"
+                        sx={{ flex: 1, minWidth: 140 }}
                         value={repeatIntervalWeeks}
                         onChange={(event) => setRepeatIntervalWeeks(Number(event.target.value))}
                         slotProps={{ htmlInput: { min: 1, max: 4, step: 1 } }}
@@ -2646,6 +2676,7 @@ function BookingFormEditor({
                       <TextField
                         type="number"
                         label="Number of visits"
+                        sx={{ flex: 1, minWidth: 140 }}
                         value={repeatCount}
                         onChange={(event) => setRepeatCount(Number(event.target.value))}
                         slotProps={{ htmlInput: { min: 2, max: 12, step: 1 } }}
@@ -2746,10 +2777,10 @@ function BookingFormEditor({
                       Checking scheduled resource activity…
                     </Typography>
                   ) : scheduledResourceAppointments.length === 0 ? (
-                    <Alert severity="success" variant="outlined">
+                    <Alert severity="info" variant="outlined">
                       No scheduled appointments use the selected resource on{" "}
-                      {resourceDate}. Final availability is confirmed when you
-                      schedule.
+                      {resourceDate}. Clinician assignment, capacity templates,
+                      and site hours are checked when you schedule.
                     </Alert>
                   ) : (
                     <Alert severity="info" variant="outlined">
@@ -3206,7 +3237,8 @@ export function ScheduleView({
 
 export function Schedule({
   search = window.location.search,
-}: { search?: string } = {}) {
+  active = true,
+}: { search?: string; active?: boolean } = {}) {
   const context = useClinic();
   const replacementPatientId = Number(
     new URLSearchParams(search).get("patient_id"),
@@ -3218,6 +3250,7 @@ export function Schedule({
   return (
     <ClinicSchedule
       key={initialPatientId ?? "schedule"}
+      active={active}
       initialPatientId={initialPatientId}
       canBook={bookingAvailability(context.capabilities).visible}
       renderBooking={(

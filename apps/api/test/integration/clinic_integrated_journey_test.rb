@@ -434,6 +434,29 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
         [ missed.reload.status, booked.state, replay.appointment_id,
           practice.appointments.where(id: booked.appointment_id, patient:).count,
           Clinic::PatientPortal::WaitlistReplyReceipt.where(identity:, waitlist_entry: waitlist).count ]
+      accepted_appointment = practice.appointments.find(booked.reload.appointment_id)
+      assert_equal [ patient.id, site.id, clinician_profile.id, visit_type.id, "scheduled" ],
+        [ accepted_appointment.patient_id, accepted_appointment.site_id, accepted_appointment.booked_clinician_id,
+          accepted_appointment.visit_type_id, accepted_appointment.status ]
+      assert_equal waitlist.offer_starts_at, accepted_appointment.starts_at
+      assert_equal waitlist.offer_ends_at, accepted_appointment.ends_at
+
+      # Muse 78: an expired offer cannot create a booking or acceptance receipt.
+      expired = Clinic::Scheduling::WaitlistEntry.create!(
+        practice:, patient:, site:, clinician: clinician_profile, visit_type:,
+        earliest_at: 1.hour.from_now, latest_at: 1.day.from_now, duration_minutes: 30,
+        state: "offered", offer_starts_at: 5.hours.from_now, offer_ends_at: 5.hours.from_now + 30.minutes,
+        offer_expires_at: Current.business_time, reason: "Synthetic expired acceptance"
+      )
+      before_expiry_reply = expired.attributes
+      assert_no_difference [ -> { practice.appointments.count }, -> { Clinic::PatientPortal::WaitlistReplyReceipt.count } ] do
+        error = assert_raises(ArgumentError) do
+          Clinic::Scheduling::Waitlist.portal_reply(entry: expired, identity:, actor: patient_user,
+            action: "accept", expected_version: expired.lock_version, request_key: "clinic-day-expired-accept")
+        end
+        assert_match "expired", error.message
+      end
+      assert_equal before_expiry_reply, expired.reload.attributes
       assert_raises(Clinic::Idempotency::Conflict) do
         Clinic::Scheduling::Waitlist.portal_reply(
           entry: waitlist, identity:, actor: patient_user, action: "decline", expected_version: offered_version,

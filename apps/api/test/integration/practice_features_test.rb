@@ -269,6 +269,32 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     assert_equal "behavioral-health-initial-v1", starter.dig("visits", "psychiatric_evaluation", "form_id")
   end
 
+  test "Muse 73 previsit forms follow the appointment site and visit type without a booking chooser" do
+    practice = @membership.practice
+    sites = %w[MAP-WEIGHT MAP-BEHAVIOR].map { |code| practice.sites.create!(code: code) }
+    starters = sites.zip(%w[weight_loss behavioral_health]).map do |site, clinic_type|
+      put "/api/clinic/practice_features", params: {
+        features: profile_payload(site_id: site.id, clinic_type: clinic_type, service_scope: [])
+      }, headers: csrf_headers, as: :json
+      assert_response :success
+      response.parsed_body.dig("features", "starter_profile")
+    end
+    sites.zip(starters).each do |site, starter|
+      %w[initial follow_up].each do |kind|
+        definition = starter.fetch("visits").fetch(kind)
+        appointment = practice.appointments.new(site: site, visit_type_id: definition.fetch("visit_type_id"))
+        form = Clinic::Care::PrevisitIntake.form_for(practice: practice, appointment: appointment)
+        assert_equal definition.fetch("form_id"), form.fetch(:id)
+      end
+    end
+    wrong_site = practice.appointments.new(site: sites.last,
+      visit_type_id: starters.first.dig("visits", "initial", "visit_type_id"))
+    assert_equal Clinic::Care::PrevisitIntake::FORM_ID,
+      Clinic::Care::PrevisitIntake.form_for(practice: practice, appointment: wrong_site).fetch(:id)
+    assert_equal "weight-management-initial-v1", Clinic::Care::PrevisitIntake.form_for(
+      practice: practice, appointment: wrong_site, payload: { "form_id" => "weight-management-initial-v1" }).fetch(:id)
+  end
+
   test "renaming and retiring starter visits preserve IDs forms and customization on reapply" do
     practice = @membership.practice
     payload = profile_payload(clinic_type: "weight_loss")

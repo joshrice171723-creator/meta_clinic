@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { appointmentActions } from "../src/features/clinic/frontDeskModel";
 
 function featureSource(path: string) {
@@ -50,4 +50,35 @@ describe("appointment safety guards", () => {
     } as Parameters<typeof appointmentActions>[0];
     expect(appointmentActions(appointment).canMarkNoShow).toBe(false);
   });
+});
+
+it("Muse 101 no-show eligibility follows time status and encounter readback", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-01T12:00:00Z"));
+  try {
+    const row = {
+      id: 901,
+      patient_id: 801,
+      starts_at: "2026-10-01T12:00:00Z",
+      ends_at: "2026-10-01T12:30:00Z",
+      status: "scheduled",
+      encounter_id: null,
+    } as Parameters<typeof appointmentActions>[0];
+    for (const status of ["scheduled", "confirmed"])
+      expect(appointmentActions({ ...row, status }).canMarkNoShow).toBe(true);
+    expect(
+      appointmentActions({ ...row, starts_at: "2026-10-01T12:00:00.001Z" })
+        .canMarkNoShow,
+    ).toBe(false);
+    expect(
+      appointmentActions({ ...row, starts_at: "invalid" }).canMarkNoShow,
+    ).toBe(false);
+    expect(
+      appointmentActions({ ...row, encounter_id: 902 }).canMarkNoShow,
+    ).toBe(false);
+    for (const status of ["no_show", "cancelled", "completed"])
+      expect(appointmentActions({ ...row, status }).canMarkNoShow).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
 });

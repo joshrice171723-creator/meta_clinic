@@ -9,7 +9,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     @practice = Clinic::Practice.create!(name: "Synthetic Calendar Flow", organization: Organization.create!(name: "Synthetic Calendar Flow"), timezone: "America/Chicago")
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "appointments.read", "appointments.book", "appointments.status_transition", "encounters.write")
-    @site = @practice.sites.create!(code: "CAL")
+    @site = @practice.sites.create!(code: "CAL", status: "active")
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Calendar Clinician")
     @patient = @practice.patients.create!(display_name: "Synthetic Calendar Patient", reference: "CAL-FLOW")
     @type = @practice.visit_types.create!(code: "Initial visit")
@@ -234,6 +234,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     assert_response :created
     appointment_id = response.parsed_body.fetch("appointment").fetch("id")
 
+    original_attributes = @practice.appointments.find(appointment_id).attributes
     block = { capacity: { request_key: "block-over-booking", site_id: @site.id,
       clinician_id: @clinician.id, kind: "block", starts_at: @start.iso8601,
       ends_at: finish.iso8601, reason: "Synthetic clinic closure" } }
@@ -242,7 +243,14 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
       assert_response :created
       assert_equal [ appointment_id ], response.parsed_body.fetch("affected_appointments").map { |item| item.fetch("id") }
     end
-    assert_equal "scheduled", @practice.appointments.find(appointment_id).status
+    block_id = response.parsed_body.fetch("rule").fetch("id")
+    assert_equal original_attributes, @practice.appointments.find(appointment_id).attributes
+    get "/api/clinic/capacity", headers: @headers
+    assert_response :success
+    persisted_block = response.parsed_body.fetch("rules").find { |rule| rule.fetch("id") == block_id }
+    assert_equal "Synthetic clinic closure", persisted_block.fetch("reason")
+    assert_equal @start, Time.iso8601(persisted_block.fetch("starts_at"))
+    assert_equal finish, Time.iso8601(persisted_block.fetch("ends_at"))
 
     post "/api/clinic/capacity", params: block, headers: csrf_headers, as: :json
     assert_response :created
@@ -268,6 +276,16 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     get_calendar
     assert_equal 2, day.fetch("scheduled")
 
+    post "/api/clinic/capacity/#{block_id}/deactivate", params: {
+      capacity: { expected_version: persisted_block.fetch("version") }
+    }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal false, Clinic::Scheduling::CapacityRule.find(block_id).active
+    get "/api/clinic/capacity", headers: @headers
+    assert_response :success
+    assert_not_includes response.parsed_body.fetch("rules").pluck("id"), block_id
+    assert_equal original_attributes, @practice.appointments.find(appointment_id).reload.attributes
+
     revoke_all_permissions!(@membership)
     grant_permissions!(@membership, "appointments.read")
     get "/api/clinic/capacity", headers: @headers
@@ -276,6 +294,48 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     post "/api/clinic/capacity", params: { capacity: block.fetch(:capacity).merge(request_key: "unauthorized-block") },
       headers: csrf_headers, as: :json
     assert_response :forbidden
+  end
+
+  test "Muse 99 blocked time requires a reason and positive interval without persisting invalid rules" do
+    grant_permissions!(@membership, "facilities.write")
+    base = { site_id: @site.id, clinician_id: @clinician.id, kind: "block",
+      starts_at: @start.iso8601, ends_at: (@start + 30.minutes).iso8601, reason: "Synthetic block" }
+    [ base.merge(reason: " "), base.merge(ends_at: @start.iso8601),
+      base.merge(ends_at: (@start - 30.minutes).iso8601) ].each_with_index do |invalid, index|
+      assert_no_difference [ -> { Clinic::Scheduling::CapacityRule.count }, -> { @practice.appointments.count } ] do
+        post "/api/clinic/capacity", params: { capacity: invalid.merge(request_key: "invalid-block-#{index}") },
+          headers: csrf_headers, as: :json
+        assert_response :unprocessable_entity
+      end
+    end
+  end
+
+  test "Muse 101 no show persists through appointment and list readback with eligibility enforced" do
+    %w[scheduled confirmed].each do |status|
+      appointment = @practice.appointments.create!(patient: @patient, site: @site, booked_clinician: @clinician,
+        visit_type: @type, starts_at: Current.business_time - 30.minutes,
+        ends_at: Current.business_time, status: status)
+      original = appointment.attributes.except("status", "updated_at")
+      post "/api/clinic/appointments/#{appointment.id}/transition", params: {
+        transition: { to: "no_show", expected_status: status }
+      }, headers: csrf_headers, as: :json
+      assert_response :success
+      get "/api/clinic/appointments/#{appointment.id}", headers: @headers
+      assert_response :success
+      assert_equal "no_show", response.parsed_body.fetch("appointment").fetch("status")
+      get "/api/clinic/appointments", params: { patient_id: @patient.id }, headers: @headers
+      assert_response :success
+      row = response.parsed_body.fetch("appointments").find { |item| item.fetch("id") == appointment.id }
+      assert_equal "no_show", row.fetch("status")
+      assert_equal original, appointment.reload.attributes.except("status", "updated_at")
+    end
+    future = @practice.appointments.create!(patient: @patient, site: @site, booked_clinician: @clinician,
+      visit_type: @type, starts_at: Current.business_time + 1.hour, ends_at: Current.business_time + 90.minutes, status: "scheduled")
+    post "/api/clinic/appointments/#{future.id}/transition", params: {
+      transition: { to: "no_show", expected_status: "scheduled" }
+    }, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "scheduled", future.reload.status
   end
 
   test "a room hold blocks another clinician's booking and hold until released" do

@@ -567,7 +567,7 @@ function ClinicHome({
           aria-label="Schedule"
         >
           <RouteBoundary>
-            <Schedule search={search} />
+            <Schedule search={search} active={active && view === "schedule"} />
           </RouteBoundary>
         </div>
       )}

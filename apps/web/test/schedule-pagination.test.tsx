@@ -125,6 +125,16 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
       "2026-12-16T15:00:00.000Z",
     );
   });
+  it("keeps the Muse 179 requested day distinct from the reported earlier row", () => {
+    const requested = calendarInstant("2026-09-30", 10, "America/Chicago");
+    const earlier = calendarInstant("2026-09-28", 9, "America/Chicago");
+    expect(requested).toBe("2026-09-30T15:00:00.000Z");
+    expect(earlier).toBe("2026-09-28T14:00:00.000Z");
+    expect(calendarDate(new Date(requested), "America/Chicago")).toBe(
+      "2026-09-30",
+    );
+    expect(Date.parse(requested) - Date.parse(earlier)).toBe(49 * 60 * 60_000);
+  });
   it("gives a room slot one resource label and leaves clinician choice to booking", () => {
     expect(
       slotBookingAriaLabel({
@@ -215,6 +225,19 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
         },
       },
     };
+    // Same-patient recovery retains the original idempotent intent, including
+    // its time. A fresh visible draft must never rewrite an uncertain request.
+    const recovered = bindBookingPatient(
+      { ...draft, startsAt: "2026-09-30T10:00", endsAt: "2026-09-30T10:30" },
+      attempt,
+      true,
+      801,
+    );
+    expect(recovered.attempt).toBe(attempt);
+    expect(recovered.outcomeUnconfirmed).toBe(true);
+    expect(recovered.attempt?.body.appointment.starts_at).toBe(
+      "2026-09-16T14:00:00.000Z",
+    );
     const bound = bindBookingPatient(draft, attempt, true, 802);
     expect(bound.draft.patientId).toBe("802");
     expect(bound.attempt).toBeNull();
