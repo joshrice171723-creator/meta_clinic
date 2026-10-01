@@ -11,10 +11,21 @@ import { Facilities } from '/src/features/clinic/Facilities.tsx';
 import { InvoiceLineEditor } from '/src/features/clinic/InvoiceLineEditor.tsx';
 import { ClinicSchedule } from '/src/features/clinic/ClinicSchedule.tsx';
 import { TrackingBoardView } from '/src/features/clinic/TrackingBoardPage.tsx';
+import { trackingBoardVisitToBoardVisit } from '/src/features/clinic/trackingBoardApi.ts';
 const mode = new URLSearchParams(location.search).get('mode');
 const service = { id: 1, name: 'Synthetic service', description: 'Synthetic description', unit_amount: '50.0', currency: 'USD', active: true, lock_version: 0 };
+const providerVisit = trackingBoardVisitToBoardVisit({
+ id:81,row_type:'encounter',operational_state:'waiting_room',patient_id:71,encounter_id:81,
+ chart_status:'unopened',provider_assignment_available:true,provider:null,
+ patient:{id:71,display_name:'Synthetic Provider Patient',reference:'SYN-PROVIDER-71'},
+ encounter:{id:81,status:'open',started_at:'2026-10-01T11:55:00Z',ended_at:null,
+ site_id:'101',site_code:'ASSIGN',room_id:null,room_code:null},appointment:null
+});
+const providerClinicians = [{id:'api-provider-301',firstName:'',lastName:'',credentials:'',
+ displayName:'Configured synthetic clinician',locationIds:['api-site-101']}];
 createRoot(document.getElementById('root')).render(mode === 'date'
  ? React.createElement(DevelopmentDatePicker, { businessDate: '2026-10-01' })
+ : mode === 'board-provider' ? React.createElement(TrackingBoardView, { visits:[providerVisit], clinicians:providerClinicians, now:'2026-10-01T12:00:00Z', timezone:'UTC', onPersistProvider:async(visit,clinicianId,expectedToken,requestKey)=>{window.__providerAssignment={encounterId:visit.encounterId,patientId:visit.patientId,clinicianId,expectedToken,requestKey};return {token:'401'};} })
  : mode === 'board' ? React.createElement(TrackingBoardView, { visits: [], now: '2026-10-01T12:00:00Z', timezone: 'UTC' })
  : mode === 'schedule' ? React.createElement(ClinicSchedule, { canBook: false, renderBooking: () => null })
  : mode === 'invoice' ? React.createElement(InvoiceLineEditor, { currency: 'USD', onChange() {}, lines: [{ kind: 'catalog', billing_service_id: 1, service_lock_version: 0, service_snapshot: service, quantity: '1' }] })
@@ -275,6 +286,54 @@ it("Muse24 schedule separates the appointment count from its label", async () =>
       "1 appointments · Select an open time to book. Capacity counts clinician time, not additional room capacity.",
     );
     expect(await summary.ariaSnapshot()).toContain("1 appointments ·");
+  } finally {
+    await page.close();
+  }
+});
+
+it("Muse85 configured clinician appears in the actual board assignment dialog", async () => {
+  const page = await open("board-provider");
+  try {
+    await page.getByRole("button", { name: "Assign", exact: true }).dblclick();
+    const dialog = page.getByRole("dialog", {
+      name: "Assign provider",
+      exact: true,
+    });
+    await dialog.waitFor();
+    const select = dialog.getByRole("combobox", {
+      name: "Provider",
+      exact: true,
+    });
+    expect(await select.locator("option").allTextContents()).toEqual([
+      "Unassigned",
+      "Configured synthetic clinician",
+    ]);
+    await select.selectOption("api-provider-301");
+    await dialog
+      .getByRole("button", { name: "Assign provider", exact: true })
+      .click();
+    await dialog.waitFor({ state: "detached" });
+    await page
+      .getByRole("button", {
+        name: "Assigned provider: Configured synthetic clinician. Change assignment.",
+        exact: true,
+      })
+      .waitFor();
+    const assignment = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            __providerAssignment: Record<string, unknown>;
+          }
+        ).__providerAssignment,
+    );
+    expect(assignment).toMatchObject({
+      encounterId: 81,
+      patientId: 71,
+      clinicianId: "api-provider-301",
+      expectedToken: null,
+    });
+    expect(assignment.requestKey).toEqual(expect.any(String));
   } finally {
     await page.close();
   }

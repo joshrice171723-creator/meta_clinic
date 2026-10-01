@@ -272,7 +272,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
 
   test "Muse 73 previsit forms follow the appointment site and visit type without a booking chooser" do
     practice = @membership.practice
-    sites = %w[MAP-WEIGHT MAP-BEHAVIOR].map { |code| practice.sites.create!(code: code) }
+    sites = %w[MAP-WEIGHT MAP-BEHAVIOR].map { |code| practice.sites.create!(code: code, status: "active") }
     starters = sites.zip(%w[weight_loss behavioral_health]).map do |site, clinic_type|
       put "/api/clinic/practice_features", params: {
         features: profile_payload(site_id: site.id, clinic_type: clinic_type, service_scope: [])
@@ -280,12 +280,27 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
       assert_response :success
       response.parsed_body.dig("features", "starter_profile")
     end
+    patient = practice.patients.first!
+    clinician = practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Form Mapping Clinician")
+    starts_at = (Current.business_time + 7.days).change(hour: 9, min: 0, sec: 0, usec: 0)
+    booked_forms = []
     sites.zip(starters).each do |site, starter|
+      Clinic::Scheduling::CapacityRule.create!(practice:, site:, clinician:, kind: "weekly",
+        weekday: starts_at.in_time_zone(practice.timezone).wday, start_minute: 0, end_minute: 1440, active: true)
       %w[initial follow_up].each do |kind|
         definition = starter.fetch("visits").fetch(kind)
         appointment = practice.appointments.new(site: site, visit_type_id: definition.fetch("visit_type_id"))
         form = Clinic::Care::PrevisitIntake.form_for(practice: practice, appointment: appointment)
         assert_equal definition.fetch("form_id"), form.fetch(:id)
+        booking_start = starts_at + booked_forms.length.hours
+        post "/api/clinic/appointments", params: { appointment: {
+          patient_id: patient.id, site_id: site.id, booked_clinician_id: clinician.id,
+          visit_type_id: definition.fetch("visit_type_id"), starts_at: booking_start.iso8601,
+          ends_at: (booking_start + 30.minutes).iso8601, request_key: SecureRandom.uuid
+        } }, headers: csrf_headers, as: :json
+        assert_response :created
+        booked = response.parsed_body.fetch("appointment")
+        booked_forms << [ booked.fetch("id"), definition.fetch("form_id") ]
       end
     end
     wrong_site = practice.appointments.new(site: sites.last,
@@ -294,6 +309,23 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
       Clinic::Care::PrevisitIntake.form_for(practice: practice, appointment: wrong_site).fetch(:id)
     assert_equal "weight-management-initial-v1", Clinic::Care::PrevisitIntake.form_for(
       practice: practice, appointment: wrong_site, payload: { "form_id" => "weight-management-initial-v1" }).fetch(:id)
+
+    portal_password = "Synthetic-form-mapping-2026!"
+    portal_user = User.create!(email_address: "form-mapping-patient@example.invalid", password: portal_password)
+    Clinic::PatientPortal::Identity.create!(practice:, patient:, user: portal_user,
+      status: "active", invited_at: 1.minute.ago, activated_at: 1.minute.ago)
+    post "/api/session", params: { email_address: portal_user.email_address, password: portal_password },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    booked_forms.each do |appointment_id, form_id|
+      2.times do
+        get "/api/patient_portal/appointments/#{appointment_id}/previsit_note", headers: @headers
+        assert_response :success
+        assert_equal appointment_id, response.parsed_body.fetch("appointment_id")
+        assert_equal form_id, response.parsed_body.dig("intake_form", "id")
+        assert_nil response.parsed_body.fetch("note")
+      end
+    end
   end
 
   test "renaming and retiring starter visits preserve IDs forms and customization on reapply" do

@@ -1,15 +1,15 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T19:55:00.595398+00:00",
-    "source_revision": "62f52c4d9e1d775cebf647ce33439108247ee0ea",
+    "generated_at": "2026-10-01T20:03:51.134396+00:00",
+    "source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 118,
-    "remaining": 123,
+    "closed": 125,
+    "remaining": 116,
     "counts": {
-      "mixed": 55,
-      "fixed_and_verified": 110,
-      "unverified": 44,
+      "mixed": 51,
+      "fixed_and_verified": 117,
+      "unverified": 41,
       "deferred": 5,
       "blocked": 19,
       "proven_invalid": 8
@@ -362,6 +362,139 @@
           "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-45-86-final-results.json"
         ],
         "integrated_source_revision": "59a0e302035f5b8a107c34a8db4e007f23dc3bab",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "42 | Billing credit/adjustment 500s and sticks the dialog",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified with composed UI/backend evidence; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual credit success renders persisted history; actual error/reconciliation/reopen preserves amount/reason and exact retry identity then closes on confirmation. Real backend credit persistence, replay, bounds and atomic rollback proof retained."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue42\\disposition.md"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "67 | Timecards dead-end",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified with composed UI/backend evidence; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual configured employee Calculate submits correct employee/site/week, displays saved8paid hours and preserves timecard on reload. Real isolated Rails settings/calculation/approval journey passes; existing missing-setup recovery checks retained."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue67-disposition.json"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "68 | Payroll runs dead-end",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified with composed UI/backend evidence; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual approved-card selection enables preview and export; exact selected configuration/cards/key persist through creation, download history and reload. Real isolated Rails approval/export/CSV journey passes; no payroll dispatch."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue68-disposition.json"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "20 | Direct URL navigation loses location context",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Real authenticated location selection and subsequent API readback persist site; unchanged executed backend proof reused."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue20\\disposition.md"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "21 | Staff conversation composer has empty participant list",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Real configured active assigned readable staff project from participant API; actual composer lists and selects the eligible nonself recipient. Existing absence/inactive/site/permission exclusions retained; historical staffing unknown not invented."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue21\\disposition.md"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "44 | Staff messaging unusable — empty participant list",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual configured recipient selection enables Create conversation. Real backend configured conversation creation and memberships persist; browser performs no message dispatch. Existing eligibility restrictions preserved."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue44\\disposition.md"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "109 | Visitor sandbox \"Reset Sandbox\" fails — baseline not restored",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actual DemoJourney/API client waits for staged completion, keeps reset dialog pending and iframe unavailable until completion, rebuilds frame, and lets distinct visitor re-enter completed generation without duplicate reset/advance. Intact real backend baseline preparation and two-visitor boundary proof reused."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-109-disposition.md"
+        ],
+        "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
         "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
       }
     ]
@@ -1339,14 +1472,22 @@
       "key": "20 | Direct URL navigation loses location context",
       "title": "Direct URL navigation loses location context",
       "source_line": 113,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Real authenticated location selection and subsequent API readback persist site; unchanged executed backend proof reused."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Capture cookies/session and direct-entry navigation showing location retention on the exact build; synthetic context characterization is not historical proof.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue20\\disposition.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -1355,14 +1496,22 @@
       "key": "21 | Staff conversation composer has empty participant list",
       "title": "Staff conversation composer has empty participant list",
       "source_line": 115,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Real configured active assigned readable staff project from participant API; actual composer lists and selects the eligible nonself recipient. Existing absence/inactive/site/permission exclusions retained; historical staffing unknown not invented."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "CONFIG:Establish eligible staff recipients for the original location/account and verify real recipient readback in isolated hosted QA, without creating real messages.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue21\\disposition.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -1664,25 +1813,22 @@
       "key": "44 | Staff messaging unusable — empty participant list",
       "title": "Staff messaging unusable — empty participant list",
       "source_line": 145,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Composer empty-recipient/403/409 feedback and draft retention verified locally."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original empty eligible recipient set requires original actor/site eligibility evidence; error repair does not populate staff."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual configured recipient selection enables Create conversation. Real backend configured conversation creation and memberships persist; browser performs no message dispatch. Existing eligibility restrictions preserved."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original empty eligible recipient set requires original actor/site eligibility evidence; error repair does not populate staff.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue44\\disposition.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2094,25 +2240,22 @@
       "key": "67 | Timecards dead-end",
       "title": "Timecards dead-end",
       "source_line": 183,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified with composed UI/backend evidence; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Missing-settings/employee guidance is locally verified."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Configured eligible employees and actual timecard calculation remain unproved."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual configured employee Calculate submits correct employee/site/week, displays saved8paid hours and preserves timecard on reload. Real isolated Rails settings/calculation/approval journey passes; existing missing-setup recovery checks retained."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Configured eligible employees and actual timecard calculation remain unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue67-disposition.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2121,25 +2264,22 @@
       "key": "68 | Payroll runs dead-end",
       "title": "Payroll runs dead-end",
       "source_line": 185,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified with composed UI/backend evidence; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Approved-timecard prerequisite and Timecards recovery guidance verified locally."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Actual configured payroll preparation from approved timecards remains unproved."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual approved-card selection enables preview and export; exact selected configuration/cards/key persist through creation, download history and reload. Real isolated Rails approval/export/CSV journey passes; no payroll dispatch."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual configured payroll preparation from approved timecards remains unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue68-disposition.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2486,25 +2626,22 @@
       "key": "109 | Visitor sandbox \"Reset Sandbox\" fails — baseline not restored",
       "title": "Visitor sandbox \"Reset Sandbox\" fails — baseline not restored",
       "source_line": 219,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Corrected reset recovery,42 real preparer calls and independent4/62 boundary checks pass in isolated local scope."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Reported hosted reset timeout and full browser/two-visitor context are not disproved by local backend proof."
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual DemoJourney/API client waits for staged completion, keeps reset dialog pending and iframe unavailable until completion, rebuilds frame, and lets distinct visitor re-enter completed generation without duplicate reset/advance. Intact real backend baseline preparation and two-visitor boundary proof reused."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Reported hosted reset timeout and full browser/two-visitor context are not disproved by local backend proof.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-109-disposition.md"
+      ],
       "integrator_review_note": null
     },
     {
@@ -4740,14 +4877,22 @@
       "key": "42 | Billing credit/adjustment 500s and sticks the dialog",
       "title": "Billing credit/adjustment 500s and sticks the dialog",
       "source_line": 443,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified with composed UI/backend evidence; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actual credit success renders persisted history; actual error/reconciliation/reopen preserves amount/reason and exact retry identity then closes on confirmation. Real backend credit persistence, replay, bounds and atomic rollback proof retained."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Credit adjustment original invoice state succeeds with visible error recovery and persisted ledger. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue42\\disposition.md"
+      ],
       "integrator_review_note": null
     },
     {

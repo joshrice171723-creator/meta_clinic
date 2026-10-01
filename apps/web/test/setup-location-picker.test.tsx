@@ -29,9 +29,8 @@ beforeAll(async () => {
           createRoot(document.getElementById("root")).render(React.createElement(Workspace,{user:{id:71},path:"/clinic/setup"},React.createElement(Setup)));`;
         },
         configureServer(s) {
-          s.middlewares.use(
-            "/setup-location-picker",
-            async (_request, response) => {
+          for (const path of ["/setup-location-picker", "/clinic"])
+            s.middlewares.use(path, async (_request, response) => {
               response.setHeader("Content-Type", "text/html");
               response.end(
                 await s.transformIndexHtml(
@@ -39,8 +38,7 @@ beforeAll(async () => {
                   '<div id="root"></div><script type="module" src="/@id/__x00__setup-location-picker.tsx"></script>',
                 ),
               );
-            },
-          );
+            });
         },
       },
     ],
@@ -61,7 +59,11 @@ afterAll(async () => {
   await server?.close();
 });
 
-async function fixture(page: Page, deny = false) {
+async function fixture(
+  page: Page,
+  deny = false,
+  alternateOrganization = false,
+) {
   page.setDefaultTimeout(4000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -79,8 +81,24 @@ async function fixture(page: Page, deny = false) {
     schema_version: "clinic-context-v1",
     policy_version: "clinic-authorization-v1",
     practice: { id: 81, name: "Synthetic clinic" },
+    ...(alternateOrganization
+      ? {
+          practices: [
+            {
+              id: 81,
+              name: "Synthetic clinic",
+              organization: { id: 501, name: "Synthetic default organization" },
+            },
+            {
+              id: 82,
+              name: "Synthetic independent clinic",
+              organization: null,
+            },
+          ],
+        }
+      : {}),
     sites,
-    current_site: sites[0],
+    current_site: sites[0] as (typeof sites)[number] | null,
     capabilities: { clinic_setup_write: true, facilities_read: true },
     features: {
       configured: false,
@@ -93,13 +111,35 @@ async function fixture(page: Page, deny = false) {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === "/api/clinic/context" && request.method() === "PATCH") {
-      writes.push(request.postDataJSON());
+      const input = request.postDataJSON();
+      writes.push(input);
       if (deny)
         return route.fulfill({
           status: 403,
           json: { error: "Not authorized for this location." },
         });
-      context.current_site = sites[1];
+      if (alternateOrganization && input.practice_id === 82) {
+        context.practice = { id: 82, name: "Synthetic independent clinic" };
+        context.sites = [
+          {
+            id: 201,
+            code: "SYN-VERF",
+            name: "Synthetic verification location",
+            finalized: false,
+          },
+          {
+            id: 202,
+            code: "SYN-QAGT",
+            name: "Synthetic QA gate location",
+            finalized: false,
+          },
+        ];
+        context.current_site = null;
+      } else {
+        context.current_site = context.sites.find(
+          (site) => site.id === input.site_id,
+        )!;
+      }
     }
     const json =
       path === "/api/csrf"
@@ -150,12 +190,76 @@ it("opens with an existing site, supports back/Escape/current-site selection wit
     expect(await page.getByTestId("setup-context").textContent()).toBe(
       original,
     );
-    expect(context.current_site.id).toBe(101);
+    expect(context.current_site?.id).toBe(101);
     expect(writes).toEqual([]);
   } finally {
     await page.close();
   }
 });
+
+it("#59 explains organization scope and exposes eligible alternate locations through real context switching", async () => {
+  const page = await browser.newPage();
+  try {
+    const { writes } = await fixture(page, false, true);
+    await page.getByRole("button", { name: "Choose another location" }).click();
+    const dialog = page.getByRole("dialog", { name: "Choose your location" });
+    await dialog
+      .getByText(
+        "Choose another organization to see its clinics and locations.",
+        { exact: true },
+      )
+      .waitFor();
+    expect(
+      await dialog
+        .getByRole("button", {
+          name: "Synthetic verification location",
+          exact: true,
+        })
+        .count(),
+    ).toBe(0);
+    await dialog
+      .getByRole("combobox", { name: "Organization", exact: true })
+      .click();
+    await page
+      .getByRole("option", { name: "Independent clinics", exact: true })
+      .click();
+    await page.waitForURL(`${baseUrl}/clinic`);
+    await dialog
+      .getByRole("button", {
+        name: "Synthetic verification location",
+        exact: true,
+      })
+      .waitFor();
+    await dialog
+      .getByRole("button", { name: "Synthetic QA gate location", exact: true })
+      .waitFor();
+    expect(
+      await dialog
+        .getByRole("combobox", { name: "Clinic", exact: true })
+        .innerText(),
+    ).toContain("Synthetic independent clinic");
+    expect(
+      await dialog
+        .getByRole("button", { name: "Synthetic first site", exact: true })
+        .count(),
+    ).toBe(0);
+    await dialog
+      .getByRole("button", { name: "Synthetic QA gate location", exact: true })
+      .click();
+    await page
+      .getByTestId("setup-context")
+      .filter({ hasText: '"id":202' })
+      .waitFor();
+    await page.reload();
+    await page
+      .getByTestId("setup-context")
+      .filter({ hasText: '"id":202' })
+      .waitFor();
+    expect(writes).toEqual([{ practice_id: 82 }, { site_id: 202 }]);
+  } finally {
+    await page.close();
+  }
+}, 15_000);
 
 it("changes site only through the existing explicit PATCH and refreshed context", async () => {
   const page = await browser.newPage();
@@ -200,7 +304,7 @@ it("keeps the picker and original context on denied selection, then permits back
     expect(await page.getByTestId("setup-context").textContent()).toBe(
       original,
     );
-    expect(context.current_site.id).toBe(101);
+    expect(context.current_site?.id).toBe(101);
     expect(writes).toEqual([{ site_id: 102 }]);
   } finally {
     await page.close();

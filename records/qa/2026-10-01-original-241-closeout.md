@@ -1,10 +1,10 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 118/241. Original dispositions recorded: 241/241.**
+**Issues closed: 125/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
-Branch: `codex/relay-qa-combined-20261001`. Integrated source: `62f52c4d9e1d775cebf647ce33439108247ee0ea`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
+Branch: `codex/relay-qa-combined-20261001`. Integrated source: `61ac4e2a1a651c626482474c5e2ae3f9ee849db6`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
 
 The earlier80/107/110 numbers were provisional and included partial-claim promotions; this reviewed count supersedes them. #54 and #238 each retain two independent rows. #94 remains historical R2 invalidation at25a23e4b, with no new retest.
 
@@ -28,10 +28,10 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 110 |
-| mixed | 55 |
+| fixed_and_verified | 117 |
+| mixed | 51 |
 | proven_invalid | 8 |
-| unverified | 44 |
+| unverified | 41 |
 
 ## Every original entry
 
@@ -85,8 +85,8 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 46 | #16 | Cash payment records nothing (CRITICAL) | mixed | Original payment500 and alleged no-write cause are unproved; correlate original response, receipt and persisted records. |
 | 47 | #18 | Truncated copy | fixed_and_verified | Actual badges and payroll pages render both complete explanatory sentences visibly without internal clipping, ellipsis or line clamp at 1440x1000. Two targeted browser cases pass; original hosted viewport remains historical. |
 | 48 | #19 | Team schedule "Could not load" | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 49 | #20 | Direct URL navigation loses location context | unverified | Capture cookies/session and direct-entry navigation showing location retention on the exact build; synthetic context characterization is not historical proof. |
-| 50 | #21 | Staff conversation composer has empty participant list | unverified | CONFIG:Establish eligible staff recipients for the original location/account and verify real recipient readback in isolated hosted QA, without creating real messages. |
+| 49 | #20 | Direct URL navigation loses location context | fixed_and_verified | Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Real authenticated location selection and subsequent API readback persist site; unchanged executed backend proof reused. |
+| 50 | #21 | Staff conversation composer has empty participant list | fixed_and_verified | Real configured active assigned readable staff project from participant API; actual composer lists and selects the eligible nonself recipient. Existing absence/inactive/site/permission exclusions retained; historical staffing unknown not invented. |
 | 51 | #22 | Inventory receiving/counting unreachable — and setup itself is permission-blocked | mixed | Supplier-offer setup, permission denial and receiving/counting end-to-end prerequisites remain separately unproved. |
 | 52 | #23 | Recalls worklist has no creation entry point | fixed_and_verified | Existing recall creation entry/guidance frontend checks plus independently passed creation/replay2/24 resolve current local absence claim. |
 | 53 | #24 | Missing-space string-concat typos (class) | fixed_and_verified | Current rendered checks cover timezone, appointment count, service price, catalog version, invoice total, refund date separator and export label spacing. Four intended Muse24 cases and shared invoice93/146 assertions pass; unrelated batch failures retained, not called green. |
@@ -101,7 +101,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 62 | #39 | Telehealth untestable without operator credentials | blocked | Approved synthetic telehealth provider/operator configuration and published eligible policy, or explicitly deferred provider acceptance. |
 | 63 | #40 | VERF/QAGT fixtures absent from environment (NEEDS OWNER INPUT) | blocked | Approved existing synthetic location/account inventory for the reported environment. |
 | 64 | #43 | Inventory setup permission-blocked for owner | unverified | Capture original Omni inventory-setup denial with effective permissions and response; independent allowed/denied2/14 checks do not classify that fixture. |
-| 65 | #44 | Staff messaging unusable — empty participant list | mixed | Original empty eligible recipient set requires original actor/site eligibility evidence; error repair does not populate staff. |
+| 65 | #44 | Staff messaging unusable — empty participant list | fixed_and_verified | Actual configured recipient selection enables Create conversation. Real backend configured conversation creation and memberships persist; browser performs no message dispatch. Existing eligibility restrictions preserved. |
 | 66 | #45 | Badge issuance silently fails; kiosk enrollment code does nothing | fixed_and_verified | Actual badge/enrollment UI shows unconfigured errors and configured creation results, printable/code, refreshed lists and reload; real Rails persists replacement badge and enrollment metadata/digests, sanitizes readback and consumes enrollment successfully. |
 | 67 | #46 | Scribe still can't start a session | blocked | Approved Scribe template/runtime prerequisites for the original site. |
 | 68 | #47 | Prescriptions dead end | blocked | Intended medication service availability and an authorized prescribing actor in synthetic scope. |
@@ -120,8 +120,8 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 81 | #63 | SOAP note: explicit Save draft disabled; reload resets chart state | mixed | Full reported chart-state reload and persistence claims lack connected proof. |
 | 82 | #65 | Calendar: no week view; schedule page flaky | mixed | Original schedule loading/flakiness reproduction and affected request/response; no pending Week-view decision. |
 | 83 | #66 | No roles & permissions matrix UI | proven_invalid | current_tree_missing_capability_disproved; not_a_new_live_retest |
-| 84 | #67 | Timecards dead-end | mixed | Configured eligible employees and actual timecard calculation remain unproved. |
-| 85 | #68 | Payroll runs dead-end | mixed | Actual configured payroll preparation from approved timecards remains unproved. |
+| 84 | #67 | Timecards dead-end | fixed_and_verified | Actual configured employee Calculate submits correct employee/site/week, displays saved8paid hours and preserves timecard on reload. Real isolated Rails settings/calculation/approval journey passes; existing missing-setup recovery checks retained. |
+| 85 | #68 | Payroll runs dead-end | fixed_and_verified | Actual approved-card selection enables preview and export; exact selected configuration/cards/key persist through creation, download history and reload. Real isolated Rails approval/export/CSV journey passes; no payroll dispatch. |
 | 86 | #70 | No patient-facing messaging; reminders sending dead-end | mixed | Existing reminder queue/send/recovery under current grants and suppressed local provider. |
 | 87 | #71 | No practice-level audit trail | mixed | Required existing audit capture operation-to-persisted-record mapping; no pending new-screen decision. |
 | 88 | #72 | Recurring appointments blocked by missing clinicians | fixed_and_verified | The original invalid clinician numeric error is replaced by executed actionable prerequisite guidance and no invalid mutation. Recurring series requires an explicit configured clinician; existing safe retry preserves clinician/key. Source and original cases unchanged since6659. Setup navigation source-reviewed; no new configured staff invented. |
@@ -138,7 +138,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 99 | #100 | Patient portal has no access path | unverified | Verify intended patient login entry with approved synthetic account and actual authentication/portal destination; rendered entry is not authentication proof. |
 | 100 | #101 | No "mark as no-show" action | fixed_and_verified | Actual authorized front-desk no-show action and readback pass, denied/future actions blocked; real Rails scheduled/confirmed transition persistence passes. Actual schedule link navigates to front desk. Date/site/search filters select other appointments; no claim of automatic selected-context preservation. |
 | 101 | #106 | "Inventory locations →" link is a dead end | unverified | Follow Inventory locations link through actual storage-management destination and authorization, not merely rendered href. |
-| 102 | #109 | Visitor sandbox "Reset Sandbox" fails — baseline not restored | mixed | Reported hosted reset timeout and full browser/two-visitor context are not disproved by local backend proof. |
+| 102 | #109 | Visitor sandbox "Reset Sandbox" fails — baseline not restored | fixed_and_verified | Actual DemoJourney/API client waits for staged completion, keeps reset dialog pending and iframe unavailable until completion, rebuilds frame, and lets distinct visitor re-enter completed generation without duplicate reset/advance. Intact real backend baseline preparation and two-visitor boundary proof reused. |
 | 103 | #112 | Staff conversation creation denied for Administrator — "Your account does not have permission for this clinic action" | mixed | Original Administrator effective grant is unknown; do not invalidate denial from role label or manufacture a grant. |
 | 104 | #113 | Cash drawer close accepts a zero count with no validation — closes with a -$100 discrepancy silently | fixed_and_verified | Zero is valid; local cash-drawer discrepancy warning/confirmation behavior verified in five-case113-117 batch; historical silent-close claim retained. |
 | 105 | #116 | Closed-drawer summary does not re-render after reload | fixed_and_verified | Actual synthetic reload summary case verifies counted amount/discrepancy in five-case113-117 batch. |
@@ -248,7 +248,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 209 | #17 | Vitals "Review measurements" no-ops without observed time | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
 | 210 | #27 | Pre-finalization invite gate | unverified | Owner can reach accepted pre-finalization invitation path without bypassing setup gate. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 211 | #41 | Patient registration silently fails (CRITICAL) | unverified | Original complete registration journey persists patient once, supplies visible receipt and directory reload. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
-| 212 | #42 | Billing credit/adjustment 500s and sticks the dialog | unverified | Credit adjustment original invoice state succeeds with visible error recovery and persisted ledger. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
+| 212 | #42 | Billing credit/adjustment 500s and sticks the dialog | fixed_and_verified | Actual credit success renders persisted history; actual error/reconciliation/reopen preserves amount/reason and exact retry identity then closes on confirmation. Real backend credit persistence, replay, bounds and atomic rollback proof retained. |
 | 213 | #52 | Visit-type "Disable" does nothing; scheduling policy save permission-blocked | unverified | Visit-type disabling and scheduling-policy permission/save both verified for original owner. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 214 | #54 | Visitor demo tenant isolation | unverified | Two independent visitor sessions have intended tenant isolation and reset boundaries; this54 is NOT statement generation. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |
 | 215 | #61 | Waitlist add disabled — zero clinicians configured | unverified | Original active clinician/site/service eligibility permits waitlist add and persisted readback. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable. |

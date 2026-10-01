@@ -124,6 +124,8 @@ describe("development account preview", () => {
     );
     expect(html).toContain("Development tools");
     expect(html).toContain("Owner demo PIN");
+    expect(html).toContain("Enter the four-digit Owner demo PIN.");
+    expect(html).toContain('href="/login?credentials=1&amp;next=%2Fowner"');
     expect(html).toContain('href="/login?credentials=1&amp;next=%2Fclinic"');
     expect(html).not.toContain("Email address");
     expect(html).not.toContain("Password");

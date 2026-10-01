@@ -617,6 +617,7 @@ export function DevelopmentControls({
         {ownerPinRequired && portal === "owner" && (
           <TextField
             label="Owner demo PIN"
+            helperText="Enter the four-digit Owner demo PIN."
             type="password"
             size="small"
             value={ownerPin}

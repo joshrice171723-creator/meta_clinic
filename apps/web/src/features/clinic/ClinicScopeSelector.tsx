@@ -84,6 +84,11 @@ export function ClinicScopeSelector({
         select
         id="clinic-organization"
         label="Organization"
+        helperText={
+          organizations.length > 1
+            ? "Choose another organization to see its clinics and locations."
+            : undefined
+        }
         size="small"
         fullWidth
         value={organizationKey}

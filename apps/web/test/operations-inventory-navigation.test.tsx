@@ -127,20 +127,23 @@ it("Muse106 Operations inventory locations link opens the actual storage screen"
   const requests: { path: string; view: string | null; method: string }[] = [];
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.route("**/api/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    requests.push({
-      path: url.pathname,
-      view: url.searchParams.get("view"),
-      method: request.method(),
-    });
-    await route.fulfill({
-      status: url.pathname === "/api/clinic/inventory/locations" ? 200 : 404,
-      contentType: "application/json",
-      body: JSON.stringify({ data: locations }),
-    });
-  });
+  await page.route(
+    (url) => url.pathname.startsWith("/api/"),
+    async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      requests.push({
+        path: url.pathname,
+        view: url.searchParams.get("view"),
+        method: request.method(),
+      });
+      await route.fulfill({
+        status: url.pathname === "/api/clinic/inventory/locations" ? 200 : 404,
+        contentType: "application/json",
+        body: JSON.stringify({ data: locations }),
+      });
+    },
+  );
   try {
     await page.goto(base + "clinic/operations");
     const link = page.getByRole("link", {
