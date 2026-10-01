@@ -244,10 +244,10 @@ it("#100 patient sign-in remains reachable without preview accounts and sends cr
         .isVisible(),
     ).toBe(true);
     await page
-      .getByLabel("Email address", { exact: true })
+      .getByLabel(/^Email address/)
       .fill("synthetic-patient@example.invalid");
     await page
-      .getByLabel("Password", { exact: true })
+      .getByLabel(/^Password/)
       .fill("Synthetic-patient-password-123!");
     const signIn = page.getByRole("button", { name: "Sign in", exact: true });
     expect(await signIn.isEnabled()).toBe(true);
