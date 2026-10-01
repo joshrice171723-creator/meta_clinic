@@ -299,7 +299,103 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert @employee_membership.role_grants.active.where(source_employment_id: @employment.id).exists?
   end
 
+  test "Muse214 onboarding returns creation token once and stores only its digest" do
+    login(@manager)
+    post "/api/clinic/workforce/onboarding", params: muse_invitation_payload,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    created = response.parsed_body.fetch("invitation")
+    token = created.fetch("activation_token_once")
+    assert token.present?, "Creation must provide a one-time token"
+    assert created.fetch("activation_path") == "/workforce/activate#token=#{ERB::Util.url_encode(token)}",
+      "Creation link must carry the token in its fragment"
+    invitation = Clinic::Workforce::EmployeeInvitation.find(created.fetch("id"))
+    assert_equal Digest::SHA256.hexdigest(token), invitation.token_digest
+    assert invitation.attributes.values.none? { |value| value == token }, "Raw token must not be persisted"
+
+    get "/api/clinic/workforce/employments", headers: @headers
+    assert_response :success
+    pending = response.parsed_body.fetch("invitations").find { |item| item.fetch("id") == invitation.id }
+    assert pending
+    assert_equal %w[display_name email_address expires_at id role_code staff_member_id], pending.keys.sort
+    assert !response.body.include?(token), "Pending index must not recover the creation token"
+    assert_equal Digest::SHA256.hexdigest(token), invitation.reload.token_digest
+  end
+
+  test "Muse58 stale practice onboarding is rejected after session context switches without domain writes" do
+    other_membership = @foreign_practice.memberships.create!(user: @manager)
+    grant_permissions!(other_membership, "roles.manage", "workforce.admin")
+    login(@manager)
+    stale_headers = csrf_headers.merge("X-Clinic-Practice" => @practice.id.to_s)
+    patch "/api/clinic/context", params: { practice_id: @foreign_practice.id },
+      headers: stale_headers, as: :json
+    assert_response :success
+    assert_equal @foreign_practice.id, response.parsed_body.fetch("practice_id")
+
+    counts = -> { [ Clinic::Workforce::EmployeeInvitation.count, Clinic::Staff::Member.count,
+      Clinic::Workforce::Employment.count, Clinic::RoleGrant.count ] }
+    before = counts.call
+    post "/api/clinic/workforce/onboarding", params: muse_invitation_payload,
+      headers: stale_headers, as: :json
+    assert_response :conflict
+    assert_equal "clinic_changed", response.parsed_body.fetch("code")
+    assert_equal before, counts.call
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal @foreign_practice.id, response.parsed_body.fetch("practice").fetch("id")
+    assert_equal before, counts.call
+  end
+
+  test "Muse21 and Muse44 participant endpoint filters site employment and messaging access" do
+    grant_permissions!(@manager_membership, "staff_messaging.read")
+    grant_permissions!(@employee_membership, "staff_messaging.read", scope_kind: "site", site: @assigned_site)
+    grant_permissions!(@foreign_membership, "staff_messaging.read")
+    unassigned = @practice.memberships.create!(user: create_user("muse-unassigned"))
+    grant_permissions!(unassigned, "staff_messaging.read")
+    login(@manager)
+
+    get "/api/clinic/staff-messaging/participants", params: { site_id: @assigned_site.id }, headers: @headers
+    assert_response :success
+    assert_equal [ @employee_membership.id ], response.parsed_body.fetch("participants").pluck("id")
+    get "/api/clinic/staff-messaging/participants", params: { site_id: @other_site.id }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("participants")
+
+    set_permission!(@employee_membership, "staff_messaging.read", false)
+    get "/api/clinic/staff-messaging/participants", params: { site_id: @assigned_site.id }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("participants")
+  end
+
+  test "Muse112 authorized creator without employment can create and denied creation writes nothing" do
+    grant_permissions!(@manager_membership, "staff_messaging.read", "staff_messaging.create_conversation")
+    grant_permissions!(@employee_membership, "staff_messaging.read", scope_kind: "site", site: @assigned_site)
+    assert_nil Clinic::Workforce::Employment.find_by(membership: @manager_membership)
+    login(@manager)
+    payload = { conversation: { request_key: "muse-authorized-#{SecureRandom.hex(6)}", kind: "team",
+      title: "Synthetic Muse conversation", site_id: @assigned_site.id, member_ids: [ @employee_membership.id ] } }
+    post "/api/clinic/staff-messaging/conversations", params: payload, headers: csrf_headers, as: :json
+    assert_response :created
+    conversation = Clinic::StaffConversation.find(response.parsed_body.fetch("conversation").fetch("id"))
+    assert_equal [ @manager_membership.id, @employee_membership.id ].sort,
+      conversation.members.active.pluck(:membership_id).sort
+
+    set_permission!(@manager_membership, "staff_messaging.create_conversation", false)
+    payload[:conversation][:request_key] = "muse-denied-#{SecureRandom.hex(6)}"
+    counts = -> { [ Clinic::StaffConversation.count, Clinic::StaffConversationMember.count, Clinic::StaffMessage.count ] }
+    before = counts.call
+    post "/api/clinic/staff-messaging/conversations", params: payload, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_equal before, counts.call
+  end
+
   private
+
+  def muse_invitation_payload
+    { employee_invitation: { display_name: "Synthetic Muse Invite", job_title: "Synthetic coordinator",
+      email_address: "muse-invite-#{SecureRandom.hex(6)}@example.invalid",
+      site_ids: [ @assigned_site.id ], effective_from: Time.current.iso8601 } }
+  end
 
   def create_user(label)
     User.create!(email_address: "#{label}-#{SecureRandom.hex(5)}@example.invalid",
