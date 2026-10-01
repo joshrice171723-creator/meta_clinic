@@ -90,7 +90,57 @@ class PatientActivityHistoryTest < ActiveSupport::TestCase
     assert_equal @patient.versions.reorder(occurred_at: :desc, id: :desc).limit(25).pluck(:id), result[:entries].map { |entry| entry[:id] }
   end
 
+  test "QA244 projects persisted coordination metadata without values and isolates patient and practice" do
+    other = @practice.patients.create!(display_name: "Other synthetic", reference: "COORD-OTHER")
+    other_practice = Clinic::Practice.create!(name: "Other coordination clinic")
+    other_member = other_practice.memberships.create!(user: @user)
+    other_patient = other_practice.patients.create!(display_name: "Other tenant", reference: "COORD-TENANT")
+    saved = coordination_revision(@patient, @membership, 1)
+    coordination_revision(other, @membership, 1)
+    coordination_revision(other_patient, other_member, 1)
+    versions = Clinic::ModelVersion.where(item_type: saved.class.name, item_id: saved.id)
+    assert_equal 1, versions.count
+    result = history
+    entries = result[:entries].select { |entry| entry[:source] == "care_coordination" }
+    assert_equal [ saved.id ], entries.map { |entry| entry[:record_id] }
+    assert_equal "recorded", entries.first[:event]
+    assert_equal "Care coordination revision 1", entries.first[:section]
+    assert_equal "membership:#{@membership.id}", entries.first[:actor_reference]
+    assert_equal saved.recorded_at.iso8601(6), entries.first[:occurred_at]
+    assert_empty entries.first[:changed_fields]
+    refute_includes result.to_json, "hidden coordination pharmacy"
+    refute_includes result.to_json, "request_key"
+    refute_includes result.to_json, "content"
+    assert_equal 1, versions.count
+  end
+
+  test "QA244 bounded merged history preserves newest revision ordering and read authorization" do
+    27.times { |index| coordination_revision(@patient, @membership, index + 1) }
+    result = history
+    assert_equal 25, result[:entries].length
+    assert result[:has_more]
+    assert_equal (3..27).to_a.reverse.map { |n| "Care coordination revision #{n}" }, result[:entries].map { |entry| entry[:section] }
+    denied = Object.new
+    def denied.allowed_permission?(*, **) = false
+    def denied.can?(*, **) = false
+    restricted = Clinic::Care::PatientActivityHistory.call(patient: @patient, ability: denied)
+    assert_equal "not_authorized", restricted[:coverage].find { |source| source[:source] == "care_coordination" }[:status]
+    refute restricted[:entries].any? { |entry| entry[:source] == "care_coordination" }
+  end
+
   private
+
+  def coordination_revision(patient, membership, number)
+    payload = Clinic::Care::PatientCareCoordinationRevision.empty_payload
+    payload["pharmacy"] = { "state" => "known", "entries" => [
+      { "name" => "hidden coordination pharmacy", "source" => "patient", "address_confirmed" => false }
+    ] }
+    Clinic::Care::PatientCareCoordinationRevision.create!(
+      practice: patient.practice, patient: patient, recorded_by_membership: membership,
+      revision: number, content: JSON.generate(payload), recorded_at: 1.day.from_now + number.seconds,
+      request_key: "qa244-#{SecureRandom.uuid}"
+    )
+  end
 
   def history
     Clinic::Care::PatientActivityHistory.call(patient: @patient, ability: Ability.new(@user, practice: @practice))

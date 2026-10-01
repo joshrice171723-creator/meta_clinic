@@ -1,6 +1,6 @@
 module Clinic
   module Care
-    # Bounded version metadata for the current patient. Record values, deleted
+    # Bounded version and revision metadata for the current patient. Values, deleted
     # snapshots, request/session metadata and clinical content are never exposed.
     class PatientActivityHistory
       LIMIT = 25
@@ -55,24 +55,45 @@ module Clinic
           coverage << { source: source.fetch(:key), label: source.fetch(:label), status: "included" }
         end
         versions = scope.order(occurred_at: :desc, id: :desc).limit(LIMIT + 1).to_a
-        {
-          coverage: coverage,
-          has_more: versions.length > LIMIT,
-          entries: versions.first(LIMIT).map do |version|
-            {
-              id: version.id,
-              source: sources.fetch(version.item_type),
-              section: labels.fetch(version.item_type),
-              record_type: version.item_type,
-              record_id: version.item_id,
-              event: version.event,
-              actor_reference: version.actor_reference,
-              occurred_at: version.occurred_at&.iso8601,
-              changed_fields: Array(version.changed_fields) -
-                %w[id practice_id patient_id created_at updated_at name_search_tokens]
-            }
-          end
-        }
+        entries = versions.map do |version|
+          {
+            id: version.id,
+            source: sources.fetch(version.item_type),
+            section: labels.fetch(version.item_type),
+            record_type: version.item_type,
+            record_id: version.item_id,
+            event: version.event,
+            actor_reference: version.actor_reference,
+            occurred_at: version.occurred_at&.iso8601(6),
+            changed_fields: Array(version.changed_fields) -
+              %w[id practice_id patient_id created_at updated_at name_search_tokens]
+          }
+        end
+        if ability.can?(:read, patient)
+          coverage << { source: "care_coordination", label: "Care coordination", status: "included" }
+          # Append-only revisions are durable evidence in their own right. Do not
+          # read encrypted content or manufacture PaperTrail events for them.
+          revisions = PatientCareCoordinationRevision
+            .where(practice_id: patient.practice_id, patient_id: patient.id)
+            .select(:id, :revision, :recorded_at, :recorded_by_membership_id)
+            .order(recorded_at: :desc, id: :desc).limit(LIMIT + 1)
+          entries.concat(revisions.map do |revision|
+            { id: revision.id, source: "care_coordination",
+              section: "Care coordination revision #{revision.revision}",
+              record_type: PatientCareCoordinationRevision.name, record_id: revision.id,
+              event: "recorded",
+              actor_reference: "membership:#{revision.recorded_by_membership_id}",
+              occurred_at: revision.recorded_at.iso8601(6), changed_fields: [] }
+          end)
+        else
+          coverage << { source: "care_coordination", label: "Care coordination", status: "not_authorized" }
+        end
+        entries.sort_by! do |entry|
+          time = entry[:occurred_at] ? Time.iso8601(entry[:occurred_at]).to_r : 0
+          [ time, entry[:id], entry[:source] ]
+        end
+        entries.reverse!
+        { coverage: coverage, has_more: entries.length > LIMIT, entries: entries.first(LIMIT) }
       end
 
       def self.include_versions(scope, base, model, records)
