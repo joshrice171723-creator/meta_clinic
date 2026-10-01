@@ -1,16 +1,16 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T20:20:27.196373+00:00",
-    "source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5",
+    "generated_at": "2026-10-01T20:34:12.155858+00:00",
+    "source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 128,
-    "remaining": 113,
+    "closed": 134,
+    "remaining": 107,
     "counts": {
       "mixed": 51,
-      "fixed_and_verified": 120,
-      "unverified": 38,
+      "fixed_and_verified": 126,
       "deferred": 5,
+      "unverified": 32,
       "blocked": 19,
       "proven_invalid": 8
     },
@@ -575,6 +575,213 @@
           "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-result.json"
         ],
         "integrated_source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5"
+      },
+      {
+        "key": "103 | Visitor/demo entry missing from the home page (REGRESSION?)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified; original historical cause and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "Actualmarketinghome hero nativeclick reaches actualdemooverview thenactualDemoJourney withvisibleOpenSandbox; reloadretainsdemo, noauth/resetmutations. Affectedcredential/footer casesalsopass."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-103-result.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "106 | \"Inventory locations →\" link is a dead end",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified; original historical cause and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Original local claim",
+            "status": "locally_verified",
+            "detail": "ActualOperations inventorylocations link nativeclick reaches actualInventoryApp storagescreen, search andstoragepath visible. ExactGETcsrf thenGETlocations, nootherrequests/nativeerrors. Earlierfixturefailures preserved."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "85 | Tracking Board provider assignment offers no clinicians",
+        "disposition": "fixed_and_verified",
+        "scope": "Composed actual backend and actual component proof; browser transport synthetic, no full hosted journey inferred.",
+        "components": [
+          {
+            "claim_scope": "Whole original current local claim",
+            "status": "locally_verified",
+            "detail": "Actual logged-in API offers configured eligible profile/site, assignment persists and reads back (1 case/13 assertions). Actual mapper feeds real TrackingBoardView; double-click opens dialog, options exactly Unassigned plus configured clinician, selecting profile retains exact ID. Page source directly projects eligible profile/site IDs to the View clinicians prop. This covers the current empty-dropdown complaint."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-85-136-composed-final.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\run-61ac4e2a1a65-20261001T200108Z-4f5ae4\\focused-disposition-backend-qa.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-85-view-browser-narrow-a7ec7e89b508.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "136 | Unnamed clinician option / \"Clinician not assigned\" after booking a named clinician",
+        "disposition": "fixed_and_verified",
+        "scope": "Composed actual backend and actual component proof; browser transport synthetic, no full hosted journey inferred.",
+        "components": [
+          {
+            "claim_scope": "Whole original current local claim",
+            "status": "locally_verified",
+            "detail": "Actual API named clinician resource, selected profile booking, persisted GET identity and two calendar name/ID readbacks passed in prior selected backend batch. Actual WaitlistWorkspace shows an unnamed profile fallback and retains it across rule-type interaction. Actual ClinicSchedule displays saved named clinician on row and dialog on initial read and reload, without Clinician not assigned. Both original fragments covered by composed current local evidence."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-85-136-composed-final.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-81f495c5e77b-20261001T201532Z-3dc948\\focused-73-136-backend-qa.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-136-render-browser-a7ec7e89b508.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "149 | Invoice #3 (SIMT) shows Settled with allocated USD 25.00 ≠ total USD 30.00 and no visible credit",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local invoice-credit reconciliation and activity claim verified; historical invoice cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Persisted payment/credit reconciliation and visible invoice/activity",
+            "status": "locally_verified",
+            "detail": "Actual30invoice,25cash,5credit persist and project zero balance. Added permission-scoped metadata-only credit activity, tested denial/isolation/non-disclosure/issuance ordering. Actual invoice and patientactivity components render persisted backend payload, exactcredit identity/actor/time and invoice amount/reason. Backend batch16/227 andtwoUIcases pass; totalsnotsolely149."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue149\\disposition.md",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue149\\result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-a7ec7e89b508-20261001T202939Z-f3b2f6\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "70 | No patient-facing messaging; reminders sending dead-end",
+        "disposition": "mixed",
+        "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+        "components": [
+          {
+            "claim_scope": "New patient chat",
+            "status": "delegated_feature_deferral",
+            "detail": "Defer new patient chat. Retain portal request intake and separately verify reminder queue/send failure/recovery under existing permissions and suppressed local provider."
+          },
+          {
+            "claim_scope": "Reminder send/recovery",
+            "status": "unverified",
+            "detail": "Staff Messages is not promised patient chat. Portal request queue exists; reminders dead-end is independent operational QA and cannot be closed by deferring chat."
+          },
+          {
+            "claim_scope": "Current assigned continuation proof",
+            "status": "locally_verified_component",
+            "detail": "Reminder recovery now selects queued/pending gated attempts as well as scheduled. Existing Dispatch policy/authority/provider/terminal fences retained. Whole affected backend suite passes including same-attempt/key recovery; scoped Ruby lint passes."
+          }
+        ],
+        "remaining_qa_input": "Patient-facing messaging component remains unresolved; no live delivery or full original closure.",
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-a7ec7e89b508-20261001T202939Z-f3b2f6\\combined-closeout-check-summary.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "original_claim_open; scoped_local_evidence_only"
+      },
+      {
+        "key": "31 | Newly invited Clinician not bookable",
+        "disposition": "mixed",
+        "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+        "components": [
+          {
+            "claim_scope": "Current assigned continuation proof",
+            "status": "locally_verified_component",
+            "detail": "Actual invitation, activation, authorized clinician setup, offered profile and persisted booking readback pass. Added permission-gated scheduling setup helper; syntax-only transform passes without loading imports."
+          }
+        ],
+        "remaining_qa_input": "Actual new helper and complete booking UI journey remain unverified under held dependency graph.",
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-31-syntax-a7ec.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "original_claim_open; scoped_local_evidence_only"
+      },
+      {
+        "key": "154 | Catalog shows \"At reorder point\" when no reorder point is set",
+        "disposition": "mixed",
+        "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+        "components": [
+          {
+            "claim_scope": "Current assigned continuation proof",
+            "status": "locally_verified_component",
+            "detail": "Actual Catalog rendering passes recorded-zero/equality, positive-stock and below-positive-threshold states. Source confirms default0 non-null stored threshold; no application arithmetic defect established."
+          }
+        ],
+        "remaining_qa_input": "Original implicit-default versus unset expectation/clarity remains unresolved; source and SSR are not historical invalidation.",
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "original_claim_open; scoped_local_evidence_only"
+      },
+      {
+        "key": "156 | \"First inventory run\" step 6 has no navigation link",
+        "disposition": "mixed",
+        "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+        "components": [
+          {
+            "claim_scope": "Current assigned continuation proof",
+            "status": "locally_verified_component",
+            "detail": "Actual Catalog rendering exposes exact step6 receiving link when prior steps complete, hides it when earlier step incomplete, hides guide whenallcomplete."
+          }
+        ],
+        "remaining_qa_input": "Receiving destination interaction and original prerequisite state remain unverified; SSR does not claim native navigation.",
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "original_claim_open; scoped_local_evidence_only"
+      },
+      {
+        "key": "111 | Booking dialog \"Find patient\" search returns no matches for existing synthetic patients [CLOSED — not reproducible]",
+        "disposition": "fixed_and_verified",
+        "scope": "Composed current real backend lookup and actual picker/resource proof; historical intermittent cause and hosted acceptance remain separate.",
+        "components": [
+          {
+            "claim_scope": "Current booking lookup behavior",
+            "status": "locally_verified",
+            "detail": "Unchanged executed backend lookup suite proves original eight query categories twice, normalization/reference/tenant boundaries. Actual picker retains punctuation-separated multi-token server match and correctidentity; actual resource hook prevents late older empty response replacing newer match. Two browser cases pass. c25 overallfailures solelyunrelatedclock cases retained; exacttestblob unchanged."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue111\\final-disposition.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+        ],
+        "integrated_source_revision": "a7ec7e89b5086ace465b359c9f8877855f8175d0",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
       }
     ]
   },
@@ -638,14 +845,23 @@
       "key": "111 | Booking dialog \"Find patient\" search returns no matches for existing synthetic patients [CLOSED — not reproducible]",
       "title": "Booking dialog \"Find patient\" search returns no matches for existing synthetic patients [CLOSED — not reproducible]",
       "source_line": 17,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Composed current real backend lookup and actual picker/resource proof; historical intermittent cause and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Current booking lookup behavior",
+          "status": "locally_verified",
+          "detail": "Unchanged executed backend lookup suite proves original eight query categories twice, normalization/reference/tenant boundaries. Actual picker retains punctuation-separated multi-token server match and correctidentity; actual resource hook prevents late older empty response replacing newer match. Two browser cases pass. c25 overallfailures solelyunrelatedclock cases retained; exacttestblob unchanged."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Resolve intermittent booking search using the original patient/site/session and request/response evidence; later failure prevents relying on the closed title.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\issue111\\final-disposition.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -1698,14 +1914,22 @@
       "key": "31 | Newly invited Clinician not bookable",
       "title": "Newly invited Clinician not bookable",
       "source_line": 125,
-      "disposition": "unverified",
+      "disposition": "mixed",
       "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+      "components": [
+        {
+          "claim_scope": "Current assigned continuation proof",
+          "status": "locally_verified_component",
+          "detail": "Actual invitation, activation, authorized clinician setup, offered profile and persisted booking readback pass. Added permission-gated scheduling setup helper; syntax-only transform passes without loading imports."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "CONFIG:Establish invited clinician profile, eligible site and availability, then verify the original booking picker includes the configured clinician.",
+      "remaining_qa_input": "Actual new helper and complete booking UI journey remain unverified under held dependency graph.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-31-syntax-a7ec.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2388,7 +2612,7 @@
       "source_line": 187,
       "disposition": "mixed",
       "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
       "components": [
         {
           "claim_scope": "New patient chat",
@@ -2399,12 +2623,19 @@
           "claim_scope": "Reminder send/recovery",
           "status": "unverified",
           "detail": "Staff Messages is not promised patient chat. Portal request queue exists; reminders dead-end is independent operational QA and cannot be closed by deferring chat."
+        },
+        {
+          "claim_scope": "Current assigned continuation proof",
+          "status": "locally_verified_component",
+          "detail": "Reminder recovery now selects queued/pending gated attempts as well as scheduled. Existing Dispatch policy/authority/provider/terminal fences retained. Whole affected backend suite passes including same-attempt/key recovery; scoped Ruby lint passes."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Existing reminder queue/send/recovery under current grants and suppressed local provider.",
+      "remaining_qa_input": "Patient-facing messaging component remains unresolved; no live delivery or full original closure.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-a7ec7e89b508-20261001T202939Z-f3b2f6\\combined-closeout-check-summary.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2508,25 +2739,24 @@
       "key": "85 | Tracking Board provider assignment offers no clinicians",
       "title": "Tracking Board provider assignment offers no clinicians",
       "source_line": 197,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Composed actual backend and actual component proof; browser transport synthetic, no full hosted journey inferred.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Inactive provider-user assignment guard independently checked12/40 and integratedd3353ed0."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "This guard does not establish the historical empty-provider picker cause."
+          "claim_scope": "Whole original current local claim",
+          "status": "locally_verified",
+          "detail": "Actual logged-in API offers configured eligible profile/site, assignment persists and reads back (1 case/13 assertions). Actual mapper feeds real TrackingBoardView; double-click opens dialog, options exactly Unassigned plus configured clinician, selecting profile retains exact ID. Page source directly projects eligible profile/site IDs to the View clinicians prop. This covers the current empty-dropdown complaint."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "This guard does not establish the historical empty-provider picker cause.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-85-136-composed-final.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\run-61ac4e2a1a65-20261001T200108Z-4f5ae4\\focused-disposition-backend-qa.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-85-view-browser-narrow-a7ec7e89b508.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2716,14 +2946,22 @@
       "key": "106 | \"Inventory locations →\" link is a dead end",
       "title": "\"Inventory locations →\" link is a dead end",
       "source_line": 217,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated current local claim verified; original historical cause and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "ActualOperations inventorylocations link nativeclick reaches actualInventoryApp storagescreen, search andstoragepath visible. ExactGETcsrf thenGETlocations, nootherrequests/nativeerrors. Earlierfixturefailures preserved."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Follow Inventory locations link through actual storage-management destination and authorization, not merely rendered href.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3186,25 +3424,24 @@
       "key": "136 | Unnamed clinician option / \"Clinician not assigned\" after booking a named clinician",
       "title": "Unnamed clinician option / \"Clinician not assigned\" after booking a named clinician",
       "source_line": 265,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Composed actual backend and actual component proof; browser transport synthetic, no full hosted journey inferred.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Clinician-label fallback repaired; scoped backend readback exists."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Historical assignment loss and original clinician identity/provenance remain unproved."
+          "claim_scope": "Whole original current local claim",
+          "status": "locally_verified",
+          "detail": "Actual API named clinician resource, selected profile booking, persisted GET identity and two calendar name/ID readbacks passed in prior selected backend batch. Actual WaitlistWorkspace shows an unnamed profile fallback and retains it across rule-type interaction. Actual ClinicSchedule displays saved named clinician on row and dialog on initial read and reload, without Clinician not assigned. Both original fragments covered by composed current local evidence."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Historical assignment loss and original clinician identity/provenance remain unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-85-136-composed-final.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-81f495c5e77b-20261001T201532Z-3dc948\\focused-73-136-backend-qa.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-136-render-browser-a7ec7e89b508.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3450,25 +3687,24 @@
       "key": "149 | Invoice #3 (SIMT) shows Settled with allocated USD 25.00 ≠ total USD 30.00 and no visible credit",
       "title": "Invoice #3 (SIMT) shows Settled with allocated USD 25.00 ≠ total USD 30.00 and no visible credit",
       "source_line": 291,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local invoice-credit reconciliation and activity claim verified; historical invoice cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Credit display correction retained."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original invoice30/allocation25/balance0 needs persisted credit/adjustment reconciliation."
+          "claim_scope": "Persisted payment/credit reconciliation and visible invoice/activity",
+          "status": "locally_verified",
+          "detail": "Actual30invoice,25cash,5credit persist and project zero balance. Added permission-scoped metadata-only credit activity, tested denial/isolation/non-disclosure/issuance ordering. Actual invoice and patientactivity components render persisted backend payload, exactcredit identity/actor/time and invoice amount/reason. Backend batch16/227 andtwoUIcases pass; totalsnotsolely149."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original invoice30/allocation25/balance0 needs persisted credit/adjustment reconciliation.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue149\\disposition.md",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue149\\result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-a7ec7e89b508-20261001T202939Z-f3b2f6\\focused-closeout-batch-backend-qa.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3563,14 +3799,22 @@
       "key": "154 | Catalog shows \"At reorder point\" when no reorder point is set",
       "title": "Catalog shows \"At reorder point\" when no reorder point is set",
       "source_line": 301,
-      "disposition": "unverified",
+      "disposition": "mixed",
       "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+      "components": [
+        {
+          "claim_scope": "Current assigned continuation proof",
+          "status": "locally_verified_component",
+          "detail": "Actual Catalog rendering passes recorded-zero/equality, positive-stock and below-positive-threshold states. Source confirms default0 non-null stored threshold; no application arithmetic defect established."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Recorded zero threshold versus unset threshold and accepted At reorder point semantics. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": "Original implicit-default versus unset expectation/clarity remains unresolved; source and SSR are not historical invalidation.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -3595,14 +3839,22 @@
       "key": "156 | \"First inventory run\" step 6 has no navigation link",
       "title": "\"First inventory run\" step 6 has no navigation link",
       "source_line": 305,
-      "disposition": "unverified",
+      "disposition": "mixed",
       "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+      "components": [
+        {
+          "claim_scope": "Current assigned continuation proof",
+          "status": "locally_verified_component",
+          "detail": "Actual Catalog rendering exposes exact step6 receiving link when prior steps complete, hides it when earlier step incomplete, hides guide whenallcomplete."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "First-run guide prerequisite progression exposes destination when step6 becomes actionable. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": "Receiving destination interaction and original prerequisite state remain unverified; SSR does not claim native navigation.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-frontend\\frozen-a7ec-results.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -5280,14 +5532,22 @@
       "key": "103 | Visitor/demo entry missing from the home page (REGRESSION?)",
       "title": "Visitor/demo entry missing from the home page (REGRESSION?)",
       "source_line": 473,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole stated current local claim verified; original historical cause and hosted acceptance remain separate.",
+      "components": [
+        {
+          "claim_scope": "Original local claim",
+          "status": "locally_verified",
+          "detail": "Actualmarketinghome hero nativeclick reaches actualdemooverview thenactualDemoJourney withvisibleOpenSandbox; reloadretainsdemo, noauth/resetmutations. Affectedcredential/footer casesalsopass."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Home-page visitor entry discoverable and reaches isolated demo without authenticating an unrelated destination. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-103-result.json"
+      ],
       "integrator_review_note": null
     },
     {

@@ -307,6 +307,25 @@ async function select(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
 }
+it("Muse122 fresh PIN stays empty across reload", async () => {
+  const page = await open("badges");
+  try {
+    const pin = page.getByLabel("Optional PIN", { exact: true });
+    await pin.waitFor();
+    expect(await pin.getAttribute("type")).toBe("password");
+    expect(await pin.getAttribute("autocomplete")).toBe("new-password");
+    expect(await pin.getAttribute("inputmode")).toBe("numeric");
+    expect(await pin.inputValue()).toBe("");
+
+    await page.reload();
+    await pin.waitFor();
+    expect(await pin.getAttribute("autocomplete")).toBe("new-password");
+    expect(await pin.inputValue()).toBe("");
+  } finally {
+    await page.close();
+  }
+});
+
 it.each(["success", "failure"])(
   "Muse122 PIN starts empty and clears after synthetic %s",
   async (outcome) => {

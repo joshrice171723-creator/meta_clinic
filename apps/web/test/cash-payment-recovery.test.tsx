@@ -79,7 +79,11 @@ const receipt = () => ({
   },
 });
 type Reply = { status: number; body: unknown };
-async function fixture(page: Page, replies: Reply[]) {
+async function fixture(
+  page: Page,
+  replies: Reply[],
+  initialPayload: unknown = null,
+) {
   page.on("pageerror", (error) => console.error(error));
   page.setDefaultTimeout(5000);
   const attempts: unknown[] = [];
@@ -89,9 +93,9 @@ async function fixture(page: Page, replies: Reply[]) {
     encounter_id: null,
     record_id: 705,
     scope: "cash_payment",
-    version: 0,
-    payload: null as unknown,
-    updated_at: null,
+    version: initialPayload === null ? 0 : 1,
+    payload: initialPayload,
+    updated_at: initialPayload === null ? null : "2026-10-01T20:15:00Z",
   };
   await page.route(`${baseUrl}/api/**`, async (route) => {
     const url = new URL(route.request().url());
@@ -137,7 +141,8 @@ async function fixture(page: Page, replies: Reply[]) {
     });
   });
   await page.goto(`${baseUrl}/cash-test`);
-  await page.getByLabel("Tendered cash").fill("30");
+  if (initialPayload === null)
+    await page.getByLabel("Tendered cash").fill("30");
   return { attempts, draft };
 }
 
@@ -217,6 +222,76 @@ it("allows correction after a definite first-attempt rejection", async () => {
     await page.close();
   }
 });
+
+it("#150 reveals a restored pending invoice payment before new entry and after reload", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  const retained = {
+    invoiceId: 705,
+    drawerId: 707,
+    currency: "USD",
+    tenderedAmount: "30",
+    allocationAmount: "25",
+    requestKey: "muse150-retained-cash",
+  };
+  try {
+    const state = await fixture(
+      page,
+      [{ status: 201, body: receipt() }],
+      retained,
+    );
+    const warning = page.getByText(
+      /Cash payment outcome is pending confirmation for invoice/,
+    );
+    for (let visit = 0; visit < 2; visit += 1) {
+      await locked(page);
+      await warning.waitFor();
+      expect(await warning.isVisible()).toBe(true);
+      const text = ((await warning.textContent()) ?? "").replace(/\s+/g, " ");
+      expect(text).toContain(
+        "invoice #705. Its drawer and amounts are locked.",
+      );
+      expect(text).toContain(
+        "Review activity, then retry this same payment if it is missing.",
+      );
+      expect(
+        await page
+          .getByRole("button", {
+            name: "Record cash payment",
+            exact: true,
+          })
+          .count(),
+      ).toBe(0);
+      expect(await page.getByLabel("Tendered cash").inputValue()).toBe("30");
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get("cash_drawer_id"))
+        .toBe("707");
+      expect(state.attempts).toHaveLength(0);
+      expect(state.draft.payload).toEqual(retained);
+      if (visit === 0) await page.reload();
+    }
+    await submit(page, true);
+    await page
+      .getByText("Cash payment recorded. Change due: USD 5.00.")
+      .waitFor();
+    expect(state.attempts).toEqual([
+      {
+        cash_payment: {
+          cash_drawer_session_id: retained.drawerId,
+          tendered_amount: retained.tenderedAmount,
+          allocation_amount: retained.allocationAmount,
+          request_key: retained.requestKey,
+        },
+      },
+    ]);
+    expect(state.draft.payload).toBeNull();
+    expect(await warning.count()).toBe(0);
+    expect(await page.getByLabel("Tendered cash").isEnabled()).toBe(true);
+  } finally {
+    await page.close();
+  }
+}, 20_000);
 
 it.each(["allocation", "tender", "change", "receipt"])(
   "keeps the lock when the server acknowledgment has a mismatched %s",
