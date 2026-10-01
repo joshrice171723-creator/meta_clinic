@@ -632,6 +632,11 @@ export function EmploymentAdminPage() {
           <Typography variant="h2" sx={{ mb: 2 }}>
             Pending invitations
           </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Activation links and tokens are shown only when an invitation is
+            created. If you no longer have them, revoke the invitation below,
+            then create a new employee invitation.
+          </Typography>
           <Stack spacing={0} divider={<Divider flexItem />}>
             {data.invitations.map((invitation) => (
               <Stack

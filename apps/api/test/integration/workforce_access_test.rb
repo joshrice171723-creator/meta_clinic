@@ -300,6 +300,7 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
   end
 
   test "Muse214 onboarding returns creation token once and stores only its digest" do
+    assert_equal false, Clinic::Configuration::PracticeFeatures.snapshot(practice: @practice, site: @assigned_site)[:finalized]
     login(@manager)
     post "/api/clinic/workforce/onboarding", params: muse_invitation_payload,
       headers: csrf_headers, as: :json
@@ -320,6 +321,19 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal %w[display_name email_address expires_at id role_code staff_member_id], pending.keys.sort
     assert !response.body.include?(token), "Pending index must not recover the creation token"
     assert_equal Digest::SHA256.hexdigest(token), invitation.reload.token_digest
+    patch "/api/clinic/workforce/onboarding/#{invitation.id}",
+      params: { employee_invitation: { action: "revoke" } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert invitation.reload.revoked?
+    assert_nil invitation.token_digest
+    post "/api/clinic/workforce/onboarding", params: muse_invitation_payload,
+      headers: csrf_headers, as: :json
+    assert_response :created
+    replacement = response.parsed_body.fetch("invitation")
+    replacement_token = replacement.fetch("activation_token_once")
+    assert_not_equal token, replacement_token
+    assert_equal Digest::SHA256.hexdigest(replacement_token),
+      Clinic::Workforce::EmployeeInvitation.find(replacement.fetch("id")).token_digest
   end
 
   test "Muse58 stale practice onboarding is rejected after session context switches without domain writes" do

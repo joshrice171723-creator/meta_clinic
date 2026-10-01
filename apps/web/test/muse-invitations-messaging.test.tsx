@@ -72,6 +72,8 @@ afterAll(async () => {
 async function open(mode: string, outcome = "success") {
   const page = await browser.newPage();
   const mutations: string[] = [];
+  let pendingInvitation = true;
+  let invitationCount = 0;
   await page.route(
     (url) => url.pathname.startsWith("/api/"),
     (route) => {
@@ -80,6 +82,11 @@ async function open(mode: string, outcome = "success") {
       let status = 200;
       let body: unknown = {};
       if (path.endsWith("/csrf")) body = { csrf_token: "synthetic-only" };
+      else if (method === "PATCH" && path === "/api/clinic/workforce/onboarding/1") {
+        mutations.push(path);
+        pendingInvitation = false;
+        body = { invitation: { id: 1, status: "revoked" } };
+      }
       else if (method === "POST") {
         mutations.push(path);
         if (outcome === "conflict") {
@@ -94,15 +101,18 @@ async function open(mode: string, outcome = "success") {
             error:
               "Your account does not have permission for this clinic action",
           };
-        } else if (path.endsWith("/onboarding"))
+        } else if (path.endsWith("/onboarding")) {
+          pendingInvitation = true;
+          invitationCount++;
+          const token = invitationCount === 1 ? "synthetic-nonfunctional" : "synthetic-replacement";
           body = {
             invitation: {
-              activation_token_once: "synthetic-nonfunctional",
-              activation_path:
-                "/workforce/activate#token=synthetic-nonfunctional",
+              activation_token_once: token,
+              activation_path: `/workforce/activate#token=${token}`,
               expires_at: "2026-10-04T00:00:00Z",
             },
           };
+        }
         else {
           status = 422;
           body = { error: "Synthetic activation refusal" };
@@ -121,7 +131,7 @@ async function open(mode: string, outcome = "success") {
             },
           ],
           sites: [{ id: 1, name: "Synthetic Site", code: "SYN" }],
-          invitations: [
+          invitations: pendingInvitation ? [
             {
               id: 1,
               display_name: "Pending Synthetic",
@@ -129,7 +139,7 @@ async function open(mode: string, outcome = "success") {
               role_code: "workforce-employee",
               expires_at: "2026-10-04T00:00:00Z",
             },
-          ],
+          ] : [],
         };
       else if (path.endsWith("/participants"))
         body = {
@@ -198,6 +208,14 @@ it("Muse214 creation shows one-time values; pending rows and reload do not recov
       .count(),
   ).toBe(0);
   expect(mutations).toHaveLength(1);
+  await page.getByText(/If you no longer have them, revoke the invitation below/).waitFor();
+  await page.getByRole("button", { name: "Revoke invitation", exact: true }).click();
+  await page.getByText("The employee invitation was revoked.", { exact: true }).waitFor();
+  await fillInvite(page);
+  await page.getByRole("button", { name: "Create employee invitation", exact: true }).click();
+  await expect.poll(() => page.getByLabel("One-time activation token", { exact: false }).inputValue()).toBe("synthetic-replacement");
+  expect(await page.getByRole("link", { name: "Open employee activation" }).getAttribute("href")).toContain("#token=synthetic-replacement");
+  expect(mutations).toEqual(["/api/clinic/workforce/onboarding", "/api/clinic/workforce/onboarding/1", "/api/clinic/workforce/onboarding"]);
   await page.close();
 });
 it("Muse58 clinic conflict is visible, preserves invitation fields, and does not replay", async () => {

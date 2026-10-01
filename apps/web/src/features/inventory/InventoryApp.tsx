@@ -3554,14 +3554,17 @@ export function CatalogScreen({
                   </td>
                   <td data-label="Status">
                     <Badge tone={item.low_stock ? "warning" : "success"}>
-                      {decimalCompare(
-                        item.available_units,
-                        item.reorder_point_units,
-                      ) < 0
-                        ? "Below reorder point"
-                        : item.low_stock
-                          ? "At reorder point"
-                          : "In range"}
+                      {decimalCompare(item.available_units, "0") === 0 &&
+                      decimalCompare(item.reorder_point_units, "0") === 0
+                        ? "Out of stock"
+                        : decimalCompare(
+                              item.available_units,
+                              item.reorder_point_units,
+                            ) < 0
+                          ? "Below reorder point"
+                          : item.low_stock
+                            ? "At reorder point"
+                            : "In range"}
                     </Badge>
                   </td>
                   <td data-label="Actions">
@@ -3744,7 +3747,7 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
                   : "Not started"}: {step.title}
             </strong>{" "}
             — {step.detail}{" "}
-            {!step.complete && index === nextStepIndex && (
+            {!step.complete && (
               <a href={step.href}>Continue to {step.title} →</a>
             )}
           </li>
