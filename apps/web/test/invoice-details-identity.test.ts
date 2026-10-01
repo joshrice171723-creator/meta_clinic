@@ -465,9 +465,7 @@ it("#147 flags an excessive credit inline and disables submission until correcte
       name: "Record credit",
       exact: true,
     });
-    await dialog
-      .getByLabel(/^Reason/)
-      .fill("Synthetic adjustment review");
+    await dialog.getByLabel(/^Reason/).fill("Synthetic adjustment review");
     for (const invalid of ["999", "50.000001", "0", "abc"]) {
       await amount.fill(invalid);
       expect(await amount.getAttribute("aria-invalid")).toBe("true");
@@ -481,6 +479,39 @@ it("#147 flags an excessive credit inline and disables submission until correcte
     await amount.fill("50.000000");
     expect(await amount.getAttribute("aria-invalid")).toBe("false");
     expect(await submit.isEnabled()).toBe(true);
+    expect((await requests(page)).filter((r) => r.method !== "GET")).toEqual(
+      [],
+    );
+  } finally {
+    await page.close();
+  }
+}, 15000);
+
+it("#146 links charge adjustments to the existing payment and refund history", async () => {
+  const { page, dialog } = await openAdjustableInvoice();
+  try {
+    const link = dialog.getByRole("link", {
+      name: "Review payments and refunds",
+      exact: true,
+    });
+    expect(await link.count()).toBe(1);
+    await link.click();
+    await expect.poll(() => dialog.isVisible()).toBe(false);
+    expect(new URL(page.url()).hash).toBe("#billing-payment-history");
+    const history = page.locator("#billing-payment-history");
+    expect(
+      await history
+        .getByRole("heading", {
+          name: "Payment and refund history",
+          exact: true,
+        })
+        .count(),
+    ).toBe(1);
+    expect(
+      await history
+        .getByText("No payments were returned for this patient.")
+        .count(),
+    ).toBe(1);
     expect((await requests(page)).filter((r) => r.method !== "GET")).toEqual(
       [],
     );

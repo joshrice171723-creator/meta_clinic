@@ -1807,6 +1807,15 @@ function ChargeAdjustmentDialog({
                 Resolve it before voiding the invoice.
               </Alert>
             )}
+            <Button
+              component="a"
+              href="#billing-payment-history"
+              onClick={close}
+              disabled={busy}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Review payments and refunds
+            </Button>
             {canCredit && (
               <Button
                 disabled={retryPending}
@@ -2307,7 +2316,13 @@ function PaymentHistory({
 
   return (
     <>
-      <Paper component="section" variant="outlined">
+      <Paper
+        component="section"
+        id="billing-payment-history"
+        tabIndex={-1}
+        variant="outlined"
+        sx={{ scrollMarginTop: 24 }}
+      >
         <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
           <ReceiptLongOutlinedIcon color="primary" />
           <Typography component="h2" variant="h2">
