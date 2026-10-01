@@ -676,7 +676,7 @@ describe("provider encounter workflow", () => {
       "#chart-patient",
       "#nurse-workspace",
       "#chart-access",
-      "#chart-hpi",
+      "#chart-documentation",
       "#chart-completion",
     ]);
   });

@@ -4995,7 +4995,7 @@ export function EncounterSectionRail({
     ["Chart", "#chart-access"],
     ...(chartConfirmed
       ? [
-          ["Documentation", "#chart-hpi"],
+          ["Documentation", "#chart-documentation"],
           ["Completion", "#chart-completion"],
         ]
       : []),
@@ -5013,7 +5013,29 @@ export function EncounterSectionRail({
       </Typography>
       <Stack direction="row" className="encounter-section-links">
         {links.map(([label, href]) => (
-          <Button key={href} href={href} variant="text" size="small">
+          <Button
+            key={href}
+            href={href}
+            variant="text"
+            size="small"
+            onClick={(event) => {
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
+              event.preventDefault();
+              event.stopPropagation();
+              document.querySelector(href)?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+              window.history.replaceState(window.history.state, "", href);
+            }}
+          >
             {label}
           </Button>
         ))}
@@ -5533,7 +5555,9 @@ export function ProviderEncounterWorkflow({
                       setOrderRevision((revision) => revision + 1)
                     }
                   />
-                  {noteWorkspace}
+                  <Box id="chart-documentation" sx={{ scrollMarginTop: 16 }}>
+                    {noteWorkspace}
+                  </Box>
                   {encounter.individual_therapy_visit &&
                     capabilities.psychotherapy_notes && (
                       <PsychotherapyNotePanel
