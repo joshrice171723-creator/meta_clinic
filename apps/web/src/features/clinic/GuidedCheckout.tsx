@@ -441,7 +441,10 @@ export function GuidedCheckout({
             href: `/api/clinic/payment_events/${receipt.id}/receipt`,
             label: "Open receipt",
           }
-        : { href: "#checkout-invoice-actions", label: "Review receipt" },
+        : {
+            href: "#billing-payment-history",
+            label: "Review payment and receipt status",
+          },
     },
     {
       label: "Follow-up",
