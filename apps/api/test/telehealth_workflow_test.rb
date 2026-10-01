@@ -8,6 +8,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
   PASSWORD = "Telehealth-test-password-123!".freeze
 
   setup do
+    travel_to Time.utc(2026, 10, 1, 9)
     @rails_environment = Rails.env
     Rails.cache.clear
     host! "localhost:3000"

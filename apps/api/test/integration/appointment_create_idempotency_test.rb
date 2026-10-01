@@ -2,6 +2,7 @@ require "test_helper"
 
 class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
   setup do
+    travel_to Time.utc(2026, 10, 1, 8)
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
     @password = SecureRandom.hex(18)

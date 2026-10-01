@@ -130,7 +130,7 @@ export function PatientPortalActivation() {
                 size="small"
               />
               <Chip
-                label="Next: verify identity"
+                label="Next: set password"
                 color="primary"
                 size="small"
                 variant="outlined"
