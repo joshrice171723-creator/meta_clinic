@@ -503,9 +503,9 @@ export function Workspace({
     (locationSelectionMade || Boolean(data?.current_site));
   const [switchingPractice, setSwitchingPractice] = useState(false);
   useLayoutEffect(() => {
-    setClinicPractice(data?.practice.id);
-    return () => setClinicPractice(undefined);
+    if (data?.practice.id !== undefined) setClinicPractice(data.practice.id);
   }, [data?.practice.id]);
+  useLayoutEffect(() => () => setClinicPractice(undefined), []);
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
   const selectingLocation = useRef(false);
