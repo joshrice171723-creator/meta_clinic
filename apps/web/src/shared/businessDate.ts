@@ -8,7 +8,8 @@ export function businessNow() {
   const now = new Date();
   if (!selectedDate) return now;
   const [year, month, day] = selectedDate.split("-").map(Number);
-  now.setFullYear(year, month - 1, day);
+  // Match Current.business_time: the server business date uses UTC.
+  now.setUTCFullYear(year, month - 1, day);
   return now;
 }
 
