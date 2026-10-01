@@ -43,9 +43,9 @@ beforeAll(async () => {
             'const [query,setQuery]=useState(""); const [selected,setSelected]=useState(); const [editing,setEditing]=useState(false);',
             "const deferred=useDeferredValue(query);",
             'const patients=useResource("/api/clinic/patients/lookup?q="+encodeURIComponent(deferred.trim())+"&per_page=25",{enabled:deferred.trim().length>0});',
-            'return <><BookingPatientPicker patient={selected} editing={editing} query={query} results={patients.data?.patients??[]} loading={Boolean(deferred.trim()&&!patients.data&&!patients.error)} error={patients.error} disabled={false} canReviewPatient={false} onEditingChange={setEditing} onQueryChange={setQuery} onSelect={setSelected}/><output data-testid="selected-patient-id">{selected?.id??""}</output></>;',
+            'return React.createElement(React.Fragment,null,React.createElement(BookingPatientPicker,{patient:selected,editing,query,results:patients.data?.patients??[],loading:Boolean(deferred.trim()&&!patients.data&&!patients.error),error:patients.error,disabled:false,canReviewPatient:false,onEditingChange:setEditing,onQueryChange:setQuery,onSelect:setSelected}),React.createElement("output",{"data-testid":"selected-patient-id"},selected?.id??""));',
             "}",
-            'createRoot(document.getElementById("root")).render(<MountedPicker/>);',
+            'createRoot(document.getElementById("root")).render(React.createElement(MountedPicker));',
           ].join("\n");
         },
         configureServer(vite) {
@@ -119,8 +119,39 @@ async function routeApi(
   return requests;
 }
 
+function diagnostic(page: Page) {
+  const errors: string[] = [];
+  const requests: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error")
+      console.error("111 browser", message.text());
+  });
+  page.on("requestfailed", (request) =>
+    console.error("111 request failed", request.url(), request.failure()),
+  );
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/"))
+      requests.push(request.url());
+  });
+  return async () =>
+    console.error(
+      "111 diagnostic",
+      JSON.stringify({
+        url: page.url(),
+        errors,
+        requests,
+        body: (await page.locator("body").innerText({ timeout: 1_000 })).slice(
+          0,
+          4_000,
+        ),
+      }),
+    );
+}
+
 it("#111 mounted picker preserves a multi-token server name match and selects its exact identity", async () => {
   const page = await browser.newPage();
+  const report = diagnostic(page);
   try {
     const requests = await routeApi(page, (query) => ({
       patients: query === "Mercer Alex" ? [mercer] : [],
@@ -142,6 +173,9 @@ it("#111 mounted picker preserves a multi-token server name match and selects it
     expect(await page.locator("body").textContent()).toContain(
       "Clinic reference: SYN-111-801",
     );
+  } catch (error) {
+    await report();
+    throw error;
   } finally {
     await page.close();
   }
@@ -149,6 +183,7 @@ it("#111 mounted picker preserves a multi-token server name match and selects it
 
 it("#111 mounted actual resource hook keeps the newer match when an older empty lookup finishes late", async () => {
   const page = await browser.newPage();
+  const report = diagnostic(page);
   let releaseOlder!: () => void;
   let sawOlder!: () => void;
   let finishOlder!: () => void;
@@ -204,6 +239,9 @@ it("#111 mounted actual resource hook keeps the newer match when an older empty 
     expect(await page.getByTestId("selected-patient-id").textContent()).toBe(
       "802",
     );
+  } catch (error) {
+    await report();
+    throw error;
   } finally {
     releaseOlder?.();
     await page.close();

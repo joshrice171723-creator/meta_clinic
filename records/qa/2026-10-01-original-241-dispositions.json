@@ -1,15 +1,15 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T20:03:51.134396+00:00",
-    "source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
+    "generated_at": "2026-10-01T20:20:27.196373+00:00",
+    "source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 125,
-    "remaining": 116,
+    "closed": 128,
+    "remaining": 113,
     "counts": {
       "mixed": 51,
-      "fixed_and_verified": 117,
-      "unverified": 41,
+      "fixed_and_verified": 120,
+      "unverified": 38,
       "deferred": 5,
       "blocked": 19,
       "proven_invalid": 8
@@ -496,6 +496,85 @@
         ],
         "integrated_source_revision": "61ac4e2a1a651c626482474c5e2ae3f9ee849db6",
         "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "26 | Omni login hard to discover",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local discoverability claim verified; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Credential entry discoverability and Owner PIN guidance",
+            "status": "locally_verified",
+            "detail": "Actual React/MUI Owner PIN rendering confirms four-digit hint and visible owner/clinic credential links at81f495. Intact prior actual browser Muse257 proof verifies visible entry links and distinct navigation destinations."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue26\\disposition.md",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue26\\result.json"
+        ],
+        "integrated_source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "73 | No intake forms attached to booking",
+        "disposition": "fixed_and_verified",
+        "scope": "Current booking-to-intake attachment verified through existing automatic site and visit-type mapping; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Booking intake form attachment",
+            "status": "locally_verified",
+            "detail": "Four actual persisted bookings span two clinic sites and initial/follow-up visit types. Patient-portal authenticated repeated readback returns each booked appointment and exact mapped intake form. Existing fallback and pinned-form behavior retained. Focused73+136 backend batch2runs73assertions passes; only73 fullclaim closed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue73-136-run-metadata.json"
+        ],
+        "integrated_source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "59 | Location chooser org-scoping hides locations",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local organization-switch discoverability and eligible-site navigation verified; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Organization-scoped location chooser",
+            "status": "locally_verified",
+            "detail": "Helper explains switching organization. Actual Workspace writes practice82, reveals both eligible alternative sites, hides originalsite, selects site202 and retains selection afterreload. Passing unchanged workforce backend selected-site GET and foreign-site refusal reused; clinic_workspace was not in c25 executed suite and is not counted as executedproof."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-browser-81f495.json"
+        ],
+        "integrated_source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5",
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate"
+      },
+      {
+        "key": "20 | Direct URL navigation loses location context",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Direct navigation retains selected location",
+            "status": "locally_verified",
+            "detail": "Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Executed workforce_access selected-site authenticated GET/foreign-site refusal proof reused with source equality. Correction: clinic_workspace_test.rb was not executed in c25 consolidated run; prior attribution is superseded, no standalone execution claimed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "evidence_label": "whole_current_local_claim_verified; hosted_acceptance_separate",
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue20\\disposition.md",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-result.json"
+        ],
+        "integrated_source_revision": "81f495c5e77be2374b7818307318a2440cfac4d5"
       }
     ]
   },
@@ -1477,16 +1556,17 @@
       "scope": "Whole stated current local claim verified with recorded UI/backend composition; hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Original local claim",
+          "claim_scope": "Direct navigation retains selected location",
           "status": "locally_verified",
-          "detail": "Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Real authenticated location selection and subsequent API readback persist site; unchanged executed backend proof reused."
+          "detail": "Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Executed workforce_access selected-site authenticated GET/foreign-site refusal proof reused with source equality. Correction: clinic_workspace_test.rb was not executed in c25 consolidated run; prior attribution is superseded, no standalone execution claimed."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue20\\disposition.md"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue20\\disposition.md",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-result.json"
       ],
       "integrator_review_note": null
     },
@@ -1593,14 +1673,23 @@
       "key": "26 | Omni login hard to discover",
       "title": "Omni login hard to discover",
       "source_line": 123,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local discoverability claim verified; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Credential entry discoverability and Owner PIN guidance",
+          "status": "locally_verified",
+          "detail": "Actual React/MUI Owner PIN rendering confirms four-digit hint and visible owner/clinic credential links at81f495. Intact prior actual browser Muse257 proof verifies visible entry links and distinct navigation destinations."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Verify discoverability of owner and clinic-team credential entry including PIN guidance on the published build.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue26\\disposition.md",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\activation-copy-render\\issue26\\result.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2112,14 +2201,23 @@
       "key": "59 | Location chooser org-scoping hides locations",
       "title": "Location chooser org-scoping hides locations",
       "source_line": 171,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local organization-switch discoverability and eligible-site navigation verified; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Organization-scoped location chooser",
+          "status": "locally_verified",
+          "detail": "Helper explains switching organization. Actual Workspace writes practice82, reveals both eligible alternative sites, hides originalsite, selects site202 and retains selection afterreload. Passing unchanged workforce backend selected-site GET and foreign-site refusal reused; clinic_workspace was not in c25 executed suite and is not counted as executedproof."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Verify organization-switch discoverability and eligible site access for original session; hierarchical chooser characterization does not resolve UX claim.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-59-browser-81f495.json"
+      ],
       "integrator_review_note": null
     },
     {
@@ -2366,14 +2464,22 @@
       "key": "73 | No intake forms attached to booking",
       "title": "No intake forms attached to booking",
       "source_line": 193,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
-      "components": [],
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Current booking-to-intake attachment verified through existing automatic site and visit-type mapping; hosted acceptance separate.",
+      "components": [
+        {
+          "claim_scope": "Booking intake form attachment",
+          "status": "locally_verified",
+          "detail": "Four actual persisted bookings span two clinic sites and initial/follow-up visit types. Patient-portal authenticated repeated readback returns each booked appointment and exact mapped intake form. Existing fallback and pinned-form behavior retained. Focused73+136 backend batch2runs73assertions passes; only73 fullclaim closed."
+        }
+      ],
       "blocking_input": null,
-      "remaining_qa_input": "Verify booking-to-intake form attachment and durable readback on exact build; targeted backend1/9 is limited evidence.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
-      "integrator_evidence": null,
+      "integrator_evidence": [
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue73-136-run-metadata.json"
+      ],
       "integrator_review_note": null
     },
     {

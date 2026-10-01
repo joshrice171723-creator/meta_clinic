@@ -24,7 +24,11 @@ import { createRoot } from 'react-dom/client';
 import { LaunchLayout } from '/src/App.tsx';
 import { Login } from '/src/features/identity/Login.tsx';
 import { DemoJourney } from '/src/features/demo/DemoJourney.tsx';
-const page = location.pathname === '/demo' ? React.createElement(DemoJourney)
+import { MetaClinicMarketing } from '/src/features/marketing/MetaClinicMarketing.tsx';
+import { GrowthMarketingPage } from '/src/features/marketing/GrowthMarketingPage.tsx';
+const page = location.pathname === '/' ? React.createElement(MetaClinicMarketing)
+ : location.pathname === '/meta-clinic/demo' ? React.createElement(GrowthMarketingPage, { path: location.pathname })
+ : location.pathname === '/demo' ? React.createElement(DemoJourney)
  : React.createElement(LaunchLayout, { user: null, environment: 'test' },
    React.createElement(Login, { developmentLogin: true, ownerPinRequired: true, environment: 'test' }));
 createRoot(document.getElementById('root')).render(page);
@@ -54,7 +58,9 @@ beforeAll(async () => {
         configureServer(vite) {
           vite.middlewares.use((request, response, next) => {
             const path = request.url?.split("?")[0];
-            if (["/", "/login", "/demo"].includes(path || "")) {
+            if (
+              ["/", "/login", "/demo", "/meta-clinic/demo"].includes(path || "")
+            ) {
               response.setHeader("Content-Type", "text/html");
               response.end(
                 '<div id="root"></div><script type="module" src="/qa-public-entry.tsx"></script>',
@@ -73,7 +79,7 @@ beforeAll(async () => {
     args: ["--no-sandbox"],
   });
   // Await the read-only fixture render before measuring destination navigation.
-  const warmPage = await open("/");
+  const warmPage = await open("/login");
   try {
     await warmPage
       .getByRole("link", {
@@ -116,7 +122,7 @@ async function open(path: string): Promise<Page> {
   return page;
 }
 it("Muse257 describes both credential types and preserves distinct sign-in destinations", async () => {
-  const page = await open("/");
+  const page = await open("/login");
   const clinic = page.getByRole("link", {
     name: "Sign in with clinic team account",
     exact: true,
@@ -128,7 +134,7 @@ it("Muse257 describes both credential types and preserves distinct sign-in desti
   await clinic.click();
   await page.waitForURL("**/login?credentials=1&next=%2Fclinic");
   await page.getByRole("heading", { name: /Clinic team/ }).waitFor();
-  await page.goto(base);
+  await page.goto(base.replace(/\/$/, "") + "/login");
   await page
     .getByRole("link", { name: "Sign in with owner account", exact: true })
     .click();
@@ -137,7 +143,7 @@ it("Muse257 describes both credential types and preserves distinct sign-in desti
   await page.close();
 });
 it("Muse258 current public footer has a working sign-in link and none of the reported dead controls", async () => {
-  const page = await open("/");
+  const page = await open("/login");
   const footer = page.getByRole("contentinfo");
   await footer.waitFor();
   for (const name of [
@@ -210,3 +216,49 @@ it("Muse254 keeps historical lesson cards hidden even when returned by the serve
   ).toBe(false);
   await page.close();
 });
+it("Muse103 actual marketing home leads to the visitor demo without authenticating", async () => {
+  const page = await open("/");
+  const mutations: string[] = [];
+  page.on("request", (request) => {
+    if (
+      new URL(request.url()).pathname.startsWith("/api/") &&
+      request.method() !== "GET"
+    ) {
+      mutations.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
+  const entry = page.locator(".meta-marketing__hero").getByRole("link", {
+    name: "Explore the demo",
+    exact: true,
+  });
+  await entry.waitFor();
+  expect(await entry.isVisible()).toBe(true);
+  expect(await entry.getAttribute("href")).toBe("/meta-clinic/demo");
+  await entry.click();
+  await page.waitForURL("**/meta-clinic/demo");
+  const productDemo = page.locator(".growth-core__hero").getByRole("link", {
+    name: "Open the guided demo",
+    exact: true,
+  });
+  await productDemo.waitFor();
+  expect(await productDemo.getAttribute("href")).toBe("/demo");
+  await productDemo.click();
+  await page.waitForURL("**/demo");
+  await page
+    .getByRole("heading", { name: "Explore the clinic", exact: true })
+    .waitFor();
+  expect(
+    await page
+      .getByRole("button", { name: "Open Sandbox", exact: true })
+      .isVisible(),
+  ).toBe(true);
+  expect(await page.getByLabel("Password", { exact: false }).count()).toBe(0);
+  expect(mutations).toEqual([]);
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Explore the clinic", exact: true })
+    .waitFor();
+  expect(new URL(page.url()).pathname).toBe("/demo");
+  expect(mutations).toEqual([]);
+  await page.close();
+}, 20_000);

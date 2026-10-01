@@ -203,7 +203,7 @@ module Clinic
           OR (clinic_patient_reminder_outbox.dispatch_state = 'failed' AND clinic_patient_reminder_outbox.available_at <= :at
             AND clinic_patient_reminders.status = 'failed')
           OR (clinic_patient_reminder_outbox.dispatch_state = 'pending' AND clinic_patient_reminder_outbox.available_at <= :at
-            AND clinic_patient_reminders.status = 'scheduled')
+            AND clinic_patient_reminders.status IN ('scheduled', 'queued'))
         SQL
       rotating_candidate_ids(relation, :reminders)
     end

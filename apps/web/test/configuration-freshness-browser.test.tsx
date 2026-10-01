@@ -31,6 +31,7 @@ beforeAll(async () => {
           import {ClinicFrame} from "/src/features/clinic/ClinicFrame";
           import {ClinicScopeSelector} from "/src/features/clinic/ClinicScopeSelector";
           import {ClinicSchedule} from "/src/features/clinic/ClinicSchedule";
+          import {WaitlistWorkspace} from "/src/features/clinic/WaitlistWorkspace";
           import {OperationsReportsCatalog} from "/src/features/clinic/OperationsReportsCatalog";
           const context = window.fixtureContext = {
             practice: {id: 1, name: "Synthetic clinic", timezone: "America/Chicago"},
@@ -39,8 +40,9 @@ beforeAll(async () => {
             capabilities: {appointments_read: true}
           };
           const mode = new URLSearchParams(location.search).get("mode");
+          if (mode === "capacity") context.capabilities.facilities_write = true;
           const root = createRoot(document.getElementById("root"));
-          root.render(mode === "schedule" ? React.createElement(ClinicSchedule, {}) : mode === "reports" ? React.createElement(OperationsReportsCatalog, {capabilities: context.capabilities, siteId: 1, timezone: context.practice.timezone}) : React.createElement(ClinicFrame,
+          root.render(mode === "capacity" ? React.createElement(WaitlistWorkspace) : mode === "schedule" ? React.createElement(ClinicSchedule, {}) : mode === "reports" ? React.createElement(OperationsReportsCatalog, {capabilities: context.capabilities, siteId: 1, timezone: context.practice.timezone}) : React.createElement(ClinicFrame,
             {practiceName: context.practice.name, timezone: context.practice.timezone, navigation: null,
              scopeSelector: React.createElement(ClinicScopeSelector, {context, onPracticeChange: () => {}, onLocationChange: () => {}})}, "Synthetic content"));`;
         },
@@ -108,6 +110,144 @@ async function open(page: Page, mode: string) {
 }
 
 describe("configuration labels and freshness", () => {
+  it("#136 renders an unnamed capacity profile and a named saved calendar appointment through reload", async () => {
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 1000 },
+    });
+    const clinicianName = "Synthetic Named Readback Clinician";
+    const patientName = "Synthetic Named Readback Patient";
+    const appointment = {
+      id: 901,
+      patient_id: 801,
+      site_id: 1,
+      booked_clinician_id: 9,
+      room_id: null,
+      starts_at: "2026-10-01T14:00:00Z",
+      ends_at: "2026-10-01T14:30:00Z",
+      status: "scheduled",
+      calendar_status: "scheduled",
+      conflict: false,
+      patient: {
+        id: 801,
+        display_name: patientName,
+        reference: "SYN-136-PATIENT",
+      },
+      clinician_name: clinicianName,
+      room_name: null,
+      visit_type_name: "Synthetic named visit",
+    };
+    try {
+      await page.route(
+        (url) => url.pathname.startsWith("/api/"),
+        (route) => {
+          const path = new URL(route.request().url()).pathname;
+          if (path === "/api/csrf")
+            return route.fulfill({ json: { csrf_token: "synthetic" } });
+          if (path === "/api/clinic/waitlist")
+            return route.fulfill({
+              json: {
+                entries: [],
+                total: 0,
+                ranking: "earliest",
+                cancellations: [],
+                sites: [{ id: 1, name: "Synthetic named site" }],
+                clinicians: [{ id: 9, name: "Clinician profile #9" }],
+                visit_types: [],
+              },
+            });
+          if (path === "/api/clinic/capacity")
+            return route.fulfill({
+              json: {
+                rules: [],
+                timezone: "America/Chicago",
+                site_availability: [],
+                can_block: true,
+              },
+            });
+          if (path === "/api/clinic/schedule_calendar")
+            return route.fulfill({
+              json: {
+                site_id: 1,
+                month: "2026-10",
+                timezone: "America/Chicago",
+                slot_minutes: 30,
+                as_of: "2026-10-01T13:00:00Z",
+                capacity_configured: true,
+                clinicians: [{ id: 9, name: clinicianName }],
+                rooms: [],
+                days: [
+                  {
+                    date: "2026-10-01",
+                    scheduled: 1,
+                    confirmed: 0,
+                    available: 0,
+                    conflicts: 0,
+                    slots: [],
+                    holds: [],
+                    appointments: [appointment],
+                  },
+                ],
+              },
+            });
+          return route.fulfill({
+            status: 404,
+            json: { error: "Unexpected synthetic identity route" },
+          });
+        },
+      );
+      await page.goto(
+        `${baseUrl}/configuration-freshness-fixture?mode=capacity`,
+      );
+      const clinician = page.getByRole("combobox", {
+        name: "Clinician",
+        exact: true,
+      });
+      await clinician.click();
+      const option = page.getByRole("option", {
+        name: "Clinician profile #9",
+        exact: true,
+      });
+      expect(await option.getAttribute("data-value")).toBe("9");
+      await option.click();
+      await expect
+        .poll(() => clinician.innerText())
+        .toBe("Clinician profile #9");
+      await page
+        .getByRole("combobox", { name: "Rule type", exact: true })
+        .click();
+      await page
+        .getByRole("option", { name: "Weekly hours", exact: true })
+        .click();
+      expect(await clinician.innerText()).toBe("Clinician profile #9");
+      await page.goto(
+        `${baseUrl}/configuration-freshness-fixture?mode=schedule&month=2026-10&day=2026-10-01&view=day`,
+      );
+      for (let read = 0; read < 2; read++) {
+        const row = page.getByRole("button").filter({ hasText: patientName });
+        await row.waitFor();
+        expect(await row.innerText()).toContain(clinicianName);
+        expect(await row.innerText()).not.toContain("Clinician not assigned");
+        await row.click();
+        expect(await page.getByRole("dialog").innerText()).toContain(
+          clinicianName,
+        );
+        expect(await page.getByRole("dialog").innerText()).not.toContain(
+          "Clinician not assigned",
+        );
+        if (read === 0) await page.reload();
+      }
+    } catch (error) {
+      console.error(
+        "#136 actual component diagnostic",
+        page.url(),
+        await page.locator("body").innerText(),
+      );
+      throw error;
+    } finally {
+      await page.close();
+    }
+  }, 20000);
+
   it("shows the accessible location name and identifies the clinic timezone (#10/#140)", async () => {
     const page = await browser.newPage({
       viewport: { width: 1440, height: 1000 },

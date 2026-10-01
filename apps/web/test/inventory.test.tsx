@@ -34,76 +34,150 @@ import type {
   InventoryPurchaseOrder,
 } from "../src/features/inventory/inventoryContracts";
 
-describe("inventory integration", () => {
-  it("renders catalog counts, exact stock, attention totals and failed reads", () => {
-    const data: InventoryCatalogData = {
-      schema_version: "inventory-wire-v1",
-      dataset_version: "bulk_v3",
-      data_version: 1,
-      as_of: "2026-09-05T12:00:00Z",
-      timezone: "America/Chicago",
-      practice: { id: 1, name: "Catalog fixture", timezone: "America/Chicago" },
-      users: [],
-      current_user_id: "1",
-      capabilities: {},
-      configuration: { status: "configured", version: 1, reason: "Fixture" },
-      catalog_page: {
-        query: "",
-        status: "all",
-        sort: "name",
-        page: 2,
-        page_count: 3,
-        page_size: 20,
-        total_count: 45,
-        filtered_count: 45,
+function catalogFixture(): InventoryCatalogData {
+  return {
+    schema_version: "inventory-wire-v1",
+    dataset_version: "bulk_v3",
+    data_version: 1,
+    as_of: "2026-09-05T12:00:00Z",
+    timezone: "America/Chicago",
+    practice: { id: 1, name: "Catalog fixture", timezone: "America/Chicago" },
+    users: [],
+    current_user_id: "1",
+    capabilities: {},
+    configuration: { status: "configured", version: 1, reason: "Fixture" },
+    catalog_page: {
+      query: "",
+      status: "all",
+      sort: "name",
+      page: 2,
+      page_count: 3,
+      page_size: 20,
+      total_count: 45,
+      filtered_count: 45,
+    },
+    products: [
+      {
+        id: "21",
+        name: "Catalog fixture liquid",
+        schedule: null,
+        preferred_supplier: null,
+        category: "medication",
+        ndc: "",
+        device_identifier: "",
+        active: true,
+        package_id: "pkg_21",
+        base_unit: "mL",
+        units_per_package: "1.25",
+        reorder_point_units: "1",
+        available_units: "2.5",
+        on_hand_units: "2.5",
+        low_stock: false,
       },
-      products: [
-        {
-          id: "21",
-          name: "Catalog fixture liquid",
-          schedule: null,
-          preferred_supplier: null,
-          category: "medication",
-          ndc: "",
-          device_identifier: "",
-          active: true,
-          package_id: "pkg_21",
-          base_unit: "mL",
-          units_per_package: "1.25",
-          reorder_point_units: "1",
-          available_units: "2.5",
-          on_hand_units: "2.5",
-          low_stock: false,
-        },
-      ],
-      packages: [],
-      can_create_purchase_order: true,
-      attention_count: 25,
-      first_run: {
-        supplier: false,
-        product: true,
-        offer: false,
-        purchase_order: false,
-        received: false,
-        binned: false,
-        supplier_id: null,
+    ],
+    packages: [],
+    can_create_purchase_order: true,
+    attention_count: 25,
+    first_run: {
+      supplier: false,
+      product: true,
+      offer: false,
+      purchase_order: false,
+      received: false,
+      binned: false,
+      supplier_id: null,
+      product_id: "21",
+      product_name: "Catalog fixture liquid",
+      purchase_order_id: null,
+      purchase_order_status: null,
+      shipment_id: null,
+    },
+    attention: [
+      {
+        id: "1",
         product_id: "21",
         product_name: "Catalog fixture liquid",
-        purchase_order_id: null,
-        purchase_order_status: null,
-        shipment_id: null,
+        lot_number: "HELD-FIXTURE",
+        expiration_date: "2099-01-01",
+        status: "quarantined",
       },
-      attention: [
-        {
-          id: "1",
-          product_id: "21",
-          product_name: "Catalog fixture liquid",
-          lot_number: "HELD-FIXTURE",
-          expiration_date: "2099-01-01",
-          status: "quarantined",
-        },
-      ],
+    ],
+  };
+}
+
+describe("inventory integration", () => {
+  it("#154 renders the recorded zero threshold and compares stock with that value", () => {
+    const data = catalogFixture();
+    const render = () =>
+      renderToStaticMarkup(
+        <CatalogScreen data={data} onRead={async () => {}} />,
+      );
+    data.products[0] = {
+      ...data.products[0],
+      reorder_point_units: "0",
+      available_units: "0",
+      on_hand_units: "0",
+      low_stock: true,
     };
+    expect(render()).toContain(
+      '<td data-label="Reorder point" class="numeric">0 mL</td>',
+    );
+    expect(render()).toContain("At reorder point");
+    expect(render()).not.toContain("Below reorder point");
+    data.products[0] = {
+      ...data.products[0],
+      available_units: "1",
+      on_hand_units: "1",
+      low_stock: false,
+    };
+    expect(render()).toContain("In range");
+    expect(render()).not.toContain("At reorder point");
+    data.products[0] = {
+      ...data.products[0],
+      reorder_point_units: "1",
+      available_units: "0",
+      on_hand_units: "0",
+      low_stock: true,
+    };
+    expect(render()).toContain("Below reorder point");
+    expect(render()).not.toContain("At reorder point");
+  });
+
+  it("#156 exposes the exact receiving link when putting stock in a bin is the next incomplete step", () => {
+    const data = catalogFixture();
+    const render = () =>
+      renderToStaticMarkup(
+        <CatalogScreen data={data} onRead={async () => {}} />,
+      );
+    expect(render()).toContain("Not started: Put stock in a bin");
+    expect(render()).not.toContain("Continue to Put stock in a bin");
+    data.first_run = {
+      ...data.first_run,
+      supplier: true,
+      product: true,
+      offer: true,
+      purchase_order: true,
+      purchase_order_status: "sent",
+      purchase_order_id: "701",
+      received: true,
+      binned: false,
+      shipment_id: "901",
+    };
+    const html = render();
+    expect(html).toContain("Next: Put stock in a bin");
+    const link = html.match(
+      /<a href="([^"]+)">Continue to Put stock in a bin →<\/a>/,
+    );
+    expect(link?.[1].replace(/&amp;/g, "&")).toBe(
+      "/clinic/inventory/receiving?shipment_id=901&delivery_status=all&wizard=1",
+    );
+    expect(html.match(/>Continue to /g)).toHaveLength(1);
+    data.first_run.binned = true;
+    expect(render()).not.toContain("First inventory run");
+  });
+
+  it("renders catalog counts, exact stock, attention totals and failed reads", () => {
+    const data = catalogFixture();
     const render = (extra = {}) =>
       renderToStaticMarkup(
         <CatalogScreen data={data} onRead={async () => {}} {...extra} />,

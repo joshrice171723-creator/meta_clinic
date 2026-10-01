@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser } from "playwright-core";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const mocks: Record<string, string> = {
   "../../api/client": `export * from '/src/api/client.ts'; export const api=(...args)=>window.qa.request(...args);`,
@@ -27,6 +27,7 @@ const activity={coverage:[{source:'appointments',label:'Appointments',status:'in
 {id:3,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:89,event:'destroy',actor_reference:'user:903',occurred_at:'2026-10-01T02:10:00Z',changed_fields:['status']},
 {id:4,source:'appointments',section:'Appointments',record_type:'Clinic::Appointment',record_id:89,event:'touch',actor_reference:'user:904',occurred_at:'2026-10-01T02:20:00Z',changed_fields:[]} ]};
 let coordination={coordination:{id:1,patient_id:77,revision:1,payload:Object.fromEntries(['primary_care','specialists','pharmacy'].map(k=>[k,{state:'none',entries:[]}])),recorded_at:'2026-10-01T00:00:00Z',recorded_by_membership_id:9},can_write:true,limits:{primary_care:1,specialists:20,pharmacy:1}};
+if(window.qaActivityProof)Object.assign(activity,window.qaActivityProof);
 window.qa={requests:[],mode:'success',request(path,options={}){
  this.requests.push({path,method:options.method||'GET'});
  if(path==='/api/clinic/patients/77/care_coordination'){
@@ -191,3 +192,52 @@ it("#243 keeps action labels on destroy and touch metadata-only activity", async
   expect(await touched.innerText()).toContain("Record version updated");
   await page.close();
 }, 15000);
+
+it.skipIf(!process.env.MUSE149_LEDGER_PROOF_INPUT)(
+  "#149 renders actual persisted credit activity identity and issuance metadata",
+  async () => {
+    const proof = JSON.parse(
+      readFileSync(process.env.MUSE149_LEDGER_PROOF_INPUT!, "utf8"),
+    );
+    expect(proof.schema).toBe("muse149-persisted-proof-v1");
+    const credit = proof.activity.entries.find(
+      (entry: any) => entry.source === "credits",
+    );
+    expect(credit).toBeTruthy();
+    const page = await browser.newPage();
+    try {
+      await page.addInitScript(
+        (activity) => ((window as any).qaActivityProof = activity),
+        proof.activity,
+      );
+      await page.goto(base + "qa");
+      await page.waitForFunction(() => Boolean((window as any).qa));
+      await page
+        .getByRole("button", { name: "Patient activity", exact: true })
+        .click();
+      await page.getByText("Credits · Recorded", { exact: true }).waitFor();
+      expect(
+        await page
+          .getByText(`Record: CreditNote #${credit.record_id}`, { exact: true })
+          .isVisible(),
+      ).toBe(true);
+      const actor = page.getByText(
+        new RegExp(`Actor reference: ${credit.actor_reference}`),
+      );
+      expect(await actor.isVisible()).toBe(true);
+      const timestamp = await page.evaluate(
+        (value) => new Date(value).toLocaleString(),
+        credit.occurred_at,
+      );
+      expect(await actor.innerText()).toContain(timestamp);
+      expect(
+        await page
+          .getByText(proof.invoice.credits[0].reason, { exact: true })
+          .count(),
+      ).toBe(0);
+    } finally {
+      await page.close();
+    }
+  },
+  20000,
+);

@@ -60,6 +60,44 @@ class ClinicBackgroundWorkTest < ActionDispatch::IntegrationTest
     assert_equal({}, PaperTrail.request.controller_info)
   end
 
+  test "recovers a provider-gated reminder when the synthetic provider becomes ready without another attempt" do
+    reminder = create_reminder(actor: @actor, key: "background-reminder-gated-recovery")
+
+    with_environment("APPLY_REMINDERS_PROVIDER" => "", "APPLY_REMINDERS_SYNTHETIC_DELIVERY" => nil,
+      "APPLY_REMINDERS_SYNTHETIC_OUTAGE" => nil) do
+      gated = Clinic::BackgroundWork.run_once(limit: 10, at: @at)
+      assert_equal 1, gated.dig(:reminders, :processed)
+      assert_equal "queued", reminder.reload.status
+      assert_equal "pending", reminder.outbox.reload.dispatch_state
+      attempt = reminder.delivery_attempts.sole
+      assert_equal "gated", attempt.status
+      assert_equal "synthetic", attempt.provider
+      attempt_id = attempt.id
+      idempotency_key = attempt.idempotency_key
+
+      # Recovery must honor the gate and retain the existing attempt while closed.
+      closed_gate = Clinic::Reminders::Recover.call(practice: @practice, actor: @actor, at: @at)
+      assert_equal 1, closed_gate.fetch(:examined)
+      assert_equal "queued", reminder.reload.status
+      assert_equal "gated", attempt.reload.status
+      assert_equal 1, reminder.delivery_attempts.count
+
+      with_environment("APPLY_REMINDERS_SYNTHETIC_DELIVERY" => "1") do
+        ready = Clinic::BackgroundWork.run_once(limit: 10, at: @at)
+        assert_equal 1, ready.dig(:reminders, :processed)
+        assert_equal "provider_accepted", reminder.reload.status
+        assert_equal "accepted", reminder.outbox.reload.dispatch_state
+        assert_equal "accepted", attempt.reload.status
+        assert_equal attempt_id, reminder.delivery_attempts.sole.id
+        assert_equal idempotency_key, reminder.delivery_attempts.sole.idempotency_key
+
+        repeated = Clinic::BackgroundWork.run_once(limit: 10, at: @at)
+        assert_equal 0, repeated.dig(:reminders, :considered)
+        assert_equal 1, reminder.delivery_attempts.count
+      end
+    end
+  end
+
   test "blocks reminder recovery when the initiating actor is unauthorized or unavailable" do
     unauthorized = create_reminder(actor: @actor, key: "background-reminder-unauthorized")
     former_actor = User.create!(email_address: "background-former@example.invalid", password: SecureRandom.hex(20))

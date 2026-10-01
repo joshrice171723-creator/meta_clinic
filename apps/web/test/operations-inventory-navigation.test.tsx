@@ -127,6 +127,13 @@ it("Muse106 Operations inventory locations link opens the actual storage screen"
   const requests: { path: string; view: string | null; method: string }[] = [];
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error")
+      console.error("106 browser", message.text());
+  });
+  page.on("requestfailed", (request) =>
+    console.error("106 request failed", request.url(), request.failure()),
+  );
   await page.route(
     (url) => url.pathname.startsWith("/api/"),
     async (route) => {
@@ -137,6 +144,13 @@ it("Muse106 Operations inventory locations link opens the actual storage screen"
         view: url.searchParams.get("view"),
         method: request.method(),
       });
+      if (url.pathname === "/api/csrf") {
+        await route.fulfill({
+          status: 200,
+          json: { csrf_token: "synthetic-navigation-token" },
+        });
+        return;
+      }
       await route.fulfill({
         status: url.pathname === "/api/clinic/inventory/locations" ? 200 : 404,
         contentType: "application/json",
@@ -167,9 +181,24 @@ it("Muse106 Operations inventory locations link opens the actual storage screen"
       await page.getByText(storage.path, { exact: true }).isVisible(),
     ).toBe(true);
     expect(requests).toEqual([
+      { path: "/api/csrf", view: null, method: "GET" },
       { path: "/api/clinic/inventory/locations", view: "tree", method: "GET" },
     ]);
     expect(errors).toEqual([]);
+  } catch (error) {
+    console.error(
+      "106 diagnostic",
+      JSON.stringify({
+        url: page.url(),
+        errors,
+        requests,
+        body: (await page.locator("body").innerText({ timeout: 1_000 })).slice(
+          0,
+          4_000,
+        ),
+      }),
+    );
+    throw error;
   } finally {
     await page.close();
   }

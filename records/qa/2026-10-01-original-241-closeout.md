@@ -1,10 +1,10 @@
 # Meta Clinic original 241-entry QA closeout — 2026-10-01
 
-**Issues closed: 125/241. Original dispositions recorded: 241/241.**
+**Issues closed: 128/241. Original dispositions recorded: 241/241.**
 
 This is a scoped local closeout record, not a publication or whole-backlog closure. Each closed row covers its complete original current claim within the stated local or historical evidence. All partial results, deferrals, policy-only resolutions and unavailable verification are excluded. No new exact-build hosted/Muse acceptance occurred.
 
-Branch: `codex/relay-qa-combined-20261001`. Integrated source: `61ac4e2a1a651c626482474c5e2ae3f9ee849db6`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
+Branch: `codex/relay-qa-combined-20261001`. Integrated source: `81f495c5e77be2374b7818307318a2440cfac4d5`. Original checkpoint `c25e0a3c0823739dc40033b22f7bb0d5fbe617e5` and prior repairs preserved.
 
 The earlier80/107/110 numbers were provisional and included partial-claim promotions; this reviewed count supersedes them. #54 and #238 each retain two independent rows. #94 remains historical R2 invalidation at25a23e4b, with no new retest.
 
@@ -28,10 +28,10 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | --- | ---: |
 | blocked | 19 |
 | deferred | 5 |
-| fixed_and_verified | 117 |
+| fixed_and_verified | 120 |
 | mixed | 51 |
 | proven_invalid | 8 |
-| unverified | 41 |
+| unverified | 38 |
 
 ## Every original entry
 
@@ -85,12 +85,12 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 46 | #16 | Cash payment records nothing (CRITICAL) | mixed | Original payment500 and alleged no-write cause are unproved; correlate original response, receipt and persisted records. |
 | 47 | #18 | Truncated copy | fixed_and_verified | Actual badges and payroll pages render both complete explanatory sentences visibly without internal clipping, ellipsis or line clamp at 1440x1000. Two targeted browser cases pass; original hosted viewport remains historical. |
 | 48 | #19 | Team schedule "Could not load" | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
-| 49 | #20 | Direct URL navigation loses location context | fixed_and_verified | Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Real authenticated location selection and subsequent API readback persist site; unchanged executed backend proof reused. |
+| 49 | #20 | Direct URL navigation loses location context | fixed_and_verified | Actual direct Workspace entry and reload retain exact practice/site with no chooser or context mutation. Executed workforce_access selected-site authenticated GET/foreign-site refusal proof reused with source equality. Correction: clinic_workspace_test.rb was not executed in c25 consolidated run; prior attribution is superseded, no standalone execution claimed. |
 | 50 | #21 | Staff conversation composer has empty participant list | fixed_and_verified | Real configured active assigned readable staff project from participant API; actual composer lists and selects the eligible nonself recipient. Existing absence/inactive/site/permission exclusions retained; historical staffing unknown not invented. |
 | 51 | #22 | Inventory receiving/counting unreachable — and setup itself is permission-blocked | mixed | Supplier-offer setup, permission denial and receiving/counting end-to-end prerequisites remain separately unproved. |
 | 52 | #23 | Recalls worklist has no creation entry point | fixed_and_verified | Existing recall creation entry/guidance frontend checks plus independently passed creation/replay2/24 resolve current local absence claim. |
 | 53 | #24 | Missing-space string-concat typos (class) | fixed_and_verified | Current rendered checks cover timezone, appointment count, service price, catalog version, invoice total, refund date separator and export label spacing. Four intended Muse24 cases and shared invoice93/146 assertions pass; unrelated batch failures retained, not called green. |
-| 54 | #26 | Omni login hard to discover | unverified | Verify discoverability of owner and clinic-team credential entry including PIN guidance on the published build. |
+| 54 | #26 | Omni login hard to discover | fixed_and_verified | Actual React/MUI Owner PIN rendering confirms four-digit hint and visible owner/clinic credential links at81f495. Intact prior actual browser Muse257 proof verifies visible entry links and distinct navigation destinations. |
 | 55 | #31 | Newly invited Clinician not bookable | unverified | CONFIG:Establish invited clinician profile, eligible site and availability, then verify the original booking picker includes the configured clinician. |
 | 56 | #32 | "Schedule appointment" silent no-op outside capacity template | fixed_and_verified | Local outside-capacity booking rejection gives explicit feedback and retains draft in145-related/16-browser batch; capacity guard preserved. |
 | 57 | #34 | Truncated labels in encounter completion | fixed_and_verified | reviewed_local_claim_verification; source_cutoffs_preserved; no_new_hosted_acceptance |
@@ -114,7 +114,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 75 | #55 | Reminder configuration UI doesn't exist | deferred | Retain existing policy-enforced reminder operations; defer practice-wide reminder configuration editor. |
 | 76 | #57 | Card payments unavailable (config, not defect) | blocked | Approved sandbox gateway/connected-account readiness; no real payment authorization. |
 | 77 | #58 | Invite silently dropped under sync race | mixed | Actual cross-window synchronization/remount during submission is not covered by the synthetic409 case. |
-| 78 | #59 | Location chooser org-scoping hides locations | unverified | Verify organization-switch discoverability and eligible site access for original session; hierarchical chooser characterization does not resolve UX claim. |
+| 78 | #59 | Location chooser org-scoping hides locations | fixed_and_verified | Helper explains switching organization. Actual Workspace writes practice82, reveals both eligible alternative sites, hides originalsite, selects site202 and retains selection afterreload. Passing unchanged workforce backend selected-site GET and foreign-site refusal reused; clinic_workspace was not in c25 executed suite and is not counted as executedproof. |
 | 79 | #60 | Refill approve/decline blocked for Omni access account | blocked | An existing authorized named clinician profile and original actor authority context; no Omni bypass. |
 | 80 | #62 | Encounter chart clinical services disabled for new work | blocked | Intended clinical service availability and authorized actor for the reported location. |
 | 81 | #63 | SOAP note: explicit Save draft disabled; reload resets chart state | mixed | Full reported chart-state reload and persistence claims lack connected proof. |
@@ -125,7 +125,7 @@ The earlier80/107/110 numbers were provisional and included partial-claim promot
 | 86 | #70 | No patient-facing messaging; reminders sending dead-end | mixed | Existing reminder queue/send/recovery under current grants and suppressed local provider. |
 | 87 | #71 | No practice-level audit trail | mixed | Required existing audit capture operation-to-persisted-record mapping; no pending new-screen decision. |
 | 88 | #72 | Recurring appointments blocked by missing clinicians | fixed_and_verified | The original invalid clinician numeric error is replaced by executed actionable prerequisite guidance and no invalid mutation. Recurring series requires an explicit configured clinician; existing safe retry preserves clinician/key. Source and original cases unchanged since6659. Setup navigation source-reviewed; no new configured staff invented. |
-| 89 | #73 | No intake forms attached to booking | unverified | Verify booking-to-intake form attachment and durable readback on exact build; targeted backend1/9 is limited evidence. |
+| 89 | #73 | No intake forms attached to booking | fixed_and_verified | Four actual persisted bookings span two clinic sites and initial/follow-up visit types. Patient-portal authenticated repeated readback returns each booked appointment and exact mapped intake form. Existing fallback and pinned-form behavior retained. Focused73+136 backend batch2runs73assertions passes; only73 fullclaim closed. |
 | 90 | #74 | Hollow staffing model cascades | blocked | Approved synthetic staffing/profile/site prerequisites for the aggregate affected workflows. |
 | 91 | #85 | Tracking Board provider assignment offers no clinicians | mixed | This guard does not establish the historical empty-provider picker cause. |
 | 92 | #86 | Badge issuance silently does nothing for Sim Frontdesk (blocks WF-028) | fixed_and_verified | Actual eligible-employee badge issuance now yields visible result/readback or explicit refusal, composed with real backend persistence. Target job title does not affect the source eligibility path. Historical named issuer/target configuration is unknown, not invalidated. |

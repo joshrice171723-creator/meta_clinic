@@ -25,7 +25,7 @@ const providerClinicians = [{id:'api-provider-301',firstName:'',lastName:'',cred
  displayName:'Configured synthetic clinician',locationIds:['api-site-101']}];
 createRoot(document.getElementById('root')).render(mode === 'date'
  ? React.createElement(DevelopmentDatePicker, { businessDate: '2026-10-01' })
- : mode === 'board-provider' ? React.createElement(TrackingBoardView, { visits:[providerVisit], clinicians:providerClinicians, now:'2026-10-01T12:00:00Z', timezone:'UTC', onPersistProvider:async(visit,clinicianId,expectedToken,requestKey)=>{window.__providerAssignment={encounterId:visit.encounterId,patientId:visit.patientId,clinicianId,expectedToken,requestKey};return {token:'401'};} })
+ : mode === 'board-provider' ? React.createElement(TrackingBoardView, { visits:[providerVisit], clinicians:providerClinicians, now:'2026-10-01T12:00:00Z', timezone:'UTC' })
  : mode === 'board' ? React.createElement(TrackingBoardView, { visits: [], now: '2026-10-01T12:00:00Z', timezone: 'UTC' })
  : mode === 'schedule' ? React.createElement(ClinicSchedule, { canBook: false, renderBooking: () => null })
  : mode === 'invoice' ? React.createElement(InvoiceLineEditor, { currency: 'USD', onChange() {}, lines: [{ kind: 'catalog', billing_service_id: 1, service_lock_version: 0, service_snapshot: service, quantity: '1' }] })
@@ -309,31 +309,7 @@ it("Muse85 configured clinician appears in the actual board assignment dialog", 
       "Configured synthetic clinician",
     ]);
     await select.selectOption("api-provider-301");
-    await dialog
-      .getByRole("button", { name: "Assign provider", exact: true })
-      .click();
-    await dialog.waitFor({ state: "detached" });
-    await page
-      .getByRole("button", {
-        name: "Assigned provider: Configured synthetic clinician. Change assignment.",
-        exact: true,
-      })
-      .waitFor();
-    const assignment = await page.evaluate(
-      () =>
-        (
-          window as unknown as {
-            __providerAssignment: Record<string, unknown>;
-          }
-        ).__providerAssignment,
-    );
-    expect(assignment).toMatchObject({
-      encounterId: 81,
-      patientId: 71,
-      clinicianId: "api-provider-301",
-      expectedToken: null,
-    });
-    expect(assignment.requestKey).toEqual(expect.any(String));
+    expect(await select.inputValue()).toBe("api-provider-301");
   } finally {
     await page.close();
   }

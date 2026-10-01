@@ -203,6 +203,62 @@ async function open() {
 }
 const details = (page: Page) =>
   page.getByRole("button", { name: /^Invoice #77 details/ });
+it.skipIf(!process.env.MUSE149_LEDGER_PROOF_INPUT)(
+  "#149 renders a persisted thirty-dollar invoice reconciled by payment and credit",
+  async () => {
+    const proof = JSON.parse(
+      readFileSync(process.env.MUSE149_LEDGER_PROOF_INPUT!, "utf8"),
+    );
+    expect(proof.schema).toBe("muse149-persisted-proof-v1");
+    const page = await browser.newPage();
+    try {
+      await page.route("**/*", (route) =>
+        new URL(route.request().url()).origin === new URL(base).origin &&
+        !new URL(route.request().url()).pathname.startsWith("/api/")
+          ? route.continue()
+          : route.abort(),
+      );
+      await page.goto(`${base}qa?patient_id=${proof.ledger.patient.id}`);
+      await waitRequests(page, 1);
+      await resolve(page, 0, proof.ledger);
+      const detail = page.getByRole("button", {
+        name: new RegExp(`^Invoice #${proof.invoice.id} details`),
+      });
+      await detail.click();
+      const row = page
+        .getByRole("table", { name: "Patient invoice ledger" })
+        .getByRole("row")
+        .filter({ hasText: `#${proof.invoice.id}` });
+      expect(await row.getByText("Paid", { exact: true }).isVisible()).toBe(
+        true,
+      );
+      const payments = page
+        .getByText("Payments allocated", { exact: true })
+        .locator("..");
+      const credits = page
+        .getByText("Credits and write-offs", { exact: true })
+        .locator("..");
+      const balance = page
+        .getByText("Remaining balance", { exact: true })
+        .locator("..");
+      expect(await payments.innerText()).toContain("USD 25.00");
+      expect(await credits.innerText()).toContain("USD 5.00");
+      expect(await credits.innerText()).toContain(
+        `Reason: ${proof.invoice.credits[0].reason}`,
+      );
+      expect(await balance.innerText()).toContain("USD 0.00");
+      expect(
+        await page.getByText("USD 30.00", { exact: true }).count(),
+      ).toBeGreaterThan(0);
+      expect(
+        (await requests(page)).every((request) => request.method === "GET"),
+      ).toBe(true);
+    } finally {
+      await page.close();
+    }
+  },
+  20000,
+);
 async function save(page: Page, count: number) {
   await page
     .getByRole("button", { name: "Save draft", exact: true })

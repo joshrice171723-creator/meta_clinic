@@ -69,6 +69,24 @@ module Clinic
               %w[id practice_id patient_id created_at updated_at name_search_tokens]
           }
         end
+        if ability.allowed_permission?("billing.read", any_site: true)
+          coverage << { source: "credits", label: "Credits and write-offs", status: "included" }
+          invoices = Clinic::Invoice.accessible_by(ability, :read)
+            .where(practice_id: patient.practice_id, patient_id: patient.id)
+          credits = Clinic::CreditNote.where(practice_id: patient.practice_id, patient_id: patient.id,
+            invoice_id: invoices.select(:id))
+            .select(:id, :adjustment_type, :issued_at, :created_at, :issued_by_membership_id)
+            .order(Arel.sql("COALESCE(issued_at, created_at) DESC"), id: :desc).limit(LIMIT + 1)
+          entries.concat(credits.map do |credit|
+            { id: credit.id, source: "credits",
+              section: credit.adjustment_type == "write_off" ? "Write-offs" : "Credits",
+              record_type: Clinic::CreditNote.name, record_id: credit.id, event: "recorded",
+              actor_reference: credit.issued_by_membership_id ? "membership:#{credit.issued_by_membership_id}" : nil,
+              occurred_at: (credit.issued_at || credit.created_at).iso8601(6), changed_fields: [] }
+          end)
+        else
+          coverage << { source: "credits", label: "Credits and write-offs", status: "not_authorized" }
+        end
         if ability.can?(:read, patient)
           coverage << { source: "care_coordination", label: "Care coordination", status: "included" }
           # Append-only revisions are durable evidence in their own right. Do not

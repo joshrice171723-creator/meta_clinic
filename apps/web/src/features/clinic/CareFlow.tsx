@@ -50,6 +50,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   IconButton,
   InputLabel,
   Link,
@@ -2420,6 +2421,7 @@ function BookingFormEditor({
                 <Select
                   labelId="clinician-label"
                   label="Booked clinician"
+                  aria-describedby="booked-clinician-setup-help"
                   value={clinicianId}
                   onChange={(event) => setClinicianId(event.target.value)}
                 >
@@ -2441,6 +2443,15 @@ function BookingFormEditor({
                     </MenuItem>
                   ))}
                 </Select>
+                <FormHelperText id="booked-clinician-setup-help">
+                  Missing a clinician? Activated accounts need a clinician
+                  scheduling profile and location assignment.{" "}
+                  {clinic.capabilities.clinic_setup_write === true ? (
+                    <Link href="/clinic/setup">Set up clinicians</Link>
+                  ) : (
+                    "Ask a clinic administrator to complete scheduling setup."
+                  )}
+                </FormHelperText>
               </FormControl>
               <FormControl
                 fullWidth

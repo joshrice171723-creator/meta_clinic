@@ -53,6 +53,47 @@ class PatientActivityHistoryTest < ActiveSupport::TestCase
     assert result[:entries].select { |entry| entry[:record_type] == @patient.class.name }.all? { |entry| entry[:record_id] == @patient.id }
   end
 
+  test "QA149 credit activity requires billing access and preserves only issued metadata" do
+    invoice = @patient.invoices.create!(practice: @practice, currency: "USD", status: "posted", rounding_policy_version: "v1")
+    issued_at = Time.current.change(usec: 0)
+    credit = invoice.credit_notes.create!(practice: @practice, patient: @patient, currency: "USD", amount: "5.00",
+      adjustment_type: "credit", reason: "Hidden synthetic credit reason", issued_by_membership: @membership, issued_at: issued_at)
+    assert_empty history[:entries].select { |entry| entry[:source] == "credits" }
+    assert_equal "not_authorized", history[:coverage].find { |source| source[:source] == "credits" }[:status]
+    other_patient = @practice.patients.create!(display_name: "Other credit patient", reference: "CREDIT-OTHER")
+    other_invoice = other_patient.invoices.create!(practice: @practice, currency: "USD", status: "posted", rounding_policy_version: "v1")
+    other_invoice.credit_notes.create!(practice: @practice, patient: other_patient, currency: "USD", amount: "5.00")
+    grant_permissions!(@membership, "billing.read")
+    result = history
+    rows = result[:entries].select { |entry| entry[:source] == "credits" }
+    assert_equal [credit.id], rows.map { |entry| entry[:record_id] }
+    assert_equal "Credits", rows.sole[:section]
+    assert_equal "Clinic::CreditNote", rows.sole[:record_type]
+    assert_equal "recorded", rows.sole[:event]
+    assert_equal "membership:#{@membership.id}", rows.sole[:actor_reference]
+    assert_equal issued_at.iso8601(6), rows.sole[:occurred_at]
+    assert_empty rows.sole[:changed_fields]
+    refute_includes result.to_json, credit.reason
+    refute_includes result.to_json, "5.00"
+  end
+
+  test "QA149 bounds credit activity by issued time rather than insertion time" do
+    grant_permissions!(@membership, "billing.read")
+    invoice = @patient.invoices.create!(practice: @practice, currency: "USD", status: "posted", rounding_policy_version: "v1")
+    newest = invoice.credit_notes.create!(practice: @practice, patient: @patient, currency: "USD", amount: "1.00",
+      reason: "Synthetic latest issuance", issued_by_membership: @membership, issued_at: 2.days.from_now,
+      created_at: 2.days.ago)
+    26.times do |index|
+      invoice.credit_notes.create!(practice: @practice, patient: @patient, currency: "USD", amount: "1.00",
+        reason: "Synthetic earlier issuance", issued_by_membership: @membership, issued_at: 1.day.from_now + index.seconds)
+    end
+    result = history
+    assert_equal newest.id, result[:entries].first[:record_id]
+    assert_equal "credits", result[:entries].first[:source]
+    assert_equal 25, result[:entries].length
+    assert result[:has_more]
+  end
+
   test "authorized lineage includes encounter membership and payment versions" do
     site = @practice.sites.create!(code: "LINEAGE")
     appointment = @patient.appointments.create!(practice: @practice, site: site,
