@@ -1572,7 +1572,7 @@ function BookingFormEditor({
       attempt: null,
       outcomeUnconfirmed: false,
       holdAttempt: attempt,
-      holdOutcomeUnconfirmed: false,
+      holdOutcomeUnconfirmed,
     };
     inFlight.current = true;
     if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
@@ -1646,6 +1646,7 @@ function BookingFormEditor({
       }
     } catch (reason) {
       const unknown =
+        pending.holdOutcomeUnconfirmed ||
         !(reason instanceof ApiError) ||
         reason.status === 408 ||
         reason.status >= 500 ||
@@ -1751,7 +1752,7 @@ function BookingFormEditor({
       attempt: null,
       outcomeUnconfirmed: false,
       seriesAttempt: attempt,
-      seriesOutcomeUnconfirmed: false,
+      seriesOutcomeUnconfirmed,
     };
     inFlight.current = true;
     if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
@@ -1783,7 +1784,8 @@ function BookingFormEditor({
       onHoldChanged?.();
       onClose?.();
     } catch (error) {
-      const unknown = !(error instanceof ApiError) || error.status === 408 ||
+      const unknown = pending.seriesOutcomeUnconfirmed ||
+        !(error instanceof ApiError) || error.status === 408 ||
         error.status >= 500 || error.code === "outcome_unconfirmed";
       const snapshot = { ...pending, seriesAttempt: unknown ? attempt : null,
         seriesOutcomeUnconfirmed: unknown };
@@ -2057,7 +2059,7 @@ function BookingFormEditor({
             const pendingDraft: AppointmentWorkingDraft = {
               draft: currentDraft,
               attempt,
-              outcomeUnconfirmed: false,
+              outcomeUnconfirmed,
             };
             lastWorkingDraft.current = pendingDraft;
             if (!(await workingDraft.save(pendingDraft))) {
@@ -2113,6 +2115,7 @@ function BookingFormEditor({
               onCreated?.(result.appointment);
             } catch (reason) {
               const unknown =
+                pendingDraft.outcomeUnconfirmed ||
                 !(reason instanceof ApiError) ||
                 reason.status === 408 ||
                 reason.status >= 500 ||
