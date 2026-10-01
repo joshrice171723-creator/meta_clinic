@@ -238,6 +238,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_includes response.parsed_body.fetch("error"), "Protected profile change"
+    login_service_impact_reader!("clinical_records.read", "encounters.write")
     payload.merge!(clinic_type: "weight_loss", service_scope: %w[telehealth], request_key: SecureRandom.uuid)
     get "/api/clinic/practice_features", params: { preview_service_change: "1", expected_revision: 2, service_scope: %w[telehealth] }, headers: @headers
     assert_response :success
@@ -347,6 +348,8 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     other_site = practice.sites.create!(code: "OTHERIMPACT", status: "active")
     practice.appointments.create!(patient:, site: other_site, status: "scheduled", visit_modality: "video",
       starts_at: 2.days.from_now, ends_at: 2.days.from_now + 30.minutes)
+    login_service_impact_reader!("appointments.read", "encounters.read", "encounters.write",
+      "telehealth.read", "scribe.read", "notes.read")
     preview = disable_preview(site:)
     assert_equal site.id, preview.fetch("site_id")
     assert_equal 1, preview.fetch("revision")
@@ -385,6 +388,15 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     preview = disable_preview
     assert_equal "restricted", preview.fetch("services").first.fetch("status")
     assert_nil preview.fetch("services").first.fetch("open_records")
+    assert_equal false, preview.fetch("review_complete")
+    assert_no_difference -> { Clinic::PracticeFeatureVersion.where(practice:).count } do
+      put "/api/clinic/practice_features", params: { features: payload.merge(finalize: false,
+        service_scope: %w[external_lab_coordination], expected_revision: 1,
+        request_key: "restricted-service-impact-save", expected_impact_digest: preview.fetch("impact_digest")) },
+        headers: csrf_headers, as: :json
+      assert_response :conflict
+      assert_equal "service_impact_changed", response.parsed_body.fetch("code")
+    end
     get "/api/clinic/patients", headers: @headers
     assert_response :forbidden
     foreign_site = Clinic::Practice.create!(name: "SYN_Foreign preview").sites.create!(code: "FOREIGN")
@@ -419,6 +431,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     task = Clinic::ClinicalTask.create!(practice:, patient:, encounter:, site:,
       recorded_by_membership: @membership, task_kind: "order_execution", state: "open",
       pool_code: "clinical", source_type: "order", source_kind: "service_request", source_id: draft.id)
+    login_service_impact_reader!("clinical_records.read", "encounters.write", "notes.read")
     get "/api/clinic/practice_features", params: { preview_service_change: "1", site_id: site.id,
       expected_revision: 1, service_scope: %w[telehealth] }, headers: @headers
     assert_response :success
@@ -459,6 +472,17 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def login_service_impact_reader!(*domain_permissions)
+    ordinary_grant_ids = @membership.role_grants.order(:id).pluck(:id)
+    reader = User.create!(email_address: "impact-reader-#{SecureRandom.hex(6)}@example.invalid", password: @password)
+    reader_membership = @membership.practice.memberships.create!(user: reader)
+    grant_permissions!(reader_membership, "patients.read", "facilities.read", "facilities.write", *domain_permissions)
+    assert_equal ordinary_grant_ids, @membership.role_grants.order(:id).pluck(:id)
+    post "/api/session", params: { email_address: reader.email_address, password: @password },
+      headers: csrf_headers, as: :json
+    assert_response :success
+  end
 
   def disable_preview(site: nil)
     assert_no_difference -> { Clinic::PracticeFeatureVersion.where(practice: @membership.practice).count } do

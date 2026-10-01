@@ -112,7 +112,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       request_key: "clinic-journey-invoice"
     )
     Clinic::Billing::PostInvoice.call(invoice: invoice, actor: actor, request_key: "clinic-journey-post")
-    drawer = practice.cash_drawer_sessions.create!(site: site, opened_by: actor, opening_float: "0")
+    drawer = practice.cash_drawer_sessions.create!(site: site, opened_by: actor, opening_float: "0", currency: "USD")
     allocation = Clinic::Billing::RecordCashPayment.call(
       practice: practice,
       actor: actor,
@@ -142,6 +142,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
     organization = Organization.create!(name: "Synthetic Clinic Day Organization")
     practice = Clinic::Practice.create!(name: "Synthetic Clinic Day Practice", organization:, timezone: "UTC")
     site = practice.sites.create!(code: "CLINIC-DAY", name: "Synthetic clinic-day site", status: "active")
+    room = site.rooms.create!(practice:, code: "CLINIC-DAY-ROOM", kind: "physical")
     patient = practice.patients.create!(display_name: "Synthetic Clinic Day Patient", reference: "CLINIC-DAY-001")
 
     patient_user = User.create!(email_address: "clinic-day-patient@example.invalid", password:)
@@ -187,7 +188,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
     visit_type = practice.visit_types.create!(code: "CLINIC-DAY-VISIT")
     starts_at = 2.hours.from_now.change(usec: 0)
     appointment = practice.appointments.create!(
-      patient:, site:, booked_clinician: clinician_profile, visit_type:, starts_at:,
+      patient:, site:, room:, booked_clinician: clinician_profile, visit_type:, starts_at:,
       ends_at: starts_at + 30.minutes, status: "scheduled"
     )
 
@@ -342,6 +343,17 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
           manufacturer: "Synthetic Vaccine Manufacturer", manufacturer_mvx_code: "PMC"
         }
       )
+      assert_no_difference -> { Clinic::Care::ImmunizationRevision.where(practice:, patient:).count } do
+        patch "/api/clinic/patients/#{patient.id}/encounters/#{encounter.id}/immunizations/#{immunization.fetch('series_id')}",
+          params: { immunization: {
+            status: "completed", administered_at: (starts_at + 15.minutes).iso8601,
+            medication_administration_id: administration.id, lot_number:,
+            expected_version: immunization.fetch("version_number"), request_key: "clinic-day-immunization-unconfigured"
+          } }, headers: csrf_headers(headers), as: :json
+        assert_response :unprocessable_entity
+        assert_includes response.parsed_body.fetch("error"), "unavailable until clinic scope"
+      end
+      enable_clinic_day_immunization_administration!(practice:, site:, membership: clinician_membership)
       immunization = revise_clinical_record(
         patient:, encounter:, collection: "immunizations", root: "immunization", record: immunization,
         headers:, request_key: "clinic-day-immunization-complete", attributes: {
@@ -367,7 +379,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       inbox_task = inbox.fetch("clinical_tasks").find { |item| item.fetch("id") == referral_task.id }
       inbox_follow_up = inbox.fetch("encounter_follow_ups").find { |item| item.fetch("id") == follow_up.id }
       assert_equal [ "order", "service_request", true,
-        "/clinic/patients/#{patient.id}/encounters/#{encounter.id}?focus=clinical-plan-workspace" ],
+        "/clinic/patients/#{patient.id}/encounters/#{encounter.id}?focus=clinical-plan-workspace&order_kind=service_request&order_series_id=#{referral.fetch('series_id')}&task_id=#{referral_task.id}" ],
         inbox_task.values_at("source_type", "source_kind", "assigned_to_me", "encounter_href")
       assert_equal [ patient.id, encounter.id, clinician_membership.id, true ],
         inbox_follow_up.values_at("patient_id", "encounter_id", "assigned_to_membership_id", "assigned_to_me")
@@ -467,6 +479,18 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def enable_clinic_day_immunization_administration!(practice:, site:, membership:)
+    optional_features = {
+      "clinic_type" => "primary_care", "service_scope" => [ "vaccinations" ],
+      "assessment_scope" => [], "immunization_administration_enabled" => true
+    }
+    Clinic::PracticeFeatureVersion.create!(
+      practice:, site:, created_by_membership: membership, revision: 1, optional_features:,
+      effective_from: Current.business_time, request_key: "clinic-day-authorized-immunization-administration",
+      content_digest: Digest::SHA256.hexdigest(optional_features.to_json)
+    )
+  end
 
   def create_clinic_day_staff(practice:, password:, label:, permissions:)
     user = User.create!(email_address: "clinic-day-#{label}@example.invalid", password:)
