@@ -111,6 +111,17 @@ class ClinicProviderAssignmentTest < ActionDispatch::IntegrationTest
     assert_raises(ArgumentError) { assign_to(site_profile, key: "assign-other-site") }
   end
 
+  test "inactive user with active membership and site assignment is rejected" do
+    @profile.membership.user.update!(active: false)
+    assert @profile.membership.active?
+    assert @profile.assignments.current.where(site_id: @site.id).exists?
+
+    error = assert_raises(ArgumentError) { assign(expected_token: nil, key: "assign-inactive-user") }
+    assert_equal "The clinician is not active in this practice.", error.message
+    assert_not @encounter.participants.exists?(participation_role: "queue_provider")
+    assert_not Clinic::OperationReceipt.exists?(request_key: "assign-inactive-user")
+  end
+
   test "missing permission and cross-practice clinician are rejected" do
     revoke_all_permissions!(@membership)
     assert_raises(Clinic::Authorization::Denied) { assign(expected_token: nil, key: "assign-denied") }

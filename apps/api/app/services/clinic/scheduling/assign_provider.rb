@@ -20,7 +20,7 @@ module Clinic
             practice.clinician_profiles.joins(:membership)
               .where(id: clinician_profile.id, clinic_memberships: { active: true }).first
           end
-          raise ArgumentError, "The clinician is not active in this practice." if !unassign && !profile
+          raise ArgumentError, "The clinician is not active in this practice." if !unassign && (!profile || !profile.membership.user.active?)
           if profile && !profile.assignments.current.where(site_id: updated.site_id).exists?
             raise ArgumentError, "The clinician is not authorized to provide care at this encounter site."
           end
