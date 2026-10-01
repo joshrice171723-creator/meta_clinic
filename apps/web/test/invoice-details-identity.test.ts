@@ -456,3 +456,35 @@ it("#121 shows action-specific credit write-off and void explanations", async ()
     await page.close();
   }
 }, 15000);
+
+it("#147 flags an excessive credit inline and disables submission until corrected", async () => {
+  const { page, dialog } = await openAdjustableInvoice();
+  try {
+    const amount = dialog.getByLabel("Credit amount", { exact: true });
+    const submit = dialog.getByRole("button", {
+      name: "Record credit",
+      exact: true,
+    });
+    await dialog
+      .getByLabel(/^Reason/)
+      .fill("Synthetic adjustment review");
+    for (const invalid of ["999", "50.000001", "0", "abc"]) {
+      await amount.fill(invalid);
+      expect(await amount.getAttribute("aria-invalid")).toBe("true");
+      expect(await submit.isDisabled()).toBe(true);
+      expect(
+        await dialog
+          .getByText(/Enter a positive credit up to USD 50.00/)
+          .count(),
+      ).toBe(1);
+    }
+    await amount.fill("50.000000");
+    expect(await amount.getAttribute("aria-invalid")).toBe("false");
+    expect(await submit.isEnabled()).toBe(true);
+    expect((await requests(page)).filter((r) => r.method !== "GET")).toEqual(
+      [],
+    );
+  } finally {
+    await page.close();
+  }
+}, 15000);

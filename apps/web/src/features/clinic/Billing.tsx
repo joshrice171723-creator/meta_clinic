@@ -1643,6 +1643,13 @@ function ChargeAdjustmentDialog({
   const canWriteOff = !isZero(writeOffAvailable);
   const canVoid = limits.void_eligible;
   const retryPending = attempt !== null;
+  const adjustmentLimit = action === "write_off" ? writeOffAvailable : creditAvailable;
+  const amountValidationError =
+    !retryPending && action !== "void" &&
+    (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
+      isZero(amount) || !decimalNotGreaterThan(amount, adjustmentLimit))
+      ? `Enter a positive ${action === "write_off" ? "write-off" : "credit"} up to ${money(adjustmentLimit, invoice.currency)} with up to six decimal places.`
+      : "";
 
   useEffect(() => {
     const retained = pendingChargeAdjustmentAttempts.get(attemptKey) ?? null;
@@ -1836,6 +1843,8 @@ function ChargeAdjustmentDialog({
                 disabled={retryPending}
                 inputMode="decimal"
                 label={action === "write_off" ? "Write-off amount" : "Credit amount"}
+                error={amount !== "" && Boolean(amountValidationError)}
+                helperText={amount !== "" ? amountValidationError : undefined}
                 onChange={(event) => setAmount(event.target.value)}
                 value={amount}
               />
@@ -1864,7 +1873,7 @@ function ChargeAdjustmentDialog({
             {retryPending ? "Close" : "Cancel"}
           </Button>
           <Button
-            disabled={busy || (action === "void" && cashPaymentPending)}
+            disabled={busy || Boolean(amountValidationError) || (action === "void" && cashPaymentPending)}
             onClick={() => void submit()}
             variant="contained"
           >
