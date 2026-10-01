@@ -596,8 +596,6 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
         />
       ) : path === "/clinic/work" ? (
         <WorkInbox />
-      ) : path === "/clinic/updates" ? (
-        <ClinicUpdateLog />
       ) : path === "/clinic/waitlist" ? (
         <WaitlistWorkspace />
       ) : path === "/clinic/recalls" ? (
@@ -802,6 +800,16 @@ function ClinicApplication({
       </RouteBoundary>
     ) : (
       <ClinicPage route={route} />
+    );
+
+  if (route.path === "/clinic/updates")
+    return (
+      <RouteBoundary root>
+        <main id="main" className="wrap inner-page">
+          <a href="/portal">Return to My launch</a>
+          <ClinicUpdateLog />
+        </main>
+      </RouteBoundary>
     );
 
   return (
