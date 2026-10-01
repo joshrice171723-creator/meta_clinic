@@ -33,6 +33,13 @@ import { roleContext, roleLabel } from "./roles";
 // Temporarily hide public lesson entry points; keep lesson workflows intact.
 const showDemoLessons = false;
 
+const entryNotices: Record<string, string> = {
+  "The demo now has independent lessons. Choose a lesson to start fresh.":
+    "Your previous clinic session has ended. Open Sandbox to continue.",
+  "This lesson restarted in another demo session. Choose it again to start fresh.":
+    "This clinic was reset in another session. Open Sandbox to continue.",
+};
+
 type LoadState =
   | { status: "loading" }
   | { status: "ready"; value: DemoRunResponse }
@@ -187,7 +194,7 @@ export function DemoJourney() {
     } catch (reason) {
       setState({
         status: "error",
-        message: message(reason, "Unable to load the guided demo."),
+        message: message(reason, "The clinic could not be opened."),
       });
     }
   }, []);
@@ -395,16 +402,21 @@ export function DemoJourney() {
         sx={{ width: "100%", p: { xs: 2, sm: 3 } }}
       >
         <Typography component="h1" variant="h4">
-          Explore the clinic sandbox
+          Explore the clinic
         </Typography>
         <Typography color="text.secondary">
-          Explore a shared clinic simulation with sample data. Provide your
-          name, email and company to continue. No account or email verification
-          is required.
+          Explore appointments, patient care, billing and inventory.
+          {!state.value.visitor_registered &&
+            " Enter your name, email and company to continue. No account or email verification is required."}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Sandbox · A simulated clinic shared with other visitors.
         </Typography>
         {error && <Alert severity="error">{error}</Alert>}
         {state.value.notice && (
-          <Alert severity="info">{state.value.notice}</Alert>
+          <Alert severity="info">
+            {entryNotices[state.value.notice] ?? state.value.notice}
+          </Alert>
         )}
         {!state.value.visitor_registered ? (
           <Paper
@@ -459,16 +471,14 @@ export function DemoJourney() {
         ) : (
           <Stack spacing={2}>
             <Typography color="text.secondary">
-              The sandbox is shared, and changes remain visible to visitors
-              until it is reset.
+              Your changes remain visible to other visitors until the clinic is
+              reset.
             </Typography>
             {preparingSandbox && (
               <Alert severity="info" role="status">
                 <Stack spacing={1}>
                   <Typography variant="body2">
-                    Building your clinic workspace: locations and staff, then
-                    patient histories, visits, inventory, and billing. This can
-                    take a couple of minutes.
+                    Opening your clinic. This may take a couple of minutes.
                   </Typography>
                   <LinearProgress aria-label="Preparing sandbox" />
                   <Typography variant="caption">
@@ -479,7 +489,7 @@ export function DemoJourney() {
             )}
             {!preparingSandbox && lastSandboxDuration !== null && (
               <Typography variant="caption" color="text.secondary">
-                Last sandbox preparation: {durationLabel(lastSandboxDuration)}
+                Last opening took {durationLabel(lastSandboxDuration)}
               </Typography>
             )}
             <LessonCatalog
@@ -508,8 +518,7 @@ export function DemoJourney() {
     <Alert severity="info" role="status">
       <Stack spacing={1}>
         <Typography variant="body2">
-          Preparing clinic data and reopening your workspace. This can take a
-          couple of minutes.
+          Reopening your clinic. This may take a couple of minutes.
         </Typography>
         <LinearProgress aria-label="Preparing sandbox" />
         <Typography variant="caption">
@@ -565,7 +574,7 @@ export function DemoJourney() {
                     }
                   >
                     {sandbox
-                      ? "Sandbox · Clinic administrator simulation"
+                      ? "Sandbox · Clinic administrator"
                       : activeLesson?.title}
                   </Typography>
                   {!sandbox && (
@@ -580,7 +589,7 @@ export function DemoJourney() {
                   onClick={() => void selectLesson(null)}
                   disabled={busy}
                 >
-                  Back to sandbox entry
+                  Back to clinic entry
                 </Button>
                 {sandbox && (
                   <Button
@@ -725,8 +734,9 @@ export function DemoJourney() {
             {frameFailed && !switching && (
               <Stack spacing={2} sx={{ p: 4 }}>
                 <Alert severity="error">
-                  This lesson took too long to load. Your clinic data is
-                  preserved.
+                  {sandbox
+                    ? "The clinic took too long to open. Your changes are preserved."
+                    : "This lesson took too long to load. Your clinic data is preserved."}
                 </Alert>
                 <Button onClick={() => setFrameRevision((value) => value + 1)}>
                   Retry workspace
@@ -757,7 +767,9 @@ export function DemoJourney() {
               !switching &&
               !frameFailed && (
                 <Alert severity="error">
-                  This lesson workspace is unavailable.
+                  {sandbox
+                    ? "The clinic is unavailable."
+                    : "This lesson workspace is unavailable."}
                 </Alert>
               )
             )}
@@ -766,7 +778,7 @@ export function DemoJourney() {
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography component="h2" variant="h6">
-            Explore the sandbox
+            Open the clinic
           </Typography>
           <LessonCatalog
             showLessons={showDemoLessons}
@@ -793,7 +805,7 @@ export function DemoJourney() {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle id="demo-feedback-title">Share demo feedback</DialogTitle>
+        <DialogTitle id="demo-feedback-title">Share feedback</DialogTitle>
         <Box component="form" onSubmit={submitFeedback}>
           <DialogContent>
             <Stack spacing={2}>
@@ -862,7 +874,7 @@ export function DemoJourney() {
             }}
             disabled={busy}
           >
-            Back to sandbox entry
+            Back to clinic entry
           </Button>
         </DialogActions>
       </Dialog>
@@ -952,7 +964,7 @@ export function LessonCatalog({
             variant="overline"
             sx={{ color: "#addbed", letterSpacing: "0.14em", fontWeight: 700 }}
           >
-            Shared clinic simulation
+            Your clinic workspace
           </Typography>
           <Typography
             component="h2"
@@ -960,16 +972,16 @@ export function LessonCatalog({
             variant="h5"
             sx={{ fontWeight: 700, letterSpacing: "-0.025em" }}
           >
-            Explore the clinic sandbox.
+            Step into the clinic.
           </Typography>
           <Typography sx={{ color: "#d8e8ef", maxWidth: 650 }}>
-            Explore the entire workspace with prepared sample data. Go where
-            your curiosity takes you, at your own pace.
+            Follow the work across appointments, patient care, billing and
+            inventory at your own pace.
           </Typography>
           <Typography variant="body2" sx={{ color: "#d8e8ef" }}>
-            Workspace role: Clinic administrator. Explore front desk, clinical
-            team, inventory coordinator and patient workflows with simulated
-            data and payments.
+            Clinic administrator access. Explore the work of the front desk,
+            clinical team and inventory coordinator, along with the patient
+            experience.
           </Typography>
           <Button
             variant="contained"
