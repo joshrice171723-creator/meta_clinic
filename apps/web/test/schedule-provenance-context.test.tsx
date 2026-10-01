@@ -7,6 +7,7 @@ const hooks = vi.hoisted(() => ({
   refCursor: 0,
   states: [] as { value: unknown; set: (next: unknown) => void }[],
   refs: [] as { current: unknown }[],
+  canPatients: true,
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -65,7 +66,11 @@ vi.mock("../src/features/clinic/Workspace", () => ({
       { id: 4, code: "ORIGIN", timezone_override: "America/Chicago" },
       { id: 5, code: "OTHER", timezone_override: "UTC" },
     ],
-    capabilities: {},
+    capabilities: {
+      patients: hooks.canPatients,
+      encounters: true,
+      appointments_status_transition: true,
+    },
   }),
 }));
 vi.mock("../src/shared/ui", () => ({
@@ -151,6 +156,7 @@ function dayView(group: "clinician" | "room") {
 }
 
 beforeEach(() => {
+  hooks.canPatients = true;
   hooks.states = [];
   hooks.refs = [];
   renderBooking.mockClear();
@@ -239,5 +245,91 @@ describe("actual schedule booking context handoffs", () => {
       ).props.open,
     ).toBe(false);
     expect(renderBooking).not.toHaveBeenCalled();
+  });
+});
+
+describe("212 checked-in appointment guidance", () => {
+  function selected(encounterId: number | null) {
+    render();
+    // Selection is component state; no API or appointment action is executed.
+    hooks.states[6].set({
+      id: 812,
+      patient_id: 813,
+      encounter_id: encounterId,
+      status: "confirmed",
+      calendar_status: encounterId ? "in_progress" : "confirmed",
+      starts_at: "2026-09-16T14:00:00Z",
+      ends_at: "2026-09-16T14:30:00Z",
+      patient: { display_name: "Synthetic visit guidance" },
+    });
+    return render();
+  }
+  it("explains the cancellation guard and links the existing encounter without a mutation", () => {
+    const tree = selected(814);
+    expect(
+      find(tree, (e) => e.props.children === "Cancel appointment").props
+        .disabled,
+    ).toBe(true);
+    expect(
+      find(tree, (e) => e.props.children === "Open encounter").props.href,
+    ).toBe("/clinic/patients/813/encounters/814");
+    expect(
+      find(
+        tree,
+        (e) =>
+          e.props.children ===
+          "This visit has already started. Appointment cancellation is unavailable. Review the encounter to record the visit outcome.",
+      ),
+    ).toBeDefined();
+  });
+  it("withholds the encounter link without patient access", () => {
+    hooks.canPatients = false;
+    expect(
+      elements(selected(814)).some(
+        (e) => e.props.children === "Open encounter",
+      ),
+    ).toBe(false);
+  });
+  it("keeps a not-started appointment cancellable without suggesting an encounter", () => {
+    const tree = selected(null);
+    expect(
+      find(tree, (e) => e.props.children === "Cancel appointment").props
+        .disabled,
+    ).toBe(false);
+    expect(
+      elements(tree).some((e) => e.props.children === "Open encounter"),
+    ).toBe(false);
+  });
+});
+
+describe("94 preserved-tree appointment navigation characterization", () => {
+  it("offers generic front-desk navigation without claiming appointment selection", () => {
+    render();
+    hooks.states[6].set({
+      id: 812,
+      patient_id: 813,
+      encounter_id: null,
+      status: "confirmed",
+      calendar_status: "confirmed",
+      starts_at: "2026-09-16T14:00:00Z",
+      ends_at: "2026-09-16T14:30:00Z",
+      patient: { display_name: "Synthetic navigation context" },
+    });
+    const tree = render();
+    const link = find(tree, (e) => e.props.children === "Open front desk");
+    expect(link.props.href).toBe("/clinic/front-desk");
+    expect(link.props.onClick).toBeUndefined();
+    expect(
+      elements(tree).some((e) => e.props.children === "Manage appointment"),
+    ).toBe(false);
+    expect(
+      find(tree, (e) => e.props.children === "Cancel appointment").props
+        .disabled,
+    ).toBe(false);
+    // This baseline does not contain the separate #130/#107 selection repair.
+    // The href is real navigation, but it has no appointment/date/site parameters.
+    expect(
+      new URL(String(link.props.href), "https://synthetic.invalid").search,
+    ).toBe("");
   });
 });

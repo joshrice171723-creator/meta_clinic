@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Button, Dialog, TextField } from "@mui/material";
+import { Alert, Button, Dialog, TextField } from "@mui/material";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { EncounterDetail, Patient } from "../src/api/contracts";
 import { VisitWrapUp } from "../src/features/clinic/CareFlow";
@@ -19,6 +19,8 @@ const harness = vi.hoisted(() => ({
   states: [] as unknown[],
   refs: [] as { current: unknown }[],
   post: vi.fn(),
+  signedInstruction: null as any,
+  educationEvents: [] as any[],
 }));
 vi.mock("react", async (original) => {
   const actual = await original<typeof import("react")>();
@@ -59,8 +61,8 @@ vi.mock("../src/shared/ui", async (original) => ({
       can_complete: true,
       evidence: {
         follow_up: { id: 1, version: 1, status: "recorded" },
-        signed_instruction: null,
-        education_events: [],
+        signed_instruction: harness.signedInstruction,
+        education_events: harness.educationEvents,
         open_tasks: [],
       },
       options: {
@@ -110,6 +112,8 @@ function dialogErrors(dialog = confirmationDialog()) {
   );
 }
 beforeEach(() => {
+  harness.signedInstruction = null;
+  harness.educationEvents = [];
   harness.post.mockReset();
   harness.refs = [];
   harness.states = [
@@ -251,4 +255,124 @@ it("retains the duplicate-submit guard and the unresolved attempt after a valid 
   expect(harness.states[3]).toBe(
     "The visit close could not be confirmed. No automatic retry was made. Check the current encounter status.",
   );
+});
+
+it("229 shows first invalid confirmation immediately as an accessible dialog error without posting", () => {
+  harness.states[7] = "";
+  harness.states[8] = "";
+  harness.states[9] = "";
+  click(button(renderWrapUp(), "Complete encounter"));
+  click(button(confirmationDialog(), "Confirm completion"));
+  const errors = dialogErrors();
+  expect(errors.map((node) => node.props.message)).toEqual([
+    "Choose the visit outcome, written-instruction status, and education status.",
+  ]);
+  expect(renderToStaticMarkup(errors[0])).toContain('role="alert"');
+  expect(confirmationDialog().props.open).toBe(true);
+  expect(harness.post).not.toHaveBeenCalled();
+  expect(harness.states[6]).toBeNull();
+  expect(harness.states[4]).toBe("idle");
+});
+it("35 distinguishes not-required selections from missing evidence", () => {
+  const tree = renderWrapUp();
+  const alerts = elements(tree).filter((node) => node.type === Alert);
+  expect(
+    alerts.some(
+      (node) =>
+        node.props.children ===
+          "Written instructions are not required for this visit." &&
+        node.props.severity === "info",
+    ),
+  ).toBe(true);
+  expect(
+    alerts.some(
+      (node) =>
+        node.props.children ===
+          "Education and teach-back are not required for this visit." &&
+        node.props.severity === "info",
+    ),
+  ).toBe(true);
+  expect(
+    alerts.some((node) =>
+      String(node.props.children).startsWith("No signed note"),
+    ),
+  ).toBe(false);
+  expect(
+    alerts.some((node) =>
+      String(node.props.children).startsWith("No education"),
+    ),
+  ).toBe(false);
+});
+it("35 retains missing warnings and validation for selected provided/recorded states without evidence", () => {
+  harness.states[8] = "provided";
+  harness.states[9] = "recorded";
+  const alerts = elements(renderWrapUp()).filter((node) => node.type === Alert);
+  expect(
+    alerts.some(
+      (node) =>
+        node.props.children ===
+          "No signed note revision with written patient instructions is available." &&
+        node.props.severity === "warning",
+    ),
+  ).toBe(true);
+  expect(
+    alerts.some(
+      (node) =>
+        node.props.children ===
+          "No education or teach-back record is available for this encounter." &&
+        node.props.severity === "warning",
+    ),
+  ).toBe(true);
+  click(button(renderWrapUp(), "Complete encounter"));
+  click(button(confirmationDialog(), "Confirm completion"));
+  expect(dialogErrors()[0].props.message).toBe(
+    "No signed patient-instruction revision is available. Refresh the checklist or choose another status.",
+  );
+  expect(harness.post).not.toHaveBeenCalled();
+});
+it("35 presents recorded evidence as available without fabricating evidence", () => {
+  harness.states[8] = "provided";
+  harness.states[9] = "recorded";
+  harness.signedInstruction = { revision_no: 2, revision_id: 55 };
+  harness.educationEvents = [{ id: 56 }];
+  const alerts = elements(renderWrapUp()).filter((node) => node.type === Alert);
+  expect(
+    alerts.some(
+      (node) =>
+        node.props.children ===
+          "Signed written instructions are available from note revision 2." &&
+        node.props.severity === "info",
+    ),
+  ).toBe(true);
+  expect(
+    alerts.some(
+      (node) =>
+        node.props.children ===
+          "1 education record will be linked to this completion review." &&
+        node.props.severity === "info",
+    ),
+  ).toBe(true);
+});
+it("82 invokes the specific tracking-board return control without any patient or site mutation", () => {
+  const assign = vi.fn();
+  vi.stubGlobal("window", { location: { assign } });
+  try {
+    click(button(renderWrapUp(), "Return to tracking board"));
+    expect(assign).toHaveBeenCalledExactlyOnceWith("/clinic");
+    expect(harness.post).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("35 preserves the missing education guard when instructions are explicitly not required", () => {
+  harness.states[8] = "not_required";
+  harness.states[9] = "recorded";
+  click(button(renderWrapUp(), "Complete encounter"));
+  click(button(confirmationDialog(), "Confirm completion"));
+  expect(dialogErrors()[0].props.message).toBe(
+    "No patient education event is available. Refresh the checklist or choose another status.",
+  );
+  expect(harness.post).not.toHaveBeenCalled();
+  expect(harness.states[6]).toBeNull();
 });

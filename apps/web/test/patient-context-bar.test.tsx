@@ -1,11 +1,23 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClinicCapabilities } from "../src/api/contracts";
 import {
   clearPatientContextHref,
   clinicPatientContextId,
   PatientContextBar,
 } from "../src/features/clinic/PatientContextBar";
+
+const fixture = vi.hoisted(() => ({ patient: null as any }));
+vi.mock("../src/shared/ui", async (original) => ({
+  ...(await original<typeof import("../src/shared/ui")>()),
+  useResource: () => ({
+    data: fixture.patient ? { patients: [fixture.patient] } : undefined,
+    refresh: vi.fn(),
+  }),
+}));
+beforeEach(() => {
+  fixture.patient = null;
+});
 
 const capabilities = (
   overrides: Partial<ClinicCapabilities> = {},
@@ -97,5 +109,44 @@ describe("URL-derived patient context", () => {
     expect(html).toContain('aria-label="Clear current patient"');
     expect(html).not.toContain("Open chart");
     expect(html).not.toContain(">Schedule<");
+  });
+});
+
+describe("152 patient record link contract", () => {
+  it.each(["/clinic/patients/42", "/clinic/patients/42/encounters/7"])(
+    "labels the patient record destination accurately from %s",
+    (path) => {
+      fixture.patient = {
+        id: 42,
+        display_name: "Synthetic context patient",
+        reference: "SYN-42",
+      };
+      const html = renderToStaticMarkup(
+        <PatientContextBar
+          capabilities={capabilities({ patients: true })}
+          path={path}
+          search=""
+        />,
+      );
+      expect(html).toContain("Open patient record");
+      expect(html).toContain('href="/clinic/patients/42"');
+      expect(html).not.toContain("Open chart");
+    },
+  );
+  it("does not offer record access with identity-only permission", () => {
+    fixture.patient = {
+      id: 42,
+      display_name: "Synthetic context patient",
+      reference: "SYN-42",
+    };
+    const html = renderToStaticMarkup(
+      <PatientContextBar
+        capabilities={capabilities({ patient_identity_read: true })}
+        path="/clinic/schedule"
+        search="?patient_id=42"
+      />,
+    );
+    expect(html).toContain("Synthetic context patient");
+    expect(html).not.toContain("Open patient record");
   });
 });

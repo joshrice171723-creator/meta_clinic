@@ -106,6 +106,7 @@ export function trackingBoardOperationMetadata(
 ): BoardOperationMetadata {
   const operations = visit as TrackingBoardVisitWithOperations;
   const ownership = operations.intake_ownership;
+  const claimAllowed = visit.encounter?.status !== "completed";
   return {
     intakeOwnership: ownership
       ? {
@@ -114,13 +115,15 @@ export function trackingBoardOperationMetadata(
           ownerName: ownership.owner.display_name,
           leaseExpiresAt: ownership.lease_expires_at,
           state: ownership.state,
-          canClaim: ownership.claim_available,
+          canClaim: claimAllowed && ownership.claim_available,
           canRelease: ownership.release_available,
         }
       : null,
-    canClaimIntake: ownership
-      ? ownership.claim_available
-      : operations.intake_claim_available === true,
+    canClaimIntake:
+      claimAllowed &&
+      (ownership
+        ? ownership.claim_available
+        : operations.intake_claim_available === true),
     exceptions: operations.exceptions ?? [],
   };
 }
@@ -143,7 +146,7 @@ function displaySex(value: string | null | undefined) {
 }
 
 function patientNameParts(value: string | null | undefined) {
-  const cleaned = value?.trim().replace(/^SYN[_\s-]*/i, "") ?? "";
+  const cleaned = value?.trim().replace(/^SYN[_\s-]+/i, "") ?? "";
   const [lastPart, firstPart] = cleaned.split(",");
   const fallback = cleaned.split(/\s+/);
   const lastName = firstPart === undefined ? (fallback.at(-1) ?? "") : lastPart;

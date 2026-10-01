@@ -60,7 +60,7 @@ export function PatientContextBar({
   const canReadIdentity =
     capabilities.patient_identity_read === true ||
     capabilities.patients === true;
-  const canOpenChart = capabilities.patients === true;
+  const canOpenPatientRecord = capabilities.patients === true;
   const canSchedule =
     capabilities.appointments === true ||
     (capabilities.appointments_read === true &&
@@ -119,14 +119,14 @@ export function PatientContextBar({
             Retry identity
           </Button>
         )}
-        {patient && canOpenChart && (
+        {patient && canOpenPatientRecord && (
           <Button
             component="a"
             href={`/clinic/patients/${patient.id}`}
             size="small"
             variant="text"
           >
-            Open chart
+            Open patient record
           </Button>
         )}
         {patient && canSchedule && (

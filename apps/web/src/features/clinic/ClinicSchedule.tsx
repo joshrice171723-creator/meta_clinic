@@ -1479,10 +1479,18 @@ export function ClinicSchedule({
                     Recurring visit {selected.series_sequence} · View series
                   </Button>
                 )}
-                <Typography variant="body2">
-                  Check in only after the patient arrives. This opens their
-                  encounter and places the visit on the Tracking Board.
-                </Typography>
+                {selected.encounter_id ? (
+                  <Alert severity="info">
+                    This visit has already started. Appointment cancellation is
+                    unavailable. Review the encounter to record the visit
+                    outcome.
+                  </Alert>
+                ) : (
+                  <Typography variant="body2">
+                    Check in only after the patient arrives. This opens their
+                    encounter and places the visit on the Tracking Board.
+                  </Typography>
+                )}
               </>
             )}
             {mutationError && <Alert severity="error">{mutationError}</Alert>}
@@ -1493,6 +1501,15 @@ export function ClinicSchedule({
             Close
           </Button>
           <Button href="/clinic/front-desk">Open front desk</Button>
+          {selected?.encounter_id &&
+            context.capabilities.patients &&
+            context.capabilities.encounters && (
+              <Button
+                href={`/clinic/patients/${selected.patient_id}/encounters/${selected.encounter_id}`}
+              >
+                Open encounter
+              </Button>
+            )}
           {selected && context.capabilities.appointments_status_transition && (
             <Button
               color="error"

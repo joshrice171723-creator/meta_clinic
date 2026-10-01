@@ -210,6 +210,73 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
     assert_equal before, [ patient.address_versions.count, patient.primary_address_version_id, patient.demographics.reload.preferred_name ]
   end
 
+  test "qa218 browser shaped address update commits and exact replay preserves one receipt" do
+    input = browser_registration_input(request_key: "qa218-address-save", primary_address: "218 Synthetic Street")
+    address_count = @patient.address_versions.count
+    receipts = Clinic::OperationReceipt.where(practice: @practice, actor_membership: @membership,
+      request_key: input.fetch(:request_key))
+
+    patch "/api/clinic/patients/#{@patient.id}", params: { clinic_patient: input }, headers: csrf_headers, as: :json
+    assert_response :success, response.body
+    saved = response.parsed_body
+    assert_equal input.fetch(:request_key), saved.fetch("request_key")
+    assert_equal @patient.id, saved.dig("patient", "id")
+    assert_equal "218 Synthetic Street", saved.dig("patient", "primary_address", "formatted")
+    assert_equal address_count + 1, @patient.reload.address_versions.count
+    receipt = receipts.sole
+    assert receipt.outcome_committed?
+    assert_equal "patients.registration_update", receipt.operation_code
+    assert_equal @patient.id, receipt.resource_id
+    assert_equal @patient.class.name, receipt.resource_type
+    after_save = [ @patient.updated_at, @patient.primary_address_version_id, @patient.versions.count ]
+
+    # Same body/key includes the OLD expected timestamp. A receipt must replay
+    # before the stale-write guard rather than attempting a second mutation.
+    patch "/api/clinic/patients/#{@patient.id}", params: { clinic_patient: input }, headers: csrf_headers, as: :json
+    assert_response :success, response.body
+    assert_equal input.fetch(:request_key), response.parsed_body.fetch("request_key")
+    assert_equal saved.fetch("patient"), response.parsed_body.fetch("patient")
+    assert_equal 1, receipts.count
+    assert_equal address_count + 1, @patient.reload.address_versions.count
+    assert_equal after_save, [ @patient.updated_at, @patient.primary_address_version_id, @patient.versions.count ]
+    get "/api/clinic/patients/#{@patient.id}", headers: @headers
+    assert_response :success
+    assert_equal "218 Synthetic Street", response.parsed_body.dig("patient", "primary_address", "formatted")
+  end
+
+  test "qa218 stale address update is a deterministic rejection without changes or receipt" do
+    input = browser_registration_input(request_key: "qa218-stale-save", primary_address: "Rejected Synthetic Street")
+    @patient.update_columns(updated_at: @patient.updated_at + 1.second)
+    before = [ @patient.reload.attributes, @patient.address_versions.count, @patient.versions.count ]
+    patch "/api/clinic/patients/#{@patient.id}", params: { clinic_patient: input }, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "stale_record", response.parsed_body.fetch("code")
+    assert_equal before, [ @patient.reload.attributes, @patient.address_versions.count, @patient.versions.count ]
+    refute Clinic::OperationReceipt.exists?(practice: @practice, actor_membership: @membership,
+      request_key: input.fetch(:request_key))
+  end
+
+  test "qa131 clearing primary address persists after reload and exact replay preserves history" do
+    address = Clinic::Care::AddPatientAddress.call(practice: @practice, actor: @user, patient: @patient,
+      encrypted_address: "131 Synthetic Street", make_primary: true)
+    input = browser_registration_input(request_key: "qa131-clear-address", primary_address: "")
+    address_count = @patient.address_versions.count
+    2.times do
+      patch "/api/clinic/patients/#{@patient.id}", params: { clinic_patient: input }, headers: csrf_headers, as: :json
+      assert_response :success, response.body
+      assert_nil response.parsed_body.dig("patient", "primary_address")
+      assert_nil @patient.reload.primary_address_version_id
+      assert_equal address_count, @patient.address_versions.count
+      assert_equal "131 Synthetic Street", address.reload.encrypted_address
+    end
+    get "/api/clinic/patients/#{@patient.id}", headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.dig("patient", "primary_address")
+    assert_nil response.parsed_body.dig("patient", "primary_address_version_id")
+    assert_equal 1, Clinic::OperationReceipt.where(practice: @practice, actor_membership: @membership,
+      request_key: input.fetch(:request_key)).count
+  end
+
   test "patient detail exposes bounded metadata but identity lookup does not" do
     get "/api/clinic/patients/#{@patient.id}", headers: @headers
     assert_response :success
@@ -223,6 +290,25 @@ class PatientRegistrationIntegrityTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def browser_registration_input(request_key:, primary_address:)
+    # Valid wholly synthetic form fields, including the exact version read by
+    # an editor. No structured UI-only address keys enter the strict API body.
+    get "/api/clinic/patients/#{@patient.id}", headers: @headers
+    assert_response :success
+    detail = response.parsed_body.fetch("patient")
+    {
+      request_key:, expected_updated_at: detail.fetch("updated_at"),
+      display_name: detail.fetch("display_name"), reference: detail.fetch("reference"),
+      legal_name: detail.fetch("display_name"), preferred_name: "", date_of_birth: "", sex: "unknown",
+      primary_language: "", interpreter_required: "unknown", primary_address:,
+      contact_type: "phone", contact_value: "", preferred: "false", preferred_contact_method: "portal",
+      appointment_reminders_consent: "false", general_communications_consent: "false",
+      emergency_name: "", emergency_relationship: "", emergency_phone: "", permission_to_contact: "false",
+      tobacco_use: "", alcohol_use: "", exercise_habits: "", diet: "", occupation: "",
+      living_situation: "", relevant_social_factors: ""
+    }
+  end
 
   def csrf_headers
     get "/api/csrf", headers: @headers

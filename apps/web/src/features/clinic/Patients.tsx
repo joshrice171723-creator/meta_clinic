@@ -791,8 +791,23 @@ function PatientRecord({
     };
   }, [registerBlocker, registrationDirty, registrationOpen]);
   const closeRegistration = () => {
-    if (registrationDialogRef.current?.querySelector("fieldset[disabled]"))
+    if (
+      registrationDialogRef.current?.querySelector(
+        'form[data-registration-saving="true"]',
+      )
+    )
       return;
+    if (
+      registrationDialogRef.current?.querySelector(
+        'form[data-registration-pending="true"]',
+      )
+    ) {
+      // Closing is not discarding: the exact attempt remains in its private
+      // working copy and is recovered when this editor is opened again.
+      setDiscardPending(false);
+      setRegistrationOpen(false);
+      return;
+    }
     if (registrationDirty) setDiscardPending(true);
     else setRegistrationOpen(false);
   };
@@ -870,7 +885,7 @@ function PatientRecord({
                         onClick={() => {
                           if (
                             registrationDialogRef.current?.querySelector(
-                              "fieldset[disabled]",
+                              'form[data-registration-saving="true"], form[data-registration-pending="true"]',
                             )
                           )
                             return;
@@ -2094,6 +2109,8 @@ function PatientRegistrationEditor({
   return (
     <Box
       component="form"
+      data-registration-saving={busy || inFlight.current}
+      data-registration-pending={Boolean(attempt.current)}
       ref={formRef}
       id={patient ? undefined : "patient-registration-form"}
       onInput={(event) => {
@@ -2110,6 +2127,8 @@ function PatientRegistrationEditor({
           autosaveTimer.current = undefined;
         }
         const current = attempt.current ?? snapshotFrom(event.currentTarget);
+        const previouslyUnconfirmed =
+          outcomeUnconfirmed || Boolean(attempt.current?.outcomeUnconfirmed);
         const contactError = registrationContactError(
           current.body.clinic_patient,
         );
@@ -2213,6 +2232,7 @@ function PatientRegistrationEditor({
           onSuccess?.(result);
         } catch (reason) {
           const unknown =
+            previouslyUnconfirmed ||
             !(reason instanceof ApiError) ||
             reason.status === 408 ||
             reason.status >= 500 ||
@@ -2286,7 +2306,10 @@ function PatientRegistrationEditor({
             }
           }
           setOutcomeUnconfirmed(unknown);
-          if (!(reason instanceof ApiError && reason.code === "stale_record"))
+          if (
+            unknown ||
+            !(reason instanceof ApiError && reason.code === "stale_record")
+          )
             setError(
               unknown
                 ? "The registration outcome is unknown. Retry this exact request to reconcile it."
