@@ -5,6 +5,7 @@ export type ClinicHomeView = "tracking" | "schedule";
 export type ClinicRoute = {
   path: string;
   search: string;
+  hash?: string;
   homeView: ClinicHomeView;
 };
 
@@ -58,6 +59,7 @@ export function clinicRoute(
   pathname: string,
   search = "",
   historyView?: unknown,
+  hash = "",
 ): ClinicRoute {
   const originalPath = pathname.replace(/\/+$/, "") || "/";
   const storedView: ClinicHomeView | undefined =
@@ -71,12 +73,49 @@ export function clinicRoute(
   return {
     path: schedule ? "/clinic/schedule" : normalizeClinicPath(originalPath),
     search,
+    ...(hash ? { hash } : {}),
     homeView: schedule ? "schedule" : "tracking",
   };
 }
 
 export function clinicRouteHref(route: ClinicRoute) {
-  return route.path + route.search;
+  return route.path + route.search + (route.hash ?? "");
+}
+
+// pushState does not perform native fragment scrolling. Wait for lazy route
+// content, and cancel when the user navigates away before the target mounts.
+export function scrollToClinicAnchor(hash?: string) {
+  if (!hash) return;
+  let id: string;
+  try {
+    id = decodeURIComponent(hash.slice(1));
+  } catch {
+    return;
+  }
+  let frame = 0;
+  const observer = new MutationObserver(findTarget);
+  function findTarget() {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const target = document.getElementById(id);
+        if (!target || !target.getClientRects().length) return;
+        observer.disconnect();
+        target.scrollIntoView({ block: "start" });
+      });
+    });
+  }
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+  });
+  findTarget();
+  return () => {
+    observer.disconnect();
+    cancelAnimationFrame(frame);
+  };
 }
 
 export function clinicTarget(href: string, origin: string) {

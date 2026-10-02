@@ -11,6 +11,27 @@ const readSource = (path: string | URL) =>
   readFileSync(path, "utf8").replaceAll("\r\n", "\n");
 
 describe("clinic-local navigation", () => {
+  it("retains the advertised anchor and query through canonical routing", () => {
+    const target = clinicTarget(
+      "/clinic/operations?site=7#connectors-transmissions",
+      "https://apply.test",
+    )!;
+    const route = clinicRoute(
+      target.pathname,
+      target.search,
+      undefined,
+      target.hash,
+    );
+    expect(clinicRouteHref(route)).toBe(
+      "/clinic/operations?site=7#connectors-transmissions",
+    );
+    expect(
+      clinicRouteHref(
+        clinicRoute("/clinic", "?patient_id=105", undefined, "#visit"),
+      ),
+    ).toBe("/clinic/schedule?patient_id=105#visit");
+    expect(clinicRouteHref(clinicRoute("/clinic"))).toBe("/clinic");
+  });
   it("keeps tracking and schedule as canonical routes without dropping context", () => {
     expect(normalizeClinicPath("/clinic/schedule/")).toBe("/clinic/schedule");
     expect(clinicRoute("/clinic")).toEqual({

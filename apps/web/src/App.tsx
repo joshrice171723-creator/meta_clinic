@@ -38,6 +38,7 @@ import {
   ClinicNavigationProvider,
   clinicRoute,
   clinicRouteHref,
+  scrollToClinicAnchor,
   clinicTarget,
   confirmClinicNavigation,
   useClinicNavigation,
@@ -593,7 +594,7 @@ function ClinicPage({ route }: { route: ClinicRoute }) {
   const encounter = /^\/clinic\/patients\/(\d+)\/encounters\/(\d+)$/.exec(path),
     patient = /^\/clinic\/patients\/(\d+)$/.exec(path);
   return (
-    <RouteBoundary key={clinicRouteHref(route)}>
+    <RouteBoundary key={route.path + route.search}>
       {path === "/clinic/telehealth" ? (
         <TelehealthQueue />
       ) : path === "/clinic/settings/telehealth" ? (
@@ -711,6 +712,7 @@ function ClinicApplication({
       window.location.pathname,
       window.location.search,
       window.history.state?.clinicView,
+      window.location.hash,
     ),
   );
   const routeRef = useRef(route);
@@ -749,6 +751,7 @@ function ClinicApplication({
         target.pathname,
         target.search,
         options.homeView,
+        target.hash,
       );
       if (options.homeView) next.homeView = options.homeView;
       const sameRoute =
@@ -792,6 +795,7 @@ function ClinicApplication({
         window.location.pathname,
         window.location.search,
         event.state?.clinicView,
+        window.location.hash,
       );
       if (!confirmNavigation()) {
         const current = routeRef.current;
@@ -823,6 +827,8 @@ function ClinicApplication({
     return () => window.removeEventListener("popstate", restore);
   }, [confirmNavigation]);
 
+  useEffect(() => scrollToClinicAnchor(route.hash), [route]);
+
   const navigation = useMemo(
     () => ({ navigate, registerBlocker, confirmNavigation }),
     [navigate, registerBlocker, confirmNavigation],
@@ -830,7 +836,7 @@ function ClinicApplication({
   const home = route.path === "/clinic" || route.path === "/clinic/schedule";
   const page =
     route.path === "/clinic/settings" ? (
-      <RouteBoundary key={clinicRouteHref(route)}>
+      <RouteBoundary key={route.path + route.search}>
         <Settings user={user} />
       </RouteBoundary>
     ) : (
