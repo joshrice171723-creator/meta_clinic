@@ -23,6 +23,8 @@ import {
   type ConfirmableAppointment,
 } from "./PatientAppointmentConfirmation";
 import { PatientPrevisitNote } from "./PatientPrevisitNote";
+import { PatientAppointmentDetails } from "./PatientAppointmentDetails";
+import { patientPortalCodeLabel } from "./patientPortalLabels";
 import {
   ReturnVisitRequestSubmission,
   type ReturnVisitAcknowledgement,
@@ -190,6 +192,18 @@ export function PatientAppointmentRequests({
     new Date(endsAt).valueOf() - new Date(startsAt).valueOf();
   const intervalValid =
     intervalDuration > 0 && intervalDuration <= 4 * 60 * 60 * 1_000;
+  const submissionBlocker = !resource.data?.options.can_request_new_booking
+    ? resource.data?.options.booking_requirement ||
+      "The clinic must review your booking access. Request a call above for help."
+    : !siteId
+      ? "Choose a preferred clinic location before sending your request."
+      : !intervalValid
+        ? "Choose an end time after the start and within four hours before sending your request."
+        : busy
+          ? "Your request is being sent. Please wait for its outcome."
+          : outcomeUnconfirmed
+            ? "The previous outcome is unconfirmed. Retry the same request before changing its details."
+            : "Your request will be sent to the clinic for review; it does not confirm an appointment.";
   const effectiveUpcomingAppointments = useMemo(
     () =>
       resource.data?.upcoming_appointments.map((appointment) => {
@@ -409,13 +423,15 @@ export function PatientAppointmentRequests({
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             {appointment.site?.name ||
-                              appointment.site?.code ||
+                              (appointment.site?.code
+                                ? patientPortalCodeLabel(appointment.site.code)
+                                : "") ||
                               "Location not recorded"}
                             {appointment.room
-                              ? ` · Room ${appointment.room.code}`
+                              ? ` · Room ${patientPortalCodeLabel(appointment.room.code)}`
                               : ""}
                             {appointment.visit_type
-                              ? ` · ${appointment.visit_type.code}`
+                              ? ` · ${patientPortalCodeLabel(appointment.visit_type.code)}`
                               : ""}
                           </Typography>
                         </Box>
@@ -509,9 +525,10 @@ export function PatientAppointmentRequests({
                         </Stack>
                       </Stack>
                       <Box sx={{ mt: 1 }}>
+                        <PatientAppointmentDetails appointment={appointment} />
                         <PatientPrevisitNote
                           appointmentId={appointment.id}
-                          appointmentLabel={`${dateTime(appointment.starts_at)} · ${appointment.site?.name || appointment.site?.code || "Location not recorded"}${appointment.room ? ` · Room ${appointment.room.code}` : ""}`}
+                          appointmentLabel={`${dateTime(appointment.starts_at)} · ${appointment.site?.name || (appointment.site?.code ? patientPortalCodeLabel(appointment.site.code) : "Location not recorded")}${appointment.room ? ` · Room ${patientPortalCodeLabel(appointment.room.code)}` : ""}`}
                         />
                       </Box>
                     </Box>
@@ -604,7 +621,11 @@ export function PatientAppointmentRequests({
                   }}
                 />
                 <TextField
-                  disabled={busy || outcomeUnconfirmed}
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    !resource.data.options.can_request_new_booking
+                  }
                   select
                   required
                   label="Preferred clinic location"
@@ -617,13 +638,21 @@ export function PatientAppointmentRequests({
                     Choose a clinic location
                   </MenuItem>
                   {resource.data.options.sites.map((site) => (
-                    <MenuItem key={site.id} value={String(site.id)}>
-                      {site.name || site.code}
+                    <MenuItem
+                      key={site.id}
+                      value={String(site.id)}
+                      aria-label={`${site.name || patientPortalCodeLabel(site.code)} · Code ${site.code} · Reference ${site.id}`}
+                    >
+                      {site.name || patientPortalCodeLabel(site.code)}
                     </MenuItem>
                   ))}
                 </TextField>
                 <TextField
-                  disabled={busy || outcomeUnconfirmed}
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    !resource.data.options.can_request_new_booking
+                  }
                   select
                   label="Visit type (optional)"
                   value={visitTypeId}
@@ -635,8 +664,12 @@ export function PatientAppointmentRequests({
                 >
                   <MenuItem value="">No preference</MenuItem>
                   {resource.data.options.visit_types.map((type) => (
-                    <MenuItem key={type.id} value={String(type.id)}>
-                      {type.code}
+                    <MenuItem
+                      key={type.id}
+                      value={String(type.id)}
+                      aria-label={`${patientPortalCodeLabel(type.code)} · Code ${type.code} · Reference ${type.id}`}
+                    >
+                      {patientPortalCodeLabel(type.code)}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -644,7 +677,11 @@ export function PatientAppointmentRequests({
                   select
                   label="Preferred visit format"
                   value={requestedModality}
-                  disabled={busy || outcomeUnconfirmed}
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    !resource.data.options.can_request_new_booking
+                  }
                   onChange={(event) => {
                     setRequestedModality(
                       event.target.value as "in_person" | "video",
@@ -673,12 +710,18 @@ export function PatientAppointmentRequests({
                   alignItems: { sm: "center" },
                 }}
               >
-                <Typography variant="body2" color="text.secondary">
-                  The clinic may offer a different available time. No clinician
-                  is selected by this request.
+                <Typography
+                  id="appointment-request-guidance"
+                  variant="body2"
+                  color="text.secondary"
+                  role="status"
+                >
+                  {submissionBlocker} The clinic may offer a different available
+                  time. No clinician is selected by this request.
                 </Typography>
                 <Button
                   variant="contained"
+                  aria-describedby="appointment-request-guidance"
                   disabled={
                     busy ||
                     !siteId ||
@@ -730,7 +773,7 @@ export function PatientAppointmentRequests({
                       <Typography variant="body2" color="text.secondary">
                         {request.source_appointment
                           ? `Original appointment: ${dateTime(request.source_appointment.starts_at)} at ${request.source_appointment.site?.name || request.source_appointment.site?.code || "Location not recorded"}`
-                          : `${request.site?.name || request.site?.code || "Location not specified"} · ${request.visit_type?.code || "Visit type not specified"}`}
+                          : `${request.site?.name || (request.site?.code ? patientPortalCodeLabel(request.site.code) : "Location not specified")} · ${request.visit_type?.code ? patientPortalCodeLabel(request.visit_type.code) : "Visit type not specified"}`}
                       </Typography>
                     </Box>
                     <Chip
@@ -771,13 +814,18 @@ export function PatientAppointmentRequests({
                         request.appointment.site?.code ||
                         "Location not recorded"}
                       {request.appointment.room
-                        ? ` · Room ${request.appointment.room.code}`
+                        ? ` · Room ${patientPortalCodeLabel(request.appointment.room.code)}`
                         : ""}
                       {request.appointment.clinician
                         ? ` · ${request.appointment.clinician.display_name}`
                         : ""}
                       .
                     </Alert>
+                  )}
+                  {request.appointment && (
+                    <PatientAppointmentDetails
+                      appointment={request.appointment}
+                    />
                   )}
                 </Box>
               ))}
@@ -861,6 +909,10 @@ export function AppointmentChangeDialog({
   const intervalValid =
     kind === "cancel" ||
     (intervalDuration > 0 && intervalDuration <= 4 * 60 * 60 * 1_000);
+  const timeChanged =
+    kind === "cancel" ||
+    startsAt !== localDateTime(new Date(appointment.starts_at)) ||
+    endsAt !== localDateTime(new Date(appointment.ends_at));
   useDemoNavigationBlocker(() => ({
     blocked: Boolean(
       busy ||
@@ -873,7 +925,11 @@ export function AppointmentChangeDialog({
 
   async function submit() {
     const current = submission.current!;
-    if (current.busy || (!intervalValid && !current.outcomeUnconfirmed)) return;
+    if (
+      current.busy ||
+      ((!intervalValid || !timeChanged) && !current.outcomeUnconfirmed)
+    )
+      return;
     setBusy(true);
     setError("");
     try {
@@ -957,6 +1013,21 @@ export function AppointmentChangeDialog({
               />
             </>
           )}
+          {kind === "reschedule" && (
+            <Typography
+              id="reschedule-request-guidance"
+              color="text.secondary"
+              role="status"
+            >
+              {outcomeUnconfirmed
+                ? "The outcome is unconfirmed. Retry the same request before changing its details."
+                : !timeChanged
+                  ? "Change the preferred start or end time before sending a reschedule request."
+                  : !intervalValid
+                    ? "Choose an end time after the start and within four hours."
+                    : "The clinic will review your preferred window before changing the appointment."}
+            </Typography>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -966,7 +1037,12 @@ export function AppointmentChangeDialog({
         <Button
           variant="contained"
           color={kind === "cancel" ? "error" : "primary"}
-          disabled={busy || !intervalValid}
+          disabled={
+            busy || (!outcomeUnconfirmed && (!intervalValid || !timeChanged))
+          }
+          aria-describedby={
+            kind === "reschedule" ? "reschedule-request-guidance" : undefined
+          }
           onClick={() => void submit()}
         >
           {busy

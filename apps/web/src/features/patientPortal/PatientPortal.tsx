@@ -42,6 +42,7 @@ import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { PatientSubscriptions } from "./PatientSubscriptions";
 import { PatientBillingSupport } from "./PatientBillingSupport";
+import { PatientAppointmentDetails } from "./PatientAppointmentDetails";
 import { PatientEducationMaterials } from "./PatientEducationMaterials";
 import { PatientRefillRequests } from "./PatientRefillRequests";
 import { PatientWaitlistOffers } from "./PatientWaitlistOffers";
@@ -53,6 +54,7 @@ import {
 import { AfterVisitInstructions } from "./AfterVisitInstructions";
 import {
   patientPortalLabel,
+  patientPortalCodeLabel,
   patientPortalReferenceLabel,
 } from "./patientPortalLabels";
 import { patientPortalTheme } from "./patientPortalTheme";
@@ -82,7 +84,12 @@ function sectionFromLocation(): PortalSection {
   if (hash === "care" || hash === "refills") return "care";
   if (hash === "appointments" || hash.startsWith("appointment-"))
     return "appointments";
-  if (hash === "billing" || hash === "memberships") return "billing";
+  if (
+    ["billing", "memberships", "invoice-payments", "billing-support"].includes(
+      hash,
+    )
+  )
+    return "billing";
   if (["settings", "my-memberships"].includes(hash)) return "settings";
   if (hash === "home" || hash === "visit-instructions") return "home";
   if (
@@ -628,6 +635,18 @@ export function PatientPortal({
                       description="See what is coming next and return to the instructions your clinic has shared with you."
                     />
                     <Stack spacing={{ xs: 3, sm: 4 }}>
+                      <Accordion variant="outlined" disableGutters>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Typography>Patient record details</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Typography sx={{ overflowWrap: "anywhere" }}>
+                            {context.patient.display_name} · Patient reference{" "}
+                            {context.patient.reference} · Record{" "}
+                            {context.patient.id}
+                          </Typography>
+                        </AccordionDetails>
+                      </Accordion>
                       {showMembershipOnboarding && (
                         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
                           <Stack spacing={2}>
@@ -777,19 +796,26 @@ export function PatientPortal({
                                 sx={{ mt: 0.5 }}
                               >
                                 {nextAppointment.site?.name ||
-                                  nextAppointment.site?.code ||
+                                  (nextAppointment.site?.code
+                                    ? patientPortalCodeLabel(
+                                        nextAppointment.site.code,
+                                      )
+                                    : "") ||
                                   "Location not recorded"}
                                 {nextAppointment.room
-                                  ? ` · Room ${nextAppointment.room.code}`
+                                  ? ` · Room ${patientPortalCodeLabel(nextAppointment.room.code)}`
                                   : ""}
                                 {nextAppointment.visit_type
-                                  ? ` · ${nextAppointment.visit_type.code}`
+                                  ? ` · ${patientPortalCodeLabel(nextAppointment.visit_type.code)}`
                                   : ""}
                                 {nextAppointment.clinician
                                   ? ` · ${nextAppointment.clinician.display_name}`
                                   : ""}
                               </Typography>
                             </Box>
+                            <PatientAppointmentDetails
+                              appointment={nextAppointment}
+                            />
                             <Stack
                               direction={{ xs: "column", sm: "row" }}
                               spacing={1.5}
@@ -964,6 +990,38 @@ export function PatientPortal({
                                   </Typography>
                                 </Box>
                               ))}
+                              <Alert severity="info">
+                                {context.capabilities.payment_collection
+                                  ? "Online payment or payment-status review is available for the invoices shown below. Expand an invoice to use its secure checkout controls."
+                                  : "Online payment is unavailable for the current invoices. Any outstanding balance remains due. Ask the clinic about supported payment options using billing support below."}
+                                <Stack
+                                  direction="row"
+                                  spacing={1}
+                                  sx={{ mt: 1 }}
+                                >
+                                  {context.capabilities.payment_collection && (
+                                    <Button
+                                      color="inherit"
+                                      onClick={() =>
+                                        navigateTo(
+                                          "billing",
+                                          "invoice-payments",
+                                        )
+                                      }
+                                    >
+                                      Review invoice payment options
+                                    </Button>
+                                  )}
+                                  <Button
+                                    color="inherit"
+                                    onClick={() =>
+                                      navigateTo("billing", "billing-support")
+                                    }
+                                  >
+                                    Contact clinic billing
+                                  </Button>
+                                </Stack>
+                              </Alert>
                             </Stack>
                           </Paper>
 
@@ -973,6 +1031,7 @@ export function PatientPortal({
 
                           <Paper
                             component="section"
+                            id="invoice-payments"
                             variant="outlined"
                             sx={{ p: { xs: 2.5, sm: 3.5 } }}
                           >
@@ -995,6 +1054,14 @@ export function PatientPortal({
                                   key={invoice.id}
                                   variant="outlined"
                                   disableGutters
+                                  defaultExpanded={
+                                    context.capabilities.payment_collection &&
+                                    (invoice.online_payment.eligible ||
+                                      [
+                                        "processing",
+                                        "needs_reconciliation",
+                                      ].includes(invoice.online_payment.state))
+                                  }
                                 >
                                   <AccordionSummary
                                     expandIcon={<ExpandMoreIcon />}

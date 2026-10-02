@@ -92,6 +92,7 @@ export function PatientBillingSupport() {
   return (
     <Paper
       component="section"
+      id="billing-support"
       variant="outlined"
       sx={{ p: { xs: 2.5, sm: 3.5 } }}
     >

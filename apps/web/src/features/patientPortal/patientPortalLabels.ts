@@ -15,3 +15,8 @@ export function patientPortalLabel(value: string) {
 export function patientPortalReferenceLabel(value: string) {
   return /^SYN[-_]/i.test(value.trim()) ? null : patientPortalLabel(value);
 }
+
+export function patientPortalCodeLabel(value: string) {
+  const label = patientPortalLabel(value).replace(/[_-]+/g, " ").trim();
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : value;
+}
