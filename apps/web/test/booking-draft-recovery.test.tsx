@@ -184,6 +184,72 @@ beforeEach(() => {
 });
 
 describe("booking recovery and definite rejection controls", () => {
+  it.each([45, 60])(
+    "keeps a chosen %i-minute duration when Starts changes",
+    (minutes) => {
+      mock.restored = null;
+      let tree = render();
+      expect(field(tree, "Starts").props.type).toBe("datetime-local");
+      expect(field(tree, "Ends").props.type).toBe("datetime-local");
+      find(
+        tree,
+        (element) =>
+          element.type === "Button" && element.props.children?.[0] === minutes,
+      ).props.onClick();
+      tree = render();
+      field(tree, "Starts").props.onChange({
+        target: { value: "2099-10-06T11:00" },
+      });
+      tree = render();
+      expect(field(tree, "Ends").props.value).toBe(
+        `2099-10-06T${minutes === 60 ? "12:00" : "11:45"}`,
+      );
+      expect(mock.api).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps an explicitly edited end until a duration is chosen again", () => {
+    mock.restored = null;
+    let tree = render();
+    field(tree, "Ends").props.onChange({
+      target: { value: "2099-10-06T12:15" },
+    });
+    tree = render();
+    field(tree, "Starts").props.onChange({
+      target: { value: "2099-10-06T11:00" },
+    });
+    tree = render();
+    expect(field(tree, "Ends").props.value).toBe("2099-10-06T12:15");
+    expect(field(tree, "Ends").props.helperText).toContain(
+      "Edited end stays fixed",
+    );
+    find(
+      tree,
+      (element) =>
+        element.type === "Button" && element.props.children?.[0] === 45,
+    ).props.onClick();
+    tree = render();
+    expect(field(tree, "Ends").props.value).toBe("2099-10-06T11:45");
+    field(tree, "Starts").props.onChange({ target: { value: "" } });
+    tree = render();
+    field(tree, "Starts").props.onChange({
+      target: { value: "2099-10-06T13:00" },
+    });
+    tree = render();
+    expect(field(tree, "Ends").props.value).toBe("2099-10-06T13:45");
+    expect(mock.api).not.toHaveBeenCalled();
+  });
+
+  it("preserves a recovered explicit end when Starts changes", () => {
+    mock.restored.draft.endTimeEdited = true;
+    let tree = render();
+    field(tree, "Starts").props.onChange({
+      target: { value: "2099-10-05T10:10" },
+    });
+    tree = render();
+    expect(field(tree, "Ends").props.value).toBe("2099-10-05T10:30");
+  });
+
   it("#223 clears the recovered banner permanently after Start new appointment", async () => {
     let tree = render();
     expect(appointmentDraftRecoveryMessage(mock.restored)).not.toContain(

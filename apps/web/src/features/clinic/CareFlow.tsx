@@ -120,6 +120,7 @@ type BookingDraft = {
   patientId: string;
   startsAt: string;
   endsAt: string;
+  endTimeEdited?: boolean;
   siteId: string;
   roomId: string;
   clinicianId: string;
@@ -696,6 +697,20 @@ export function appointmentIntervalError(startsAt: string, endsAt: string) {
   return "";
 }
 
+export function bookingDurationMinutes(startsAt: string, endsAt: string) {
+  const minutes = (Date.parse(endsAt) - Date.parse(startsAt)) / 60_000;
+  return Number.isFinite(minutes) && minutes > 0 && minutes <= 24 * 60
+    ? minutes
+    : 30;
+}
+
+export function bookingEndTime(startsAt: string, minutes: number) {
+  const start = new Date(startsAt);
+  return Number.isFinite(start.valueOf())
+    ? localDateTimeValue(new Date(start.getTime() + minutes * 60_000))
+    : null;
+}
+
 function statusColor(
   status: string,
 ): "default" | "success" | "warning" | "error" | "info" {
@@ -822,6 +837,7 @@ function BookingFormEditor({
         useSlotTime && initialSlot?.ends_at
           ? localDateTimeValue(new Date(initialSlot.ends_at))
           : defaults.endsAt,
+      endTimeEdited: false,
       siteId: initialSlot ? String(initialSlot.site_id) : "",
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
       clinicianId: initialSlot?.clinician_id
@@ -902,6 +918,12 @@ function BookingFormEditor({
   );
   const [startsAt, setStartsAt] = useState(restoredDraft.startsAt);
   const [endsAt, setEndsAt] = useState(restoredDraft.endsAt);
+  const [durationMinutes, setDurationMinutes] = useState(() =>
+    bookingDurationMinutes(restoredDraft.startsAt, restoredDraft.endsAt),
+  );
+  const [endTimeEdited, setEndTimeEdited] = useState(
+    restoredDraft.endTimeEdited ?? Boolean(initialDraft),
+  );
   const [siteId, setSiteId] = useState(restoredDraft.siteId);
   const [roomId, setRoomId] = useState(restoredDraft.roomId);
   const [clinicianId, setClinicianId] = useState(restoredDraft.clinicianId);
@@ -1068,6 +1090,7 @@ function BookingFormEditor({
       patientId,
       startsAt,
       endsAt,
+      endTimeEdited,
       siteId,
       roomId,
       clinicianId,
@@ -1088,6 +1111,7 @@ function BookingFormEditor({
       patientId,
       startsAt,
       endsAt,
+      endTimeEdited,
       siteId,
       roomId,
       clinicianId,
@@ -1407,11 +1431,10 @@ function BookingFormEditor({
     }) ?? [];
   const intervalError = appointmentIntervalError(startsAt, endsAt);
   const setDuration = (minutes: number) => {
-    const start = new Date(startsAt);
-    if (Number.isFinite(start.valueOf()))
-      setEndsAt(
-        localDateTimeValue(new Date(start.getTime() + minutes * 60_000)),
-      );
+    setDurationMinutes(minutes);
+    setEndTimeEdited(false);
+    const end = bookingEndTime(startsAt, minutes);
+    if (end) setEndsAt(end);
   };
   const reset = () => {
     setRecoveryDismissed(true);
@@ -1427,6 +1450,10 @@ function BookingFormEditor({
     setReplacementPatient(undefined);
     setChangingPatient(false);
     setEndsAt(defaultDraft.endsAt);
+    setDurationMinutes(
+      bookingDurationMinutes(defaultDraft.startsAt, defaultDraft.endsAt),
+    );
+    setEndTimeEdited(false);
     setSiteId(defaultDraft.siteId);
     setRoomId(defaultDraft.roomId);
     setClinicianId(defaultDraft.clinicianId);
@@ -2335,7 +2362,7 @@ function BookingFormEditor({
             >
               <TextField
                 label="Starts"
-                type="text"
+                type="datetime-local"
                 required
                 disabled={
                   busy ||
@@ -2348,30 +2375,19 @@ function BookingFormEditor({
                 onChange={(event) => {
                   const value = event.target.value;
                   setStartsAt(value);
-                  const start = new Date(value);
-                  if (Number.isFinite(start.valueOf()))
-                    setEndsAt(
-                      localDateTimeValue(
-                        new Date(
-                          start.getTime() +
-                            (selectedOffering?.duration_minutes ?? 30) * 60_000,
-                        ),
-                      ),
-                    );
+                  if (!endTimeEdited) {
+                    const end = bookingEndTime(value, durationMinutes);
+                    if (end) setEndsAt(end);
+                  }
                 }}
-                placeholder="YYYY-MM-DDTHH:mm"
+                helperText="Use your device's time zone. Review clinic time below."
                 slotProps={{
-                  htmlInput: {
-                    inputMode: "numeric",
-                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
-                    spellCheck: false,
-                  },
                   inputLabel: { shrink: true },
                 }}
               />
               <TextField
                 label="Ends"
-                type="text"
+                type="datetime-local"
                 required
                 disabled={
                   busy ||
@@ -2384,16 +2400,15 @@ function BookingFormEditor({
                 error={Boolean(intervalError)}
                 helperText={
                   intervalError ||
-                  "Use YYYY-MM-DDTHH:mm in your device’s time zone."
+                  (endTimeEdited
+                    ? "Edited end stays fixed. Choose a duration to calculate it again."
+                    : "Calculated from duration. Edit to set a specific end.")
                 }
-                onChange={(event) => setEndsAt(event.target.value)}
-                placeholder="YYYY-MM-DDTHH:mm"
+                onChange={(event) => {
+                  setEndsAt(event.target.value);
+                  setEndTimeEdited(true);
+                }}
                 slotProps={{
-                  htmlInput: {
-                    inputMode: "numeric",
-                    pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}",
-                    spellCheck: false,
-                  },
                   inputLabel: { shrink: true },
                 }}
               />
@@ -2410,7 +2425,11 @@ function BookingFormEditor({
                 <Button
                   key={minutes}
                   size="small"
-                  variant="outlined"
+                  variant={
+                    !endTimeEdited && durationMinutes === minutes
+                      ? "contained"
+                      : "outlined"
+                  }
                   disabled={
                     busy ||
                     outcomeUnconfirmed ||
@@ -2744,6 +2763,10 @@ function BookingFormEditor({
                             setSeriesPreviewPayload(null);
                             const start = businessNow();
                             start.setSeconds(0, 0);
+                            setDurationMinutes(
+                              selectedOffering?.duration_minutes ?? 30,
+                            );
+                            setEndTimeEdited(false);
                             setStartsAt(localDateTimeValue(start));
                             setEndsAt(
                               localDateTimeValue(
