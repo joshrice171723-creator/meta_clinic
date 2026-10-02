@@ -115,7 +115,8 @@ module Development
         run.lock!
         raise ActiveRecord::RecordNotFound unless run.active?
 
-        step = Integer(run.baseline.to_h.fetch("sandbox_preparation_step", 0))
+        # Legacy runs prepared every stage atomically before this marker existed.
+        step = Integer(run.baseline.to_h.fetch("sandbox_preparation_step", SANDBOX_PREPARERS.length))
         # Registered visitors bound to this shared run may confirm completion.
         # Only its creator may advance incomplete preparation; check under the
         # same locks as the stage write so a concurrent reset cannot bypass it.

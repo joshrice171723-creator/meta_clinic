@@ -1,11 +1,19 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-30
+updated: 2026-10-01
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+## 2026-10-01 — Live Sandbox opening restored
+
+Joshua requested diagnosis and repair of `https://aimetaclinic.com/demo`. Open Sandbox reproduced a 404 from `/api/demo-workspace/demo/sandbox/prepare` on hosted revision `e5d065fe550350c934274391da46abfdb7325250`. Shared active run 79 predated staged preparation: it had the populated clinic but no `sandbox_preparation_step`. The new default of zero misclassified the legacy run as unfinished, and its creator-only preparation guard rejected other visitors. History at `8b544145` confirms previous runs prepared all 21 stages in one transaction.
+
+The isolated `apply_guided_demo` database was backed up to `/opt/meta-clinic/backups/sandbox-marker-repair-20261002/apply_guided_demo.dump`, restored into a uniquely named scratch database, and user counts matched before scratch cleanup. A transaction holding the existing sandbox advisory lock and run lock backfilled only run 79's missing marker to 21, with exact run/practice/visitor and population guards. The existing 600 patients in its primary practice remained. No reset, image change, ordinary database change or credential change occurred; the saved dump contains the pre-repair baseline for recovery.
+
+Fresh Chrome interaction through Open Sandbox loaded the embedded Clinic administrator Tracking Board with 40 visits. Ruby syntax and scoped diff checks passed; no automated test suite ran. Source now recognizes missing markers as legacy completed preparation while retaining explicit zero/stage markers and creator checks for new incomplete runs. That compatibility change is source-only pending the next image release; the live repair is the persisted marker backfill. Broader sandbox workflows and reset were not revalidated. Existing unrelated edits in the primary checkout were preserved; the repair was isolated from current origin/main because pulling into the dirty primary checkout was blocked.
 
 ## 2026-09-30 - Correct MC02 staff caller boundary inference
 
