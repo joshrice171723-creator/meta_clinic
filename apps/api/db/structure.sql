@@ -8262,7 +8262,7 @@ CREATE TABLE public.clinic_patient_history_reviews (
     CONSTRAINT clinic_history_reviews_outcome CHECK (((outcome)::text = ANY ((ARRAY['current_list_confirmed'::character varying, 'none_reported'::character varying, 'follow_up_needed'::character varying, 'unable_to_obtain'::character varying])::text[]))),
     CONSTRAINT clinic_history_reviews_request_present CHECK ((length(TRIM(BOTH FROM request_key)) > 0)),
     CONSTRAINT clinic_history_reviews_source CHECK (((information_source)::text = ANY ((ARRAY['patient'::character varying, 'caregiver'::character varying, 'clinician'::character varying, 'external_record'::character varying, 'other'::character varying])::text[]))),
-    CONSTRAINT clinic_history_reviews_topic CHECK (((topic)::text = ANY ((ARRAY['allergies'::character varying, 'medications'::character varying, 'care_needs'::character varying])::text[])))
+    CONSTRAINT clinic_history_reviews_topic CHECK (((topic)::text = ANY ((ARRAY['allergies'::character varying, 'medications'::character varying, 'conditions'::character varying, 'care_needs'::character varying])::text[])))
 );
 
 
@@ -9805,6 +9805,45 @@ CREATE SEQUENCE public.clinic_refund_events_id_seq
 --
 
 ALTER SEQUENCE public.clinic_refund_events_id_seq OWNED BY public.clinic_refund_events.id;
+
+
+--
+-- Name: clinic_reminder_policy_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_reminder_policy_versions (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    revision integer NOT NULL,
+    enabled boolean NOT NULL,
+    lead_hours integer NOT NULL,
+    written_by_membership_id bigint CONSTRAINT clinic_reminder_policy_versio_written_by_membership_id_not_null NOT NULL,
+    request_key character varying NOT NULL,
+    content_digest character varying NOT NULL,
+    effective_from timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_reminder_policy_values CHECK (((revision > 0) AND ((lead_hours >= 1) AND (lead_hours <= 168))))
+);
+
+
+--
+-- Name: clinic_reminder_policy_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_reminder_policy_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_reminder_policy_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_reminder_policy_versions_id_seq OWNED BY public.clinic_reminder_policy_versions.id;
 
 
 --
@@ -15834,6 +15873,13 @@ ALTER TABLE ONLY public.clinic_refund_events ALTER COLUMN id SET DEFAULT nextval
 
 
 --
+-- Name: clinic_reminder_policy_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_reminder_policy_versions ALTER COLUMN id SET DEFAULT nextval('public.clinic_reminder_policy_versions_id_seq'::regclass);
+
+
+--
 -- Name: clinic_report_exports id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -18081,6 +18127,14 @@ ALTER TABLE ONLY public.clinic_refill_response_deliveries
 
 ALTER TABLE ONLY public.clinic_refund_events
     ADD CONSTRAINT clinic_refund_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_reminder_policy_versions clinic_reminder_policy_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_reminder_policy_versions
+    ADD CONSTRAINT clinic_reminder_policy_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -20772,6 +20826,20 @@ CREATE UNIQUE INDEX clinic_refill_response_deliveries_request ON public.clinic_r
 --
 
 CREATE UNIQUE INDEX clinic_refund_events_practice_id ON public.clinic_refund_events USING btree (practice_id, id);
+
+
+--
+-- Name: clinic_reminder_policy_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_reminder_policy_request ON public.clinic_reminder_policy_versions USING btree (practice_id, request_key);
+
+
+--
+-- Name: clinic_reminder_policy_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX clinic_reminder_policy_revision ON public.clinic_reminder_policy_versions USING btree (practice_id, revision);
 
 
 --
@@ -26053,6 +26121,13 @@ CREATE TRIGGER clinic_refund_events_immutable BEFORE DELETE OR UPDATE ON public.
 
 
 --
+-- Name: clinic_reminder_policy_versions clinic_reminder_policy_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_reminder_policy_immutable BEFORE DELETE OR UPDATE ON public.clinic_reminder_policy_versions FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_report_exports clinic_report_exports_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -30687,6 +30762,14 @@ ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
 
 
 --
+-- Name: clinic_reminder_policy_versions fk_rails_20ea71cb09; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_reminder_policy_versions
+    ADD CONSTRAINT fk_rails_20ea71cb09 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_inventory_purchase_cart_items fk_rails_22304a7fa5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -33463,6 +33546,14 @@ ALTER TABLE ONLY public.clinic_resource_reservations
 
 
 --
+-- Name: clinic_reminder_policy_versions fk_rails_cd978ced42; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_reminder_policy_versions
+    ADD CONSTRAINT fk_rails_cd978ced42 FOREIGN KEY (practice_id, written_by_membership_id) REFERENCES public.clinic_memberships(practice_id, id);
+
+
+--
 -- Name: clinic_workforce_availability_versions fk_rails_cda17f1998; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -35533,6 +35624,8 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002003000'),
+('20261001000300'),
 ('20261001000200'),
 ('20261001000100'),
 ('20260930235900'),

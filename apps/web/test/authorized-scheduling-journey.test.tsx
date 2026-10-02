@@ -164,6 +164,7 @@ it.skipIf(!realStackEnabled)(
           `/clinic/front-desk?date=${fixture.day}&site_id=${fixture.site_id}`,
         ),
       );
+      await page.getByLabel("Appointment date", { exact: true }).fill(fixture.day);
       const queueRow = page
         .locator(".front-desk-row")
         .filter({ hasText: fixture.patient_name });
@@ -270,6 +271,7 @@ it.skipIf(!realStackEnabled)(
       expect(setup.status()).toBe(201);
       const appointmentId = (await setup.json()).appointment.id as number;
       await page.goto(realUrl(`/clinic/front-desk?date=${fixture.day}&site_id=${fixture.site_id}`));
+      await page.getByLabel("Appointment date", { exact: true }).fill(fixture.day);
       const queueRow = page.locator(".front-desk-row").filter({ hasText: patientName });
       await queueRow.getByRole("button", { name: "Check in", exact: true }).click();
       const checkin = page.waitForResponse(response => new URL(response.url()).pathname === `/api/clinic/patients/${patientId}/encounters` && response.request().method() === "POST");

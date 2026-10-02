@@ -212,6 +212,9 @@ it.runIf(realStackEnabled)(
       // Continue through the existing native purchasing, shipment, receiving and count screens.
       await page.goto(realUrl("/clinic/inventory/purchasing/new"));
       await page.locator(".purchase-catalog-list .inventory-list-row").filter({ hasText: "Synthetic Aspirin" }).getByRole("button", { name: "Add", exact: true }).click();
+      await page.locator(".purchase-catalog-list .inventory-list-row")
+        .filter({ hasText: "Synthetic Aspirin" })
+        .getByRole("button", { name: "In draft", exact: true }).waitFor();
       await choose(page, "Destination facility", fixture.site_name);
       await page.getByRole("textbox", { name: /^Purchase reason/ }).fill("Synthetic first-run procurement");
       await page.getByRole("button", { name: "Check out", exact: true }).click();

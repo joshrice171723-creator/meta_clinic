@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser } from "playwright-core";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 let server: ViteDevServer;
 let browser: Browser;
@@ -83,6 +83,14 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
     const page = await context.newPage();
     page.setDefaultTimeout(5000);
     let releaseDeletion: (() => void) | undefined;
+    const diagnosticResponses: { path: string; method: string; status: number }[] = [];
+    let confirmedChart = false;
+    page.on("response", (response) => {
+      const path = new URL(response.url()).pathname;
+      if (path.startsWith("/api/clinic/") && !path.includes("session")) {
+        diagnosticResponses.push({ path, method: response.request().method(), status: response.status() });
+      }
+    });
     try {
       const csrf = await context.request.get(`${baseUrl}/api/csrf`);
       expect(csrf.status()).toBe(200);
@@ -118,6 +126,7 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
           exact: true,
         })
         .click();
+      confirmedChart = true;
       const soap = page.locator("#chart-signing");
       const objective = page.getByRole("textbox", {
         name: "Objective (O)",
@@ -296,6 +305,22 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
       ).toBe(0);
     } finally {
       releaseDeletion?.();
+      if (process.env.QA_REAL_DIAGNOSTIC_OUTPUT && seed.synthetic === true && process.env.QA_REAL_ISOLATED === "1") {
+        try {
+          const dom = await page.evaluate(() => ({
+            text: (document.body.innerText || "").slice(0, 16000),
+            fields: Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea")).map((field) => ({
+              labels: Array.from(field.labels || []).map((label) => label.textContent || ""),
+              disabled: field.disabled,
+              inSoap: Boolean(field.closest(".soap-workspace")),
+              inChartSigning: Boolean(field.closest("#chart-signing")),
+            })),
+            soapCount: document.querySelectorAll(".soap-workspace").length,
+            signingCount: document.querySelectorAll("#chart-signing").length,
+          }));
+          writeFileSync(`${process.env.QA_REAL_DIAGNOSTIC_OUTPUT}-soap.json`, JSON.stringify({ synthetic: true, head: seed.head, confirmedChart, pathname: new URL(page.url()).pathname, responses: diagnosticResponses.slice(-80), dom }, null, 2));
+        } catch { /* Diagnostics must not replace the original assertion failure. */ }
+      }
       await context.close();
     }
   },
@@ -820,13 +845,8 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
       expect(savedEvent.actor_reference).toBe(`user:${seed.actor_user_id}`);
       const reference = savedEvent.resource_references[0];
       await page.goto(`${baseUrl}/clinic/audit`);
-      await expect
-        .poll(() =>
-          page
-            .getByRole("heading", { name: "Practice audit", exact: true })
-            .count(),
-        )
-        .toBe(1);
+      await page.locator(".clinic-shell").waitFor({ timeout: 30000 });
+      await page.getByRole("heading", { name: "Practice audit", exact: true }).waitFor();
       expect(
         await page
           .getByRole("link", { name: "Practice audit", exact: true })

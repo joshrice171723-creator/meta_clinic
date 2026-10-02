@@ -90,6 +90,7 @@ it("authorized patient clinical history loads with one explicit empty state per 
     expect(actual.medications).toEqual([]);
     expect(actual.conditions).toEqual([]);
     await page.reload();
+    await page.locator(".clinic-shell").waitFor({ state: "visible", timeout: 30000 });
     await history.getByText("Clinical history", { exact: true }).waitFor();
     await expect.poll(() => history.getByText("No recorded entries. No absence has been inferred.", { exact: true }).count()).toBe(3);
   } finally { await context.close(); }
@@ -149,6 +150,8 @@ it("authorized Conditions review is explicit durable and preserves reported veri
     } });
     expect(created.status()).toBe(201);
     await page.reload();
+    await page.locator(".clinic-shell").waitFor({ state: "visible", timeout: 30000 });
+    await page.locator("#chart-access").scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
     const section = page.locator("#clinical-history-conditions-review");
     await section.getByText("Not reviewed in this encounter", { exact: true }).waitFor();
@@ -169,6 +172,8 @@ it("authorized Conditions review is explicit durable and preserves reported veri
     expect(receipt.review).toEqual(expect.objectContaining({ topic: "conditions", outcome: "current_list_confirmed", information_source: "patient", encounter_id: scenario.open_encounter_id }));
     await page.getByText("Conditions review recorded.", { exact: true }).waitFor();
     await page.reload();
+    await page.locator(".clinic-shell").waitFor({ state: "visible", timeout: 30000 });
+    await page.locator("#chart-access").scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
     await expect.poll(() => section.innerText()).toContain("Current list confirmed");
     const readback = await realGet<ClinicalHistoryResponse>(page, `${historyPath}?encounter_id=${scenario.open_encounter_id}`);
@@ -211,13 +216,14 @@ it("authorized reported intake conditions remain visible with source without cre
     await page.reload();
     await reported.getByText(scenario.names[0], { exact: false }).waitFor();
     for (const name of scenario.names) expect(await reported.getByText(name, { exact: false }).count()).toBe(1);
-    await reported.getByRole("button", { name: "Open source intake", exact: true }).click();
+    await reported.getByRole("link", { name: "Open source intake", exact: true }).click();
     await page.waitForURL(`**/clinic/patients/${scenario.patient_id}/encounters/${scenario.completed_encounter_id}?focus=nurse-workspace`);
     await page.locator("#nurse-workspace").getByRole("button", { name: "Intake", exact: true }).click();
     const readback = await realGet<NurseWorkspace>(page, `/api/clinic/patients/${scenario.patient_id}/encounters/${scenario.completed_encounter_id}/nurse_workspace`);
     expect(readback.intake?.version).toBe(scenario.source_version);
     expect(readback.intake?.questionnaire?.answers.history).toEqual(expect.objectContaining({ entries: scenario.names.map(name => expect.objectContaining({ name })) }));
     await page.goto(realUrl(`/clinic/patients/${scenario.patient_id}/encounters/${scenario.open_encounter_id}`));
+    await page.locator("#chart-access").scrollIntoViewIfNeeded();
     await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
     const fallback = page.locator("#clinical-history").getByText(`Encounter #${scenario.completed_encounter_id} · Intake revision ${scenario.source_version}`, { exact: false });
     await fallback.waitFor();
