@@ -31,17 +31,30 @@ module Development
 
     def lesson
       visitor = current_visitor
-      input = demo_input!(%i[lesson_key restart])
+      input = demo_input!(%i[lesson_key restart account])
       restart = boolean_input!(input, :restart, default: false)
       lesson_key = input[:lesson_key].presence
       return leave_lesson(visitor) unless lesson_key
+      account_key = input[:account].presence
+      SandboxAccounts.validate_key!(account_key) if account_key
+      raise ArgumentError, "Account selection is only available in the sandbox." if account_key && !DemoLessonCatalog.sandbox?(lesson_key)
       raise ActiveRecord::RecordNotFound if visitor.nil? && lesson_key != "navigation_tour"
 
       DemoLessonCatalog.definition!(lesson_key)
       previous_run = current_run
       run = ApplicationRecord.transaction do
         selected = SharedDemoLesson.enter!(lesson_key, visitor:, previous_run:, restart:)
-        establish_demo_session(session_user_for(selected), selected, view: DemoLessonCatalog.view_for(lesson_key))
+        if account_key
+          # Bind preparation to this browser/visitor without logging in as Admin.
+          current_member_session&.destroy!
+          clear_demo_session!
+          session[:guided_clinic_demo_run_id] = selected.id
+          session[:sandbox_preparing_visitor_id] = visitor.id
+          session[:sandbox_requested_account] = account_key
+          cookies.encrypted[:guided_clinic_demo_run] = cookie_value(selected.id)
+        else
+          establish_demo_session(session_user_for(selected), selected, view: DemoLessonCatalog.view_for(lesson_key))
+        end
         selected
       end
       render json: active_payload(run), status: :created
@@ -80,7 +93,22 @@ module Development
     def view
       run = current_run!
       require_run_user!(run)
-      requested_view = required_string!(demo_input!(%i[view])[:view], field: :view, maximum: 20)
+      input = demo_input!(%i[view account expected_run_id expected_user_id])
+      if input[:account].present?
+        raise ActiveRecord::RecordNotFound unless DemoLessonCatalog.sandbox?(run.lesson_key) && current_visitor
+        run.with_lock do
+          raise ActiveRecord::RecordNotFound unless run.reload.active?
+          record = current_member_session
+          raise ActiveRecord::RecordNotFound if record && !MemberSession.exists?(id: record.id)
+          raise ArgumentError, "The sandbox changed. Refresh before switching accounts." unless
+            input[:expected_run_id].to_s == run.id.to_s && input[:expected_user_id].to_s == current_user&.id.to_s
+          account = SandboxAccounts.resolve(run, input[:account])
+          establish_demo_session(account.user, run, view: account.portal, account: account)
+        end
+        return render json: active_payload(run)
+      end
+      raise ArgumentError, "Choose a sandbox account." if DemoLessonCatalog.sandbox?(run.lesson_key)
+      requested_view = required_string!(input[:view], field: :view, maximum: 20)
       case requested_view
       when "patient"
         raise ArgumentError, "This lesson does not have a patient view yet." unless run.patient_user
@@ -95,7 +123,14 @@ module Development
 
     def resume
       run = current_run!
-      establish_demo_session(session_user_for(run), run, view: DemoLessonCatalog.view_for(run.lesson_key))
+      require_run_user!(run)
+      if DemoLessonCatalog.sandbox?(run.lesson_key) && session[:sandbox_account]
+        account = SandboxAccounts.resolve(run, session[:sandbox_account])
+        establish_demo_session(account.user, run, view: account.portal, account: account)
+      else
+        raise ActiveRecord::RecordNotFound if pending_sandbox_account?(run)
+        establish_demo_session(session_user_for(run), run, view: DemoLessonCatalog.view_for(run.lesson_key))
+      end
       render json: active_payload(run)
     end
 
@@ -193,7 +228,16 @@ module Development
     end
 
     def valid_run_user?(run)
+      return true if pending_sandbox_account?(run)
+      return SandboxAccounts.valid_user?(run, current_user) if DemoLessonCatalog.sandbox?(run.lesson_key) && session[:sandbox_account]
       current_user&.id.in?([ run.operator_user_id, run.patient_user_id ].compact)
+    end
+
+    def pending_sandbox_account?(run)
+      run.active? && DemoLessonCatalog.sandbox?(run.lesson_key) && current_visitor &&
+        session[:guided_clinic_demo_run_id] == run.id &&
+        session[:sandbox_preparing_visitor_id] == current_visitor.id &&
+        SandboxAccounts::OPTIONS.key?(session[:sandbox_requested_account])
     end
 
     def require_run_user!(run)
@@ -206,15 +250,20 @@ module Development
       cookies.delete(:guided_clinic_demo_run)
     end
 
-    def establish_demo_session(user, run, view:)
+    def establish_demo_session(user, run, view:, account: nil)
       establish_session(user)
+      remove_instance_variable(:@development_demo) if instance_variable_defined?(:@development_demo)
       session[:guided_clinic_demo_run_id] = run.id
       session[:development_demo_user_id] = user.id
-      if user.id == run.operator_user_id
+      if account&.membership
+        session[:clinic_membership_id] = account.membership.id
+        session[:clinic_site_id] = account.site.id
+      elsif user.id == run.operator_user_id
         session[:clinic_membership_id] = user.clinic_memberships.find_by!(practice_id: run.practice_id).id
         session[:clinic_site_id] = run.practice.sites.first!.id
       end
       session[:guided_clinic_demo_view] = view
+      session[:sandbox_account] = account.key if account
       cookies.encrypted[:guided_clinic_demo_run] = cookie_value(run.id)
     end
 
@@ -254,10 +303,15 @@ module Development
       run.reload
       patient = run.patient
       view = session[:guided_clinic_demo_view] || DemoLessonCatalog.view_for(run.lesson_key)
+      sandbox_account = SandboxAccounts.current(run, current_user) if DemoLessonCatalog.sandbox?(run.lesson_key)
+      patient = sandbox_account.patient if sandbox_account&.patient
       { active: true, run: {
         id: run.id, template_key: run.template_key, lesson_key: run.lesson_key,
         sandbox: DemoLessonCatalog.sandbox?(run.lesson_key),
         mode: view, view:,
+        account: sandbox_account && SandboxAccounts.payload(sandbox_account),
+        accounts: DemoLessonCatalog.sandbox?(run.lesson_key) ? SandboxAccounts.choices(run) : [],
+        account_pending: pending_sandbox_account?(run),
         clinic: { id: run.practice_id, name: run.practice.name, slug: run.practice.public_membership_slug },
         patient: patient && { id: patient.id, name: patient.display_name },
         lessons: run.visitor_id ? DemoLessonCatalog.catalog : DemoLessonCatalog.catalog.select { |lesson| lesson[:id] == "navigation_tour" },
