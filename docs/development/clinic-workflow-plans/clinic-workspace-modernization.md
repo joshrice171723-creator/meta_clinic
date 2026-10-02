@@ -392,10 +392,14 @@ Current typecheck/changed-file format/main bundle2.71s/Office1.03s PASS. Named p
 
 Initial editor inspection was premature while working-copy data loaded; waited for enabled editor, then draft proof passed. Existing real synthetic encounter opened through local confirmation; unsaved manual SOAP text plus controlled working-copy PUT503 remained protected when navigation was dismissed, retaining patient context. No server working-draft/official clinical mutation occurred. Long/error lookup controls are presentation evidence, not backend fixture or role-denial proof. Provider/portal/scope-switch and comparative timing proof remain unverified; C acceptance pending/count5/74.
 
+### Parallel authoring amendment
+
+Parent explicitly authorized independent disjoint leaf candidate authoring, supported by C, while preserving predecessor integration/acceptance gates. Cloud B confirmed no context code dependency and started MZ-02a on its pinned e5 sparse source. Lead2/Lead3 may release their fixed leaf allowlists after checking actual dependencies; no shared-file ownership expansion or extra approval wait. Accepted MZ-01a/b define stable typography/header/navigation interfaces; context source2d109493 changes presentation/copy only and keeps existing props, route parsing, provider lifetime and blockers. The central tracker records this live dispatch. All heavy jobs/runtime/fixtures/Git remain serialized and A-owned; candidates reconcile against the exact accepted foundation before integration/acceptance. No 10-packet threshold is required to remove this observed scheduling bottleneck, and the required review at10 remains pending.
+
 ## Last run
 
-- Date UTC:2026-10-02; inspected frozen2d109493 context candidate.
-- Outcome:MZ-01c implemented and scoped actual identity/clear/navigation proof complete; C pending, count5/74.
+- Date UTC:2026-10-02; clean source2d109493, checkpoint1f9e5bba.
+- Outcome:MZ-01c source/checks/proof complete and sent for C; parallel authoring amendment recorded, accepted count5/74 unchanged.
 - Changed canonical paths:this brief and central tracker.
-- Checks:current typecheck/format/main+Office bundles PASS; named S30PASS/1baselineFAIL; bounded real identity plus controlled long/error/save-failure navigation PASS. Required docs validators retain existing advisories/seven harness failures.
-- Next:submit exact mechanically encoded patch/review evidence to C; release board/auth only after accepted shared contract. No publication.
+- Checks:no application check/capture rerun; existing exact source/evidence reused. Required documentation validators retain seven baseline harness link failures and existing vault advisories.
+- Next:C decision on context; reconcile incoming disjoint board/domain candidates against the accepted foundation and run bounded serialized fixture/check work. No publication.
