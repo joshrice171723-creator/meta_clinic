@@ -422,9 +422,7 @@ describe("board and Operations presentation boundaries", () => {
 
     expect(source).toContain("Choose a different provider to save changes.");
     expect(source).toContain("const assignmentUnchanged =");
-    expect(source).toContain(
-      "assignmentReloadRequired ||\n                      assignmentUnchanged",
-    );
+    expect(source).toMatch(/assignmentReloadRequired\s*\|\|\s*assignmentUnchanged/);
     expect(source).toContain('onClick={() => selectDesktopFilter("all")}');
     expect(source).toContain("Try another stage or show all patients.");
     expect(source).toContain("<LoadState error={error} onRetry={reload} />");
