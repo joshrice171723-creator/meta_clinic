@@ -84,6 +84,7 @@ type AuditEvent = {
   id: number;
   occurred_at: string;
   actor_reference: string;
+  actor_display_name?: string | null;
   action_code: string;
   outcome: string;
   policy_version: string;
@@ -120,6 +121,9 @@ function ScopedAuditEvents() {
   const [snapshotId, setSnapshotId] = useState<number>();
   const [action, setAction] = useState("");
   const [outcome, setOutcome] = useState("");
+  const [dateDraft, setDateDraft] = useState({ from: "", to: "" });
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [dateError, setDateError] = useState<string>();
   const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
   const selectOutcome = (value: string) => {
     setOutcome(value);
@@ -131,6 +135,8 @@ function ScopedAuditEvents() {
   if (snapshotId !== undefined) query.set("snapshot_id", String(snapshotId));
   if (action) query.set("action_code", action);
   if (outcome) query.set("outcome", outcome);
+  if (dateRange.from) query.set("from", dateRange.from);
+  if (dateRange.to) query.set("to", dateRange.to);
   const resource = useResource<AuditResponse>(
     `/api/clinic/audit_events?${query}`,
     { enabled: context.capabilities.roles },
@@ -226,6 +232,84 @@ function ScopedAuditEvents() {
         {outcomeHelp[outcome] ??
           "Outcomes describe the recorded event, not completion of an entire workflow. Open details for the original values."}
       </Typography>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <TextField
+          type="date"
+          label="From (clinic date)"
+          value={dateDraft.from}
+          onChange={(event) => {
+            setDateDraft((current) => ({ ...current, from: event.target.value }));
+            setDateError(undefined);
+          }}
+          size="small"
+          error={Boolean(dateError)}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+        <TextField
+          type="date"
+          label="Through (clinic date)"
+          value={dateDraft.to}
+          onChange={(event) => {
+            setDateDraft((current) => ({ ...current, to: event.target.value }));
+            setDateError(undefined);
+          }}
+          size="small"
+          error={Boolean(dateError)}
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+        <Button
+          onClick={() => {
+            const from = Date.parse(`${dateDraft.from}T00:00:00Z`);
+            const to = Date.parse(`${dateDraft.to}T00:00:00Z`);
+            if (
+              !/^\d{4}-\d{2}-\d{2}$/.test(dateDraft.from) ||
+              !/^\d{4}-\d{2}-\d{2}$/.test(dateDraft.to) ||
+              !Number.isFinite(from) ||
+              !Number.isFinite(to) ||
+              new Date(from).toISOString().slice(0, 10) !== dateDraft.from ||
+              new Date(to).toISOString().slice(0, 10) !== dateDraft.to ||
+              dateDraft.from.startsWith("0000") ||
+              dateDraft.to.startsWith("0000")
+            ) {
+              setDateError("Choose both dates.");
+              return;
+            }
+            if (to < from || (to - from) / 86_400_000 >= 366) {
+              setDateError("Choose an ordered range of at most 366 days.");
+              return;
+            }
+            setDateRange({ ...dateDraft });
+            setDateError(undefined);
+            setPage(1);
+            setSnapshotId(undefined);
+            setExpandedEvent(null);
+          }}
+        >
+          Apply dates
+        </Button>
+        <Button
+          onClick={() => {
+            setDateDraft({ from: "", to: "" });
+            setDateRange({ from: "", to: "" });
+            setDateError(undefined);
+            setPage(1);
+            setSnapshotId(undefined);
+            setExpandedEvent(null);
+          }}
+        >
+          Clear dates
+        </Button>
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {dateRange.from
+          ? `Showing ${dateRange.from} through ${dateRange.to}, inclusive`
+          : "Showing all recorded dates"}
+        {` in ${context.practice.timezone}. Date ranges are limited to 366 days.`}
+      </Typography>
+      {dateError && <Alert severity="error">{dateError}</Alert>}
+      {(dateDraft.from !== dateRange.from || dateDraft.to !== dateRange.to) && (
+        <Alert severity="info">Date changes have not been applied.</Alert>
+      )}
       {!resource.data ? (
         <LoadState error={resource.error} onRetry={resource.refresh} />
       ) : (
@@ -258,7 +342,19 @@ function ScopedAuditEvents() {
                           context.practice.timezone,
                         )}
                       </TableCell>
-                      <TableCell>{auditActor(event.actor_reference)}</TableCell>
+                      <TableCell sx={{ overflowWrap: "anywhere" }}>
+                        <Typography variant="body2">
+                          {event.actor_display_name || "Name unavailable"}
+                        </Typography>
+                        {event.actor_display_name && (
+                          <Typography variant="caption" color="text.secondary">
+                            Current clinician name
+                          </Typography>
+                        )}
+                        <Typography variant="body2">
+                          {auditActor(event.actor_reference)} ({event.actor_reference})
+                        </Typography>
+                      </TableCell>
                       <TableCell>{auditAction(event.action_code)}</TableCell>
                       <TableCell>{auditLabel(event.outcome)}</TableCell>
                       <TableCell>

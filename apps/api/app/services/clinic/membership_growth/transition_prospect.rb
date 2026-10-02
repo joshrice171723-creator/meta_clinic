@@ -9,6 +9,7 @@ module Clinic
         "decline" => { from: %w[new contacted qualified], to: "declined" }
       }.freeze
       FOLLOW_UP_ACTIONS = %w[begin_call no_answer callback_requested not_interested].freeze
+      OUTREACH_LOG_ACTIONS = %w[log_no_answer log_callback_requested log_not_interested].freeze
 
       def self.call(practice:, actor:, prospect_id:, action:, lock_version:)
         new(practice:, actor:, prospect_id:, action:, lock_version:).call
@@ -56,6 +57,8 @@ module Clinic
       attr_reader :practice, :actor, :prospect_id, :action, :expected_lock_version
 
       def transition(prospect, reviewer)
+        return log_outreach(prospect, reviewer) if OUTREACH_LOG_ACTIONS.include?(action)
+
         return transition_follow_up(prospect, reviewer) if FOLLOW_UP_ACTIONS.include?(action)
 
         if prospect.intent_type == "purchase" && action != "contacted"
@@ -77,6 +80,34 @@ module Clinic
           reviewed_at: now
         )
         complete_onboarding_task!(prospect, reviewer) if prospect.intent_type == "purchase" && action == "contacted"
+        record_outcome!(prospect, action)
+        Result.new(prospect: prospect)
+      end
+
+      def log_outreach(prospect, reviewer)
+        eligible = if prospect.intent_type == "outreach"
+          prospect.status.in?(%w[new contacted qualified])
+        else
+          prospect.status.in?(%w[new checkout_pending checkout_expired payment_failed]) &&
+            prospect.follow_up_state.in?(%w[open waiting])
+        end
+        unless eligible && prospect.patient_id.nil? && prospect.outreach_consent
+          raise InvalidTransition, "This lead is not available for consented outreach logging."
+        end
+
+        now = Current.business_time
+        outcome = action.delete_prefix("log_")
+        closed = outcome == "not_interested"
+        prospect.update!(
+          reviewed_by_membership: reviewer, reviewed_at: now,
+          status: closed ? "declined" : prospect.status,
+          follow_up_state: closed ? "completed" : "waiting",
+          follow_up_assigned_to_membership: reviewer,
+          follow_up_attempted_at: now,
+          follow_up_attempt_count: prospect.follow_up_attempt_count + 1,
+          follow_up_outcome: outcome,
+          follow_up_due_at: closed ? nil : now + 1.day
+        )
         record_outcome!(prospect, action)
         Result.new(prospect: prospect)
       end
