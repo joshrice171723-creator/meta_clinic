@@ -8,6 +8,7 @@ import { businessNow } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import type { ScheduleBootstrap } from "../workforce/scheduleTypes";
 import { billingMoney } from "./BillingInsights";
+import { cashCloseoutHref } from "./cashCloseoutRoute";
 import { calendarDate } from "./ClinicSchedule";
 import { useClinic } from "./Workspace";
 
@@ -23,12 +24,14 @@ function Fact({
   detail,
   href,
   link,
+  sessionLinks,
 }: {
   title: string;
   value: string;
   detail: string;
   href?: string;
   link?: string;
+  sessionLinks?: { href: string; label: string }[];
 }) {
   return (
     <Box
@@ -60,6 +63,15 @@ function Fact({
         >
           {link}
         </Button>
+      )}
+      {sessionLinks && (
+        <Stack spacing={0.5} sx={{ alignItems: "flex-start" }}>
+          {sessionLinks.map((session) => (
+            <Button key={session.href} href={session.href} size="small">
+              {session.label}
+            </Button>
+          ))}
+        </Stack>
       )}
     </Box>
   );
@@ -122,9 +134,11 @@ export function OwnerMorningView() {
         minute: "2-digit",
       }),
     );
-  const openDrawer = drawers.data?.drawers.find(
+  const siteOpenDrawers = drawers.data?.drawers.filter(
     (drawer) => drawer.site_id === siteId && drawer.status === "open",
   );
+  const openDrawer =
+    siteOpenDrawers?.length === 1 ? siteOpenDrawers[0] : undefined;
   const latestDrawer = drawers.data?.drawers.find(
     (drawer) => drawer.site_id === siteId,
   );
@@ -166,12 +180,15 @@ export function OwnerMorningView() {
       ? "Unavailable"
       : openDrawer
         ? "Open"
-        : !drawers.data
-          ? "Loading…"
-          : latestDrawer?.closed_at &&
-              calendarDate(new Date(latestDrawer.closed_at), timezone) === today
-            ? "Closed today"
-            : "Not open";
+        : (siteOpenDrawers?.length ?? 0) > 1
+          ? `${siteOpenDrawers!.length} open sessions`
+          : !drawers.data
+            ? "Loading…"
+            : latestDrawer?.closed_at &&
+                calendarDate(new Date(latestDrawer.closed_at), timezone) ===
+                  today
+              ? "Closed today"
+              : "Not open";
   const staffingValue = !canStaff
     ? "Access restricted"
     : staffing.error
@@ -243,10 +260,35 @@ export function OwnerMorningView() {
               : drawers.error ||
                 (openDrawer
                   ? `Expected cash: ${openDrawer.currency ? billingMoney(openDrawer.expected_cash, openDrawer.currency) : "currency unavailable"}.`
-                  : "No open drawer at this location.")
+                  : (siteOpenDrawers?.length ?? 0) > 1
+                    ? "Choose the recorded session before closeout."
+                    : "No open drawer at this location.")
           }
-          href={canDrawer ? "/clinic/billing?tab=cash" : undefined}
-          link="Open cash drawer"
+          href={
+            canDrawer &&
+            !(
+              (siteOpenDrawers?.length ?? 0) > 1 &&
+              capabilities.billing_payment_record === true
+            )
+              ? openDrawer && capabilities.billing_payment_record === true
+                ? cashCloseoutHref(practice.id, openDrawer)
+                : "/clinic/billing?tab=cash"
+              : undefined
+          }
+          sessionLinks={
+            capabilities.billing_payment_record === true &&
+            (siteOpenDrawers?.length ?? 0) > 1
+              ? siteOpenDrawers!.map((drawer) => ({
+                  href: cashCloseoutHref(practice.id, drawer),
+                  label: `Count and close ${drawer.currency ?? "unspecified currency"} session #${drawer.id}`,
+                }))
+              : undefined
+          }
+          link={
+            openDrawer && capabilities.billing_payment_record === true
+              ? "Count and close drawer"
+              : "Open cash drawer"
+          }
         />
         <Divider />
         <Fact

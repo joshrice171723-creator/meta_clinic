@@ -22,6 +22,7 @@ import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
+import { cashCloseoutError } from "./cashCloseoutRoute";
 
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
@@ -130,6 +131,8 @@ export function CashDrawerOperations({
 }) {
   const clinic = useClinic();
   const { capabilities, sites } = clinic;
+  const [routeSearch, setRouteSearch] = useState(window.location.search);
+  const closeoutRoute = new URLSearchParams(routeSearch).has("cash_closeout");
   const drawers = useResource<{ drawers: CashDrawer[] }>(
     "/api/clinic/cash_drawers",
   );
@@ -156,6 +159,19 @@ export function CashDrawerOperations({
     "open" | "cash" | "close" | "reconcile" | null
   >(null);
   const [reconciliationNote, setReconciliationNote] = useState("");
+  useEffect(() => {
+    const restore = () => {
+      setRouteSearch(window.location.search);
+      setSelectedDrawerId(
+        new URLSearchParams(window.location.search).get("cash_drawer_id") ?? "",
+      );
+      setCountedCash("");
+      setExplanation("");
+      setNewDrawerMode(false);
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [receiptPaymentId, setReceiptPaymentId] = useState<number | null>(null);
@@ -283,6 +299,7 @@ export function CashDrawerOperations({
   );
   useEffect(() => {
     if (!drawers.data) return;
+    if (closeoutRoute) return;
     if (newDrawerMode && !cashAttempt) return;
     if (
       !allDrawers.some(
@@ -296,6 +313,7 @@ export function CashDrawerOperations({
   }, [
     allDrawers,
     cashAttempt,
+    closeoutRoute,
     drawers.data,
     newDrawerMode,
     openDrawers,
@@ -610,6 +628,23 @@ export function CashDrawerOperations({
     );
   }
 
+  const closeoutError = cashCloseoutError(routeSearch, clinic, drawer);
+  if (closeoutError) {
+    return (
+      <Paper component="section" variant="outlined" sx={{ mt: 3, p: 2.5 }}>
+        <Typography component="h2" variant="h2">
+          Cash drawer
+        </Typography>
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          {closeoutError}
+        </Alert>
+        <Button href="/clinic/operations" sx={{ mt: 1 }}>
+          Return to Morning view
+        </Button>
+      </Paper>
+    );
+  }
+
   return (
     <Paper component="section" variant="outlined" sx={{ mt: 3 }}>
       <Box sx={{ alignItems: "center", display: "flex", gap: 1, p: 2.5 }}>
@@ -626,6 +661,14 @@ export function CashDrawerOperations({
       </Box>
       <Divider />
       <Stack spacing={2} sx={{ p: 2.5 }}>
+        {closeoutRoute && drawer && (
+          <Typography variant="body2">
+            Closeout session #{drawer.id} ·{" "}
+            {sites.find((site) => site.id === drawer.site_id)?.code ??
+              `Location ${drawer.site_id}`}{" "}
+            · {drawer.currency ?? "Currency not recorded"}
+          </Typography>
+        )}
         {drawers.error && <Alert severity="error">{drawers.error}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
@@ -829,7 +872,11 @@ export function CashDrawerOperations({
                 label="Cash drawer location"
                 value={selectedDrawerId}
                 onChange={(event) => selectDrawer(event.target.value)}
-                disabled={pendingCashAttempt !== null || cashRecoveryLoading}
+                disabled={
+                  closeoutRoute ||
+                  pendingCashAttempt !== null ||
+                  cashRecoveryLoading
+                }
                 helperText="Choose the physical site receiving this cash."
               >
                 {(cashAttempt
