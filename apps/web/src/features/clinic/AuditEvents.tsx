@@ -46,9 +46,16 @@ function auditAction(code: string) {
   const parts = code.split(".");
   const operation = parts.pop() ?? "";
   const verbs: Record<string, string> = {
-    read: "View", show: "View", index: "List", create: "Create",
-    update: "Update", destroy: "Delete", export: "Export",
-    download: "Download", approve: "Approve", reject: "Reject",
+    read: "View",
+    show: "View",
+    index: "List",
+    create: "Create",
+    update: "Update",
+    destroy: "Delete",
+    export: "Export",
+    download: "Download",
+    approve: "Approve",
+    reject: "Reject",
   };
   return verbs[operation] && parts.length
     ? `${verbs[operation]} ${parts.join(" ").replace(/[_-]+/g, " ")}`
@@ -67,8 +74,10 @@ const outcomeHelp: Record<string, string> = {
   denied: "The request was denied.",
   prepared: "Preparation was recorded; completion is not implied.",
   committed: "The change was recorded.",
-  released: "A release was recorded; the action and details identify its context.",
-  failed: "The action reported a failure. Review its details before retrying elsewhere.",
+  released:
+    "A release was recorded; the action and details identify its context.",
+  failed:
+    "The action reported a failure. Review its details before retrying elsewhere.",
 };
 
 type AuditEvent = {
@@ -197,18 +206,25 @@ function ScopedAuditEvents() {
           All outcomes
         </Button>
         {(resource.data?.filters.outcomes ?? []).includes("denied") && (
-          <Button aria-pressed={outcome === "denied"} onClick={() => selectOutcome("denied")}>
+          <Button
+            aria-pressed={outcome === "denied"}
+            onClick={() => selectOutcome("denied")}
+          >
             Denied requests
           </Button>
         )}
         {(resource.data?.filters.outcomes ?? []).includes("failed") && (
-          <Button aria-pressed={outcome === "failed"} onClick={() => selectOutcome("failed")}>
+          <Button
+            aria-pressed={outcome === "failed"}
+            onClick={() => selectOutcome("failed")}
+          >
             Failed actions
           </Button>
         )}
       </Stack>
       <Typography variant="body2" color="text.secondary">
-        {outcomeHelp[outcome] ?? "Outcomes describe the recorded event, not completion of an entire workflow. Open details for the original values."}
+        {outcomeHelp[outcome] ??
+          "Outcomes describe the recorded event, not completion of an entire workflow. Open details for the original values."}
       </Typography>
       {!resource.data ? (
         <LoadState error={resource.error} onRetry={resource.refresh} />
@@ -237,7 +253,10 @@ function ScopedAuditEvents() {
                   <Fragment key={event.id}>
                     <TableRow>
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
-                        {auditDateTime(event.occurred_at, context.practice.timezone)}
+                        {auditDateTime(
+                          event.occurred_at,
+                          context.practice.timezone,
+                        )}
                       </TableCell>
                       <TableCell>{auditActor(event.actor_reference)}</TableCell>
                       <TableCell>{auditAction(event.action_code)}</TableCell>
@@ -247,35 +266,77 @@ function ScopedAuditEvents() {
                           size="small"
                           aria-label={`${expandedEvent === event.id ? "Hide" : "Show"} audit event ${event.id} details`}
                           aria-expanded={expandedEvent === event.id}
-                          aria-controls={expandedEvent === event.id ? `audit-details-${event.id}` : undefined}
-                          onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                          aria-controls={
+                            expandedEvent === event.id
+                              ? `audit-details-${event.id}`
+                              : undefined
+                          }
+                          onClick={() =>
+                            setExpandedEvent(
+                              expandedEvent === event.id ? null : event.id,
+                            )
+                          }
                         >
-                          {expandedEvent === event.id ? "Hide details" : "Details"}
+                          {expandedEvent === event.id
+                            ? "Hide details"
+                            : "Details"}
                         </Button>
                       </TableCell>
                     </TableRow>
                     {expandedEvent === event.id && (
                       <TableRow id={`audit-details-${event.id}`}>
                         <TableCell colSpan={5}>
-                          <Stack spacing={0.5} sx={{ minWidth: 0, maxWidth: "100%", overflowX: "auto" }}>
+                          <Stack
+                            spacing={0.5}
+                            sx={{
+                              minWidth: 0,
+                              maxWidth: "100%",
+                              overflowX: "auto",
+                            }}
+                          >
                             <Typography variant="body2">
-                              {outcomeHelp[event.outcome] ?? "Outcome meaning is not defined here; original values are retained below."}
+                              {outcomeHelp[event.outcome] ??
+                                "Outcome meaning is not defined here; original values are retained below."}
                             </Typography>
-                            <Typography variant="body2">Event: {event.id}</Typography>
-                            <Typography variant="body2">Actor: {event.actor_reference}</Typography>
-                            <Typography variant="body2">Action: {event.action_code}</Typography>
-                            <Typography variant="body2">Outcome: {event.outcome}</Typography>
-                            <Typography variant="body2">Recorded at: {event.occurred_at}</Typography>
-                            <Typography variant="body2">Authorization policy: {event.policy_version}</Typography>
-                            <Typography variant="body2">Original record references</Typography>
+                            <Typography variant="body2">
+                              Event: {event.id}
+                            </Typography>
+                            <Typography variant="body2">
+                              Actor: {event.actor_reference}
+                            </Typography>
+                            <Typography variant="body2">
+                              Action: {event.action_code}
+                            </Typography>
+                            <Typography variant="body2">
+                              Outcome: {event.outcome}
+                            </Typography>
+                            <Typography variant="body2">
+                              Recorded at: {event.occurred_at}
+                            </Typography>
+                            <Typography variant="body2">
+                              Authorization policy: {event.policy_version}
+                            </Typography>
+                            <Typography variant="body2">
+                              Original record references
+                            </Typography>
                             <Stack sx={{ maxWidth: "100%", overflowX: "auto" }}>
-                              {event.resource_references.length
-                                ? event.resource_references.map((reference, index) => (
-                                    <Typography key={`${reference}-${index}`} variant="body2" sx={{ whiteSpace: "nowrap" }}>
+                              {event.resource_references.length ? (
+                                event.resource_references.map(
+                                  (reference, index) => (
+                                    <Typography
+                                      key={`${reference}-${index}`}
+                                      variant="body2"
+                                      sx={{ whiteSpace: "nowrap" }}
+                                    >
                                       {reference}
                                     </Typography>
-                                  ))
-                                : <Typography variant="body2">No linked record version was recorded.</Typography>}
+                                  ),
+                                )
+                              ) : (
+                                <Typography variant="body2">
+                                  No linked record version was recorded.
+                                </Typography>
+                              )}
                             </Stack>
                           </Stack>
                         </TableCell>

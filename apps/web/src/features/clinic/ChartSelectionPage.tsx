@@ -269,8 +269,8 @@ export function ChartSelectionPage({
       </p>
       <p className="care-muted">
         Showing up to {RECENT_ENCOUNTER_LIMIT} recent open visits. Resume entry
-        to confirm the patient and encounter. Completed history remains available
-        in the patient record.
+        to confirm the patient and encounter. Completed history remains
+        available in the patient record.
       </p>
       {encounterId && !selectedEncounter && (
         <p role="alert">
@@ -303,7 +303,9 @@ export function ChartSelectionPage({
                 href={encounterHref(patient.id, encounter.id)}
                 size="small"
               >
-                {encounter.status === "open" ? "Resume entry" : "View encounter"}
+                {encounter.status === "open"
+                  ? "Resume entry"
+                  : "View encounter"}
               </Button>
             </li>
           ))}

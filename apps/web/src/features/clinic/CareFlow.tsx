@@ -5932,7 +5932,8 @@ export function ProviderEncounterWorkflow({
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Recorded as of{" "}
-                      {clinicDateTime(careSummaryState.summary.as_of, timezone)}.
+                      {clinicDateTime(careSummaryState.summary.as_of, timezone)}
+                      .
                     </Typography>
                     {careIndicatorGroups(careSummaryState, timezone).map(
                       (group) => (

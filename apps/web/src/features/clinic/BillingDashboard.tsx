@@ -291,9 +291,14 @@ function InvoiceAuditTimeline({
               </span>
               {entry.changed_fields.length > 0 && (
                 <small>
-                  Changed: {entry.changed_fields.map((field) =>
-                    invoiceHistoryFieldLabels.get(field) ?? "Other recorded field",
-                  ).join(", ")}
+                  Changed:{" "}
+                  {entry.changed_fields
+                    .map(
+                      (field) =>
+                        invoiceHistoryFieldLabels.get(field) ??
+                        "Other recorded field",
+                    )
+                    .join(", ")}
                 </small>
               )}
               <Accordion disableGutters elevation={0}>
@@ -311,9 +316,7 @@ function InvoiceAuditTimeline({
                   </Typography>
                   <Typography variant="body2">
                     Actor reference:{" "}
-                    <code>
-                      {JSON.stringify(entry.actor_reference)}
-                    </code>
+                    <code>{JSON.stringify(entry.actor_reference)}</code>
                   </Typography>
                   <Typography variant="body2">
                     Recorded timestamp: <code>{entry.occurred_at}</code>
@@ -419,7 +422,9 @@ export function BillingDashboard() {
     useResource<BillingWorkspaceDataWithPatients>(
       `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
     );
-  const [openedCollectionId, setOpenedCollectionId] = useState<number | null>(null);
+  const [openedCollectionId, setOpenedCollectionId] = useState<number | null>(
+    null,
+  );
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     () => (query ? Number(query) : null),
   );
@@ -1150,16 +1155,16 @@ export function BillingDashboard() {
                   </span>
                 </div>
                 {openedCollectionId !== null &&
-                  selectedDetail?.id === selectedInvoice.id && (
-                    matchedCollection ? (
-                      <BillingCollectionContext item={matchedCollection} />
-                    ) : (
-                      <Alert severity="warning">
-                        The selected collection context is unavailable for this
-                        invoice. Review its current payment status before proceeding.
-                      </Alert>
-                    )
-                  )}
+                  selectedDetail?.id === selectedInvoice.id &&
+                  (matchedCollection ? (
+                    <BillingCollectionContext item={matchedCollection} />
+                  ) : (
+                    <Alert severity="warning">
+                      The selected collection context is unavailable for this
+                      invoice. Review its current payment status before
+                      proceeding.
+                    </Alert>
+                  ))}
                 <div className="billing-invoice-detail-values">
                   <div>
                     <span>Total</span>

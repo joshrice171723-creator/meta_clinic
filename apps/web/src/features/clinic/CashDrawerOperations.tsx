@@ -39,12 +39,17 @@ function isPositiveDecimal(value: string) {
 function decimalUnits(value: string) {
   const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value.trim());
   if (!match) return null;
-  return BigInt(match[1]) * 1_000_000n + BigInt((match[2] ?? "").padEnd(6, "0"));
+  return (
+    BigInt(match[1]) * 1_000_000n + BigInt((match[2] ?? "").padEnd(6, "0"))
+  );
 }
 
 function decimalFromUnits(value: bigint) {
   const whole = value / 1_000_000n;
-  const fraction = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  const fraction = (value % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
@@ -255,7 +260,7 @@ export function CashDrawerOperations({
     const pending = cashRecoveryLoading || pendingCashAttempt !== null;
     const invoiceId =
       pendingCashAttempt?.invoiceId ??
-      (cashRecoveryLoading ? exactInvoiceId ?? null : null);
+      (cashRecoveryLoading ? (exactInvoiceId ?? null) : null);
     const notificationKey = `${pending}:${invoiceId ?? ""}`;
     if (lastPendingNotification.current !== notificationKey) {
       lastPendingNotification.current = notificationKey;
@@ -421,10 +426,7 @@ export function CashDrawerOperations({
         : null;
     if (
       !pendingCashAttempt &&
-      (!invoice ||
-        !drawer ||
-        !isPositiveDecimal(tenderedAmount) ||
-        !amounts)
+      (!invoice || !drawer || !isPositiveDecimal(tenderedAmount) || !amounts)
     ) {
       setError("Enter the cash amount tendered before recording payment.");
       return;
@@ -735,10 +737,10 @@ export function CashDrawerOperations({
             <Stack spacing={1}>
               <span>
                 Cash payment outcome is pending confirmation for invoice #
-                {pendingCashAttempt.invoiceId}. Its drawer and amounts are locked.
-                Review activity, then retry this same payment if it is missing.
-                Retrying uses the same request key, so it cannot create a
-                duplicate payment.
+                {pendingCashAttempt.invoiceId}. Its drawer and amounts are
+                locked. Review activity, then retry this same payment if it is
+                missing. Retrying uses the same request key, so it cannot create
+                a duplicate payment.
               </span>
             </Stack>
           </Alert>
@@ -775,7 +777,11 @@ export function CashDrawerOperations({
             </Alert>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button
-                disabled={pendingCashAttempt !== null || cashRecoveryLoading || busy !== null}
+                disabled={
+                  pendingCashAttempt !== null ||
+                  cashRecoveryLoading ||
+                  busy !== null
+                }
                 onClick={() => setNewDrawerMode(true)}
                 variant="outlined"
               >
@@ -819,14 +825,22 @@ export function CashDrawerOperations({
                     label="Manager reconciliation note"
                     required
                     value={reconciliationNote}
-                    disabled={pendingCashAttempt !== null || cashRecoveryLoading || busy !== null}
+                    disabled={
+                      pendingCashAttempt !== null ||
+                      cashRecoveryLoading ||
+                      busy !== null
+                    }
                     onChange={(event) =>
                       setReconciliationNote(event.target.value)
                     }
                     sx={{ flex: 1 }}
                   />
                   <Button
-                    disabled={busy !== null || pendingCashAttempt !== null || cashRecoveryLoading}
+                    disabled={
+                      busy !== null ||
+                      pendingCashAttempt !== null ||
+                      cashRecoveryLoading
+                    }
                     type="submit"
                     variant="contained"
                   >
@@ -884,7 +898,12 @@ export function CashDrawerOperations({
               onChange={(event) => setOpeningFloat(event.target.value)}
             />
             <Button
-              disabled={!permitted || cashRecoveryLoading || pendingCashAttempt !== null || busy !== null}
+              disabled={
+                !permitted ||
+                cashRecoveryLoading ||
+                pendingCashAttempt !== null ||
+                busy !== null
+              }
               type="submit"
               variant="contained"
             >
@@ -1024,7 +1043,10 @@ export function CashDrawerOperations({
                   />
                   <Button
                     disabled={
-                      !permitted || busy !== null || pendingCashAttempt !== null || cashRecoveryLoading
+                      !permitted ||
+                      busy !== null ||
+                      pendingCashAttempt !== null ||
+                      cashRecoveryLoading
                     }
                     type="submit"
                     variant="outlined"
