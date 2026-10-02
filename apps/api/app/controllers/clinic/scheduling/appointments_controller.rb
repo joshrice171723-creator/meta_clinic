@@ -46,13 +46,24 @@ module Clinic
           )
           appointments = appointments.where(patient_id: matching_patients.select(:id))
         end
-        paginate(appointments.includes(:site, :encounter, :room, :walk_in_exception, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
-          patient: :communication_endpoints), key: :appointments,
-          serializer: ->(appointment) {
+        records, pagination = paginated_records(appointments.includes(:site, :encounter, :room, :walk_in_exception,
+          :overbook_exception, :series_occurrence, { telehealth_visit: [ :policy_version, :current_room_attempt, :participants ] },
+          patient: :communication_endpoints), order: { starts_at: :asc, id: :asc })
+        records = records.to_a
+        queue_context = if params[:queue_context] == "true"
+          AppointmentQueueContext.call(practice: current_practice, ability: current_ability, appointments: records).tap do
+            audit_queue_context_reads(records)
+          end
+        end
+        render json: {
+          appointments: records.map do |appointment|
             payload = AppointmentSerializer.call(appointment, actor: current_user)
+            payload[:queue_context] = queue_context.fetch(appointment.id) if queue_context
             payload[:closure_reason] = ClosureRecovery.reason(appointment, practice: current_practice) if params[:closed_site] == "true"
             payload
-          }, order: { starts_at: :asc, id: :asc })
+          end,
+          pagination:
+        }
       end
 
       def show
@@ -140,6 +151,22 @@ module Clinic
       end
 
       private
+
+      def audit_queue_context_reads(records)
+        return if records.empty?
+
+        actions = []
+        if current_ability.allowed_permission?("patients.read")
+          actions << "patients.read"
+          actions << "previsit_note.read" if records.any? { |row| current_ability.allowed_permission?("notes.read", site: row.site_id) }
+        end
+        if current_ability.allowed_permission?("billing.read") || current_ability.allowed_permission?("billing.write")
+          actions << "billing.read"
+        end
+        actions.each do |action|
+          Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: action, outcome: :released)
+        end
+      end
 
       def appointment_timezone(site)
         ActiveSupport::TimeZone[site&.timezone_override.presence || current_practice.timezone]

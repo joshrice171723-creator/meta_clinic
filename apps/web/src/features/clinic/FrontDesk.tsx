@@ -46,10 +46,13 @@ import {
   appointmentActions,
   appointmentStatus,
   appointmentTimeRange,
+  balanceDueLabel,
   buildAppointmentQueuePath,
   clinicDateValue,
+  encounterIntakeLabel,
   freshnessLabel,
   localDateTimeInput,
+  previsitIntakeLabel,
   queueDateLabel,
   siteLabel,
   type AppointmentTransition,
@@ -1213,12 +1216,17 @@ function AppointmentRow({
       </div>
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />
-        <span>Intake: unavailable in this queue</span>
-        <span>
-          {canBilling
-            ? "Balance: unavailable in this queue; open Billing to review"
-            : "Balance: unavailable for this account"}
-        </span>
+        <Typography component="span" variant="caption">
+          {previsitIntakeLabel(appointment)}
+        </Typography>
+        {appointment.encounter_id !== null && (
+          <Typography component="span" variant="caption">
+            {encounterIntakeLabel(appointment)}
+          </Typography>
+        )}
+        <Typography component="span" variant="caption">
+          {balanceDueLabel(appointment, canBilling)}
+        </Typography>
         {needsSetup &&
           (canReschedule ? (
             <Button

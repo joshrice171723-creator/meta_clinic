@@ -1,6 +1,31 @@
 import type { Appointment, ClinicSite } from "../../api/contracts";
 
 export type FrontDeskAppointment = Appointment & {
+  queue_context?: {
+    previsit_intake:
+      | { status: "unavailable" }
+      | { status: "not_recorded" }
+      | {
+          status: "draft" | "incomplete" | "complete";
+          answered_count: number;
+          question_count: number;
+        };
+    encounter_intake: {
+      status:
+        | "unavailable"
+        | "not_started"
+        | "not_recorded"
+        | "incomplete"
+        | "ready_for_handoff"
+        | "unable_to_complete";
+    };
+    balance_due:
+      | { status: "unavailable" }
+      | {
+          status: "available" | "no_posted_invoices";
+          currencies: { currency: string; balance_amount: string }[];
+        };
+  };
   room_code?: string | null;
   closure_reason?: string;
   updated_at?: string;
@@ -20,6 +45,56 @@ export type FrontDeskAppointmentResponse = {
 };
 
 export type AppointmentTransition = "confirmed" | "cancelled" | "no_show";
+
+export function previsitIntakeLabel(appointment: FrontDeskAppointment) {
+  const intake = appointment.queue_context?.previsit_intake;
+  if (!intake || intake.status === "unavailable")
+    return "Previsit intake: completeness unavailable";
+  if (intake.status === "not_recorded") return "Previsit intake: not recorded";
+  const state =
+    intake.status === "complete"
+      ? "form complete; clinical review separate"
+      : intake.status === "draft"
+        ? "draft; not submitted"
+        : "incomplete";
+  return `Previsit intake: ${state} (${intake.answered_count}/${intake.question_count} questions addressed)`;
+}
+
+export function encounterIntakeLabel(appointment: FrontDeskAppointment) {
+  const status = appointment.queue_context?.encounter_intake.status;
+  const labels = {
+    unavailable: "unavailable",
+    not_started: "visit not started",
+    not_recorded: "not recorded",
+    incomplete: "incomplete",
+    ready_for_handoff: "ready for handoff",
+    unable_to_complete: "unable to complete",
+  };
+  return `Encounter intake: ${status ? labels[status] : "unavailable"}`;
+}
+
+export function balanceDueLabel(
+  appointment: FrontDeskAppointment,
+  canBilling: boolean,
+) {
+  if (!canBilling) return "Balance due: unavailable for this account";
+  const balance = appointment.queue_context?.balance_due;
+  if (!balance || balance.status === "unavailable")
+    return "Balance due: unavailable; open Billing to review";
+  if (balance.status === "no_posted_invoices")
+    return "Balance due: no posted invoices";
+  if (!balance.currencies.length)
+    return "Balance due: unavailable; open Billing to review";
+  const amounts = balance.currencies.map(({ currency, balance_amount }) => {
+    // Preserve decimal strings; never infer a copay or combine currencies.
+    const [whole, fraction = ""] = balance_amount.split(".");
+    const amount = `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0")}`;
+    return /^0+(?:\.0+)?$/.test(balance_amount)
+      ? `${amount} (none due)`
+      : amount;
+  });
+  return `Balance due: ${amounts.join("; ")} (posted invoices)`;
+}
 
 export function clinicDateValue(date: Date, timezone: string) {
   try {
@@ -54,6 +129,7 @@ export function buildAppointmentQueuePath({
   closedSite?: boolean;
 }) {
   const params = new URLSearchParams({
+    queue_context: "true",
     page: String(page),
     per_page: String(perPage),
   });
