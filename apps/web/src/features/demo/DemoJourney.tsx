@@ -30,6 +30,7 @@ import { ApiError, api, clearCsrf } from "../../api/client";
 import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
 import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
+import { DemoEntry, DemoEntryLoading } from "./DemoEntry";
 import {
   confirmSandboxNavigation,
   sandboxAccounts,
@@ -554,138 +555,190 @@ export function DemoJourney() {
   useEffect(() => {
     setCompletionOpen(currentLessonComplete);
   }, [currentLessonComplete, run?.id, run?.lesson_key]);
-  if (state.status === "loading")
-    return (
-      <Stack spacing={2} sx={{ py: 8, alignItems: "center" }}>
-        <CircularProgress />
-        <Typography>Loading the sandbox…</Typography>
-      </Stack>
-    );
+  if (state.status === "loading") return <DemoEntryLoading />;
   if (state.status === "error")
     return (
-      <Stack spacing={2} sx={{ p: 4 }}>
-        <Alert severity="error">{state.message}</Alert>
-        <Button onClick={() => void load()}>Retry</Button>
-      </Stack>
+      <DemoEntry>
+        <Stack spacing={2}>
+          <h2>We could not open the clinic</h2>
+          <Alert severity="error">{state.message}</Alert>
+          <Button variant="outlined" onClick={() => void load()}>
+            Try again
+          </Button>
+        </Stack>
+      </DemoEntry>
     );
   if (!state.value.active)
     return (
-      <Stack
-        component="main"
-        spacing={3}
-        sx={{ width: "100%", p: { xs: 2, sm: 3 } }}
-      >
-        <Typography component="h1" variant="h4">
-          Explore the clinic
-        </Typography>
-        <Typography color="text.secondary">
-          Explore appointments, patient care, billing and inventory.
-          {!state.value.visitor_registered &&
-            " Enter your name, email and company to continue. No account or email verification is required."}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          Sandbox · A simulated clinic shared with other visitors.
-        </Typography>
-        {error && <Alert severity="error">{error}</Alert>}
-        {state.value.notice && (
-          <Alert severity="info">
-            {entryNotices[state.value.notice] ?? state.value.notice}
-          </Alert>
-        )}
-        {!state.value.visitor_registered ? (
-          <Paper
-            component="form"
-            variant="outlined"
-            sx={{ p: 3, maxWidth: 640 }}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void registerVisitor();
-            }}
+      <DemoEntry>
+        <Stack spacing={2.5}>
+          <div>
+            <h2>Choose your perspective</h2>
+            <p>
+              Use an existing demo account. Each account keeps its own clinic or
+              patient permissions.
+            </p>
+          </div>
+          {error && <Alert severity="error">{error}</Alert>}
+          {state.value.notice && (
+            <Alert severity="info">
+              {entryNotices[state.value.notice] ?? state.value.notice}
+            </Alert>
+          )}
+          <div className="demo-entry__model">
+            <span>Entry care model</span>
+            <strong>Primary care</strong>
+            <p>
+              The sandbox opens in primary care. Admin can also explore the
+              prepared weight-management clinic using the clinic selector
+              inside.
+            </p>
+          </div>
+          <TextField
+            select
+            label="Demo account"
+            value={selectedAccount}
+            onChange={(event) =>
+              setSelectedAccount(event.target.value as SandboxAccountKey)
+            }
+            disabled={busy}
+            fullWidth
           >
-            <Stack spacing={2}>
-              <Typography variant="h6">Your details</Typography>
-              {(["name", "email", "company"] as const).map((field) => (
-                <TextField
-                  key={field}
-                  label={
-                    field === "email"
-                      ? "Email"
-                      : field[0].toUpperCase() + field.slice(1)
-                  }
-                  type={field === "email" ? "email" : "text"}
-                  required
-                  value={visitor[field]}
-                  onChange={(event) =>
-                    setVisitor((current) => ({
-                      ...current,
-                      [field]: event.target.value,
-                    }))
-                  }
-                />
-              ))}
-              <Button type="submit" variant="contained" disabled={busy}>
-                {busy ? "Saving…" : "Continue"}
-              </Button>
-              <Box sx={{ display: showDemoLessons ? undefined : "none" }}>
+            {sandboxAccounts.map(({ key, label }) => (
+              <MenuItem key={key} value={key}>
+                {label}
+              </MenuItem>
+            ))}
+          </TextField>
+          {!state.value.visitor_registered ? (
+            <Box
+              component="form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void registerVisitor();
+              }}
+            >
+              <Stack spacing={2}>
+                <p>
+                  Tell us who is exploring. No password or email verification is
+                  required.
+                </p>
+                {(["name", "email", "company"] as const).map((field) => (
+                  <TextField
+                    key={field}
+                    label={
+                      field === "email"
+                        ? "Email"
+                        : field[0].toUpperCase() + field.slice(1)
+                    }
+                    type={field === "email" ? "email" : "text"}
+                    autoComplete={field === "company" ? "organization" : field}
+                    required
+                    disabled={busy}
+                    value={visitor[field]}
+                    onChange={(event) =>
+                      setVisitor((current) => ({
+                        ...current,
+                        [field]: event.target.value,
+                      }))
+                    }
+                    slotProps={{
+                      htmlInput: {
+                        maxLength:
+                          field === "name"
+                            ? 160
+                            : field === "email"
+                              ? 254
+                              : 200,
+                      },
+                    }}
+                    fullWidth
+                  />
+                ))}
                 <Button
-                  type="button"
-                  variant="outlined"
+                  className="meta-marketing__button-primary"
+                  type="submit"
+                  variant="contained"
                   disabled={busy}
-                  onClick={() => void selectLesson("navigation_tour")}
                 >
-                  Browse without sharing details
+                  {busy ? "Saving your details…" : "Continue to the clinic"}
                 </Button>
-                <Typography variant="caption" color="text.secondary">
-                  Opens the read-only clinic tour. Other guided workflows still
-                  ask for your details.
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        ) : (
-          <Stack spacing={2}>
-            <Typography color="text.secondary">
-              Your changes remain visible to other visitors until the clinic is
-              reset.
-            </Typography>
-            {preparingSandbox && (
-              <Alert severity="info" role="status">
-                <Stack spacing={1}>
-                  <Typography variant="body2">
-                    Opening your clinic. This may take a couple of minutes.
-                  </Typography>
+                {showDemoLessons && (
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    disabled={busy}
+                    onClick={() => void selectLesson("navigation_tour")}
+                  >
+                    Browse without sharing details
+                  </Button>
+                )}
+              </Stack>
+            </Box>
+          ) : (
+            <Stack spacing={2}>
+              <p>
+                Your details are saved. You can switch accounts from the top of
+                the sandbox after entering.
+              </p>
+              {preparingSandbox && (
+                <div
+                  className="demo-entry__loading"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <h2>Opening the shared clinic</h2>
                   <LinearProgress aria-label="Preparing sandbox" />
-                  <Typography variant="caption">
-                    Elapsed: {durationLabel(sandboxElapsed)}
-                  </Typography>
-                </Stack>
-              </Alert>
-            )}
-            {!preparingSandbox && lastSandboxDuration !== null && (
-              <Typography variant="caption" color="text.secondary">
-                Last opening took {durationLabel(lastSandboxDuration)}
-              </Typography>
-            )}
-            <LessonCatalog
-              showLessons={showDemoLessons}
-              lessons={state.value.lessons}
-              busy={busy}
-              onSelect={(lesson) => setPreparingLesson(lesson)}
-              onSandbox={() => setAccountPickerOpen(true)}
-            />
-          </Stack>
-        )}
-        <DemoPreparationDialog
-          lesson={preparingLesson}
-          busy={busy}
-          error={error}
-          onClose={() => setPreparingLesson(null)}
-          onPrepare={() =>
-            preparingLesson && void selectLesson(preparingLesson.id)
-          }
-        />
-        {accountPicker}
-      </Stack>
+                  <p>
+                    This may take a couple of minutes. Elapsed:{" "}
+                    {durationLabel(sandboxElapsed)}
+                  </p>
+                </div>
+              )}
+              {!preparingSandbox && lastSandboxDuration !== null && (
+                <Typography variant="caption" color="text.secondary">
+                  Last opening took {durationLabel(lastSandboxDuration)}
+                </Typography>
+              )}
+              <Button
+                className="meta-marketing__button-primary"
+                variant="contained"
+                endIcon={<ArrowForwardRoundedIcon />}
+                disabled={busy}
+                onClick={() =>
+                  void selectLesson("sandbox", false, selectedAccount)
+                }
+              >
+                {busy
+                  ? "Opening the clinic…"
+                  : "Enter as " +
+                    sandboxAccounts.find(
+                      (account) => account.key === selectedAccount,
+                    )?.label}
+              </Button>
+              {showDemoLessons && (
+                <LessonCatalog
+                  showLessons
+                  lessons={state.value.lessons}
+                  busy={busy}
+                  onSelect={(lesson) => setPreparingLesson(lesson)}
+                  onSandbox={() => setAccountPickerOpen(true)}
+                />
+              )}
+            </Stack>
+          )}
+          <DemoPreparationDialog
+            lesson={preparingLesson}
+            busy={busy}
+            error={error}
+            onClose={() => setPreparingLesson(null)}
+            onPrepare={() =>
+              preparingLesson && void selectLesson(preparingLesson.id)
+            }
+          />
+          {accountPicker}
+        </Stack>
+      </DemoEntry>
     );
   if (!run) return null;
   const source = frameUrl(run);

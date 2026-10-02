@@ -22,6 +22,7 @@ import { Form, LoadState, useResource } from "./shared/ui";
 import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
 import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
+import { DemoEntryLoading } from "./features/demo/DemoEntry";
 import { hasGrowthPage } from "./features/marketing/marketingPaths";
 import { isDemoFrame } from "./features/demo/frame";
 import {
@@ -350,13 +351,17 @@ class RouteErrorBoundary extends Component<
 function RouteBoundary({
   children,
   root = false,
+  pending,
 }: {
   children: ReactNode;
   root?: boolean;
+  pending?: ReactNode;
 }) {
   return (
     <RouteErrorBoundary root={root}>
-      <Suspense fallback={<RoutePending root={root} />}>{children}</Suspense>
+      <Suspense fallback={pending ?? <RoutePending root={root} />}>
+        {children}
+      </Suspense>
     </RouteErrorBoundary>
   );
 }
@@ -874,16 +879,17 @@ function ClinicApplication({
 }
 
 export function App() {
-  if (window.location.pathname.replace(/\/$/, "") === "/") {
+  const publicPath = window.location.pathname.replace(/\/$/, "") || "/";
+  if (publicPath === "/") {
     return (
       <RouteBoundary root>
         <MetaClinicMarketing />
       </RouteBoundary>
     );
   }
-  if (window.location.pathname.replace(/\/$/, "") === "/demo") {
+  if (publicPath === "/demo") {
     return (
-      <RouteBoundary root>
+      <RouteBoundary root pending={<DemoEntryLoading />}>
         <DemoJourney />
       </RouteBoundary>
     );

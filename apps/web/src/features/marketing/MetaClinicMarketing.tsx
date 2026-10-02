@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, IconButton, Popover } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
@@ -265,9 +265,13 @@ const clinicTypes = clinicGroups.flatMap((group) => group.types);
 export function MetaClinicMarketing({
   featureSlug,
   clinicTypeSlug,
+  children,
+  title,
 }: {
   featureSlug?: string;
   clinicTypeSlug?: string;
+  children?: ReactNode;
+  title?: string;
 }) {
   const activeClinicType =
     clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
@@ -304,17 +308,18 @@ export function MetaClinicMarketing({
   useEffect(() => {
     const previousTitle = document.title;
     document.title =
-      activeClinicType && feature
+      title ??
+      (activeClinicType && feature
         ? `${feature.label} for ${clinicTypeLabels[activeClinicType]} — Meta Clinic`
         : activeClinicType
           ? `${clinicTypeLabels[activeClinicType]} — Meta Clinic`
           : feature
             ? `${feature.label} — Meta Clinic`
-            : "Meta Clinic — A more connected clinic day";
+            : "Meta Clinic - A more connected clinic day");
     return () => {
       document.title = previousTitle;
     };
-  }, [feature, activeClinicType]);
+  }, [feature, activeClinicType, title]);
 
   return (
     <div className="meta-marketing">
@@ -419,7 +424,9 @@ export function MetaClinicMarketing({
         </nav>
       </Popover>
 
-      {activeClinicType && featureSlug ? (
+      {children ? (
+        children
+      ) : activeClinicType && featureSlug ? (
         <ClinicTypeFeaturePage
           clinicType={activeClinicType}
           requestedSlug={featureSlug}
@@ -467,7 +474,7 @@ export function MetaClinicMarketing({
               <div className="meta-marketing__actions">
                 <Button
                   className="meta-marketing__button-primary"
-                  href="/meta-clinic/demo"
+                  href="/demo"
                   variant="contained"
                   endIcon={<ArrowForwardRoundedIcon />}
                 >
@@ -493,7 +500,7 @@ export function MetaClinicMarketing({
 
             <figure className="meta-marketing__hero-capture">
               <a
-                href="/meta-clinic/demo"
+                href="/demo"
                 aria-label="Open the guided demo after viewing the clinic schedule"
               >
                 <img
@@ -540,7 +547,7 @@ export function MetaClinicMarketing({
               ))}
             </div>
             <Button
-              href="/meta-clinic/demo"
+              href="/demo"
               endIcon={<ArrowForwardRoundedIcon />}
             >
               Open the guided demo
@@ -797,7 +804,7 @@ export function MetaClinicMarketing({
               </article>
             </div>
             <Button
-              href="/meta-clinic/demo"
+              href="/demo"
               endIcon={<ArrowForwardRoundedIcon />}
             >
               Open the guided demo
@@ -846,7 +853,7 @@ export function MetaClinicMarketing({
                   The guided demo uses synthetic records so your team can
                   inspect screens and handoffs without patient data.
                 </p>
-                <a href="/meta-clinic/demo">
+                <a href="/demo">
                   Explore the guided demo{" "}
                   <ArrowForwardRoundedIcon aria-hidden="true" />
                 </a>
@@ -918,7 +925,7 @@ export function MetaClinicMarketing({
             <div className="meta-marketing__actions">
               <Button
                 className="meta-marketing__button-primary"
-                href="/meta-clinic/demo"
+                href="/demo"
                 variant="contained"
               >
                 Explore the demo
@@ -946,7 +953,7 @@ export function MetaClinicMarketing({
           <strong>Product</strong>
           <a href="/meta-clinic/platform">Platform</a>
           <a href="/meta-clinic/ai">AI</a>
-          <a href="/meta-clinic/demo">Demo</a>
+          <a href="/demo">Demo</a>
           <a href="/meta-clinic/pricing">Pricing</a>
         </nav>
         <nav aria-label="Specialty links">
