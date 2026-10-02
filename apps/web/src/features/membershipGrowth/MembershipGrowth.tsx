@@ -390,11 +390,12 @@ export function MembershipGrowth() {
             component="h1"
             variant="h4"
           >
-            Growth
+            Membership growth
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 820 }}>
-            Follow up on contact requests and membership signups. Verified
-            payment moves people to patient onboarding.
+            Review contact requests and membership signups. Purchase signups
+            stay here while email verification or payment is incomplete;
+            verified payment moves the person to patient onboarding.
           </Typography>
         </Box>
         {!resource.data && !resource.error && (
@@ -413,8 +414,9 @@ export function MembershipGrowth() {
                   Membership pipeline
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                  Account created → account activated → payment. Unpaid signups
-                  stay here for follow-up.
+                  Contact first is for outreach. Purchase now starts a
+                  membership signup; those records stay here while email
+                  verification or payment is incomplete.
                 </Typography>
               </Box>
               <Tabs
@@ -438,7 +440,13 @@ export function MembershipGrowth() {
               </Tabs>
               {prospects.length === 0 ? (
                 <Typography color="text.secondary" sx={{ p: 3 }}>
-                  No records are in this stage.
+                  {filter === "all"
+                    ? "No contact requests or membership signups are currently listed."
+                    : filter === "closed"
+                      ? "No records are currently marked closed."
+                      : filter === "patient"
+                        ? "No patients are currently listed in this pipeline."
+                        : "No prospective patients are currently listed."}
                 </Typography>
               ) : (
                 <TableContainer className="growth-pipeline-container">
