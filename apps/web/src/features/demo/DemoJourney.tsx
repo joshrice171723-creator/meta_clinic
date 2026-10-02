@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogTitle,
   LinearProgress,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -29,6 +30,11 @@ import { ApiError, api, clearCsrf } from "../../api/client";
 import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
 import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
+import {
+  confirmSandboxNavigation,
+  sandboxAccounts,
+  type SandboxAccountKey,
+} from "./accountSwitch";
 
 // Temporarily hide public lesson entry points; keep lesson workflows intact.
 const showDemoLessons = false;
@@ -133,7 +139,11 @@ const durationLabel = (milliseconds: number) => {
 };
 
 function frameUrl(run: DemoRun) {
-  const href = run.steps.find((step) => step.id === run.lesson_key)?.href;
+  if (run.account_pending) return null;
+  const href =
+    run.sandbox && run.account?.portal === "patient"
+      ? "/patient-portal"
+      : run.steps.find((step) => step.id === run.lesson_key)?.href;
   if (!href) return null;
   const target = new URL(href, window.location.origin);
   if (
@@ -175,6 +185,10 @@ export function DemoJourney() {
     },
   );
   const sandboxStartedAt = useRef<number | null>(null);
+  const accountBusy = useRef(false);
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] =
+    useState<SandboxAccountKey>("admin");
 
   useEffect(() => {
     if (!preparingSandbox) return;
@@ -186,12 +200,16 @@ export function DemoJourney() {
   }, [preparingSandbox]);
 
   const load = useCallback(async () => {
+    const current = generation.current;
     try {
+      const value = await api<DemoRunResponse>("/api/demo/run");
+      if (current !== generation.current) return;
       setState({
         status: "ready",
-        value: await api<DemoRunResponse>("/api/demo/run"),
+        value,
       });
     } catch (reason) {
+      if (current !== generation.current) return;
       setState({
         status: "error",
         message: message(reason, "The clinic could not be opened."),
@@ -215,10 +233,11 @@ export function DemoJourney() {
   const activeGuide =
     activeLesson && !sandbox ? lessonGuide(activeLesson.id) : null;
   const refresh = useCallback(async () => {
+    if (accountBusy.current) return;
     const current = generation.current;
     try {
       const response = await api<DemoRunResponse>("/api/demo/run");
-      if (current === generation.current) {
+      if (current === generation.current && !accountBusy.current) {
         setState({ status: "ready", value: response });
         setProgressError(null);
       }
@@ -247,7 +266,7 @@ export function DemoJourney() {
   useEffect(() => {
     setFrameLoading(Boolean(run?.lesson_key));
     setFrameFailed(false);
-  }, [run?.id, run?.lesson_key, frameRevision]);
+  }, [run?.id, run?.lesson_key, run?.account?.user_id, frameRevision]);
   useEffect(() => {
     if (!frameLoading) return;
     const timeout = window.setTimeout(() => {
@@ -282,7 +301,26 @@ export function DemoJourney() {
       setSwitching(false);
     }
   };
-  const selectLesson = async (lesson_key: string | null, restart = false) => {
+  const selectLesson = async (
+    lesson_key: string | null,
+    restart = false,
+    account: SandboxAccountKey = run?.account?.key ?? selectedAccount,
+  ) => {
+    if (accountBusy.current) return;
+    accountBusy.current = true;
+    if (
+      run?.sandbox &&
+      run.account &&
+      !(await confirmSandboxNavigation(
+        frameRef.current?.contentWindow,
+        String(run.id),
+        run.account.user_id,
+        generation.current,
+      ))
+    ) {
+      accountBusy.current = false;
+      return;
+    }
     const startingSandbox = lesson_key === "sandbox";
     if (startingSandbox) {
       sandboxStartedAt.current = Date.now();
@@ -292,14 +330,18 @@ export function DemoJourney() {
     setBusy(true);
     setSwitching(true);
     setError(null);
-    generation.current += 1;
+    const current = ++generation.current;
     try {
       clearCsrf();
       let response: DemoRunResponse;
       try {
         response = await api<DemoRunResponse>("/api/demo/lesson", {
           method: "POST",
-          body: { lesson_key, restart },
+          body: {
+            lesson_key,
+            restart,
+            ...(startingSandbox ? { account } : {}),
+          },
           timeoutMs: lesson_key === "sandbox" ? 240_000 : undefined,
         });
       } catch (reason) {
@@ -328,21 +370,33 @@ export function DemoJourney() {
       if (startingSandbox) {
         let complete = false;
         while (!complete) {
+          if (current !== generation.current) return;
           const preparation = await api<{ complete: boolean }>(
             "/api/demo/sandbox/prepare",
             { method: "POST", body: {}, timeoutMs: 240_000 },
           );
           complete = preparation.complete;
         }
-        setState({
-          status: "ready",
-          value: await api<DemoRunResponse>("/api/demo/run"),
+        response = await api<DemoRunResponse>("/api/demo/run");
+        if (!response.active || !response.run.sandbox)
+          throw new Error("The sandbox changed. Open it again.");
+        if (current !== generation.current) return;
+        response = await api<DemoRunResponse>("/api/demo/view", {
+          method: "POST",
+          body: {
+            account,
+            expected_run_id: response.run.id,
+            expected_user_id: response.run.account?.user_id ?? null,
+          },
         });
-      } else {
-        setState({ status: "ready", value: response });
+        clearCsrf();
       }
+      if (current !== generation.current) return;
+      setState({ status: "ready", value: response });
+      setAccountPickerOpen(false);
       setRestartOpen(false);
     } catch (reason) {
+      if (current !== generation.current) return;
       const failure = message(reason, "This lesson could not be opened.");
       setError(
         startingSandbox && sandboxStartedAt.current !== null
@@ -360,8 +414,104 @@ export function DemoJourney() {
       }
       setBusy(false);
       setSwitching(false);
+      accountBusy.current = false;
     }
   };
+  const switchAccount = async (account: SandboxAccountKey) => {
+    if (
+      !run?.account ||
+      busy ||
+      accountBusy.current ||
+      account === run.account.key
+    )
+      return;
+    accountBusy.current = true;
+    setBusy(true);
+    setError(null);
+    const current = ++generation.current;
+    try {
+      const allowed = await confirmSandboxNavigation(
+        frameRef.current?.contentWindow,
+        String(run.id),
+        run.account.user_id,
+        current,
+      );
+      if (!allowed || current !== generation.current) return;
+      setSwitching(true);
+      const response = await api<DemoRunResponse>("/api/demo/view", {
+        method: "POST",
+        body: {
+          account,
+          expected_run_id: run.id,
+          expected_user_id: run.account.user_id,
+        },
+      });
+      if (current !== generation.current) return;
+      clearCsrf();
+      setState({ status: "ready", value: response });
+      setFrameRevision((value) => value + 1);
+    } catch (reason) {
+      if (current === generation.current)
+        setError(
+          message(
+            reason,
+            "The account could not be switched. Refresh before trying again.",
+          ),
+        );
+    } finally {
+      accountBusy.current = false;
+      setBusy(false);
+      setSwitching(false);
+    }
+  };
+  const accountPicker = (
+    <Dialog
+      open={accountPickerOpen}
+      onClose={() => !busy && setAccountPickerOpen(false)}
+      fullWidth
+      maxWidth="xs"
+      aria-labelledby="sandbox-account-title"
+    >
+      <DialogTitle id="sandbox-account-title">
+        Choose a sandbox account
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField
+            select
+            label="Account"
+            value={selectedAccount}
+            onChange={(event) =>
+              setSelectedAccount(event.target.value as SandboxAccountKey)
+            }
+            disabled={busy}
+          >
+            {sandboxAccounts.map(({ key, label }) => (
+              <MenuItem key={key} value={key}>
+                {label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Typography variant="body2" color="text.secondary">
+            Each account has its own clinic or patient permissions.
+          </Typography>
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button disabled={busy} onClick={() => setAccountPickerOpen(false)}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          disabled={busy}
+          onClick={() => void selectLesson("sandbox", false, selectedAccount)}
+        >
+          {busy ? "Opening…" : "Open Sandbox"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
   const completeLesson = async (fallback: string) => {
     setBusy(true);
     setError(null);
@@ -521,7 +671,7 @@ export function DemoJourney() {
               lessons={state.value.lessons}
               busy={busy}
               onSelect={(lesson) => setPreparingLesson(lesson)}
-              onSandbox={() => void selectLesson("sandbox")}
+              onSandbox={() => setAccountPickerOpen(true)}
             />
           </Stack>
         )}
@@ -534,6 +684,7 @@ export function DemoJourney() {
             preparingLesson && void selectLesson(preparingLesson.id)
           }
         />
+        {accountPicker}
       </Stack>
     );
   if (!run) return null;
@@ -598,7 +749,7 @@ export function DemoJourney() {
                     }
                   >
                     {sandbox
-                      ? "Sandbox · Clinic administrator"
+                      ? `Sandbox • ${run.account?.label ?? "Choose an account"}`
                       : activeLesson?.title}
                   </Typography>
                   {!sandbox && (
@@ -607,6 +758,27 @@ export function DemoJourney() {
                     </Typography>
                   )}
                 </Box>
+                {sandbox && run.account && (
+                  <TextField
+                    select
+                    size="small"
+                    label="Account"
+                    value={run.account.key}
+                    disabled={busy || frameLoading || frameFailed}
+                    onChange={(event) =>
+                      void switchAccount(
+                        event.target.value as SandboxAccountKey,
+                      )
+                    }
+                    sx={{ minWidth: 160 }}
+                  >
+                    {(run.accounts ?? []).map(({ key, label, available }) => (
+                      <MenuItem key={key} value={key} disabled={!available}>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
                 <Button
                   variant="outlined"
                   size="small"
@@ -770,7 +942,7 @@ export function DemoJourney() {
             {!switching && !frameFailed && source ? (
               <Box
                 component="iframe"
-                key={`${run.id}:${run.lesson_key}:${frameRevision}`}
+                key={`${run.id}:${run.lesson_key}:${run.account?.user_id}:${frameRevision}`}
                 ref={frameRef}
                 name="clinic-demo-workspace"
                 title={`${sandbox ? "Sandbox" : activeLesson?.title} workspace`}
@@ -809,7 +981,7 @@ export function DemoJourney() {
             lessons={run.lessons}
             busy={busy}
             onSelect={(lesson) => setPreparingLesson(lesson)}
-            onSandbox={() => void selectLesson("sandbox")}
+            onSandbox={() => setAccountPickerOpen(true)}
           />
         </Paper>
       )}
@@ -822,6 +994,7 @@ export function DemoJourney() {
           preparingLesson && void selectLesson(preparingLesson.id)
         }
       />
+      {accountPicker}
       <Dialog
         open={feedbackOpen}
         onClose={() => !busy && setFeedbackOpen(false)}
