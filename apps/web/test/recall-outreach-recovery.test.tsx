@@ -11,7 +11,11 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 
 const recall = {
   id: 81,
-  patient: { id: 501, display_name: "Synthetic Recall Patient", reference: "SYN-501" },
+  patient: {
+    id: 501,
+    display_name: "Synthetic Recall Patient",
+    reference: "SYN-501",
+  },
   encounter: {
     id: 91,
     site_id: 7,
@@ -44,7 +48,9 @@ async function openOutreach(page: Page) {
     window.__navigationApproved = false;
   });
   await page.getByRole("button", { name: "Log outreach attempt" }).click();
-  await expect(page.getByRole("region", { name: "Log outreach attempt" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Log outreach attempt" }),
+  ).toBeVisible();
   const channel = page.getByRole("combobox", { name: "Outreach channel" });
   await channel.click();
   await page.getByRole("option", { name: "Phone" }).click();
@@ -54,7 +60,10 @@ async function installCommonRoutes(page: Page) {
   // Every API request is synthetic; unmatched calls fail closed at the route.
   await page.route("**/api/**", (route) =>
     new URL(route.request().url()).pathname.startsWith("/api/")
-      ? route.fulfill({ status: 503, body: "Synthetic API request was not intercepted" })
+      ? route.fulfill({
+          status: 503,
+          body: "Synthetic API request was not intercepted",
+        })
       : route.continue(),
   );
   await page.route("**/api/csrf", (route) =>
@@ -79,7 +88,10 @@ beforeAll(async () => {
           if (id === "/qa-recall-outreach.tsx") return virtualId;
           if (importer?.endsWith("/RecallWorklist.tsx") && id === "./Workspace")
             return "\0recall-workspace";
-          if (importer?.endsWith("/RecallWorklist.tsx") && id === "../../shared/ui")
+          if (
+            importer?.endsWith("/RecallWorklist.tsx") &&
+            id === "../../shared/ui"
+          )
             return "\0recall-resource";
         },
         async load(id) {
@@ -115,13 +127,18 @@ beforeAll(async () => {
         },
         configureServer(s) {
           s.middlewares.use(async (request, response, next) => {
-            const pathname = new URL(request.url || "/", "http://synthetic.invalid").pathname;
+            const pathname = new URL(
+              request.url || "/",
+              "http://synthetic.invalid",
+            ).pathname;
             if (pathname === "/recall-outreach") {
               response.setHeader("Content-Type", "text/html");
-              response.end(await s.transformIndexHtml(
-                "/recall-outreach",
-                '<div id="root"></div><script type="module" src="/qa-recall-outreach.tsx"></script>',
-              ));
+              response.end(
+                await s.transformIndexHtml(
+                  "/recall-outreach",
+                  '<div id="root"></div><script type="module" src="/qa-recall-outreach.tsx"></script>',
+                ),
+              );
               return;
             }
             if (pathname.startsWith("/api/")) {
@@ -137,7 +154,8 @@ beforeAll(async () => {
   });
   await server.listen();
   const address = server.httpServer!.address();
-  if (!address || typeof address === "string") throw new Error("Missing fixture port");
+  if (!address || typeof address === "string")
+    throw new Error("Missing fixture port");
   baseUrl = `http://127.0.0.1:${address.port}`;
   const executablePath = [
     process.env.BROWSER_EXECUTABLE_PATH,
@@ -147,7 +165,8 @@ beforeAll(async () => {
     "/usr/bin/chromium",
     chromium.executablePath(),
   ].find((candidate) => candidate && existsSync(candidate));
-  if (!executablePath) throw new Error("No configured browser executable available");
+  if (!executablePath)
+    throw new Error("No configured browser executable available");
   browser = await chromium.launch({ executablePath, headless: true });
 }, 60_000);
 
@@ -176,10 +195,18 @@ it.each(["wrong-recall", "malformed"])(
     });
 
     await openOutreach(page);
-    await page.getByRole("button", { name: "Record outreach attempt", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("outcome is not confirmed");
-    await expect(page.getByRole("button", { name: "Retry same action" })).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "Outreach channel" })).toBeDisabled();
+    await page
+      .getByRole("button", { name: "Record outreach attempt", exact: true })
+      .click();
+    await expect(page.getByRole("alert")).toContainText(
+      "outcome is not confirmed",
+    );
+    await expect(
+      page.getByRole("button", { name: "Retry same action" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "Outreach channel" }),
+    ).toBeDisabled();
     const cancel = page.getByRole("button", { name: "Cancel" });
     await expect(cancel).toBeDisabled();
 
@@ -188,16 +215,25 @@ it.each(["wrong-recall", "malformed"])(
       window.__navigationApproved = false;
     });
     await page.getByRole("button", { name: "Attempt navigation" }).click();
-    await expect.poll(() => page.evaluate(() => window.__navigateAttempts)).toBe(1);
+    await expect
+      .poll(() => page.evaluate(() => window.__navigateAttempts))
+      .toBe(1);
     expect(await page.evaluate(() => window.__navigationApproved)).toBe(false);
-    expect(await page.evaluate(() => window.__recallWarning?.())).toContain("unresolved");
+    expect(await page.evaluate(() => window.__recallWarning?.())).toContain(
+      "unresolved",
+    );
 
     await page.getByRole("button", { name: "Retry same action" }).click();
-    await expect(page.getByRole("alert").filter({hasText:"outcome is not confirmed"})).toHaveCount(0);
-    await expect(page.getByText("The outreach attempt was recorded. No message was sent.")).toBeVisible();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "outcome is not confirmed" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("The outreach attempt was recorded. No message was sent."),
+    ).toBeVisible();
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toEqual(bodies[0]);
-    const firstEvent = (bodies[0] as { recall_event: Record<string, unknown> }).recall_event;
+    const firstEvent = (bodies[0] as { recall_event: Record<string, unknown> })
+      .recall_event;
     expect(firstEvent.action).toBe("record_outreach");
     expect(firstEvent.expected_version).toBe(2);
     expect(firstEvent.channel).toBe("phone");
@@ -212,22 +248,39 @@ it("unlocks a deterministic rejection and leaves a dirty action only after confi
   await installCommonRoutes(page);
   await page.route("**/api/clinic/recalls/81/events", async (route) => {
     postCount++;
-    await route.fulfill({ status: 422, json: { error: "Synthetic validation rejection" } });
+    await route.fulfill({
+      status: 422,
+      json: { error: "Synthetic validation rejection" },
+    });
   });
 
   await openOutreach(page);
-  await page.evaluate(() => { window.confirm = () => false; });
+  await page.evaluate(() => {
+    window.confirm = () => false;
+  });
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("region", { name: "Log outreach attempt" })).toBeVisible();
-  await page.evaluate(() => { window.confirm = () => true; });
+  await expect(
+    page.getByRole("region", { name: "Log outreach attempt" }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    window.confirm = () => true;
+  });
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("region", { name: "Log outreach attempt" })).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Log outreach attempt" }),
+  ).toHaveCount(0);
   expect(postCount).toBe(0);
 
   await openOutreach(page);
-  await page.getByRole("button", { name: "Record outreach attempt", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Synthetic validation rejection");
-  await expect(page.getByRole("combobox", { name: "Outreach channel" })).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Record outreach attempt", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Synthetic validation rejection",
+  );
+  await expect(
+    page.getByRole("combobox", { name: "Outreach channel" }),
+  ).toBeEnabled();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
   expect(postCount).toBe(1);
   await page.close();
@@ -235,9 +288,13 @@ it("unlocks a deterministic rejection and leaves a dirty action only after confi
 it("does not dismiss a pending write or allow navigation before its result arrives", async () => {
   const page = await browser.newPage();
   let postStarted!: () => void;
-  const started = new Promise<void>((resolve) => { postStarted = resolve; });
+  const started = new Promise<void>((resolve) => {
+    postStarted = resolve;
+  });
   let releasePost!: () => void;
-  const held = new Promise<void>((resolve) => { releasePost = resolve; });
+  const held = new Promise<void>((resolve) => {
+    releasePost = resolve;
+  });
   await installCommonRoutes(page);
   await page.route("**/api/clinic/recalls/81/events", async (route) => {
     postStarted();
@@ -247,7 +304,9 @@ it("does not dismiss a pending write or allow navigation before its result arriv
 
   try {
     await openOutreach(page);
-    await page.getByRole("button", { name: "Record outreach attempt", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Record outreach attempt", exact: true })
+      .click();
     await started;
     await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Saving." })).toBeDisabled();
@@ -257,8 +316,12 @@ it("does not dismiss a pending write or allow navigation before its result arriv
     });
     await page.getByRole("button", { name: "Attempt navigation" }).click();
     expect(await page.evaluate(() => window.__navigationApproved)).toBe(false);
-    expect(await page.evaluate(() => window.__recallWarning?.())).toContain("unresolved");
-    expect(await page.getByRole("region", { name: "Log outreach attempt" }).count()).toBe(1);
+    expect(await page.evaluate(() => window.__recallWarning?.())).toContain(
+      "unresolved",
+    );
+    expect(
+      await page.getByRole("region", { name: "Log outreach attempt" }).count(),
+    ).toBe(1);
   } finally {
     releasePost();
     await page.close();

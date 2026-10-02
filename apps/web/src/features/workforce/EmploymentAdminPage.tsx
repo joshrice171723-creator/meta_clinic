@@ -686,172 +686,174 @@ export function EmploymentAdminPage() {
           </Stack>
         </AccordionSummary>
         <AccordionDetails id="employee-setup-content">
-        <Stack
-          component="form"
-          spacing={2.5}
-          onSubmit={submit}
-          inert={unconfirmed !== null}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary">
-              A new login is created only after the employee activates the
-              invitation. The employee record, access role, and workforce setup
-              are completed together during activation.
-            </Typography>
-          </Stack>
-          <TextField
-            label="Employee name"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            required
-            autoComplete="name"
-            slotProps={{ htmlInput: { maxLength: 120 } }}
-          />
-          <TextField
-            label="Job title"
-            value={jobTitle}
-            onChange={(event) => setJobTitle(event.target.value)}
-            required
-            slotProps={{ htmlInput: { maxLength: 120 } }}
-          />
-          <FormControl>
-            <RadioGroup
-              row
-              value={accountMode}
-              onChange={(event) =>
-                setAccountMode(event.target.value as "existing" | "new")
-              }
-            >
-              <FormControlLabel
-                value="new"
-                control={<Radio />}
-                label="Create a new employee login"
-              />
-              <FormControlLabel
-                value="existing"
-                control={<Radio />}
-                label="Link an existing clinic login"
-              />
-            </RadioGroup>
-          </FormControl>
-          {accountMode === "existing" ? (
-            <FormControl fullWidth required>
-              <InputLabel id={`${fieldId}-1-label`}>Clinic account</InputLabel>
-              <Select
-                labelId={`${fieldId}-1-label`}
-                label="Clinic account"
-                value={membershipId}
-                onChange={(event) => setMembershipId(event.target.value)}
+          <Stack
+            component="form"
+            spacing={2.5}
+            onSubmit={submit}
+            inert={unconfirmed !== null}
+          >
+            <Stack spacing={0.5}>
+              <Typography variant="body2" color="text.secondary">
+                A new login is created only after the employee activates the
+                invitation. The employee record, access role, and workforce
+                setup are completed together during activation.
+              </Typography>
+            </Stack>
+            <TextField
+              label="Employee name"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              required
+              autoComplete="name"
+              slotProps={{ htmlInput: { maxLength: 120 } }}
+            />
+            <TextField
+              label="Job title"
+              value={jobTitle}
+              onChange={(event) => setJobTitle(event.target.value)}
+              required
+              slotProps={{ htmlInput: { maxLength: 120 } }}
+            />
+            <FormControl>
+              <RadioGroup
+                row
+                value={accountMode}
+                onChange={(event) =>
+                  setAccountMode(event.target.value as "existing" | "new")
+                }
               >
-                {data.membership_options.map((membership) => (
-                  <MenuItem key={membership.id} value={String(membership.id)}>
-                    {membership.email_address}
+                <FormControlLabel
+                  value="new"
+                  control={<Radio />}
+                  label="Create a new employee login"
+                />
+                <FormControlLabel
+                  value="existing"
+                  control={<Radio />}
+                  label="Link an existing clinic login"
+                />
+              </RadioGroup>
+            </FormControl>
+            {accountMode === "existing" ? (
+              <FormControl fullWidth required>
+                <InputLabel id={`${fieldId}-1-label`}>
+                  Clinic account
+                </InputLabel>
+                <Select
+                  labelId={`${fieldId}-1-label`}
+                  label="Clinic account"
+                  value={membershipId}
+                  onChange={(event) => setMembershipId(event.target.value)}
+                >
+                  {data.membership_options.map((membership) => (
+                    <MenuItem key={membership.id} value={String(membership.id)}>
+                      {membership.email_address}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <TextField
+                label="Employee email"
+                type="email"
+                value={emailAddress}
+                onChange={(event) => setEmailAddress(event.target.value)}
+                required
+                autoComplete="email"
+              />
+            )}
+            <FormControl fullWidth required>
+              <InputLabel id={`${fieldId}-2-label`}>Access role</InputLabel>
+              <Select
+                labelId={`${fieldId}-2-label`}
+                label="Access role"
+                value={roleVersionId}
+                onChange={(event) => setRoleVersionId(event.target.value)}
+              >
+                {data.role_options.map((role) => (
+                  <MenuItem key={role.id} value={String(role.id)}>
+                    {roleLabel(role.role_code)}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-          ) : (
-            <TextField
-              label="Employee email"
-              type="email"
-              value={emailAddress}
-              onChange={(event) => setEmailAddress(event.target.value)}
-              required
-              autoComplete="email"
-            />
-          )}
-          <FormControl fullWidth required>
-            <InputLabel id={`${fieldId}-2-label`}>Access role</InputLabel>
-            <Select
-              labelId={`${fieldId}-2-label`}
-              label="Access role"
-              value={roleVersionId}
-              onChange={(event) => setRoleVersionId(event.target.value)}
-            >
-              {data.role_options.map((role) => (
-                <MenuItem key={role.id} value={String(role.id)}>
-                  {roleLabel(role.role_code)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {frontDeskTitle &&
-            frontDeskRole &&
-            roleVersionId !== String(frontDeskRole.id) && (
-              <Alert
-                severity="info"
-                action={
-                  <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() => setRoleVersionId(String(frontDeskRole.id))}
-                  >
-                    Use suggested role
-                  </Button>
-                }
-              >
-                Hiring for front desk? Start them as Front Desk Coordinator.
+            {frontDeskTitle &&
+              frontDeskRole &&
+              roleVersionId !== String(frontDeskRole.id) && (
+                <Alert
+                  severity="info"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => setRoleVersionId(String(frontDeskRole.id))}
+                    >
+                      Use suggested role
+                    </Button>
+                  }
+                >
+                  Hiring for front desk? Start them as Front Desk Coordinator.
+                </Alert>
+              )}
+            {data.role_options.length === 0 && (
+              <Alert severity="warning">
+                Your account cannot assign a workforce role. Ask a clinic access
+                administrator to update your role before adding employees.
               </Alert>
             )}
-          {data.role_options.length === 0 && (
-            <Alert severity="warning">
-              Your account cannot assign a workforce role. Ask a clinic access
-              administrator to update your role before adding employees.
-            </Alert>
-          )}
-          <FormControl component="fieldset" required>
-            <Typography component="legend" variant="subtitle2">
-              Eligible work sites
-            </Typography>
-            <FormGroup row>
-              {data.sites.map((site) => (
-                <FormControlLabel
-                  key={site.id}
-                  control={
-                    <Checkbox
-                      checked={siteIds.includes(site.id)}
-                      onChange={() => toggleSite(site.id)}
-                    />
-                  }
-                  label={site.name}
-                />
-              ))}
-            </FormGroup>
-          </FormControl>
-          <TextField
-            label="Effective from"
-            type="datetime-local"
-            value={effectiveFrom}
-            onChange={(event) => setEffectiveFrom(event.target.value)}
-            required
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={
-              accountMode === "existing" ? (
-                <LinkOutlinedIcon />
-              ) : (
-                <PersonAddAltOutlinedIcon />
-              )
-            }
-            disabled={
-              saving ||
-              !displayName.trim() ||
-              !jobTitle.trim() ||
-              !roleVersionId ||
-              siteIds.length === 0 ||
-              (accountMode === "existing" ? !membershipId : !emailAddress)
-            }
-          >
-            {saving
-              ? "Saving…"
-              : accountMode === "existing"
-                ? "Link employee"
-                : "Create employee invitation"}
-          </Button>
-        </Stack>
+            <FormControl component="fieldset" required>
+              <Typography component="legend" variant="subtitle2">
+                Eligible work sites
+              </Typography>
+              <FormGroup row>
+                {data.sites.map((site) => (
+                  <FormControlLabel
+                    key={site.id}
+                    control={
+                      <Checkbox
+                        checked={siteIds.includes(site.id)}
+                        onChange={() => toggleSite(site.id)}
+                      />
+                    }
+                    label={site.name}
+                  />
+                ))}
+              </FormGroup>
+            </FormControl>
+            <TextField
+              label="Effective from"
+              type="datetime-local"
+              value={effectiveFrom}
+              onChange={(event) => setEffectiveFrom(event.target.value)}
+              required
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={
+                accountMode === "existing" ? (
+                  <LinkOutlinedIcon />
+                ) : (
+                  <PersonAddAltOutlinedIcon />
+                )
+              }
+              disabled={
+                saving ||
+                !displayName.trim() ||
+                !jobTitle.trim() ||
+                !roleVersionId ||
+                siteIds.length === 0 ||
+                (accountMode === "existing" ? !membershipId : !emailAddress)
+              }
+            >
+              {saving
+                ? "Saving…"
+                : accountMode === "existing"
+                  ? "Link employee"
+                  : "Create employee invitation"}
+            </Button>
+          </Stack>
         </AccordionDetails>
       </Accordion>
 

@@ -447,58 +447,58 @@ export function TimecardReviewPage() {
             <Typography variant="h3">Calculate a timecard</Typography>
           </AccordionSummary>
           <AccordionDetails id="timecard-calculation-content">
-          <Stack spacing={2}>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField
-                select
-                label="Employee"
-                value={employmentId}
-                onChange={(event) => setEmploymentId(event.target.value)}
-                sx={{ minWidth: 240 }}
-              >
-                {employees.map((employee) => (
-                  <MenuItem key={employee.id} value={String(employee.id)}>
-                    {employee.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label="Week starting"
-                type="date"
-                value={periodStart}
-                onChange={(event) => setPeriodStart(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-              <Button
-                variant="contained"
-                disabled={busy || !employmentId || !periodStart}
-                onClick={() => void calculate()}
-              >
-                Calculate
-              </Button>
+            <Stack spacing={2}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TextField
+                  select
+                  label="Employee"
+                  value={employmentId}
+                  onChange={(event) => setEmploymentId(event.target.value)}
+                  sx={{ minWidth: 240 }}
+                >
+                  {employees.map((employee) => (
+                    <MenuItem key={employee.id} value={String(employee.id)}>
+                      {employee.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="Week starting"
+                  type="date"
+                  value={periodStart}
+                  onChange={(event) => setPeriodStart(event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <Button
+                  variant="contained"
+                  disabled={busy || !employmentId || !periodStart}
+                  onClick={() => void calculate()}
+                >
+                  Calculate
+                </Button>
+              </Stack>
+              {!employees.length && (
+                <Alert
+                  severity="info"
+                  action={
+                    clinic.capabilities.workforce_admin === true ? (
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => navigate("/clinic/workforce/employees")}
+                      >
+                        Manage employees
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  No active employees are eligible at this location.{" "}
+                  {clinic.capabilities.workforce_admin === true
+                    ? "Activate or link an employee and assign this location."
+                    : "Ask a workforce administrator to activate or link an employee and assign this location."}
+                </Alert>
+              )}
             </Stack>
-            {!employees.length && (
-              <Alert
-                severity="info"
-                action={
-                  clinic.capabilities.workforce_admin === true ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => navigate("/clinic/workforce/employees")}
-                    >
-                      Manage employees
-                    </Button>
-                  ) : undefined
-                }
-              >
-                No active employees are eligible at this location.{" "}
-                {clinic.capabilities.workforce_admin === true
-                  ? "Activate or link an employee and assign this location."
-                  : "Ask a workforce administrator to activate or link an employee and assign this location."}
-              </Alert>
-            )}
-          </Stack>
           </AccordionDetails>
         </Accordion>
       )}
