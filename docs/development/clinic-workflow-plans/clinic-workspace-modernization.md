@@ -384,10 +384,18 @@ Measured 1440/1280/1024/834/768 widths at 900 height: candidate containment pass
 
 Targeted clinic-shell + clinic-navigation:16pass/1unchanged baseline-copy fail (1.108s); tracking-board viewport-height selection4pass/49name-filter exclusions (8.4s). Formatting initially failed, scoped repair/check passed; normalized source Git blobs unchanged. MZ-01a typecheck/bundles reused for CSS-only packet. Initial capture stopped on a hidden desktop toggle assertion; probe corrected to visible targets. Next stopped on unchanged line-ending dirty metadata after format; index refresh restored exact candidate. Final paired capture passed. No command remains running. C accepted MZ-01b after exact5913byte JSON transfer; count5/74. Text relay had reworded only visible controls to visible targets; mechanically encoded existing bytes fixed the evidence mismatch without a new capture. Current combined builds remain required; prior typecheck/bundles are predecessor evidence. MZ-01c released with query-context/copy truth and unchanged draft/provider lifetime.
 
+### MZ-01c review candidate
+
+Source frozen2d1094933732f94316c2e9c17b3a8a97bf6c17f0: PatientContextBar.tsx and patientContextBar.css only (+78/-36 after scoped formatting); Workspace untouched. Patch5950bytes SHA2563cd7d1428b0d98adce73581e268b3d67fb3ba6ebaac19821af18e7040d5901f1. Review JSON3836UTF-8 bytes without final newline SHA2564270884e8136cbeb1f95ab2552f47efa4a23ed93a2028dbe1a89e9845bbc46ef. Exact source/build and actor checked at2026-10-02T03:38:20.248Z; Edge154.0.4258.48/en-US/AmericaChicago, existing MZ00 fixture. Root source comparison verifies Workspace/App/ClinicFrame/clinicNavigation and both providers unchanged; parser/capability/lookup/clear control-flow preserved apart from truthful confirmation copy.
+
+Current typecheck/changed-file format/main bundle2.71s/Office1.03s PASS. Named patient-context-bar, clinic-shell and clinic-navigation pool30PASS/1unchanged baseline-copyFAIL. At1440/1280/1024/834/768x900 ordinary/full long fetched-identity presentation contained, no page overflow, name wraps visibly and all three controls44px high (clear44x44). Ordinary bar53.296875/53.296875/73.59375/93.890625/93.890625px; controlled long73.59375/73.59375/93.890625/114.1875/158.484375px. Long screenshot inspected. Queryencounter1001 labeled explicitly unverified; no patient-encounter relationship inferred. Clear dismissal retained context; acceptance removed onlypatient_id and preservedencounter_id1001/filterkept. Controlled lookup503 showed identity unavailable/retry and no record/schedule actions.
+
+Initial editor inspection was premature while working-copy data loaded; waited for enabled editor, then draft proof passed. Existing real synthetic encounter opened through local confirmation; unsaved manual SOAP text plus controlled working-copy PUT503 remained protected when navigation was dismissed, retaining patient context. No server working-draft/official clinical mutation occurred. Long/error lookup controls are presentation evidence, not backend fixture or role-denial proof. Provider/portal/scope-switch and comparative timing proof remain unverified; C acceptance pending/count5/74.
+
 ## Last run
 
-- Date UTC:2026-10-02; inspected source22b85efa and docs276af3de.
-- Outcome:C accepted MZ-01b; count5/74. MZ-01c released.
+- Date UTC:2026-10-02; inspected frozen2d109493 context candidate.
+- Outcome:MZ-01c implemented and scoped actual identity/clear/navigation proof complete; C pending, count5/74.
 - Changed canonical paths:this brief and central tracker.
-- Checks:reuse exact source/rendered/targeted proof; no check/capture rerun for evidence transfer. Required docs checks retain existing seven harness missing-link failures.
-- Next:freeze MZ-01c, verify route-context truth, full identity, draft/navigation invariants and submit mechanical exact patch/evidence; then dispatch accepted shared contract.
+- Checks:current typecheck/format/main+Office bundles PASS; named S30PASS/1baselineFAIL; bounded real identity plus controlled long/error/save-failure navigation PASS. Required docs validators retain existing advisories/seven harness failures.
+- Next:submit exact mechanically encoded patch/review evidence to C; release board/auth only after accepted shared contract. No publication.
