@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -25,6 +28,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import "./membershipGrowth.css";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { publicPageAccents } from "./publicPageTheme";
 import { ServiceInquiries } from "./ServiceInquiries";
@@ -374,11 +379,12 @@ export function MembershipGrowth() {
   return (
     <Box
       component="section"
+      className="membership-growth"
       aria-labelledby="membership-growth-heading"
       sx={{ minWidth: 0 }}
     >
-      <Stack spacing={3}>
-        <Box>
+      <Stack spacing={2}>
+        <Box className="growth-heading">
           <Typography
             id="membership-growth-heading"
             component="h1"
@@ -387,9 +393,8 @@ export function MembershipGrowth() {
             Growth
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 820 }}>
-            Follow up with people who requested contact or started a membership
-            account. They stay in Growth until payment is verified, then move to
-            patient onboarding.
+            Follow up on contact requests and membership signups. Verified
+            payment moves people to patient onboarding.
           </Typography>
         </Box>
         {!resource.data && !resource.error && (
@@ -401,26 +406,22 @@ export function MembershipGrowth() {
             <Paper
               component="section"
               variant="outlined"
-              sx={{ overflow: "hidden" }}
+              className="growth-pipeline"
             >
-              <Box sx={{ p: { xs: 2, md: 3 }, pb: 1 }}>
+              <Box className="growth-section-heading">
                 <Typography component="h2" variant="h5">
                   Membership pipeline
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                   Account created → account activated → payment. Unpaid signups
-                  stay here for follow-up. Verified payment moves them to the
-                  patient flow with their existing account, receipt record, and
-                  front-desk onboarding task. No second account invitation is
-                  needed.
+                  stay here for follow-up.
                 </Typography>
               </Box>
               <Tabs
+                className="growth-stage-tabs"
                 value={filter}
                 onChange={(_, value: PipelineFilter) => setFilter(value)}
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
+                variant="standard"
                 aria-label="Membership pipeline stages"
               >
                 <Tab
@@ -440,11 +441,19 @@ export function MembershipGrowth() {
                   No records are in this stage.
                 </Typography>
               ) : (
-                <TableContainer>
+                <TableContainer className="growth-pipeline-container">
                   <Table
-                    sx={{ minWidth: 860 }}
+                    className="growth-pipeline-table"
                     aria-label="Membership pipeline"
                   >
+                    <colgroup>
+                      <col style={{ width: "25%" }} />
+                      <col style={{ width: "12%" }} />
+                      <col style={{ width: "16%" }} />
+                      <col style={{ width: "24%" }} />
+                      <col style={{ width: "13%" }} />
+                      <col style={{ width: "10%" }} />
+                    </colgroup>
                     <TableHead>
                       <TableRow>
                         <TableCell>Person</TableCell>
@@ -457,25 +466,33 @@ export function MembershipGrowth() {
                     </TableHead>
                     <TableBody>
                       {prospects.map((prospect) => (
-                        <TableRow key={prospect.id} hover>
-                          <TableCell>
+                        <TableRow
+                          key={prospect.id}
+                          hover
+                          selected={selected?.id === prospect.id}
+                        >
+                          <TableCell data-label="Person">
                             <Typography sx={{ fontWeight: 650 }}>
                               {prospect.display_name}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography
+                              className="growth-contact-address"
+                              variant="body2"
+                              color="text.secondary"
+                            >
                               {prospect.email_address ||
                                 "No email address provided"}
                             </Typography>
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Path">
                             {prospect.intent_type === "purchase"
                               ? "Purchase now"
                               : "Contact first"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Membership">
                             {prospect.selected_terms.package_name}
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Enrollment stage">
                             <Chip
                               size="small"
                               label={
@@ -498,9 +515,12 @@ export function MembershipGrowth() {
                               {enrollmentLabel(prospect)}
                             </Typography>
                           </TableCell>
-                          <TableCell>{dateTime(prospect.created_at)}</TableCell>
-                          <TableCell align="right">
+                          <TableCell data-label="Submitted">
+                            {dateTime(prospect.created_at)}
+                          </TableCell>
+                          <TableCell data-label="Action" align="right">
                             <Button
+                              className="growth-review-button"
                               variant="outlined"
                               onClick={() => {
                                 setSelected(prospect);
@@ -518,193 +538,221 @@ export function MembershipGrowth() {
                   </Table>
                 </TableContainer>
               )}
+              <Typography
+                className="growth-pipeline-guidance"
+                variant="body2"
+                color="text.secondary"
+              >
+                Verified payment carries the existing account and receipt into
+                patient onboarding with a front-desk task. No second account
+                invitation is needed.
+              </Typography>
             </Paper>
             {resource.data.capabilities.review && <ServiceInquiries />}
 
-            <Paper
-              component="section"
-              variant="outlined"
-              sx={{ p: { xs: 2, md: 3 } }}
+            <Accordion
+              className="growth-configuration"
+              disableGutters
+              elevation={0}
             >
-              <Stack spacing={2.5}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreRoundedIcon />}
+                aria-controls="growth-configuration-fields"
+                id="growth-configuration-heading"
+              >
                 <Box>
                   <Typography component="h2" variant="h5">
                     Public membership page
                   </Typography>
-                  <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {storefront?.enabled ? "Enabled" : "Disabled"} · Branding,
+                    public address and page settings
+                    {configurationChanged ? " · Unsaved changes" : ""}
+                  </Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails id="growth-configuration-fields">
+                <Stack spacing={2.5}>
+                  <Typography color="text.secondary">
                     Customers can purchase an eligible package or request
                     contact before paying.
                   </Typography>
-                </Box>
-                {configurationError && (
-                  <Alert severity="error">{configurationError}</Alert>
-                )}
-                {configurationNotice && (
-                  <Alert severity="success">{configurationNotice}</Alert>
-                )}
-                <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                  <TextField
-                    label="Clinic page name"
-                    value={slug}
-                    required
-                    disabled={!canConfigure || configurationBusy}
-                    error={Boolean(slug) && !slugValid}
-                    helperText="Use 3–80 lowercase letters, numbers, and single hyphens."
-                    slotProps={{
-                      htmlInput: {
-                        maxLength: 80,
-                        autoCapitalize: "none",
-                        autoCorrect: "off",
-                        spellCheck: false,
-                      },
-                    }}
-                    onChange={(event) => setSlug(event.target.value)}
-                    sx={{ flex: "1 1 360px", maxWidth: 560 }}
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={enabled}
-                        disabled={!canConfigure || configurationBusy}
-                        onChange={(_, checked) => setEnabled(checked)}
-                      />
-                    }
-                    label="Membership page enabled"
-                  />
-                </Stack>
-                <Stack spacing={1.5} sx={{ maxWidth: 720 }}>
-                  <Stack
-                    direction="row"
-                    spacing={1.5}
-                    sx={{ alignItems: "center" }}
-                  >
-                    <Button
-                      component="label"
-                      variant="outlined"
+                  {configurationError && (
+                    <Alert severity="error">{configurationError}</Alert>
+                  )}
+                  {configurationNotice && (
+                    <Alert severity="success">{configurationNotice}</Alert>
+                  )}
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <TextField
+                      label="Clinic page name"
+                      value={slug}
+                      required
                       disabled={!canConfigure || configurationBusy}
-                    >
-                      Choose logo
-                      <input
-                        hidden
-                        type="file"
-                        accept="image/png,image/jpeg"
-                        onChange={(event) => {
-                          void selectLogo(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </Button>
-                    {(storefront?.logo_path ||
-                      (logoBase64 && logoContentType)) && (
-                      <Button
-                        disabled={!canConfigure || configurationBusy}
-                        onClick={() => {
-                          setLogoBase64("");
-                          setLogoContentType(null);
-                        }}
-                      >
-                        Remove logo
-                      </Button>
-                    )}
-                    <Typography variant="body2" color="text.secondary">
-                      {logoBase64 === ""
-                        ? "Logo will be removed"
-                        : logoBase64
-                          ? "New logo selected"
-                          : storefront?.logo_path
-                            ? "Logo saved"
-                            : "PNG or JPEG, up to 100 KB"}
-                    </Typography>
+                      error={Boolean(slug) && !slugValid}
+                      helperText="Use 3–80 lowercase letters, numbers, and single hyphens."
+                      slotProps={{
+                        htmlInput: {
+                          maxLength: 80,
+                          autoCapitalize: "none",
+                          autoCorrect: "off",
+                          spellCheck: false,
+                        },
+                      }}
+                      onChange={(event) => setSlug(event.target.value)}
+                      sx={{ flex: 1, minWidth: 0 }}
+                    />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={enabled}
+                          disabled={!canConfigure || configurationBusy}
+                          onChange={(_, checked) => setEnabled(checked)}
+                        />
+                      }
+                      label="Membership page enabled"
+                    />
                   </Stack>
-                  <TextField
-                    select
-                    label="Public page accent"
-                    value={accent}
-                    disabled={!canConfigure || configurationBusy}
-                    onChange={(event) => setAccent(event.target.value)}
-                    helperText="Used for buttons and controls on both public pages."
-                  >
-                    <MenuItem value="">Default</MenuItem>
-                    {publicPageAccents.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    label="Public page headline"
-                    value={headline}
-                    disabled={!canConfigure || configurationBusy}
-                    onChange={(event) => setHeadline(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: 160 } }}
-                  />
-                  <TextField
-                    label="Public page introduction"
-                    value={intro}
-                    multiline
-                    minRows={2}
-                    disabled={!canConfigure || configurationBusy}
-                    onChange={(event) => setIntro(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: 500 } }}
-                    helperText="Shown on this clinic's membership and services pages."
-                  />
-                </Stack>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <TextField
-                    label="Saved public page address"
-                    value={
-                      resource.data.storefront.public_path ||
-                      "No public address saved"
-                    }
-                    fullWidth
-                    slotProps={{ input: { readOnly: true } }}
-                    sx={{ maxWidth: 620 }}
-                  />
-                  {resource.data.storefront.enabled &&
-                    resource.data.storefront.public_path && (
+                  <Stack spacing={1.5} className="growth-branding-fields">
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{ alignItems: "center" }}
+                    >
                       <Button
-                        href={resource.data.storefront.public_path}
+                        component="label"
+                        variant="outlined"
+                        disabled={!canConfigure || configurationBusy}
+                      >
+                        Choose logo
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={(event) => {
+                            void selectLogo(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
+                        />
+                      </Button>
+                      {(storefront?.logo_path ||
+                        (logoBase64 && logoContentType)) && (
+                        <Button
+                          disabled={!canConfigure || configurationBusy}
+                          onClick={() => {
+                            setLogoBase64("");
+                            setLogoContentType(null);
+                          }}
+                        >
+                          Remove logo
+                        </Button>
+                      )}
+                      <Typography variant="body2" color="text.secondary">
+                        {logoBase64 === ""
+                          ? "Logo will be removed"
+                          : logoBase64
+                            ? "New logo selected"
+                            : storefront?.logo_path
+                              ? "Logo saved"
+                              : "PNG or JPEG, up to 100 KB"}
+                      </Typography>
+                    </Stack>
+                    <TextField
+                      select
+                      label="Public page accent"
+                      value={accent}
+                      disabled={!canConfigure || configurationBusy}
+                      onChange={(event) => setAccent(event.target.value)}
+                      helperText="Used for buttons and controls on both public pages."
+                    >
+                      <MenuItem value="">Default</MenuItem>
+                      {publicPageAccents.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <TextField
+                      label="Public page headline"
+                      value={headline}
+                      disabled={!canConfigure || configurationBusy}
+                      onChange={(event) => setHeadline(event.target.value)}
+                      slotProps={{ htmlInput: { maxLength: 160 } }}
+                    />
+                    <TextField
+                      label="Public page introduction"
+                      value={intro}
+                      multiline
+                      minRows={2}
+                      disabled={!canConfigure || configurationBusy}
+                      onChange={(event) => setIntro(event.target.value)}
+                      slotProps={{ htmlInput: { maxLength: 500 } }}
+                      helperText="Shown on this clinic's membership and services pages."
+                    />
+                  </Stack>
+                  <Stack
+                    className="growth-public-links"
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                  >
+                    <TextField
+                      label="Saved public page address"
+                      value={
+                        resource.data.storefront.public_path ||
+                        "No public address saved"
+                      }
+                      fullWidth
+                      slotProps={{ input: { readOnly: true } }}
+                      sx={{ flex: 1, minWidth: 0 }}
+                    />
+                    {resource.data.storefront.enabled &&
+                      resource.data.storefront.public_path && (
+                        <Button
+                          href={resource.data.storefront.public_path}
+                          target="_blank"
+                          rel="noreferrer"
+                          variant="outlined"
+                          endIcon={<OpenInNewRoundedIcon />}
+                        >
+                          Open public page
+                        </Button>
+                      )}
+                    {resource.data.storefront.service_page_path && (
+                      <Button
+                        href={resource.data.storefront.service_page_path}
                         target="_blank"
                         rel="noreferrer"
                         variant="outlined"
                         endIcon={<OpenInNewRoundedIcon />}
                       >
-                        Open public page
+                        Open services page
                       </Button>
                     )}
-                  {resource.data.storefront.service_page_path && (
+                  </Stack>
+                  <Box>
                     <Button
-                      href={resource.data.storefront.service_page_path}
-                      target="_blank"
-                      rel="noreferrer"
-                      variant="outlined"
-                      endIcon={<OpenInNewRoundedIcon />}
+                      variant="contained"
+                      disabled={
+                        !canConfigure ||
+                        configurationBusy ||
+                        !slugValid ||
+                        !configurationChanged
+                      }
+                      onClick={() => void saveStorefront()}
                     >
-                      Open services page
+                      {configurationBusy ? "Saving…" : "Save page settings"}
                     </Button>
-                  )}
+                  </Box>
                 </Stack>
-                <Box>
-                  <Button
-                    variant="contained"
-                    disabled={
-                      !canConfigure ||
-                      configurationBusy ||
-                      !slugValid ||
-                      !configurationChanged
-                    }
-                    onClick={() => void saveStorefront()}
-                  >
-                    {configurationBusy ? "Saving…" : "Save page settings"}
-                  </Button>
-                </Box>
-              </Stack>
-            </Paper>
+              </AccordionDetails>
+            </Accordion>
           </>
         )}
       </Stack>
 
       <Dialog
+        className="growth-review-dialog"
+        sx={(theme) => ({ "--growth-divider": theme.palette.divider })}
         open={Boolean(selected)}
         onClose={() => {
           if (!actionBusy) {
@@ -713,11 +761,20 @@ export function MembershipGrowth() {
           }
         }}
         fullWidth
-        maxWidth="md"
+        maxWidth="lg"
         aria-labelledby="membership-record-title"
       >
         <DialogTitle id="membership-record-title">
-          Membership record
+          <Typography component="span" variant="body2" color="text.secondary">
+            Membership record
+          </Typography>
+          <Typography
+            component="span"
+            variant="h5"
+            sx={{ display: "block", mt: 0.5 }}
+          >
+            {selected?.display_name}
+          </Typography>
         </DialogTitle>
         <DialogContent>
           {selected && (
@@ -743,52 +800,60 @@ export function MembershipGrowth() {
                       : "Payment is incomplete. Call to help them finish signup or take payment by phone with their authorization. They remain in Growth until payment is verified."}
                   </Alert>
                 )}
-              <Box>
-                <Typography component="h2" variant="h6">
-                  {selected.display_name}
-                </Typography>
-                <Typography>
-                  {selected.email_address || "No email address provided"}
-                </Typography>
-                <Typography color="text.secondary">
-                  {selected.phone_number || "No phone number provided"}
-                </Typography>
-                {(selected.preferred_contact_method ||
-                  selected.preferred_contact_time) && (
-                  <Typography color="text.secondary">
-                    Preferred contact:{" "}
-                    {selected.preferred_contact_method ||
-                      "No method preference"}
-                    {selected.preferred_contact_time
-                      ? ` · ${selected.preferred_contact_time}`
-                      : ""}
+              <Box className="growth-record-details">
+                <Box className="growth-contact-details">
+                  <Typography component="h2" variant="h6">
+                    Contact details
                   </Typography>
-                )}
-                <Typography variant="body2" color="text.secondary">
-                  Path:{" "}
-                  {selected.intent_type === "purchase"
-                    ? "Self-service purchase"
-                    : "Contact before payment"}
-                </Typography>
-              </Box>
-              <Paper variant="outlined" sx={{ p: 1.5 }}>
-                <Typography variant="overline">Selected membership</Typography>
-                <Typography component="h3" variant="h6">
-                  {selected.selected_terms.package_name}
-                </Typography>
-                <Typography color="text.secondary">
-                  {subscriptionMoney(
-                    selected.selected_terms.total ||
-                      selected.selected_terms.amount,
-                    selected.selected_terms.currency,
+                  <Typography>
+                    {selected.email_address || "No email address provided"}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {selected.phone_number || "No phone number provided"}
+                  </Typography>
+                  {(selected.preferred_contact_method ||
+                    selected.preferred_contact_time) && (
+                    <Typography color="text.secondary">
+                      Preferred contact:{" "}
+                      {selected.preferred_contact_method ||
+                        "No method preference"}
+                      {selected.preferred_contact_time
+                        ? ` · ${selected.preferred_contact_time}`
+                        : ""}
+                    </Typography>
                   )}
-                </Typography>
-              </Paper>
+                  <Typography variant="body2" color="text.secondary">
+                    Path:{" "}
+                    {selected.intent_type === "purchase"
+                      ? "Self-service purchase"
+                      : "Contact before payment"}
+                  </Typography>
+                </Box>
+                <Box className="growth-membership-details">
+                  <Typography component="h2" variant="h6">
+                    Selected membership
+                  </Typography>
+                  <Typography component="h3" variant="h6">
+                    {selected.selected_terms.package_name}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {subscriptionMoney(
+                      selected.selected_terms.total ||
+                        selected.selected_terms.amount,
+                      selected.selected_terms.currency,
+                    )}
+                  </Typography>
+                </Box>
+              </Box>
               {selected.intent_type === "purchase" &&
                 selected.follow_up_state !== "not_required" && (
-                  <Paper variant="outlined" sx={{ p: 1.5 }}>
-                    <Typography variant="overline">
-                      Worker enrollment workflow
+                  <Paper
+                    className="growth-call-workflow"
+                    variant="outlined"
+                    sx={{ p: 2 }}
+                  >
+                    <Typography component="h2" variant="h6">
+                      Signup follow-up
                     </Typography>
                     <Typography component="h3" variant="h6">
                       {selected.follow_up_state === "in_progress"
@@ -836,10 +901,14 @@ export function MembershipGrowth() {
                           <Stack
                             direction={{ xs: "column", sm: "row" }}
                             spacing={1.5}
-                            sx={{ alignItems: { sm: "center" } }}
+                            sx={{
+                              alignItems: { sm: "center" },
+                              flexWrap: "wrap",
+                              gap: 1.5,
+                            }}
                           >
                             <FormControlLabel
-                              sx={{ flex: 1, m: 0 }}
+                              sx={{ flex: "1 1 300px", m: 0 }}
                               control={
                                 <Checkbox
                                   checked={recurringAuthorization}
@@ -862,6 +931,7 @@ export function MembershipGrowth() {
                               variant="contained"
                               sx={{
                                 flexShrink: 0,
+                                maxWidth: "100%",
                                 alignSelf: { xs: "stretch", sm: "center" },
                               }}
                             >
@@ -918,8 +988,10 @@ export function MembershipGrowth() {
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions className="growth-dialog-actions">
           <Button
+            className="growth-dialog-close"
+            variant="outlined"
             disabled={actionBusy}
             onClick={() => {
               setSelected(null);
@@ -934,6 +1006,7 @@ export function MembershipGrowth() {
                 selected.status === "new" && (
                   <Button
                     disabled={actionBusy}
+                    variant="contained"
                     onClick={() => void performAction("contacted")}
                   >
                     Mark contacted
@@ -943,6 +1016,7 @@ export function MembershipGrowth() {
                 selected.status === "contacted" && (
                   <Button
                     disabled={actionBusy}
+                    variant="contained"
                     onClick={() => void performAction("qualify")}
                   >
                     Qualify

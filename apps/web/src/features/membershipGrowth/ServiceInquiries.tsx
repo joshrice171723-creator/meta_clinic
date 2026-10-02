@@ -115,7 +115,12 @@ export function ServiceInquiries() {
   };
 
   return (
-    <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+    <Paper
+      className="growth-inquiries"
+      component="section"
+      variant="outlined"
+      sx={{ p: 2 }}
+    >
       <Stack spacing={2}>
         <Box>
           <Typography component="h2" variant="h5">
@@ -128,38 +133,40 @@ export function ServiceInquiries() {
           </Typography>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
-        <TextField
-          select
-          label="Show inquiries"
-          value={filter}
-          onChange={(event) => {
-            setFilter(event.target.value);
-            setPage(1);
-          }}
-          size="small"
-        >
-          <MenuItem value="all">Latest inquiries</MenuItem>
-          <MenuItem value="due">Follow-up due today or earlier</MenuItem>
-        </TextField>
-        <TextField
-          select
-          label="Inquiry status"
-          size="small"
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-          slotProps={{
-            select: { displayEmpty: true },
-            inputLabel: { shrink: true },
-          }}
-        >
-          <MenuItem value="">All statuses</MenuItem>
-          <MenuItem value="new">New</MenuItem>
-          <MenuItem value="contacted">Contacted</MenuItem>
-          <MenuItem value="closed">Closed</MenuItem>
-        </TextField>
+        <Box className="growth-inquiry-filters">
+          <TextField
+            select
+            label="Show inquiries"
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setPage(1);
+            }}
+            size="small"
+          >
+            <MenuItem value="all">Latest inquiries</MenuItem>
+            <MenuItem value="due">Follow-up due today or earlier</MenuItem>
+          </TextField>
+          <TextField
+            select
+            label="Inquiry status"
+            size="small"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+            slotProps={{
+              select: { displayEmpty: true },
+              inputLabel: { shrink: true },
+            }}
+          >
+            <MenuItem value="">All statuses</MenuItem>
+            <MenuItem value="new">New</MenuItem>
+            <MenuItem value="contacted">Contacted</MenuItem>
+            <MenuItem value="closed">Closed</MenuItem>
+          </TextField>
+        </Box>
         {!resource.data && (
           <LoadState error={resource.error} onRetry={resource.refresh} />
         )}
@@ -171,6 +178,7 @@ export function ServiceInquiries() {
             {resource.data.inquiries.map((inquiry) => (
               <Box
                 key={inquiry.id}
+                className="growth-inquiry-row"
                 sx={{ borderTop: 1, borderColor: "divider", pt: 1.5 }}
               >
                 <Typography sx={{ fontWeight: 600 }}>
@@ -269,6 +277,8 @@ export function ServiceInquiries() {
         )}
       </Stack>
       <Dialog
+        className="growth-review-dialog"
+        sx={(theme) => ({ "--growth-divider": theme.palette.divider })}
         open={Boolean(editing)}
         onClose={closeEditor}
         fullWidth
@@ -298,7 +308,7 @@ export function ServiceInquiries() {
             {saveError && <Alert severity="error">{saveError}</Alert>}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions className="growth-dialog-actions">
           <Button onClick={closeEditor} disabled={busyId !== null}>
             Cancel
           </Button>
