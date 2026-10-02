@@ -48,6 +48,12 @@ export type StaffMessage = {
   } | null;
 };
 
+export type StaffParticipant = {
+  id: number;
+  email: string;
+  displayName: string | null;
+};
+
 export type StaffConversation = {
   id: number;
   title: string;
@@ -56,7 +62,7 @@ export type StaffConversation = {
   unread: boolean;
   urgent: boolean;
   unresolved: boolean;
-  participants: string[];
+  participants: Array<string | StaffParticipant>;
   lastMessageAt: string;
   lastMessageClass: StaffMessageClass;
   messages: StaffMessage[];
@@ -82,6 +88,7 @@ export type StaffMessagingState = {
 type StaffMessagingWorkspaceProps = {
   state?: StaffMessagingState;
   onSelectConversation?: (conversationId: number) => void;
+  onMarkRead?: (conversationId: number) => void | Promise<void>;
   onSend?: (conversationId: number, body: string) => void | Promise<void>;
   onAcknowledge?: (messageId: number) => void | Promise<void>;
   onTransitionRequest?: (
@@ -109,6 +116,18 @@ const classColor: Record<StaffMessageClass, "default" | "warning" | "error"> = {
   urgent: "error",
   safety_critical: "error",
 };
+
+function participantSummary(participants: StaffConversation["participants"]) {
+  return participants
+    .map((participant) =>
+      typeof participant === "string"
+        ? participant
+        : participant.displayName
+          ? `${participant.displayName} (${participant.email})`
+          : participant.email,
+    )
+    .join(" | ");
+}
 
 const fixtureState: StaffMessagingState = {
   selectedConversationId: 201,
@@ -294,6 +313,15 @@ function MessageCard({
               <Typography sx={{ fontWeight: 650, overflowWrap: "anywhere" }}>
                 {message.sender}
               </Typography>
+              {message.senderEmail && message.senderEmail !== message.sender && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ overflowWrap: "anywhere" }}
+                >
+                  {message.senderEmail}
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
                 {message.createdAt}
               </Typography>
@@ -432,6 +460,7 @@ function MessageCard({
 export function StaffMessagingWorkspace({
   state = fixtureState,
   onSelectConversation,
+  onMarkRead,
   onSend,
   onAcknowledge,
   onTransitionRequest,
@@ -759,7 +788,7 @@ export function StaffMessagingWorkspace({
                       color="text.secondary"
                       sx={{ overflowWrap: "anywhere" }}
                     >
-                      {conversation.participants.join(" · ")}
+                      {participantSummary(conversation.participants)}
                     </Typography>
                     <Stack
                       direction="row"
@@ -841,7 +870,7 @@ export function StaffMessagingWorkspace({
                     sx={{ mt: 0.4, overflowWrap: "anywhere" }}
                   >
                     {selectedConversation.kind} conversation ·{" "}
-                    {selectedConversation.participants.join(" · ")}
+                    {participantSummary(selectedConversation.participants)}
                   </Typography>
                 </Box>
                 <Stack
@@ -852,6 +881,16 @@ export function StaffMessagingWorkspace({
                 >
                   {selectedConversation.urgent && (
                     <Chip size="small" label="Urgent" color="error" />
+                  )}
+                  {selectedConversation.unread && onMarkRead && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<MarkEmailReadOutlinedIcon />}
+                      onClick={() => void onMarkRead(selectedConversation.id)}
+                    >
+                      Mark as read
+                    </Button>
                   )}
                   {selectedConversation.unresolved && (
                     <Chip

@@ -3,7 +3,18 @@ module Clinic
     module_function
 
     def participant(membership)
-      { id: membership.id, email: membership.user.email_address, active: membership.active? }
+      display_name = membership.clinician_profile&.display_name
+      unless display_name.present?
+        at = Current.business_time
+        employment = Clinic::Workforce::Employment
+          .where(practice_id: membership.practice_id, membership_id: membership.id, status: "active")
+          .where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at)
+          .includes(:staff_member).order(:id).first
+        display_name = employment&.staff_member&.display_name
+      end
+
+      { id: membership.id, email: membership.user.email_address,
+        display_name: display_name.presence, active: membership.active? }
     end
 
     def conversation(conversation, actor_membership_id: nil)

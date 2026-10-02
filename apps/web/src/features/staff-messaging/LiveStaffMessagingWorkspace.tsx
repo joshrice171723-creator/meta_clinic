@@ -21,10 +21,16 @@ import {
   type StaffConversation,
   type StaffMessage,
   type StaffMessagingState,
+  type StaffParticipant,
   type StaffRequestTransitionState,
 } from "./StaffMessagingWorkspace";
 
-type ApiParticipant = { id: number; email: string; active: boolean };
+type ApiParticipant = {
+  id: number;
+  email: string;
+  display_name: string | null;
+  active: boolean;
+};
 type ApiRequest = {
   id: number;
   state: string;
@@ -35,6 +41,7 @@ type ApiRequest = {
 };
 type ApiMessage = {
   id: number;
+  sender_membership_id: number;
   sender_email: string;
   body: string;
   message_class: StaffMessage["messageClass"];
@@ -103,6 +110,12 @@ function displayTime(value: string | null): string {
   return Number.isNaN(time.valueOf()) ? value : time.toLocaleString();
 }
 
+function participantLabel(participant: ApiParticipant): string {
+  return participant.display_name
+    ? `${participant.display_name} (${participant.email})`
+    : participant.email;
+}
+
 function mapConversation(
   conversation: ApiConversation,
   messages: ApiMessage[] = [],
@@ -117,33 +130,43 @@ function mapConversation(
     urgent: conversation.urgent,
     unresolved: conversation.unresolved,
     participants: conversation.participants.map(
-      (participant) => participant.email,
+      (participant): StaffParticipant => ({
+        id: participant.id,
+        email: participant.email,
+        displayName: participant.display_name,
+      }),
     ),
     lastMessageAt: displayTime(conversation.last_message_at),
     lastMessageClass: conversation.last_message_class || "routine",
-    messages: messages.map((message) => ({
-      id: message.id,
-      sender: message.sender_email,
-      senderEmail: message.sender_email,
-      body: message.body,
-      messageClass: message.message_class,
-      createdAt: displayTime(message.created_at),
-      acknowledgementRequired: message.acknowledgement_required,
-      acknowledged: message.acknowledged_at !== null,
-      request: message.request
-        ? {
-            ...message.request,
-            assignee_label: conversation.participants.find(
-              (participant) =>
-                participant.id === message.request?.assignee_membership_id,
-            )?.email,
-          }
-        : null,
-      reminderId:
-        message.linked_object?.type === "patient_reminder"
-          ? message.linked_object.id
-          : undefined,
-    })),
+    messages: messages.map((message) => {
+      const sender = conversation.participants.find(
+        (participant) => participant.id === message.sender_membership_id,
+      );
+      const assignee = conversation.participants.find(
+        (participant) =>
+          participant.id === message.request?.assignee_membership_id,
+      );
+      return {
+        id: message.id,
+        sender: sender?.display_name || message.sender_email,
+        senderEmail: message.sender_email,
+        body: message.body,
+        messageClass: message.message_class,
+        createdAt: displayTime(message.created_at),
+        acknowledgementRequired: message.acknowledgement_required,
+        acknowledged: message.acknowledged_at !== null,
+        request: message.request
+          ? {
+              ...message.request,
+              assignee_label: assignee?.display_name || assignee?.email,
+            }
+          : null,
+        reminderId:
+          message.linked_object?.type === "patient_reminder"
+            ? message.linked_object.id
+            : undefined,
+      };
+    }),
     messagePage: pagination?.page,
     messageTotalPages: pagination?.total_pages,
   };
@@ -299,31 +322,6 @@ export function LiveStaffMessagingWorkspace() {
               )
             : [conversation, ...current.conversations],
         }));
-        try {
-          await api<void>(
-            `/api/clinic/staff-messaging/conversations/${conversationId}/read`,
-            { method: "POST", body: {} },
-          );
-          if (
-            isCurrentScope(requestScope) &&
-            selectedConversationId.current === conversationId
-          ) {
-            setState((current) => ({
-              ...current,
-              conversations: current.conversations.map((item) =>
-                item.id === conversationId ? { ...item, unread: false } : item,
-              ),
-            }));
-          }
-        } catch (reason) {
-          if (
-            isCurrentScope(requestScope) &&
-            selectedConversationId.current === conversationId
-          )
-            setActionError(
-              errorMessage(reason, "Unable to mark this conversation as read."),
-            );
-        }
       } catch (reason) {
         if (
           !isCurrentScope(requestScope) ||
@@ -434,6 +432,30 @@ export function LiveStaffMessagingWorkspace() {
     }));
     void loadConversation(conversationId);
   };
+
+  const markRead = async (conversationId: number) =>
+    withMutationLock(`${scopeKey}:read:${conversationId}`, async () => {
+      const requestScope = scopeKey;
+      setActionError(null);
+      try {
+        await api<void>(
+          `/api/clinic/staff-messaging/conversations/${conversationId}/read`,
+          { method: "POST", body: {} },
+        );
+        if (isCurrentScope(requestScope))
+          setState((current) => ({
+            ...current,
+            conversations: current.conversations.map((item) =>
+              item.id === conversationId ? { ...item, unread: false } : item,
+            ),
+          }));
+      } catch (reason) {
+        if (isCurrentScope(requestScope))
+          setActionError(
+            errorMessage(reason, "Unable to mark this conversation as read."),
+          );
+      }
+    });
 
   const loadMoreConversations = async () => {
     const current = stateRef.current;
@@ -987,6 +1009,7 @@ export function LiveStaffMessagingWorkspace() {
         key={scopeKey}
         state={state}
         onSelectConversation={selectConversation}
+        onMarkRead={markRead}
         onSend={send}
         onAcknowledge={acknowledge}
         onTransitionRequest={transitionRequest}
@@ -1074,7 +1097,7 @@ export function LiveStaffMessagingWorkspace() {
                 <MenuItem value="">No backup — reconcile in-app only</MenuItem>
                 {recoveryParticipants.map((participant) => (
                   <MenuItem key={participant.id} value={String(participant.id)}>
-                    {participant.email}
+                    {participantLabel(participant)}
                   </MenuItem>
                 ))}
               </Select>
@@ -1171,7 +1194,7 @@ export function LiveStaffMessagingWorkspace() {
                       key={participant.id}
                       value={String(participant.id)}
                     >
-                      {participant.email}
+                      {participantLabel(participant)}
                     </MenuItem>
                   ))}
                 </Select>
