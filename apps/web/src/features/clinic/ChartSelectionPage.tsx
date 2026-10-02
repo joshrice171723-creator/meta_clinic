@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Button } from "@mui/material";
 import type {
   Encounter,
   Patient,
@@ -26,7 +27,7 @@ type SignedChart = NonNullable<PreviousSignedSoapResponse["chart"]>;
 const RECENT_ENCOUNTER_LIMIT = 10;
 
 export function recentEncounterPath(patientId: string | number) {
-  return `/api/clinic/patients/${encodeURIComponent(String(patientId))}/encounters?page=1&per_page=${RECENT_ENCOUNTER_LIMIT}`;
+  return `/api/clinic/patients/${encodeURIComponent(String(patientId))}/encounters?status=open&page=1&per_page=${RECENT_ENCOUNTER_LIMIT}`;
 }
 
 function dateLabel(value: string, timezone: string) {
@@ -47,11 +48,39 @@ function encounterHref(patientId: number, encounterId: number) {
   return `/clinic/patients/${patientId}/encounters/${encounterId}`;
 }
 
-async function loadRecentEncounters(patientId: string, signal: AbortSignal) {
+async function loadRecentEncounters(
+  patientId: string,
+  signal: AbortSignal,
+  encounterId?: string,
+) {
+  if (encounterId) {
+    const response = await api<{ encounter: Encounter }>(
+      `/api/clinic/encounters/${encodeURIComponent(encounterId)}?patient_id=${encodeURIComponent(patientId)}`,
+      { signal },
+    );
+    if (
+      response.encounter.patient_id !== Number(patientId) ||
+      response.encounter.id !== Number(encounterId)
+    )
+      throw new Error(
+        "The returned encounter does not match the selected patient and visit.",
+      );
+    return [response.encounter];
+  }
   const response = await api<{
     encounters: Encounter[];
     pagination: { total_pages: number };
   }>(recentEncounterPath(patientId), { signal });
+  if (
+    response.encounters.some(
+      (encounter) =>
+        encounter.patient_id !== Number(patientId) ||
+        !Number.isSafeInteger(encounter.id) ||
+        encounter.id <= 0 ||
+        encounter.status !== "open",
+    )
+  )
+    throw new Error("The returned open visits do not match this patient.");
   return response.encounters;
 }
 
@@ -98,13 +127,26 @@ export function ChartSelectionPage({
           ])
         : Promise.all([
             patientRequest,
-            loadRecentEncounters(patientId, abort.signal),
+            loadRecentEncounters(patientId, abort.signal, encounterId),
           ]);
     void request
       .then(([patientResponse, secondResponse]) => {
+        if (abort.signal.aborted) return;
+        if (patientResponse.patient.id !== Number(patientId))
+          throw new Error(
+            "The returned patient does not match the selected chart.",
+          );
         if (mode === "previous") {
-          const signedChart = (secondResponse as PreviousSignedSoapResponse)
-            .chart;
+          const previousResponse = secondResponse as PreviousSignedSoapResponse;
+          if (
+            previousResponse.patient_id !== Number(patientId) ||
+            previousResponse.excluded_encounter_id !==
+              (encounterId ? Number(encounterId) : null)
+          )
+            throw new Error(
+              "The signed chart search does not match this patient and encounter.",
+            );
+          const signedChart = previousResponse.chart;
           if (signedChart) {
             navigate(
               encounterHref(
@@ -158,6 +200,12 @@ export function ChartSelectionPage({
     return () => abort.abort();
   }, [encounterId, mode, navigate, patientId]);
 
+  if (
+    patientId &&
+    (state.status === "ready" || state.status === "previous") &&
+    state.value.patient.id !== Number(patientId)
+  )
+    return <LoadState />;
   if (state.status === "loading") return <LoadState />;
   if (state.status === "error") return <ErrorMessage message={state.message} />;
   if (state.status === "synthetic")
@@ -220,8 +268,9 @@ export function ChartSelectionPage({
           ` · Reference: ${patientReferenceLabel(patient.reference)}`}
       </p>
       <p className="care-muted">
-        Showing the {RECENT_ENCOUNTER_LIMIT} most recent encounter choices at
-        most. Older history is not listed here.
+        Showing up to {RECENT_ENCOUNTER_LIMIT} recent open visits. Resume entry
+        to confirm the patient and encounter. Completed history remains available
+        in the patient record.
       </p>
       {encounterId && !selectedEncounter && (
         <p role="alert">
@@ -239,7 +288,7 @@ export function ChartSelectionPage({
           </a>
         </p>
       ) : encounters.length === 0 ? (
-        <p role="status">No encounters are recorded for this patient.</p>
+        <p role="status">No open visits are recorded for this patient.</p>
       ) : (
         <ul className="care-record-list">
           {encounters.map((encounter) => (
@@ -249,7 +298,13 @@ export function ChartSelectionPage({
                 <span>{dateLabel(encounter.started_at, timezone)}</span>
               </div>
               <span className="care-status">{encounter.status}</span>
-              <a href={encounterHref(patient.id, encounter.id)}>Open →</a>
+              <Button
+                component="a"
+                href={encounterHref(patient.id, encounter.id)}
+                size="small"
+              >
+                {encounter.status === "open" ? "Resume entry" : "View encounter"}
+              </Button>
             </li>
           ))}
         </ul>

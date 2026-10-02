@@ -44,7 +44,7 @@ import {
   Pager,
   useResource,
 } from "../../shared/ui";
-import { PatientSupport } from "./CareFlow";
+import { clinicDateTime, PatientSupport } from "./CareFlow";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { PatientCareCoordination } from "./PatientCareCoordination";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
@@ -1388,7 +1388,8 @@ function PatientPortalInvitation({
 }
 
 function ActiveEncounterAction({ patientId }: { patientId: number }) {
-  const { data, error } = useResource<{
+  const timezone = useClinic().practice.timezone;
+  const { data, error, refresh } = useResource<{
     encounters: Encounter[];
   }>(`/api/clinic/patients/${patientId}/encounters?status=open&per_page=1`);
   if (!data && !error)
@@ -1400,10 +1401,27 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
   if (error)
     return (
       <Card title="Active visit">
-        <p>Unable to check for an open visit.</p>
+        <p>Unable to check for an open visit: {error}</p>
+        <Button onClick={refresh}>Retry open visit lookup</Button>
       </Card>
     );
   const encounter = data?.encounters[0];
+  if (
+    encounter &&
+    (encounter.patient_id !== patientId ||
+      !Number.isSafeInteger(encounter.id) ||
+      encounter.id <= 0 ||
+      encounter.status !== "open")
+  )
+    return (
+      <Card title="Active visit">
+        <Alert severity="error">
+          The returned visit does not match this patient or is no longer open.
+          Reload the visit list before continuing.
+        </Alert>
+        <Button onClick={refresh}>Reload visits</Button>
+      </Card>
+    );
   if (!encounter)
     return (
       <Card title="Active visit">
@@ -1413,14 +1431,16 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
   return (
     <Card title="Active visit">
       <p>
-        An open visit started {new Date(encounter.started_at).toLocaleString()}.
+        Open encounter #{encounter.id}, started{" "}
+        {clinicDateTime(encounter.started_at, timezone)}. Confirm the patient and
+        encounter when resuming.
       </p>
       <Button
         component="a"
         href={`/clinic/patients/${patientId}/encounters/${encounter.id}`}
         variant="contained"
       >
-        Open visit
+        Resume entry
       </Button>
     </Card>
   );

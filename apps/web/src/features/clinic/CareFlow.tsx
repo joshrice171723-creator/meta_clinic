@@ -70,7 +70,11 @@ import {
 } from "@mui/material";
 import { Card, ErrorMessage, LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
-import { CareIndicators, type CareSummaryLoadState } from "./CareIndicators";
+import {
+  CareIndicators,
+  careIndicatorGroups,
+  type CareSummaryLoadState,
+} from "./CareIndicators";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
 import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
@@ -5892,6 +5896,82 @@ export function ProviderEncounterWorkflow({
                   : null
               }
             />
+          )}
+
+          {!chartConfirmed && (
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Stack spacing={1}>
+                <Typography component="h2" variant="subtitle1">
+                  Read-only chart summary
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Recorded care details are available for review. Confirm the
+                  patient and encounter below before opening clinical
+                  documentation.
+                </Typography>
+                {careSummaryState.status === "ready" &&
+                careSummaryState.summary.patient_id === patient.id &&
+                careSummaryState.summary.encounter_id === encounter.id ? (
+                  <Stack spacing={1}>
+                    <Typography variant="body2">
+                      Allergies:{" "}
+                      {careSummaryState.summary.allergies.state.replaceAll(
+                        "_",
+                        " ",
+                      )}
+                      {" · "}Medications:{" "}
+                      {careSummaryState.summary.medications.state.replaceAll(
+                        "_",
+                        " ",
+                      )}
+                      {" · "}Care needs:{" "}
+                      {careSummaryState.summary.care_needs.state.replaceAll(
+                        "_",
+                        " ",
+                      )}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Recorded as of{" "}
+                      {clinicDateTime(careSummaryState.summary.as_of, timezone)}.
+                    </Typography>
+                    {careIndicatorGroups(careSummaryState, timezone).map(
+                      (group) => (
+                        <Box key={group.key}>
+                          <Typography variant="subtitle2">
+                            {group.label}
+                          </Typography>
+                          {group.details.map((detail, index) => (
+                            <Box key={index}>
+                              <Typography variant="body2">
+                                {detail.primary}
+                              </Typography>
+                              {detail.secondary && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {detail.secondary}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      ),
+                    )}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    role="status"
+                  >
+                    {careSummaryState.status === "loading"
+                      ? "Loading recorded care details."
+                      : "Recorded care details are unavailable for this patient and encounter. No clinical state is inferred."}
+                  </Typography>
+                )}
+              </Stack>
+            </Paper>
           )}
 
           <Paper id="chart-access" variant="outlined" sx={{ p: 2 }}>

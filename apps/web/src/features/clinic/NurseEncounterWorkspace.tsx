@@ -19,7 +19,6 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api, ApiError } from "../../api/client";
 import type {
@@ -1200,6 +1199,10 @@ export function NurseEncounterWorkspaceContent({
                 hidden={activeWorkspace !== "intake"}
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
+                <Typography variant="body2" color="text.secondary">
+                  Open any group to review its questions. Save and confirm groups
+                  in order; previewing a group does not complete it.
+                </Typography>
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;
                   const locked = intakeChunks
@@ -1208,15 +1211,14 @@ export function NurseEncounterWorkspaceContent({
                       (_item, preceding) =>
                         !confirmedChunkIndexes.includes(preceding),
                     );
-                  const expanded =
-                    index === activeChunkIndex && groupExpanded && !locked;
+                  const expanded = index === activeChunkIndex && groupExpanded;
                   return (
                     <Accordion
                       key={chunk.id}
                       disableGutters
                       elevation={0}
                       expanded={expanded}
-                      disabled={locked || busy}
+                      disabled={busy}
                       onChange={(_event, nextExpanded) => {
                         setActiveChunk(index);
                         setGroupExpanded(nextExpanded);
@@ -1236,13 +1238,7 @@ export function NurseEncounterWorkspaceContent({
                       }}
                     >
                       <AccordionSummary
-                        expandIcon={
-                          locked ? (
-                            <LockOutlinedIcon fontSize="small" />
-                          ) : (
-                            <ExpandMoreIcon />
-                          )
-                        }
+                        expandIcon={<ExpandMoreIcon />}
                         id={`intake-group-${chunk.id}`}
                         aria-controls={`intake-group-${chunk.id}-content`}
                       >
@@ -1261,7 +1257,7 @@ export function NurseEncounterWorkspaceContent({
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
                             {locked
-                              ? "Locked"
+                              ? "Preview only — save earlier groups first"
                               : confirmedChunkIndexes.includes(index)
                                 ? "Saved"
                                 : "To complete"}
@@ -1269,7 +1265,40 @@ export function NurseEncounterWorkspaceContent({
                         </Stack>
                       </AccordionSummary>
                       <AccordionDetails>
-                        {expanded && (
+                        {expanded && locked && (
+                          <Stack spacing={2.5}>
+                            <Typography
+                              color="text.secondary"
+                              ref={groupHeading}
+                              tabIndex={-1}
+                            >
+                              {chunk.description} Save earlier groups before
+                              entering and confirming this group.
+                            </Typography>
+                            <StaffIntakeSections
+                              sectionId={chunk.id}
+                              definitions={workspace.questionnaire_form.fields}
+                              fields={workspace.questionnaire_form.fields.filter(
+                                (field) =>
+                                  chunk.fields.some(
+                                    (item) => item.id === field.id,
+                                  ) &&
+                                  (![
+                                    "telehealth_location",
+                                    "telehealth_physical_location",
+                                  ].includes(field.id) ||
+                                    encounter.visit_modality === "video"),
+                              )}
+                              answerStates={
+                                workspace.questionnaire_form.answer_states
+                              }
+                              answers={form.questionnaire?.answers ?? {}}
+                              disabled
+                              onChange={() => {}}
+                            />
+                          </Stack>
+                        )}
+                        {expanded && !locked && (
                           <Stack spacing={2.5}>
                             <Typography
                               color="text.secondary"

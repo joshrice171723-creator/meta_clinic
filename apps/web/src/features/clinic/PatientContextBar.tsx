@@ -70,8 +70,10 @@ export function PatientContextBar({
     { enabled: patientId !== null && canReadIdentity },
   );
 
-  if (patientId === null || !canReadIdentity) return null;
-  const patient = identity.data?.patients.find((item) => item.id === patientId);
+  if (patientId === null) return null;
+  const patient = canReadIdentity
+    ? identity.data?.patients.find((item) => item.id === patientId)
+    : undefined;
   const reference = patientReferenceLabel(patient?.reference);
   const clearHref = clearPatientContextHref(path, search);
   const clearContext = () => {
@@ -96,7 +98,12 @@ export function PatientContextBar({
           >
             Current patient
           </Typography>
-          {!identity.data && !identity.error ? (
+          {!canReadIdentity ? (
+            <span role="status">
+              Patient identity is restricted for this account. The URL patient
+              context has not been verified.
+            </span>
+          ) : !identity.data && !identity.error ? (
             <span className="clinic-patient-context-loading" role="status">
               <CircularProgress aria-hidden="true" size={14} />
               Loading identity…
@@ -126,7 +133,11 @@ export function PatientContextBar({
               </Typography>
             </>
           ) : (
-            <span role="status">Patient identity unavailable</span>
+            <span role="status">
+              {identity.error
+                ? `Patient identity could not be loaded: ${identity.error}`
+                : "No accessible identity match was returned. Identity lookup may be restricted for this account. Confirm the patient in an authorized patient record before opening a chart."}
+            </span>
           )}
         </div>
       </div>
