@@ -27,11 +27,17 @@ import { ApiError, api } from "../../api/client";
 import type {
   Appointment,
   ClinicalTask,
+  ClinicalTaskMutationReceipt,
   Pagination,
 } from "../../api/contracts";
 import { isBeforeBusinessTime } from "../../shared/businessDate";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
+import {
+  canClaimPatientFlowTask,
+  confirmedPatientFlowClaim,
+  patientFlowScheduleHref,
+} from "./patientFlowActions";
 import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
 import { PrescriptionReconciliationWorklist } from "./PrescriptionReconciliationWorklist";
@@ -468,11 +474,15 @@ function TaskActions({
   actorMembershipId,
   availableTasks,
   onChanged,
+  claimOnly = false,
+  hideClaim = false,
 }: {
   task: ClinicalTaskItem;
   actorMembershipId: number;
   availableTasks: ClinicalTaskItem[];
   onChanged: (message?: string) => void;
+  claimOnly?: boolean;
+  hideClaim?: boolean;
 }) {
   const [assigneeId, setAssigneeId] = useState(
     task.assigned_to_membership_id?.toString() || "",
@@ -485,6 +495,7 @@ function TaskActions({
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const attempts = useRef(new Map<string, { key: string; version: number }>());
+  const inFlight = useRef(false);
 
   async function transition(
     action:
@@ -497,6 +508,8 @@ function TaskActions({
       | "complete",
     values: Record<string, unknown> = {},
   ) {
+    if (inFlight.current) return;
+    inFlight.current = true;
     const signature = JSON.stringify([action, values]);
     const attempt = attempts.current.get(signature) || {
       key: crypto.randomUUID(),
@@ -506,7 +519,10 @@ function TaskActions({
     setBusy(action);
     setError("");
     try {
-      const response = await api<{ task: ClinicalTaskItem }>(
+      const response = await api<{
+        task: ClinicalTaskItem;
+        task_receipt?: ClinicalTaskMutationReceipt;
+      }>(
         `/api/clinic/clinical_tasks/${task.id}`,
         {
           method: "PATCH",
@@ -524,6 +540,14 @@ function TaskActions({
         response.task?.id !== task.id ||
         !Number.isSafeInteger(response.task.version) ||
         response.task.version <= attempt.version ||
+        (action === "claim" &&
+          !confirmedPatientFlowClaim(
+            task,
+            response.task,
+            response.task_receipt,
+            attempt,
+            actorMembershipId,
+          )) ||
         (action === "complete" && response.task.state !== "completed")
       )
         throw new ApiError(
@@ -532,22 +556,46 @@ function TaskActions({
           "outcome_unconfirmed",
         );
       attempts.current.delete(signature);
-      onChanged(action === "complete" ? "Clinical task resolved." : undefined);
+      onChanged(
+        action === "complete"
+          ? "Clinical task resolved."
+          : action === "claim"
+            ? "Work claimed."
+            : undefined,
+      );
     } catch (reason) {
       const failure = mutationFailure(reason);
       if (!failure.outcomeUnknown) attempts.current.delete(signature);
       setError(failure.message);
     } finally {
+      inFlight.current = false;
       setBusy("");
     }
   }
 
-  const canClaim =
-    ["open", "claimed", "in_progress", "on_hold"].includes(task.state) &&
-    (!task.assigned_to_membership_id ||
-      task.owner_unavailable ||
-      (task.state === "open" &&
-        task.assigned_to_membership_id === actorMembershipId));
+  const canClaim = canClaimPatientFlowTask(task, actorMembershipId);
+  const claimControl = !hideClaim && canClaim && (
+    <Button
+      size="small"
+      variant={claimOnly ? "outlined" : "contained"}
+      disabled={Boolean(busy)}
+      sx={{ minHeight: 44, whiteSpace: "nowrap", alignSelf: "start" }}
+      onClick={() => transition("claim")}
+    >
+      {busy === "claim"
+        ? "Claiming…"
+        : task.owner_unavailable
+          ? "Claim coverage"
+          : "Claim work"}
+    </Button>
+  );
+  if (claimOnly)
+    return (
+      <Stack spacing={1} sx={{ mt: 1.5 }}>
+        {claimControl}
+        {error && <Alert severity="error">{error}</Alert>}
+      </Stack>
+    );
   const canResolve =
     task.assigned_to_membership_id === actorMembershipId &&
     ["claimed", "in_progress"].includes(task.state) &&
@@ -600,21 +648,7 @@ function TaskActions({
         useFlexGap
         sx={{ flexWrap: "wrap", alignItems: "stretch" }}
       >
-        {canClaim && (
-          <Button
-            size="small"
-            variant="contained"
-            disabled={Boolean(busy)}
-            sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
-            onClick={() => transition("claim")}
-          >
-            {busy === "claim"
-              ? "Claiming…"
-              : task.owner_unavailable
-                ? "Claim coverage"
-                : "Claim"}
-          </Button>
-        )}
+        {claimControl}
         <FormControl
           size="small"
           sx={{ minWidth: { xs: "100%", sm: 190 }, flex: "1 1 190px" }}
@@ -1239,10 +1273,12 @@ function InboxRow({
   item,
   work,
   onChanged,
+  hideTaskClaim = false,
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
+  hideTaskClaim?: boolean;
 }) {
   const Icon =
     item.icon === "lab"
@@ -1358,6 +1394,7 @@ function InboxRow({
             actorMembershipId={work.actor_membership_id}
             availableTasks={work.clinical_tasks}
             onChanged={onChanged}
+            hideClaim={hideTaskClaim}
           />
         )}
         {item.mutation?.kind === "follow_up" && work && (
@@ -1409,12 +1446,9 @@ function PatientFlowCard({
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
 }) {
-  const { capabilities } = useClinic();
-  const patientId = item.href.match(/\/clinic\/patients\/(\d+)/)?.[1];
-  const scheduleHref =
-    item.scheduleReady && patientId && capabilities.appointments_read === true
-      ? `/clinic/schedule?patient_id=${encodeURIComponent(patientId)}`
-      : null;
+  const context = useClinic();
+  const task = item.mutation?.kind === "task" ? item.mutation.task : undefined;
+  const scheduleHref = patientFlowScheduleHref(task, context);
   return (
     <Card variant="outlined" sx={{ minWidth: 0 }}>
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
@@ -1445,25 +1479,32 @@ function PatientFlowCard({
           <Typography variant="body2" color="text.secondary">
             Source: {item.sourceLabel.replaceAll("_", " ")}
           </Typography>
-          {!scheduleHref && (
-            <Button
-              href={item.href}
-              variant="contained"
-              sx={{ alignSelf: "start" }}
-            >
-              {item.action}
-            </Button>
-          )}
+          <Button
+            href={item.href}
+            variant={scheduleHref ? "outlined" : "contained"}
+            sx={{ alignSelf: "start", minHeight: 44 }}
+          >
+            {item.action}
+          </Button>
         </Stack>
         {scheduleHref && (
           <Button
             href={scheduleHref}
             variant="contained"
             fullWidth
-            sx={{ mt: 2 }}
+            sx={{ mt: 2, minHeight: 44 }}
           >
             Schedule first appointment
           </Button>
+        )}
+        {task && work && (
+          <TaskActions
+            task={task}
+            actorMembershipId={work.actor_membership_id}
+            availableTasks={work.clinical_tasks}
+            onChanged={onChanged}
+            claimOnly
+          />
         )}
         <Box
           component="details"
@@ -1483,7 +1524,12 @@ function PatientFlowCard({
               Chart reference: {patientReferenceLabel(item.patientReference)}
             </Typography>
           )}
-          <InboxRow item={item} work={work} onChanged={onChanged} />
+          <InboxRow
+            item={item}
+            work={work}
+            onChanged={onChanged}
+            hideTaskClaim
+          />
         </Box>
       </CardContent>
     </Card>
