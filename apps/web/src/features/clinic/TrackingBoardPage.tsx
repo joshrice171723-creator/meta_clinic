@@ -483,6 +483,17 @@ const initialColumns: ColumnKey[] = [
 ];
 const trackingBoardColumnsStorageKey = "apply.tracking-board.columns.v2";
 
+export function trackingBoardColumnSelection(
+  current: ColumnKey[],
+  column: ColumnKey,
+): ColumnKey[] {
+  if (current.includes(column))
+    return current.length === 1
+      ? current
+      : current.filter((item) => item !== column);
+  return [...current, column];
+}
+
 export function filterVisitsForClinician(
   visits: readonly BoardVisit[],
   clinicianId: string | null | undefined,
@@ -1476,15 +1487,7 @@ export function TrackingBoardView({
     });
   };
   const toggleColumn = (column: ColumnKey) => {
-    setColumns((current) => {
-      if (current.includes(column))
-        return current.length === 1
-          ? current
-          : current.filter((item) => item !== column);
-      return allColumns.filter(
-        (item) => current.includes(item) || item === column,
-      );
-    });
+    setColumns((current) => trackingBoardColumnSelection(current, column));
   };
   const resizeColumnFromPointer = (
     event: ReactPointerEvent<HTMLSpanElement>,
