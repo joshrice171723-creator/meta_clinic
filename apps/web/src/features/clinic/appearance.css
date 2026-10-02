@@ -103,6 +103,9 @@
 }
 .clinic-theme .clinic-content h1 {
   font-family: inherit;
+  font-size: var(--clinic-title-size);
+  font-weight: var(--clinic-heading-weight);
+  line-height: var(--clinic-title-line-height);
 }
 .clinic-theme .clinic-lead {
   font-size: 14px;
@@ -345,7 +348,7 @@
   min-height: 100vh;
   font-family: var(--clinic-font-ui);
   font-size: 16px;
-  line-height: 1.5;
+  line-height: var(--clinic-body-line-height);
   overflow-wrap: anywhere;
 }
 .clinic-theme ::selection {
@@ -376,7 +379,6 @@
 .clinic-theme .clinic-topbar {
   align-items: center;
   flex-wrap: wrap;
-  padding-block: 18px;
   font-size: 14px;
   letter-spacing: 0;
 }
@@ -387,10 +389,12 @@
 .clinic-theme .clinic-card p,
 .clinic-theme .clinic-lead {
   font-size: 16px;
-  line-height: 1.6;
+  line-height: var(--clinic-body-line-height);
 }
 .clinic-theme .clinic-card h2 {
   font-size: 20px;
+  font-weight: var(--clinic-heading-weight);
+  line-height: var(--clinic-section-line-height);
 }
 .clinic-theme .clinic-card {
   border-radius: var(--clinic-radius-container);

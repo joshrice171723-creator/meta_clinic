@@ -17,6 +17,33 @@ export type ClinicPalette = (typeof CLINIC_PALETTES)[number]["id"];
 export type ClinicMode = (typeof CLINIC_MODES)[number]["id"];
 export type ClinicAppearance = { palette: ClinicPalette; mode: ClinicMode };
 export type ColorScheme = "light" | "dark";
+
+// Shared typography keeps every palette readable without changing density.
+export const CLINIC_TYPOGRAPHY = {
+  h1: {
+    fontSize: "clamp(28px, 3vw, 35px)",
+    fontWeight: 650,
+    lineHeight: 1.15,
+  },
+  h2: {
+    fontSize: "clamp(20px, 2vw, 24px)",
+    fontWeight: 650,
+    lineHeight: 1.25,
+  },
+  body1: { fontSize: "1rem", lineHeight: 1.5 },
+  body2: { fontSize: "0.875rem", lineHeight: 1.45 },
+  button: { fontSize: "1rem", lineHeight: 1.5 },
+  caption: { fontSize: "0.875rem", lineHeight: 1.45 },
+} as const;
+
+export const CLINIC_TYPOGRAPHY_STYLE = {
+  "--clinic-title-size": CLINIC_TYPOGRAPHY.h1.fontSize,
+  "--clinic-title-line-height": CLINIC_TYPOGRAPHY.h1.lineHeight,
+  "--clinic-heading-weight": CLINIC_TYPOGRAPHY.h1.fontWeight,
+  "--clinic-section-line-height": CLINIC_TYPOGRAPHY.h2.lineHeight,
+  "--clinic-body-line-height": CLINIC_TYPOGRAPHY.body1.lineHeight,
+} as const;
+
 export const DEFAULT_APPEARANCE: ClinicAppearance = {
   palette: "cobalt",
   mode: "light",

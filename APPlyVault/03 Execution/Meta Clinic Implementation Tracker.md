@@ -33,8 +33,8 @@ Baseline: `e5d065fe550350c934274391da46abfdb7325250`, web 0.2.4, Relay-reported 
 
 | Phase | Outcome / dependency | Persistent ownership | Benchmark / canonical matrix | Current status and next proof |
 | --- | --- | --- | --- | --- |
-| MZ-00 | Demo readiness; complete-plan approval received | A diagnosis / B fixtures / C review | BM-09; CV-03/05, CF-03 | IN PROGRESS: MZ-00a/b source maps independently accepted as source-only evidence. Existing setup session 14777 exit 0; isolated runtime status and one 1440x900 clinic browser walkthrough PASS. Exact fixture/process/source proof in brief checkpoint. C MZ-00c G0 pending; portal/provider/domain scenarios unverified. |
-| MZ-01 | Shared foundation contract; requires MZ-00; product decisions | A exclusive edits; B mapping; C contract review | BM-02; CV-01/03/06/07, CF-03 | PLANNED / NOT STARTED; approve complete plan, then dispatch the fixed packet allowlist with current base SHA and matching authority |
+| MZ-00 | Demo readiness; complete-plan approval received | A diagnosis / B fixtures / C review | BM-09; CV-03/05, CF-03 | ACCEPTED for shared clinic/session/shell: MZ-00a/b source maps reviewed; C accepted MZ-00c after exact JSON SHA256 and independently fetched e5 SessionGuard LF SHA matched actual served source. Existing setup/status and one 1440x900 local browser PASS. Portal/provider/domain/draft scenarios remain unverified and gate only their dependent acceptance. |
+| MZ-01 | Shared foundation contract; bounded MZ-00 readiness accepted | A exclusive foundation packet workers; C contract review | BM-02; CV-01/03/06/07, CF-03 | IN PROGRESS: MZ-01a released to foundation_theme at 715ead36; frame/context remain read-only until their true accepted predecessors. No foundation packet accepted yet. |
 | MZ-02 | Board reference; requires MZ-01 | B board / A integration / C review | BM-01; CV-03/04, OP-04/05 | PLANNED / NOT STARTED; approve complete plan, then dispatch the fixed packet allowlist with current base SHA and matching authority |
 | MZ-03 | Patient/schedule/clinical; requires MZ-02 | B exclusive CareFlow owner / A integration / C independent review | BM-03/04/10; SC-01/02/03, CV-01..04/09 | PLANNED / NOT STARTED; approve complete plan, then dispatch the fixed packet allowlist with current base SHA and matching authority |
 | MZ-04 | Queues and follow-up; requires MZ-02 | B one queue / A integration / C review | BM-05; OP-02/03/04/12 | PLANNED / NOT STARTED; approve complete plan, then dispatch the fixed packet allowlist with current base SHA and matching authority |
@@ -59,13 +59,37 @@ A = shared-file/foundation/integration owner; original domain B responsibility i
 
 **Open product/authority gates:** compact identity and clear-context semantics, density/default disclosure, slot/draft precedence and calendar geometry, demo/portal fixture access, any commercial claims. Palette consolidation, new week view, new statements, changed locks/roles, merged service models and new business rules require additional decisions. No audit bypass, financial arithmetic rewrite or unsafe cancellation is in scope. No application work, fixtures, benchmark, test, commit, push or deployment is authorized by document creation.
 
-**Next action:** C reviews the completed MZ-00a/b source maps and local runtime/fixture proof for MZ-00c. A begins MZ-01a only after per-scenario readiness acceptance. The linked brief records exact source, evidence hashes, successful setup/status and verified sparse-source transfer route. No production edit or comparative benchmark yet. Review after each cohesive integrated slice; reuse valid evidence and rerun only failed/invalidated authorized checks. MZ-12 requires separate release authority, current runbook/recovery owner and rollback triggers. Resume from this entry and the brief after handoff/reset, checking source and decision drift first.
+**Next action:** foundation_theme implements MZ-01a under the released exact allowlist; A freezes and verifies candidate, C independently reviews, then MZ-01b and MZ-01c proceed in dependency order. The linked brief records exact source, evidence hashes, successful setup/status and verified sparse-source transfer route. No production edit or comparative benchmark yet. Review after each cohesive integrated slice; reuse valid evidence and rerun only failed/invalidated authorized checks. MZ-12 requires separate release authority, current runbook/recovery owner and rollback triggers. Resume from this entry and the brief after handoff/reset, checking source and decision drift first.
 
 
+
+### Current packet checkpoint
+
+| Packet | Actual state / evidence | Next proof |
+| --- | --- | --- |
+| MZ-00a | Source map accepted independently; auth/session handlers unchanged at e5d065fe | Retain source evidence; no auth patch |
+| MZ-00b | Source map accepted; cloud evidence SHA256 f01dcc4ca29b8449ab0dd183d4ee99bf6a621528deeb1aabb6242b7ffa1ca4a9 | Retain lesson/shared-reset boundaries |
+| MZ-00c | C ACCEPTED bounded shared clinic/session/shell. Exact readiness JSON SHA256 AFF4DA624313DDB91929E1B6A34E51F7CF1D236B60A96A62ED3B546F2751EA41 and independent e5 SessionGuard Git blob/LF source hash verified by C | Portal, provider/media, domain fixtures, draft mutations and paired benchmarks remain unverified |
+| MZ-01a | Implemented/frozen from 715ead36: exactly Appearance.tsx, appearancePreferences.ts, appearance.css (+43/-8). Typecheck PASS; named S pool 70/72 PASS with two failures reproduced on predecessor; formatting repaired/PASS; main+Office bundles PASS. No source handler/provider change. | Rendered desktop/tablet evidence and C independent G pending; not accepted. Rollback only this packet presentation diff |
+
+### Accepted-count and approach reviews
+
+Current accepted count: **3/74** (C accepted MZ-00a/b source maps and bounded MZ-00c readiness). Preparation, session exits, source implementation and attempted checks do not increment this count. Joshua requires all 74 packets and an approach review after each ten accepted packets, plus final 74. Reviews examine observed bottlenecks/timings, repeated work, packet size, worker use, check/evidence reuse and reconciliation; record an evidence-backed change for the next ten without broadening scope or weakening gates.
+
+| Accepted checkpoint | State |
+| --- | --- |
+| 10 / next 10 | PENDING |
+| 20 / next 10 | PENDING |
+| 30 / next 10 | PENDING |
+| 40 / next 10 | PENDING |
+| 50 / next 10 | PENDING |
+| 60 / next 10 | PENDING |
+| 70 / final 4 | PENDING |
+| 74 / final reconciliation | PENDING |
 
 ### Upfront assignment register
 
-This is a proposed planning-document insertion, not a new canonical tracker. Insert the register under the existing Clinic workspace modernization entry. **MZ-00a/b source maps reviewed/accepted as source evidence; MZ-00c runtime gate pending C. All foundation/domain packets are not started.** No application code, tests, fixtures, runtime, Git operation or release has been authorized or executed by preparing it.
+This is a proposed planning-document insertion, not a new canonical tracker. Insert the register under the existing Clinic workspace modernization entry. **MZ-00a/b source maps accepted; MZ-00c shared readiness accepted with scenario limits. MZ-01a in progress; remaining foundation/domain packets not started.** No application code, tests, fixtures, runtime, Git operation or release has been authorized or executed by preparing it.
 
 The full assignment sequence is specified now. A = shared-foundation/integration owner; B = domain owner and exclusive editor of CareFlow.tsx, Billing.tsx and InventoryApp.tsx; C = independent reviewer/verification owner. Keep these same three responsibilities throughout. Parent/coordinator owns product decisions, authority and communication, and remains sole Git writer unless exact delegation is granted. A coordinates release preparation; this does not give A Git/deployment authority. Future environment/model selection follows the repository policy and approved environment, without creating a fresh agent for each packet.
 

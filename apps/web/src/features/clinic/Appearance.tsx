@@ -19,6 +19,8 @@ import {
   CLINIC_MODES,
   CLINIC_PALETTES,
   CLINIC_THEMES,
+  CLINIC_TYPOGRAPHY,
+  CLINIC_TYPOGRAPHY_STYLE,
   DEFAULT_APPEARANCE,
   clinicThemeStyle,
   normalizeAppearance,
@@ -139,10 +141,7 @@ export function ClinicAppearanceScope({
             preferences.palette === "astra"
               ? '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif'
               : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          h1: { fontSize: "clamp(28px, 3vw, 35px)", fontWeight: 700 },
-          h2: { fontSize: "clamp(20px, 2vw, 24px)", fontWeight: 650 },
-          body1: { fontSize: "1rem", lineHeight: 1.5 },
-          body2: { fontSize: "0.875rem", lineHeight: 1.45 },
+          ...CLINIC_TYPOGRAPHY,
         },
         components: {
           MuiButton: {
@@ -150,6 +149,8 @@ export function ClinicAppearanceScope({
             styleOverrides: {
               root: {
                 minHeight: 44,
+                fontSize: CLINIC_TYPOGRAPHY.button.fontSize,
+                lineHeight: CLINIC_TYPOGRAPHY.button.lineHeight,
                 textTransform: "none",
                 fontWeight: 650,
                 ...(preferences.palette === "astra"
@@ -218,7 +219,10 @@ export function ClinicAppearanceScope({
         data-clinic-palette={preferences.palette}
         data-clinic-mode={preferences.mode}
         data-color-scheme={scheme}
-        style={clinicThemeStyle(preferences.palette, scheme)}
+        style={{
+          ...clinicThemeStyle(preferences.palette, scheme),
+          ...CLINIC_TYPOGRAPHY_STYLE,
+        }}
       >
         {children}
       </div>
