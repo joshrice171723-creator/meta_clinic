@@ -79,7 +79,9 @@ class WorkforcePostgresAcceptance
     code = "workforce-pg-#{SecureRandom.hex(6)}"
     roles = (1..3).map { |version| RoleVersion.create!(role_code: code, version: version) }
     clients = @actors.map { |actor| session(actor) }
-    competing_changes(clients, roles)
+    selection = ENV.fetch("APPLY_WORKFORCE_VERIFY_CASES", "all")
+    check(%w[all scope_and_408].include?(selection), "Unknown Workforce verification selection")
+    competing_changes(clients, roles) if selection == "all"
     stale_scope(clients.first, roles)
     unknown_response(clients.first, roles)
   end
@@ -160,9 +162,12 @@ class WorkforcePostgresAcceptance
     employment = employee("site-scoped", location)
     revision = reviewed(client, employment)
     before = snapshot(employment)
-    # This synthetic competing writer uses the real service and transaction.
-    Clinic::Workforce::LinkEmployment.update!(employment: employment, actor: @actors.last,
-      site_ids: [ @main.id, @north.id ], role_version: location, expected_access_revision: revision)
+    # Use a second real authenticated request so the supported service runs
+    # inside its normal Rails request/executor and Current context.
+    writer, writer_headers = session(@actors.last)
+    writer_status, = patch(writer, writer_headers, employment, revision, location,
+      site_ids: [ @main.id, @north.id ])
+    check(writer_status == 200, "Authorized competing site writer must commit")
     changed = snapshot(employment)
     check(changed != before, "Scope fixture did not change")
     status, body = patch(client, headers, employment, revision, roles.last,
@@ -224,6 +229,19 @@ rescue WorkforcePostgresAcceptance::Failed => error
   exit 1
 rescue StandardError => error
   # No raw database diagnostics, request bodies, cookies or passwords.
-  warn "FAIL: unexpected #{error.class.name} during Workforce PostgreSQL acceptance"
+  frame = error.backtrace_locations&.first
+  location = frame ? "#{File.basename(frame.path)}:#{frame.lineno}" : "unavailable"
+  warn "FAIL: unexpected #{error.class.name} at #{location} during Workforce PostgreSQL acceptance"
+  root = Rails.root.to_s.tr("\\", "/").sub(%r{/\z}, "")
+  frames = (error.backtrace_locations || []).filter_map do |entry|
+    path = (entry.absolute_path || entry.path).tr("\\", "/")
+    next unless path.start_with?("#{root}/")
+
+    relative = path.delete_prefix("#{root}/")
+    next unless relative.match?(%r{\A(?:app|test|config|lib)/[A-Za-z0-9_./-]+\.rb\z})
+
+    "#{relative}:#{entry.lineno.to_i}"
+  end
+  frames.first(6).each { |entry| warn "FAIL: code location #{entry}" }
   exit 1
 end

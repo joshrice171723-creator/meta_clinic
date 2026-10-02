@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix="apply-workforce-verify-") as temporary:
         run(["createdb", name], timeout=30)
         created = True
         run(["bin/rails", "db:migrate"])
-        run(["bin/rails", "runner", "test/verification/workforce_access_postgres.rb"], timeout=90)
+        run(["bin/rails", "runner", "--skip-executor", "test/verification/workforce_access_postgres.rb"], timeout=90)
     finally:
         if created:
             run(["dropdb", name], timeout=30)
