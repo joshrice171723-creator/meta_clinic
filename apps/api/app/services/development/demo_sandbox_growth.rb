@@ -46,16 +46,27 @@ module Development
 
         3.times do |index|
           name = [ "Sofia Lane", "Caleb Nguyen", "Zara Bennett" ].fetch(index)
-          prospect = Clinic::MembershipGrowth::PrepareAccount.call(
+          key = "sandbox-signup-#{practice.id}-#{index + 1}"
+          preserved = run.baseline.to_h.dig("sandbox_preserved_accounts", "signups")
+          user = User.find(preserved.fetch(practice.id.to_s).fetch(key)) if preserved
+          raise "Existing pending sandbox signup required" if user && (user.active? || user.admin? ||
+            !user.email_address.start_with?("sandbox-signup-#{practice.id}-"))
+          input = {
             practice:, version_id: versions.fetch(index % versions.length).id,
             selections: [], display_name: name,
-            email_address: "sandbox-signup-#{practice.id}-#{run.id}-#{index + 1}@example.test",
+            email_address: user ? user.email_address : "sandbox-signup-#{practice.id}-#{run.id}-#{index + 1}@example.test",
             phone_number: "512-555-#{3000 + index}", source: "membership signup",
             outreach_consent: true,
-            request_key: "sandbox-signup-#{practice.id}-#{index + 1}",
-            date_of_birth: Date.new(1984 + index * 7, 4, 12).iso8601,
-            deliver: false
-          ).prospect
+            request_key: key
+          }
+          birth_date = Date.new(1984 + index * 7, 4, 12).iso8601
+          prospect = if user
+            captured = Clinic::MembershipGrowth::CaptureProspect.call(**input, intent_type: "purchase").prospect
+            captured.update!(account_user: user, date_of_birth: birth_date, follow_up_state: "open")
+            captured
+          else
+            Clinic::MembershipGrowth::PrepareAccount.call(**input, date_of_birth: birth_date, deliver: false).prospect
+          end
           prospect.update!(follow_up_due_at: Current.business_time - index.hours)
         end
       end

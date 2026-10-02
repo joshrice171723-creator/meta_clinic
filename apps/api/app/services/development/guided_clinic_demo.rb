@@ -93,27 +93,35 @@ module Development
           Clinic::Care::SubscriptionProjection.catalog(practice: run.practice).any? { |offer| offer.fetch(:id) == version_id }
 
       suffix = SecureRandom.hex(8)
-      setup = Clinic::MembershipGrowth::PrepareAccount.call(
+      preserved = run.baseline.to_h.dig("sandbox_preserved_accounts", "enrollment")
+      if preserved
+        raise "Existing sandbox enrollment account required" unless GuidedDemoAccess.enabled? &&
+          DemoLessonCatalog.sandbox?(run.lesson_key) && run.patient_user&.active? && !run.patient_user.admin? &&
+          run.patient_user_id == preserved.fetch("user_id")
+      end
+      input = {
         practice: run.practice,
         version_id:,
         selections:,
         display_name: "Alex Morgan",
-        email_address: "guided-clinic-patient-#{suffix}@example.test",
+        email_address: preserved ? run.patient_user.email_address : "guided-clinic-patient-#{suffix}@example.test",
         phone_number: nil,
         source: "guided_clinic_demo",
         outreach_consent: true,
-        request_key: "guided-demo-#{run.id}-#{suffix}",
-        date_of_birth: "1990-01-01",
-        deliver: false
-      )
-      password = SecureRandom.urlsafe_base64(32)
-      activated = Clinic::MembershipGrowth::ActivateAccount.call(
-        token: setup.token,
-        password:,
-        password_confirmation: password,
-        accepted_terms: true,
-        terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION
-      )
+        request_key: "guided-demo-#{run.id}-#{suffix}"
+      }
+      activated = if preserved
+        prospect = Clinic::MembershipGrowth::CaptureProspect.call(**input, intent_type: "purchase").prospect
+        prospect.update!(account_user: run.patient_user, date_of_birth: preserved.fetch("date_of_birth"),
+          account_activated_at: preserved.fetch("activated_at"),
+          accepted_terms_version: preserved.fetch("terms_version"), accepted_terms_at: preserved.fetch("terms_at"))
+        Clinic::MembershipGrowth::ActivateAccount::Result.new(prospect:, user: run.patient_user)
+      else
+        setup = Clinic::MembershipGrowth::PrepareAccount.call(**input, date_of_birth: "1990-01-01", deliver: false)
+        password = SecureRandom.urlsafe_base64(32)
+        Clinic::MembershipGrowth::ActivateAccount.call(token: setup.token, password:, password_confirmation: password,
+          accepted_terms: true, terms_version: Clinic::PatientPortal::Identity::TERMS_VERSION)
+      end
       gateway = MembershipPaymentSimulator.gateway_for!(practice: run.practice, prospect: activated.prospect)
       Clinic::MembershipGrowth::PublicCheckout.start_for_account(
         practice: run.practice, prospect: activated.prospect, user: activated.user, gateway:

@@ -25,11 +25,14 @@ module Development
       DemoSandboxMembershipHistory
     ].freeze
 
-    def self.enter!(lesson_key, visitor:, previous_run: nil, restart: false)
+    def self.enter!(lesson_key, visitor:, previous_run: nil, restart: false, preserve_credentials: false)
       raise ActiveRecord::RecordNotFound unless GuidedDemoAccess.enabled?
       definition = DemoLessonCatalog.definition!(lesson_key)
       template_key = definition.fetch(:template_key, TEMPLATE_KEY)
       sandbox = lesson_key == DemoLessonCatalog::SANDBOX_KEY
+      raise ArgumentError, "Credential preservation requires a prepared sandbox restart." if preserve_credentials &&
+        !(sandbox && restart && previous_run&.active? && previous_run.lesson_key == lesson_key &&
+          SandboxAccounts.prepared?(previous_run))
       raise ActiveRecord::RecordNotFound if visitor.nil? && lesson_key != "navigation_tour"
       raise ActiveRecord::RecordNotFound if previous_run &&
         !DemoLessonCatalog.sandbox?(previous_run.lesson_key) && previous_run.visitor_id != visitor&.id
@@ -77,6 +80,7 @@ module Development
         old_runs = DemoRun.where(lesson_key:)
         old_runs = old_runs.where(practice_id: lesson.practice_id) if sandbox
         old_runs = old_runs.lock.to_a
+        preserved_accounts = preserved_accounts_for!(previous_run) if preserve_credentials
         patient_users = old_runs.filter_map(&:patient_user).uniq(&:id)
         old_runs.each do |run|
           [ run.operator_user, run.patient_user ].compact.each { |user| user.member_sessions.destroy_all }
@@ -86,14 +90,16 @@ module Development
         lesson.operator_user.member_sessions.destroy_all
 
         DemoClinicReset.call!(lesson)
-        patient_users.each { |user| user.destroy! if user.reload.member_sessions.empty? }
+        patient_users.each { |user| user.destroy! if user.reload.member_sessions.empty? } unless preserve_credentials
         GuidedClinicDemo.prepare_clinic!(
           practice: lesson.practice, operator: lesson.operator_user, template_key:,
           suffix: "lesson-#{lesson.lesson_key}"
         )
         DemoSandboxOrganization.prepare!(lesson) if sandbox
         run = DemoRun.create!(template_key:, lesson_key:, practice: lesson.practice,
-          operator_user: lesson.operator_user, visitor:)
+          operator_user: lesson.operator_user, visitor:,
+          patient_user_id: preserved_accounts&.dig("enrollment", "user_id"),
+          baseline: preserved_accounts ? { "sandbox_preserved_accounts" => preserved_accounts } : {})
         DemoLessonCatalog.prepare!(run)
         if sandbox
           run.update!(baseline: run.baseline.to_h.merge("sandbox_preparation_step" => 0))
@@ -103,6 +109,31 @@ module Development
         run
       end
     end
+
+    def self.preserved_accounts_for!(previous_run)
+      prospect = previous_run.membership_prospect
+      user = previous_run.patient_user
+      raise "Prepared sandbox enrollment missing" unless prospect && user&.active? && !user.admin? &&
+        prospect.account_user_id == user.id && prospect.account_activated_at &&
+        prospect.accepted_terms_version.present? && prospect.accepted_terms_at && prospect.date_of_birth
+      signups = previous_run.practice.organization.practice_ids.to_h do |practice_id|
+        users = 3.times.to_h do |index|
+          key = "sandbox-signup-#{practice_id}-#{index + 1}"
+          signup = Clinic::MembershipProspect.find_by!(practice_id:, request_key: key)
+          account = signup.account_user
+          raise "Prepared sandbox signup account missing" unless account && !account.active? && !account.admin? &&
+            account.email_address == signup.email_address && signup.account_activated_at.nil?
+          [ key, account.id ]
+        end
+        [ practice_id.to_s, users ]
+      end
+      # Only existing IDs and accepted synthetic enrollment facts; no passwords or tokens.
+      { "enrollment" => { "user_id" => user.id, "date_of_birth" => prospect.date_of_birth.iso8601,
+          "activated_at" => prospect.account_activated_at.iso8601(6),
+          "terms_version" => prospect.accepted_terms_version, "terms_at" => prospect.accepted_terms_at.iso8601(6) },
+        "signups" => signups }
+    end
+    private_class_method :preserved_accounts_for!
 
     def self.prepare_sandbox_step!(run, visitor:)
       raise ArgumentError, "Open the full sandbox before continuing preparation." unless

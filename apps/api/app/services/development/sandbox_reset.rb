@@ -21,7 +21,8 @@ module Development
         authorization = authorization_snapshot(practice_ids)
         users = User.order(:id).pluck(:id, :password_digest)
         previous = DemoRun.active.find_by!(lesson_key: DemoLessonCatalog::SANDBOX_KEY)
-        run = SharedDemoLesson.enter!(previous.lesson_key, visitor: previous.visitor, previous_run: previous, restart: true)
+        run = SharedDemoLesson.enter!(previous.lesson_key, visitor: previous.visitor, previous_run: previous,
+          restart: true, preserve_credentials: true)
         SharedDemoLesson::SANDBOX_PREPARERS.length.times do
           SharedDemoLesson.prepare_sandbox_step!(run, visitor: run.visitor)
         end
