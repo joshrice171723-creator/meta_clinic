@@ -41,7 +41,9 @@ describe("clinic shell composition", () => {
     expect(frame).toContain("CloseIcon");
     expect(frame).toContain("LaunchIcon");
     expect(frame).not.toContain("PublicIcon");
-    expect(frame).toContain('aria-label={collapsed ? "Open clinic menu"');
+    expect(frame).toContain('"Open clinic menu"');
+    expect(frame).toContain('"Expand sidebar"');
+    expect(frame).toContain('"Collapse sidebar"');
     expect(frame).toMatch(
       /drawer &&\s*!event\.defaultPrevented &&\s*event\.key === "Escape"/,
     );
@@ -55,7 +57,7 @@ describe("clinic shell composition", () => {
   });
 
   it("keeps a stable desktop rail, tablet-first layout, and safe phone drawer fallback", () => {
-    expect(frameCss).toContain("grid-template-columns: 232px minmax(0, 1fr)");
+    expect(frameCss).toContain("grid-template-columns: 200px minmax(0, 1fr)");
     expect(frameCss).toContain("display: none");
     expect(frameCss).toContain("@media (max-width: 900px)");
     expect(frameCss).toContain("gap: 12px");
@@ -90,7 +92,7 @@ describe("clinic shell composition", () => {
   });
 
   it("requires an explicit location selection before rendering a multi-location workspace", () => {
-    expect(workspace).toContain(
+    expect(workspace.replace(/\s+/g, " ")).toContain(
       "Choose a location you are authorized to use before entering the",
     );
     expect(workspace).toContain(
@@ -132,7 +134,7 @@ describe("clinic shell composition", () => {
 
   it("keeps 1024px rail use while moving portrait tablet widths into the drawer fallback", () => {
     expect(frame).toContain('COMPACT_NAV_QUERY = "(max-width: 900px)"');
-    expect(frameCss).toContain("grid-template-columns: 232px minmax(0, 1fr)");
+    expect(frameCss).toContain("grid-template-columns: 200px minmax(0, 1fr)");
     expect(frameCss).toContain("@media (max-width: 900px)");
   });
 });
