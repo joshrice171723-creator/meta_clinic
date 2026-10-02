@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useRef, useState } from "react";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import { api, ApiError } from "../../api/client";
 import type { TelehealthSummary } from "../../api/contracts";
 
@@ -71,6 +72,10 @@ export function PatientAppointmentConfirmation({
   const [error, setError] = useState("");
   const [reloadNeeded, setReloadNeeded] = useState(false);
   const attempt = useRef<Attempt | null>(null);
+  useDemoNavigationBlocker(() => ({
+    blocked: Boolean(busy || outcomeUnknown || attempt.current),
+    message: null,
+  }));
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const confirm = async () => {

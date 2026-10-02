@@ -12,6 +12,7 @@ import {
 import type { PatientBillingSupportRequest } from "../../api/contracts";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import {
   BillingSupportSubmission,
   type BillingSupportAcknowledgement,
@@ -47,6 +48,18 @@ export function PatientBillingSupport() {
     );
     return response.request;
   });
+
+  useDemoNavigationBlocker(() => ({
+    blocked: Boolean(
+      busy ||
+      outcomeUnconfirmed ||
+      submission.current?.busy ||
+      submission.current?.outcomeUnconfirmed,
+    ),
+    message: content.trim()
+      ? "Discard your unsaved billing support question?"
+      : null,
+  }));
 
   const submit = async () => {
     const value = content.trim();
