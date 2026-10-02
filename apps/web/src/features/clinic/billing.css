@@ -1186,6 +1186,21 @@
 .clinic-theme .billing-dashboard .billing-ledger-toolbar {
   gap: 12px;
   margin-top: 16px;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.clinic-theme .billing-dashboard .billing-ledger-toolbar .MuiInputBase-root,
+.clinic-theme .billing-dashboard .billing-ledger-toolbar .MuiButton-root {
+  height: 44px;
+  min-height: 44px;
+}
+.clinic-theme .billing-dashboard .billing-search-form .MuiFormControl-root {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.clinic-theme .billing-dashboard .billing-ledger-toolbar .MuiButton-root {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .clinic-theme .billing-dashboard .billing-overview {
   border-radius: 8px;

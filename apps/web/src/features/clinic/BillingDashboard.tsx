@@ -372,6 +372,10 @@ export function BillingDashboard() {
   const [checkingCheckoutReturn, setCheckingCheckoutReturn] = useState(false);
   const [checkoutReturnRetry, setCheckoutReturnRetry] = useState(0);
   const billingPageRef = useRef<HTMLDivElement>(null);
+  const [invoiceDialogInsets, setInvoiceDialogInsets] = useState<{
+    top: number;
+    bottom: number;
+  } | null>(null);
   const checkoutReturnHandled = useRef(false);
   const postAttemptRef = useRef<{
     invoiceId: number;
@@ -437,6 +441,56 @@ export function BillingDashboard() {
     checkoutReturnHandled.current = false;
     setCheckoutReturnRetry((value) => value + 1);
   };
+
+  useEffect(() => {
+    setInvoiceDialogInsets(null);
+    if (!invoiceOpen || !selectedInvoice) return;
+    const view = billingPageRef.current?.ownerDocument.defaultView;
+    let embedding: { frame: HTMLElement; host: Window } | null = null;
+    try {
+      const frame = view?.frameElement as HTMLElement | null;
+      const host = frame?.ownerDocument.defaultView;
+      if (frame && host) embedding = { frame, host };
+    } catch {
+      return;
+    }
+    if (!view || !embedding) return;
+    const { frame, host } = embedding;
+    const updateInsets = () => {
+      const bounds = frame.getBoundingClientRect();
+      const scale = bounds.height / frame.offsetHeight;
+      if (!Number.isFinite(scale) || scale <= 0 || view.innerHeight <= 0) {
+        setInvoiceDialogInsets(null);
+        return;
+      }
+      const contentTop = bounds.top + frame.clientTop * scale;
+      const visibleTop = Math.max(0, contentTop);
+      const visibleBottom = Math.min(
+        host.innerHeight,
+        contentTop + view.innerHeight * scale,
+      );
+      if (visibleBottom <= visibleTop) {
+        setInvoiceDialogInsets(null);
+        return;
+      }
+      const top = (visibleTop - contentTop) / scale;
+      const bottom = view.innerHeight - (visibleBottom - contentTop) / scale;
+      setInvoiceDialogInsets((current) =>
+        current?.top === top && current.bottom === bottom
+          ? current
+          : { top, bottom },
+      );
+    };
+    updateInsets();
+    host.addEventListener("scroll", updateInsets, true);
+    host.addEventListener("resize", updateInsets);
+    view.addEventListener("resize", updateInsets);
+    return () => {
+      host.removeEventListener("scroll", updateInsets, true);
+      host.removeEventListener("resize", updateInsets);
+      view.removeEventListener("resize", updateInsets);
+    };
+  }, [invoiceOpen, selectedInvoice?.id]);
 
   if (context.capabilities.billing_read !== true)
     return (
@@ -1029,6 +1083,7 @@ export function BillingDashboard() {
           billingPageRef.current?.ownerDocument.body ??
           null
         }
+        sx={invoiceDialogInsets ?? undefined}
         open={invoiceOpen && Boolean(selectedInvoice)}
         onClose={() => {
           if (!busyAction) setInvoiceOpen(false);
