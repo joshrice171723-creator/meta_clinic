@@ -382,8 +382,8 @@ describe("board and Operations presentation boundaries", () => {
       "Allergies: Not reviewed · Medications: Not reviewed · Care needs: Not reviewed",
     );
     expect(html).not.toContain("Care summary unavailable");
-    expect(html).toContain("Assigned provider: Alex Morgan, NP");
-    expect(html).toContain(">Assign</button>");
+    expect(html).toContain(">Alex Morgan, NP</p>");
+    expect(html).toContain(">Manage assignment</button>");
     expect(html).not.toContain("Example only — not saved");
     for (const flowStage of ["Intake", "Triage", "Provider", "Checkout"])
       expect(html).toContain(`>${flowStage}</span>`);
@@ -550,11 +550,9 @@ describe("board and Operations presentation boundaries", () => {
     const editable = renderToStaticMarkup(
       <TestTrackingBoard visits={[liveVisit]} clinicians={[clinician]} />,
     );
+    expect(editable).toContain(">Alex Rowan, NP</p>");
     expect(editable).toMatch(
-      /<button\b(?=[^>]*\bclass="(?:[^"]*\s)?tracking-provider-value(?:\s[^"]*)?")(?=[^>]*\btype="button")(?=[^>]*\baria-label="Assigned provider: Alex Rowan, NP\. Change assignment\.")[^>]*>/,
-    );
-    expect(editable).toContain(
-      "Assigned provider: Alex Rowan, NP. Change assignment.",
+      /<button\b(?=[^>]*\bclass="(?:[^"]*\s)?tracking-provider-manage(?:\s[^"]*)?")(?=[^>]*\btype="button")(?=[^>]*\baria-haspopup="dialog")(?=[^>]*\baria-label="Manage assignment for Avery Chen, visit EX-003")[^>]*>/,
     );
     expect(editable).not.toContain('aria-label="Provider not recorded"');
 
@@ -565,7 +563,9 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(readOnly).toContain("tracking-provider-readonly");
-    expect(readOnly).not.toContain("Change assignment");
+    expect(readOnly).toContain(">Alex Rowan, NP</p>");
+    expect(readOnly).not.toContain("tracking-provider-manage");
+    expect(readOnly).not.toContain("Manage assignment");
   });
   it("does not present an empty preview as an empty actual clinic", () => {
     const html = renderToStaticMarkup(<TestTrackingBoard visits={[]} />);
