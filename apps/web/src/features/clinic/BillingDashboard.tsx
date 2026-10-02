@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Button,
   Dialog,
   DialogActions,
@@ -22,6 +25,7 @@ import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
+  BillingCollectionContext,
   BillingCollectionWorklist,
   BillingIncomeOutlook,
   BillingPayments,
@@ -241,6 +245,26 @@ function DetailLineItems({ detail }: { detail: BillingInvoiceDetail }) {
   );
 }
 
+const invoiceHistoryEventLabels = new Map([
+  ["create", "Invoice record created"],
+  ["update", "Invoice record updated"],
+  ["destroy", "Invoice record removed"],
+]);
+const invoiceHistoryFieldLabels = new Map([
+  ["id", "Invoice ID"],
+  ["practice_id", "Practice ID"],
+  ["patient_id", "Patient ID"],
+  ["encounter_id", "Encounter ID"],
+  ["currency", "Currency"],
+  ["status", "Invoice status"],
+  ["rounding_policy_version", "Rounding policy version"],
+  ["created_at", "Creation time"],
+  ["updated_at", "Last update time"],
+  ["void_reason", "Void reason"],
+  ["voided_at", "Void recording time"],
+  ["voided_by_membership_id", "Voiding membership ID"],
+]);
+
 function InvoiceAuditTimeline({
   detail,
 }: {
@@ -255,14 +279,51 @@ function InvoiceAuditTimeline({
         <ol>
           {detail.audit_timeline.map((entry) => (
             <li key={entry.id}>
-              <strong>{entry.event}</strong>
+              <strong>
+                {invoiceHistoryEventLabels.get(entry.event) ??
+                  "Invoice event recorded"}
+              </strong>
               <span>
                 {date(entry.occurred_at, "UTC", true)} ·{" "}
-                {entry.actor_reference ?? "Actor not recorded"}
+                {entry.actor_reference?.trim()
+                  ? entry.actor_reference
+                  : "Actor not recorded"}
               </span>
               {entry.changed_fields.length > 0 && (
-                <small>Changed: {entry.changed_fields.join(", ")}</small>
+                <small>
+                  Changed: {entry.changed_fields.map((field) =>
+                    invoiceHistoryFieldLabels.get(field) ?? "Other recorded field",
+                  ).join(", ")}
+                </small>
               )}
+              <Accordion disableGutters elevation={0}>
+                <AccordionSummary
+                  aria-controls={`invoice-history-${detail.id}-${entry.id}-details`}
+                  id={`invoice-history-${detail.id}-${entry.id}-summary`}
+                >
+                  <Typography component="span" variant="body2">
+                    Technical event details
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography variant="body2">
+                    Event code: <code>{entry.event}</code>
+                  </Typography>
+                  <Typography variant="body2">
+                    Actor reference:{" "}
+                    <code>
+                      {JSON.stringify(entry.actor_reference)}
+                    </code>
+                  </Typography>
+                  <Typography variant="body2">
+                    Recorded timestamp: <code>{entry.occurred_at}</code>
+                  </Typography>
+                  <Typography variant="body2">
+                    Recorded field names:{" "}
+                    <code>{entry.changed_fields.join(", ") || "None"}</code>
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
             </li>
           ))}
         </ol>
@@ -358,6 +419,7 @@ export function BillingDashboard() {
     useResource<BillingWorkspaceDataWithPatients>(
       `/api/clinic/billing?page=${invoicePage}&per_page=25&filter=${filter}&sort=${sort}&q=${encodeURIComponent(query)}`,
     );
+  const [openedCollectionId, setOpenedCollectionId] = useState<number | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(
     () => (query ? Number(query) : null),
   );
@@ -397,6 +459,9 @@ export function BillingDashboard() {
       : "/api/clinic/billing",
   );
   const selectedDetail = detailResource.data?.invoice;
+  const selectedCollection = data?.collection_worklist.items.find(
+    (item) => item.id === openedCollectionId,
+  );
   const cashPatientId =
     selectedDetail?.id === selectedInvoice?.id
       ? selectedDetail?.patient_id
@@ -406,6 +471,22 @@ export function BillingDashboard() {
     ["processing", "needs_reconciliation"].includes(
       selectedDetail.online_payment.state,
     );
+
+  const matchedCollection =
+    selectedCollection &&
+    selectedDetail &&
+    selectedInvoice &&
+    selectedDetail.id === selectedInvoice.id &&
+    selectedCollection.invoice_id === selectedDetail.id &&
+    selectedCollection.currency === selectedDetail.currency &&
+    selectedInvoice.currency === selectedDetail.currency &&
+    selectedCollection.patient?.id === selectedDetail.patient_id &&
+    selectedInvoice.patient?.id === selectedDetail.patient_id &&
+    (!onlinePaymentPending ||
+      selectedCollection.status === "processing" ||
+      selectedCollection.status === "needs_reconciliation")
+      ? selectedCollection
+      : undefined;
 
   useEffect(() => {
     if (!checkoutReturn || !data || checkoutReturnHandled.current) return;
@@ -908,6 +989,7 @@ export function BillingDashboard() {
                             type="button"
                             className="billing-invoice-button"
                             onClick={() => {
+                              setOpenedCollectionId(null);
                               setSelectedInvoiceId(invoice.id);
                               setInvoiceOpen(true);
                               clearActionState();
@@ -1067,6 +1149,17 @@ export function BillingDashboard() {
                     {date(selectedInvoice.created_at, data.practice.timezone)}
                   </span>
                 </div>
+                {openedCollectionId !== null &&
+                  selectedDetail?.id === selectedInvoice.id && (
+                    matchedCollection ? (
+                      <BillingCollectionContext item={matchedCollection} />
+                    ) : (
+                      <Alert severity="warning">
+                        The selected collection context is unavailable for this
+                        invoice. Review its current payment status before proceeding.
+                      </Alert>
+                    )
+                  )}
                 <div className="billing-invoice-detail-values">
                   <div>
                     <span>Total</span>
@@ -1440,7 +1533,9 @@ export function BillingDashboard() {
       </section>
       <BillingCollectionWorklist
         data={data}
-        onOpenInvoice={(invoiceId) => {
+        onOpenInvoice={(invoiceId, collectionId) => {
+          setOpenedCollectionId(collectionId);
+          setInvoiceOpen(true);
           const invoiceQuery = String(invoiceId);
           setSearchText(invoiceQuery);
           setQuery(invoiceQuery);
@@ -1448,6 +1543,8 @@ export function BillingDashboard() {
           setSort("recent");
           setInvoicePage(1);
           setSelectedInvoiceId(invoiceId);
+          clearActionState();
+          setActionMessage("");
           setActiveTab("invoices");
         }}
       />

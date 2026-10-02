@@ -26,6 +26,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import type {
   BillingCollectionNextAction,
+  BillingCollectionWorklistItem,
   BillingCollectionStatus,
   BillingDashboard,
   BillingCurrencyMetrics,
@@ -122,12 +123,43 @@ const collectionActionLabels: Record<BillingCollectionNextAction, string> = {
     "Confirm the remaining invoice balance before starting again.",
 };
 
+export function BillingCollectionContext({
+  item,
+}: {
+  item: BillingCollectionWorklistItem;
+}) {
+  return (
+    <Alert
+      severity={item.status === "failed" ? "error" : "info"}
+      sx={{ mb: 2 }}
+    >
+      <Typography component="h3" variant="h2">
+        Selected collection #{item.id} · {collectionStatusLabels[item.status]}
+      </Typography>
+      <Typography variant="body2">
+        Collection request amount: {billingMoney(item.amount, item.currency)}
+      </Typography>
+      <Typography variant="body2">
+        Processor: {item.processor} · Mode: {item.mode}
+      </Typography>
+      <Typography variant="body2">
+        {collectionActionLabels[item.next_action]}
+      </Typography>
+      {item.status === "failed" && (
+        <Typography variant="body2">
+          A failure reason is not included in this collection record.
+        </Typography>
+      )}
+    </Alert>
+  );
+}
+
 export function BillingCollectionWorklist({
   data,
   onOpenInvoice,
 }: {
   data: BillingWorkspaceData;
-  onOpenInvoice: (invoiceId: number) => void;
+  onOpenInvoice: (invoiceId: number, collectionId: number) => void;
 }) {
   const worklist = data.collection_worklist;
   const summaryScope =
@@ -268,7 +300,7 @@ export function BillingCollectionWorklist({
                     <TableCell align="right">
                       <Button
                         size="small"
-                        onClick={() => onOpenInvoice(item.invoice_id)}
+                        onClick={() => onOpenInvoice(item.invoice_id, item.id)}
                       >
                         Open invoice
                       </Button>
