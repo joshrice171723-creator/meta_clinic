@@ -1253,6 +1253,100 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "next outreach log records three outcomes without starting enrollment or payment" do
+    version_id = publish_catalog(@admin, "NextOutreach")
+    configure_storefront(@admin, "next-outreach", enabled: true)
+    post_prospect("next-outreach", prospect_payload(version_id:, request_key: "next-outreach-contact"))
+    assert_response :created
+    prospect = @practice.membership_prospects.sole
+    sign_in(@admin)
+    reviewer = @practice.memberships.find_by!(user: @admin)
+    now = Time.current.change(usec: 0)
+    unchanged_counts = ["Clinic::Care::Patient.count", "Clinic::Care::SubscriptionAgreement.count",
+      "Clinic::PaymentEvent.count", "Clinic::PaymentCollectionIntent.count", "Clinic::BillingReceipt.count",
+      "Clinic::PatientPortal::Identity.count", "User.count", "ActionMailer::Base.deliveries.count"]
+
+    travel_to now do
+      assert_no_difference unchanged_counts do
+        %w[no_answer callback_requested not_interested].each_with_index do |outcome, index|
+          prior_version = prospect.reload.lock_version
+          transition(prospect, "log_#{outcome}")
+          assert_response :success
+          saved = response.parsed_body.fetch("prospect")
+          assert_equal prospect.id, saved.fetch("id")
+          assert_equal prior_version + 1, saved.fetch("lock_version")
+          assert_equal outcome, saved.fetch("follow_up_outcome")
+          assert_equal index + 1, saved.fetch("follow_up_attempt_count")
+          assert_equal reviewer.id, saved.fetch("follow_up_assigned_to_membership_id")
+          assert_equal now, Time.iso8601(saved.fetch("follow_up_attempted_at"))
+          assert_equal(outcome == "not_interested" ? "declined" : "new", saved.fetch("status"))
+          assert_equal(outcome == "not_interested" ? "completed" : "waiting", saved.fetch("follow_up_state"))
+          if outcome == "not_interested"
+            assert_nil saved.fetch("follow_up_due_at")
+          else
+            assert_equal now + 1.day, Time.iso8601(saved.fetch("follow_up_due_at"))
+          end
+          assert_nil saved.fetch("patient_id")
+          assert_nil saved.fetch("agreement_id")
+          assert_nil saved.fetch("receipt_id")
+          assert_nil saved.fetch("paid_at")
+        end
+      end
+    end
+    assert_nil prospect.reload.follow_up_started_at
+    assert_nil prospect.checkout_session_id
+    assert_nil prospect.staff_payment_status
+  end
+
+  test "next outreach log rejects absent consent without changing the prospect" do
+    version_id = publish_catalog(@admin, "NextConsent")
+    configure_storefront(@admin, "next-consent", enabled: true)
+    post_prospect("next-consent", prospect_payload(version_id:, request_key: "next-consent-contact"))
+    assert_response :created
+    # Public capture requires consent; independently construct a legacy denied fixture.
+    prospect = @practice.membership_prospects.sole.dup
+    prospect.assign_attributes(outreach_consent: false, request_key: "next-no-consent-fixture")
+    prospect.save!
+    sign_in(@admin)
+    before = prospect.reload.attributes
+    assert_no_difference ["Clinic::Care::Patient.count", "Clinic::Care::SubscriptionAgreement.count", "Clinic::PaymentEvent.count"] do
+      %w[log_no_answer log_callback_requested log_not_interested].each do |action|
+        transition(prospect, action)
+        assert_response :unprocessable_entity
+        assert_equal "invalid_transition", response.parsed_body.fetch("code")
+        assert_equal before, prospect.reload.attributes
+      end
+    end
+  end
+
+  test "next outreach log rejects stale lock and another practice without duplicate attempts" do
+    version_id = publish_catalog(@admin, "NextIsolation")
+    configure_storefront(@admin, "next-isolation", enabled: true)
+    post_prospect("next-isolation", prospect_payload(version_id:, request_key: "next-isolation-contact"))
+    assert_response :created
+    prospect = @practice.membership_prospects.sole
+    sign_in(@admin)
+    stale_version = prospect.lock_version
+    transition(prospect, "log_no_answer")
+    assert_response :success
+    before = prospect.reload.attributes
+    assert_no_difference ["Clinic::Care::Patient.count", "Clinic::Care::SubscriptionAgreement.count", "Clinic::PaymentEvent.count"] do
+      patch "/api/clinic/membership_prospects/#{prospect.id}",
+        params: { prospect: { action: "log_callback_requested", lock_version: stale_version } }, headers: csrf_headers, as: :json
+      assert_response :conflict
+      assert_equal "stale_record", response.parsed_body.fetch("code")
+      assert_equal before, prospect.reload.attributes
+      foreign_membership = @foreign_practice.memberships.find_by!(user: @foreign_admin)
+      grant_permissions!(foreign_membership, "subscriptions.review")
+      sign_in(@foreign_admin)
+      transition(prospect, "log_not_interested")
+      assert_response :not_found
+      assert_equal before, prospect.reload.attributes
+    end
+    assert_equal 1, prospect.follow_up_attempt_count
+    assert_equal "no_answer", prospect.follow_up_outcome
+  end
+
   private
 
   def create_staff(practice, email, *permissions)
