@@ -202,7 +202,7 @@ async function fixture() {
         },
         patient: {
           id: 701,
-          display_name: "Synthetic Patient",
+          display_name: "Constructed Patient",
           reference: "QA-HANDSHAKE",
         },
         balances: [],
@@ -244,23 +244,30 @@ async function fixture() {
   await page.goto(base + "/demo");
   const frame = page.frameLocator('iframe[name="clinic-demo-workspace"]');
   try {
-    await frame.getByLabel("Synthetic intake draft").waitFor({ timeout: 30_000 });
+    await frame
+      .getByLabel("Synthetic intake draft")
+      .waitFor({ timeout: 30_000 });
   } catch (reason) {
-    console.error(JSON.stringify({
-      fixture: "patient-handshake-initialization",
-      requestPaths,
-      errors,
-      mainText: (await page.locator("body").innerText()).slice(0, 1500),
-      frames: await Promise.all(page.frames().map(async (item) => ({
-        name: item.name(), path: new URL(item.url()).pathname,
-        text: (await item.locator("body").innerText()).slice(0, 1500),
-      }))),
-    }));
+    console.error(
+      JSON.stringify({
+        fixture: "patient-handshake-initialization",
+        requestPaths,
+        errors,
+        mainText: (await page.locator("body").innerText()).slice(0, 1500),
+        frames: await Promise.all(
+          page.frames().map(async (item) => ({
+            name: item.name(),
+            path: new URL(item.url()).pathname,
+            text: (await item.locator("body").innerText()).slice(0, 1500),
+          })),
+        ),
+      }),
+    );
     await page.close();
     throw reason;
   }
   await frame
-    .getByText("Welcome, Synthetic Patient", { exact: true })
+    .getByText("Welcome, Constructed Patient", { exact: true })
     .waitFor();
   return { page, frame, posts, errors };
 }
