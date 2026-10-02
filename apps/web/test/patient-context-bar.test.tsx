@@ -7,16 +7,23 @@ import {
   PatientContextBar,
 } from "../src/features/clinic/PatientContextBar";
 
-const fixture = vi.hoisted(() => ({ patient: null as any }));
+const fixture = vi.hoisted(() => ({
+  patient: null as any,
+  reads: [] as { enabled?: boolean }[],
+}));
 vi.mock("../src/shared/ui", async (original) => ({
   ...(await original<typeof import("../src/shared/ui")>()),
-  useResource: () => ({
-    data: fixture.patient ? { patients: [fixture.patient] } : undefined,
-    refresh: vi.fn(),
-  }),
+  useResource: (_path: string, options: { enabled?: boolean }) => {
+    fixture.reads.push(options);
+    return {
+      data: fixture.patient ? { patients: [fixture.patient] } : undefined,
+      refresh: vi.fn(),
+    };
+  },
 }));
 beforeEach(() => {
   fixture.patient = null;
+  fixture.reads = [];
 });
 
 const capabilities = (
@@ -83,7 +90,12 @@ describe("URL-derived patient context", () => {
     ).toBe("/clinic/patients");
   });
 
-  it("renders no identity surface when the account lacks identity access", () => {
+  it("keeps identity unread and hidden while offering generic context clearing without identity access", () => {
+    fixture.patient = {
+      id: 42,
+      display_name: "Synthetic hidden identity",
+      reference: "SYN-HIDDEN",
+    };
     const html = renderToStaticMarkup(
       <PatientContextBar
         capabilities={capabilities()}
@@ -91,9 +103,13 @@ describe("URL-derived patient context", () => {
         search="?patient_id=42"
       />,
     );
-    expect(html).toBe("");
-    expect(html).not.toContain("Current patient");
-    expect(html).not.toContain("42");
+    expect(fixture.reads).toEqual([{ enabled: false }]);
+    expect(html).toContain("Patient identity is restricted for this account");
+    expect(html).toContain('aria-label="Clear current patient"');
+    expect(html).not.toContain("Synthetic hidden identity");
+    expect(html).not.toContain("SYN-HIDDEN");
+    expect(html).not.toContain('href="/clinic/patients/42"');
+    expect(html).not.toContain("Open patient record");
   });
 
   it("renders a bounded loading identity surface without unauthorized actions", () => {

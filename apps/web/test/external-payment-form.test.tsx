@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { createServer, type ViteDevServer } from "vite";
+import { createServer, transformWithOxc, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,10 @@ beforeAll(async () => {
             {open&&<ExternalPaymentForm clinic={{practice:{id:701},user_id:702,membership_id:703}} invoice={invoice} patientId={706} patientLabel="Synthetic receipt patient · SYN-706" disabled={new URLSearchParams(location.search).has('disabled')} onPendingChange={setPending} onRecorded={setMessage}/>}
             {message&&<p role="status">{message}</p>}</>}
           createRoot(document.getElementById('root')).render(<Fixture/>);`;
+        },
+        async transform(code, id) {
+          if (id === "\0qa-entry.tsx")
+            return transformWithOxc(code, "qa-entry.tsx");
         },
         configureServer(vite) {
           vite.middlewares.use("/qa", async (_request, response) => {

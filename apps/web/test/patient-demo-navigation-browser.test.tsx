@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { createServer, transformWithEsbuild, type ViteDevServer } from "vite";
+import { createServer, transformWithOxc, type ViteDevServer } from "vite";
 import {
   chromium,
   type Browser,
@@ -65,12 +65,8 @@ beforeAll(async () => {
         },
         async load(id) {
           if (id === "\0qa-patient-handshake.tsx") {
-            return (
-              await transformWithEsbuild(entry, "qa-patient-handshake.tsx", {
-                loader: "tsx",
-                jsx: "automatic",
-              })
-            ).code;
+            return (await transformWithOxc(entry, "qa-patient-handshake.tsx"))
+              .code;
           }
         },
         configureServer(vite) {

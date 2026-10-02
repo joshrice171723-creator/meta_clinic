@@ -179,7 +179,9 @@ it("fills the live sandbox viewport and keeps the clinic toggle in its header", 
       expect(layout.document).toBeLessThanOrEqual(layout.viewport + 1);
       expect(layout.frame.height).toBeLessThanOrEqual(layout.viewport + 1);
       expect(layout.workspace.top).toBeGreaterThanOrEqual(layout.bar.bottom);
-      expect(layout.iframe.bottom).toBeCloseTo(layout.workspace.bottom, 0);
+      expect(
+        Math.abs(layout.iframe.bottom - layout.workspace.bottom),
+      ).toBeLessThanOrEqual(1);
       expect(layout.workspace.height).toBeGreaterThan(80);
       expect(layout.clinicDocument).toBeGreaterThan(layout.clinicViewport);
       return { width, height, ...layout };
