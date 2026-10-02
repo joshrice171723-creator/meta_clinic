@@ -166,6 +166,7 @@ async function fixture() {
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const wirePath = new URL(request.url()).pathname;
+    if (!wirePath.startsWith("/api/")) return route.continue();
     requestPaths.push(`${request.method()} ${wirePath}`);
     const path = wirePath.replace(/^\/api\/demo-workspace\//, "/api/");
     const reply = (value: unknown, status = 200) =>
