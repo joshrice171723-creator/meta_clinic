@@ -95,6 +95,42 @@ function EmploymentAccessEditor({
     "revoke" | "restore" | "edit"
   >("edit");
   const { registerBlocker } = useClinicNavigation();
+  const previousAccess = useRef({
+    roleVersionId: String(activeRole?.role_version_id ?? ""),
+    siteIds: employment.sites
+      .filter((site) => site.active)
+      .map((site) => site.id),
+  });
+  useEffect(() => {
+    if (saving || accessUnknown) return;
+    const nextRoleId = String(employment.roles[0]?.role_version_id ?? "");
+    const nextSiteIds = employment.sites
+      .filter((site) => site.active)
+      .map((site) => site.id);
+    const previous = previousAccess.current;
+    const previousSites = JSON.stringify([...previous.siteIds].sort());
+    if (
+      previous.roleVersionId === nextRoleId &&
+      previousSites === JSON.stringify([...nextSiteIds].sort())
+    )
+      return;
+    // Refresh clean drafts without replacing pending/unknown work or a user edit.
+    if (
+      roleVersionId === previous.roleVersionId &&
+      JSON.stringify([...siteIds].sort()) === previousSites
+    ) {
+      setRoleVersionId(nextRoleId);
+      setSiteIds(nextSiteIds);
+    }
+    previousAccess.current = { roleVersionId: nextRoleId, siteIds: nextSiteIds };
+  }, [
+    employment.roles,
+    employment.sites,
+    roleVersionId,
+    siteIds,
+    saving,
+    accessUnknown,
+  ]);
   const changed =
     roleVersionId !== String(activeRole?.role_version_id ?? "") ||
     JSON.stringify([...siteIds].sort()) !==
@@ -259,7 +295,7 @@ function EmploymentAccessEditor({
           Account switching is blocked until saved access confirms it.
         </Alert>
       )}
-      <Stack spacing={1.5} inert={accessUnknown}>
+      <Stack spacing={1.5} inert={saving || accessUnknown}>
         <FormControl size="small" fullWidth>
           <InputLabel id={`employment-${employment.id}-role-label`}>
             Access role
@@ -841,12 +877,7 @@ export function EmploymentAdminPage() {
                 </Typography>
               </Stack>
               <EmploymentAccessEditor
-                key={JSON.stringify([
-                  employment.id,
-                  employment.membership_summary.active,
-                  employment.roles,
-                  employment.sites,
-                ])}
+                key={employment.id}
                 employment={employment}
                 roles={data.role_options}
                 sites={data.sites}
