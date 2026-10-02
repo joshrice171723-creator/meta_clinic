@@ -486,9 +486,9 @@ Remaining gates:phone focusconsistency,original controlled503dismiss draftprobe/
 
 ## Last run
 
-- Date UTC:2026-10-02 14:57; inspected published6992ce409b014b7b7adad3eb99d77304a30a3532.
-- Outcome:72/74 IMPLEMENTED;10/74 bounded VALIDATED after parent-relayed C MZ-12a/b/c acceptance. MZ-11a/b remain unfinished; original QA179/241closed62open stays separate.
-- Checks:canonical publication, dual database restore, encrypted DPAPI roundtrip, hosted verifier, public/remote/host exactSHA and bounded routesPASS. Exact root700 reset script installed; unadapted published --checkPASS with backup/fullscratchrestore/lock handshake. No reset or timer.
-- Changed canonical paths:thisbrief,centraltracker andProgressLog; ignored publication/reset receipts retained.
-- Limits:benchmarks/native200/provider breadth and final11a/b reconciliation remain open. No newly approved deferrals. Deployed role picker is modal behindOpenSandbox; landing copy/discoverability correction belongs to separate repair worker.
-- Next:parent owns ONE02:00America/Chicago reset automation using existing WindowsA SSH executor; C reconciles remaining11a/b; independent live explorer and dedicated fixer continue separate scope.
+- Date UTC:2026-10-02 21:09; inspected first-wave product86ef9c3b and fixture2d302511; source tree1678b586 unchanged.
+- Outcome:authorized first-wave implementation and bounded verification complete; publication pending canonical receipt. Fixed74packet status remains72implemented/10boundedvalidated; MZ11a/b open. No new completion inferred from source alone.
+- Checks:one combined27file selection, only failed-surface repairs;224uniquePASS/2existingSKIP/zero unresolved failures. TypeScript/main+Office build/owned formattingPASS with exact unchanged-source reuse; earlier failures preserved. Actual component Patient consent/Back/timeout/unknown-veto casesPASS; desktop viewport geometry measured. No full-App/native200/provider acceptance.
+- Changed canonical paths:thisbrief,centraltracker andProgressLog. Ignored tmp/combined-desktop contains actual raw runs, deduplicated accepted cases, captures and forthcoming release receipt.
+- Limits:failed baselineCI36947463840/originalQA179closed62open remain distinct; thirteen NEXT source patches excluded; provider/settings/inventory gaps and workforcePG/Library prerequisites held. No new credentials/provider connection/reset or external transaction.
+- Next:soleA performs authorized frozen release with normal recovery gates and exact remote/live/assets/local identity; then bounded NEXT integration after owner repairs. Existing loops stayPAUSED and nightly unchanged.
