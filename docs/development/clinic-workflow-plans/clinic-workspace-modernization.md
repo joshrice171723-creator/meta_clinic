@@ -486,9 +486,9 @@ Remaining gates:phone focusconsistency,original controlled503dismiss draftprobe/
 
 ## Last run
 
-- Date UTC:2026-10-02; inspected754ebb andactualisolatedDBproof08:40:26Z;inventorylease released.
-- Outcome:69/74IMPLEMENTED;7/74VALIDATED afterdocumentationcheckpoint. C10bsource review closed;11/12remain open.
-- Checks:readonlypersistedreceipt IDs/quantities andopen/reconciled selection verified;source404classification;83G3executed+158reused+30safetylookup evidence retained. No newtests orDBmutations.
-- Changed canonical paths:thisbrief andcentraltracker only;local ignoredproof refreshed.
-- Limits:realstackinvoice149SKIP,original04ebaselinefailure,phonefocus/503draft/G4breadth/benchmarks/zoom/provider/remote-main/release gates remainexplicit.
-- Next:boundedremainingrepair/acceptance;NEW Sol app AND/demo walkthrough onlyafterexactbuildpublication.
+- Date UTC:2026-10-02 14:57; inspected published6992ce409b014b7b7adad3eb99d77304a30a3532.
+- Outcome:72/74 IMPLEMENTED;10/74 bounded VALIDATED after parent-relayed C MZ-12a/b/c acceptance. MZ-11a/b remain unfinished; original QA179/241closed62open stays separate.
+- Checks:canonical publication, dual database restore, encrypted DPAPI roundtrip, hosted verifier, public/remote/host exactSHA and bounded routesPASS. Exact root700 reset script installed; unadapted published --checkPASS with backup/fullscratchrestore/lock handshake. No reset or timer.
+- Changed canonical paths:thisbrief,centraltracker andProgressLog; ignored publication/reset receipts retained.
+- Limits:benchmarks/native200/provider breadth and final11a/b reconciliation remain open. No newly approved deferrals. Deployed role picker is modal behindOpenSandbox; landing copy/discoverability correction belongs to separate repair worker.
+- Next:parent owns ONE02:00America/Chicago reset automation using existing WindowsA SSH executor; C reconciles remaining11a/b; independent live explorer and dedicated fixer continue separate scope.
