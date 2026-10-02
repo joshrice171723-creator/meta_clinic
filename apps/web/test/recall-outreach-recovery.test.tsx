@@ -339,7 +339,7 @@ it("does not dismiss a pending write or allow navigation before its result arriv
       .click();
     await started;
     await expectEnabled(page.getByRole("button", { name: "Cancel" }), false);
-    await expectEnabled(page.getByRole("button", { name: "Saving." }), false);
+    await expectEnabled(page.getByRole("button", { name: "Saving…" }), false);
     await page.evaluate(() => {
       window.confirm = () => false;
       window.__navigationApproved = false;
