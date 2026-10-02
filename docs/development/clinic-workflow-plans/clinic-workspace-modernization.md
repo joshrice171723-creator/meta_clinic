@@ -404,10 +404,16 @@ A froze board df99c016 and login737978e1 separately, preserving lead candidates.
 
 BM-04/BM-05 isolated synthetic fixtures prepared through guarded real APIs: October5 appointments2/3/4 at09:05/10:10/12:15 site time for15/30/60minutes, and25 waiting entries1..25 verified FIFO. All reuse synthetic patient1 and actor/practice/site/clinician/visit-type1. One synthetic weekly availability fixture supports ordinary booking; no authorization grants, configured service duration changes, offers/acceptance, shared resets or sends. Fixture JSON SHA256 c53da18d0e154208b78c20366244eea7b161a3aaad059cb6a21c68531fa3afe1. Distinct-patient, expiry/denial and20-visit real board fixture remain unproved.
 
+### User-prioritized workflow improvement
+
+WF-01 is separately approved outside74. Existing foundation workers now review local immutable artifacts directly; Context exclusively extends the existing browser-smoke command in one file and Frame independently reviews it. No new dependencies/settings/guards weakened. Workflow validation on the current board/login batch precedes new feature integration. Browser/path, exact head/source, synthetic fixture/actual database proof, viewport/visible loaded targets and mechanical hash bundle are required. Source-only reviews do not increment accepted6/74. Direct reviews verified24 frozen candidate snapshots;05d held for five inherited48px h3 headings pending original-owner repair.
+
+Current checkbatch measured86.793s total commandtime. Board62/62 and shared typecheck/format/main+Office bundles PASS. Login initial missingLinuxbrowser setup ran0/5; installedEdge4PASS/1page.goto4000msFAIL; targeted unchangedcase retry1PASS/4name-filtered. Five distinct cases now pass; earlier failure retained. Same7existingagent-docs links fail, vault advisories unchanged. Reuse manifest ccd9074eb8735fda0528f5078abd2c83792130f5582d9276cce56a6fe1e9080d mechanically maps artifacts and source/lock invariants. No duplicate checks or speedclaim from declaration. Current20-visit board/sticky and entryviewport/keyboard proofs remain outstanding; harnessvalidation pending.
+
 ## Last run
 
-- Date UTC:2026-10-02; board df99c016; login737978e1.
-- Outcome:two candidate packets integrated, acceptance still6/74; BM-04/BM-05 fixtures ready.
-- Changed canonical paths:this brief and central tracker; scoped board/CSS/test amendment and Login candidates committed separately.
-- Checks:hash/base/apply checks PASS; scoped formatter executed; current application/check results pending, no green inference.
-- Next:shared bounded check batch, independent C review and rendered board/auth proof. No publication.
+- Date UTC:2026-10-02; feature source737978e1; current checksb40bcb44.
+- Outcome:current named board/login cases and sharedfrontendchecks passed within recorded retry/provenance limits; workflowimprovement nowfirst, acceptance6/74.
+- Changed canonical paths:this brief and central tracker; separate one-file browser-smoke extension is owned/in progress.
+- Checks:recorded actual batch86.793s and bounded login retry; mechanical reuse manifest and directlocalreview. Docsvalidators for this checkpoint pending combinedharnessfreeze; no harness-runtime pass inferred.
+- Next:independently review/freeze/validate guardedharness on ownedcandidate, then resume compatiblebatch integration. No publication.
