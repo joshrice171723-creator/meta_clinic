@@ -115,6 +115,7 @@ module Development
         run.lock!
         raise ActiveRecord::RecordNotFound unless run.active?
 
+        # A missing marker does not prove completion; hosted legacy runs need a guarded backfill.
         step = Integer(run.baseline.to_h.fetch("sandbox_preparation_step", 0))
         # Registered visitors bound to this shared run may confirm completion.
         # Only its creator may advance incomplete preparation; check under the
