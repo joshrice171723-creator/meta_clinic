@@ -1,13 +1,13 @@
 ---
 type: progress-log
 status: active
-updated: 2026-09-30
+updated: 2026-10-02
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
-**2026-10-02 - Modernization readiness:** A preserved the approved plan/tracker and froze an isolated integration worktree at e5d065fe. MZ-00a/b source maps are independently reviewed; existing setup completed and an isolated local clinic readiness walkthrough passed with matching actor/scope, served source and managed process ownership. C MZ-00c remains pending. No application source changes, comparative benchmarks or release. Current status and next proof remain in [[Meta Clinic Implementation Tracker#Clinic workspace modernization]].
+**2026-10-02 - Modernization foundation:** C accepted bounded MZ-00 readiness and the three-file MZ-01a typography convention at 0a850bab; count 4/74. Exact rendered candidate passed desktop/tablet observation; scoped tests retain two failures reproduced on predecessor. MZ-01b is released with handlers/providers unchanged. No comparative timing claim or release. Current status and next proof remain in [[Meta Clinic Implementation Tracker#Clinic workspace modernization]].
 
 
 ## 2026-09-30 - Correct MC02 staff caller boundary inference
