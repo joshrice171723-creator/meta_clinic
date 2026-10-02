@@ -747,6 +747,25 @@ export function bookingAvailability(
   };
 }
 
+export function bookingContextDefaults(
+  sites: Pick<FacilitySite, "id">[],
+  visitTypes: VisitType[],
+  currentSiteId?: number,
+) {
+  const site =
+    currentSiteId !== undefined
+      ? sites.find((item) => item.id === currentSiteId)
+      : sites.length === 1
+        ? sites[0]
+        : undefined;
+  const activeVisitTypes = visitTypes.filter((type) => !type.retired_at);
+  return {
+    siteId: site ? String(site.id) : "",
+    visitTypeId:
+      activeVisitTypes.length === 1 ? String(activeVisitTypes[0].id) : "",
+  };
+}
+
 function BookingForm({
   timezone,
   onCreated,
@@ -1178,6 +1197,39 @@ function BookingFormEditor({
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
     "/api/clinic/facilities?type=visit_types&per_page=100",
   );
+  const configuredDefaultsApplied = useRef(Boolean(initialDraft));
+  useEffect(() => {
+    if (
+      configuredDefaultsApplied.current ||
+      !facilities.data ||
+      !visitTypes.data
+    )
+      return;
+    configuredDefaultsApplied.current = true;
+    const defaults = bookingContextDefaults(
+      facilities.data.sites,
+      visitTypes.data.visit_types,
+      clinic.current_site?.id,
+    );
+    const applied: Partial<BookingDraft> = {};
+    if (!siteId && defaults.siteId) {
+      applied.siteId = defaults.siteId;
+      setSiteId(defaults.siteId);
+    }
+    if (!visitTypeId && defaults.visitTypeId) {
+      applied.visitTypeId = defaults.visitTypeId;
+      setVisitTypeId(defaults.visitTypeId);
+    }
+    if (Object.keys(applied).length > 0)
+      setBaseline((current) => ({ ...current, ...applied }));
+  }, [
+    baseline,
+    clinic.current_site?.id,
+    facilities.data,
+    siteId,
+    visitTypeId,
+    visitTypes.data,
+  ]);
   const serviceOfferings = useResource<{
     service_offerings: BookingServiceOffering[];
   }>("/api/clinic/service_offerings?status=published");
@@ -1458,6 +1510,7 @@ function BookingFormEditor({
     if (end) setEndsAt(end);
   };
   const reset = () => {
+    configuredDefaultsApplied.current = false;
     setRecoveryDismissed(true);
     setSubmitError("");
     setDraftCloseFailed(false);

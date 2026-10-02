@@ -87,6 +87,41 @@ function calendarSlotBooking(
   };
 }
 
+export function genericCalendarBooking(
+  calendar: CalendarResponse | undefined,
+  siteId: number,
+  date: string,
+  now = businessNow(),
+): CalendarBooking {
+  const base = { site_id: siteId };
+  if (!calendar || calendar.site_id !== siteId || !calendar.capacity_configured)
+    return base;
+  const slots = (calendar.days.find((day) => day.date === date)?.slots ?? [])
+    .filter(
+      (slot) =>
+        Number.isSafeInteger(slot.clinician_id) &&
+        slot.clinician_id > 0 &&
+        calendar.clinicians.some(
+          (clinician) => clinician.id === slot.clinician_id,
+        ) &&
+        slot.room_ids.every((id) =>
+          calendar.rooms.some((room) => room.id === id),
+        ) &&
+        Date.parse(slot.starts_at) > now.getTime() &&
+        Date.parse(slot.ends_at) > Date.parse(slot.starts_at),
+    )
+    .sort(
+      (left, right) => Date.parse(left.starts_at) - Date.parse(right.starts_at),
+    );
+  const first = slots[0];
+  if (!first) return base;
+  if (new Set(slots.map((slot) => slot.clinician_id)).size === 1) {
+    return calendarSlotBooking(first, siteId, calendar.timezone);
+  }
+  // Suggest a supported time, but leave staff and room selection explicit.
+  return { ...base, starts_at: first.starts_at, ends_at: first.ends_at };
+}
+
 export function SlotProvenance({ booking }: { booking?: CalendarBooking }) {
   const provenance = booking?.provenance;
   if (
@@ -808,19 +843,7 @@ export function ClinicSchedule({
               variant="contained"
               disabled={!siteId}
               onClick={() => {
-                const firstAvailableSlot = selectedDay?.slots.find(
-                  (slot) =>
-                    Date.parse(slot.starts_at) > businessNow().getTime(),
-                );
-                setBooking(
-                  firstAvailableSlot
-                    ? calendarSlotBooking(
-                        firstAvailableSlot,
-                        Number(siteId),
-                        data?.timezone ?? timezone,
-                      )
-                    : { site_id: Number(siteId) },
-                );
+                setBooking(genericCalendarBooking(data, Number(siteId), day));
               }}
             >
               {actionLabel}
