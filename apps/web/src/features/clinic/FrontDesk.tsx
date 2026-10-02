@@ -156,6 +156,11 @@ export function FrontDesk() {
               Billing
             </Button>
           )}
+          {allowed(capabilities.staff_messaging_read) && (
+            <Button component="a" href="/clinic/messages" variant="outlined">
+              Staff messages
+            </Button>
+          )}
         </Stack>
       </header>
 
@@ -723,12 +728,20 @@ function AppointmentDayQueue({
               ? ` · Updated ${freshnessLabel(refreshedAt, timezone)}`
               : ""}
           </Typography>
+          <Typography color="text.secondary" variant="body2">
+            Times shown in {timezone}.
+          </Typography>
         </div>
         <Button
           variant="text"
           startIcon={<RefreshIcon />}
           onClick={() => appointments.refresh()}
           disabled={!appointments.data}
+          title={
+            !appointments.data
+              ? "Use Retry if the queue could not load."
+              : undefined
+          }
         >
           Refresh
         </Button>
@@ -753,6 +766,13 @@ function AppointmentDayQueue({
         <TextField
           label="Appointment date"
           disabled={closedSite}
+          helperText={
+            closedSite
+              ? "Date filtering is unavailable: recovery includes all upcoming affected visits."
+              : date === today
+                ? `Today is selected in ${timezone}; Today is disabled.`
+                : `Date in ${timezone}`
+          }
           type="date"
           size="small"
           value={date}
@@ -773,6 +793,13 @@ function AppointmentDayQueue({
             setPage(1);
           }}
           disabled={closedSite || date === today}
+          title={
+            closedSite
+              ? "Closed-site recovery includes all upcoming affected visits."
+              : date === today
+                ? "The queue is already showing today in the clinic timezone."
+                : undefined
+          }
         >
           Today
         </Button>
@@ -844,9 +871,7 @@ function AppointmentDayQueue({
                 color="inherit"
                 size="small"
               >
-                {noticeContext.kind === "cancellation"
-                  ? "Review patient message"
-                  : "Review reminders"}
+                Review reminders
               </Button>
             ) : undefined
           }
@@ -928,6 +953,7 @@ function AppointmentDayQueue({
                 showDate={closedSite}
                 canReschedule={canReschedule}
                 canScheduleReplacement={canScheduleReplacement}
+                canReviewReminders={canReviewReminders}
                 busyAction={busyAction}
                 onTransition={transition}
                 onStartVisit={startVisit}
@@ -1076,6 +1102,7 @@ function AppointmentRow({
   canStartVisit,
   canReschedule,
   canScheduleReplacement,
+  canReviewReminders,
   busyAction,
   onTransition,
   onStartVisit,
@@ -1092,6 +1119,7 @@ function AppointmentRow({
   showDate?: boolean;
   canReschedule: boolean;
   canScheduleReplacement: boolean;
+  canReviewReminders: boolean;
   busyAction: string;
   onTransition: (
     appointment: FrontDeskAppointment,
@@ -1123,6 +1151,8 @@ function AppointmentRow({
     (canReschedule && actions.canReschedule) ||
     (canScheduleReplacement && actions.canScheduleReplacement) ||
     Boolean(chartPath && canPatients) ||
+    Boolean(appointment.telehealth?.clinic_href) ||
+    canReviewReminders ||
     canBilling;
 
   return (
@@ -1158,11 +1188,18 @@ function AppointmentRow({
       </div>
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />
+        <span>Intake: unavailable in this queue</span>
+        <span>
+          {canBilling
+            ? "Balance: unavailable in this queue; open Billing to review"
+            : "Balance: unavailable for this account"}
+        </span>
         {needsSetup &&
           (canReschedule ? (
             <Button
               size="small"
               variant="text"
+              disabled={anyActionBusy}
               onClick={() => onReschedule(appointment)}
               aria-label={`Complete appointment setup: ${setupMissing.map(setupFieldLabel).join(", ")}`}
             >
@@ -1173,11 +1210,37 @@ function AppointmentRow({
               Needs setup: {setupMissing.map(setupFieldLabel).join(", ")}
             </span>
           ))}
+        {needsSetup && (
+          <span>Confirm and check-in require completed appointment setup.</span>
+        )}
+        {showDate && actions.canStartVisit && (
+          <span>Check-in is unavailable while this visit needs a new location.</span>
+        )}
+        {canTransition &&
+          actions.canCancel &&
+          !actions.canMarkNoShow &&
+          Number.isFinite(Date.parse(appointment.starts_at)) && (
+            <span>No-show is available after the scheduled start time.</span>
+          )}
+        {canReschedule &&
+          !appointment.encounter_id &&
+          ["scheduled", "confirmed"].includes(appointment.status) &&
+          !appointment.updated_at && (
+            <span>
+              Rescheduling is unavailable until the appointment version is
+              refreshed.
+            </span>
+          )}
         {appointment.encounter_status === "open" && (
           <span>Clinical encounter open</span>
         )}
       </div>
       <div className="front-desk-actions" data-label="Next action">
+        {anyActionBusy && (
+          <Typography variant="caption" role="status" sx={{ width: "100%" }}>
+            Appointment changes are paused while the current change is saved.
+          </Typography>
+        )}
         {canTransition && actions.canConfirm && !needsSetup && (
           <Button
             size="small"
@@ -1273,8 +1336,20 @@ function AppointmentRow({
             Billing
           </a>
         )}
+        {canReviewReminders && (
+          <Button
+            component="a"
+            href={`/clinic/reminders?patient_id=${appointment.patient_id}&appointment_id=${appointment.id}`}
+            size="small"
+            variant="text"
+          >
+            Review reminders
+          </Button>
+        )}
         {!hasVisibleAction && (
-          <span className="front-desk-muted">No action available</span>
+          <span className="front-desk-muted">
+            No action available for this account and appointment status.
+          </span>
         )}
       </div>
     </Box>

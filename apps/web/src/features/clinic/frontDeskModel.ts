@@ -120,15 +120,24 @@ export function appointmentTimeRange(
   timezone: string,
 ) {
   try {
+    const startsAt = new Date(appointment.starts_at);
+    const endsAt = new Date(appointment.ends_at);
+    if (
+      !Number.isFinite(startsAt.valueOf()) ||
+      !Number.isFinite(endsAt.valueOf()) ||
+      endsAt <= startsAt
+    )
+      return "Time unavailable";
+    const crossesDay =
+      clinicDateValue(startsAt, timezone) !== clinicDateValue(endsAt, timezone);
     const format = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
+      ...(crossesDay ? { month: "short" as const, day: "numeric" as const } : {}),
       hour: "numeric",
       minute: "2-digit",
       timeZoneName: "short",
     });
-    return `${format.format(new Date(appointment.starts_at))}–${format.format(
-      new Date(appointment.ends_at),
-    )}`;
+    return format.formatRange(startsAt, endsAt);
   } catch {
     return "Time unavailable";
   }
@@ -165,5 +174,6 @@ export function freshnessLabel(date: Date, timezone: string) {
 
 export function siteLabel(sites: ClinicSite[], siteId: number | null) {
   if (siteId === null) return "No site recorded";
-  return sites.find((site) => site.id === siteId)?.code || "Assigned site";
+  const site = sites.find((site) => site.id === siteId);
+  return site?.name?.trim() || site?.code || "Site name unavailable";
 }
