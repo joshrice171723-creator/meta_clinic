@@ -315,7 +315,7 @@ Reuse backend transaction/permission evidence while relevant source, dependencie
 
 ## Checkpoint
 
-MZ-00a read-only source/readiness inspection performed; pending C acceptance together with B's MZ-00b map. No application edits and no accepted packet. The central tracker owns live status. Original QA remains separately reported at 179/241 closed, 62 open.
+MZ-00a and MZ-00b source maps independently reviewed/accepted as source evidence only (parent relay). MZ-00c runtime readiness remains pending C; no runtime gate or foundation packet accepted. Current workers are explicitly GPT-6.1 Sol: A in this local thread, B `/root/implement_modernization_sol`, C `/root/verify_modernization_sol`. Prior workers are interrupted and unused. No application edits. The central tracker owns live status. Original QA remains separately reported at 179/241 closed, 62 open.
 
 Integration workspace: `C:/Users/joshr/Documents/Codex/2026-10-01/task-6/modernization`, branch `codex/clinic-modernization-20261002`, source frozen at `e5d065fe550350c934274391da46abfdb7325250` (web 0.2.4). It shares the original Git common directory and heavy-resource queue. Original dirty checkout and unrelated worktrees were preserved. Approved plan SHA256 `31B1E867909AEE416FEAE5C15CA57CC1FA4DE7291AF75BE0944C858DDAC8036D` and tracker SHA256 `9B9388001192CF70E4C7A19C6870F4DE9BC98C510FA79009F2797D374CF48EEB` matched before copying; this checkpoint intentionally changes the integration copies.
 
@@ -329,15 +329,36 @@ Available source fixture/test seams include guarded Development services (`demo_
 
 B handoff: inspect only MZ-00b's five exact demo paths at frozen source SHA, using authorized GitHub connector pinned-file reads. Return scenario/lesson restrictions, synthetic fixture/reset ownership, account/portal prerequisites and gaps; no edits, resets, tests, Git writes or domain implementation. C reviews MZ-00a/b before MZ-01. A exclusively owns MZ-01a/b/c files and shared provider boundaries; B exclusively owns CareFlow/Billing/InventoryApp and its domain CSS. Parent relays results.
 
-Transfer: pinned connector file reads are available for this small read-only packet. Git blob IDs permit byte-level verification independent of Windows line endings. No repository archive export tool was exposed; the connector's workflow-artifact downloader requires an existing artifact and is not a repository archive API. Do not guess credentials or use Library/setxattr. Full checkout transfer remains unverified; parent must supply a supported existing authorized transport or keep runtime execution on A. B may return a bounded UTF-8 unified patch with source blob IDs and SHA256 through the parent; A checks exact paths and `git apply --check` before application. No large base64 transcription.
+Transfer: pinned connector file reads are available for this small read-only packet. Git blob IDs permit byte-level verification independent of Windows line endings. No repository archive export tool was exposed; the connector's workflow-artifact downloader requires an existing artifact and is not a repository archive API. Do not guess credentials or use Library/setxattr. Parent verified the bounded source route: pinned GitHub recursive tree (3,150 entries), cloud sparse mirror with Git blob SHA and SHA256 manifest; no archive or credentials required for early packets. Sparse source does not establish runtime validation; A owns intact local execution. B may return a bounded UTF-8 unified patch with source blob IDs and SHA256 through the parent; A checks exact paths and `git apply --check` before application. No large base64 transcription.
 
-Before resuming, compare this checkpoint and the tracker against source and newer parent direction. Next: receive B fixture map and C readiness decision, then prepare missing local dependencies and isolated runtime through the existing queued lifecycle when its exact fixture ownership is established. No MZ-01 edit before MZ-00c.
+### Runtime checkpoint - 2026-10-02 02:27 UTC
+
+The earlier runtime-status failure was resolved through existing tooling and local setup; its historical observation above remains valid for that time. Pinned pnpm 11.19.0 already existed in the Corepack cache. An ignored checkout-local launcher fixes PATH without global settings. Queued prewarm passed in 130.6s: all 241 packages reused, zero downloaded, frozen lockfile and disabled lifecycle scripts. Existing setup session 14777 completed with exit 0 in 104.7s; the fresh named database was created and all current migrations applied. Setup was not repeated. Managed start passed in 25.96s; final managed status passed in 18.36s.
+
+Target: `apply_authorized_qa_20261001_8fe225ebad_development` on existing `apply-postgres-development` port 54329. Its absence was checked before setup; no existing database was reset. Existing configured PostgreSQL credential is reused through an ignored local hard link, with no secret exposure or generated access. Frontend/API listen at 127.0.0.1:3240/3241. API listener PID 42792 descends from recorded API PID 32232; frontend listener PID 40704 descends through 15420/21076 from recorded web PID 31660; worker PID 30504. Managed records identify this checkout and start timestamps. No occupied 54403 takeover. Source and lockfiles under apps/web, apps/api and bin remain identical to e5d065fe.
+
+Existing guarded fixture recipe `Development::RoleAccounts.prepare!` / `Development::PilotRehearsal.prepare!` succeeded only after the script verified the exact database and enabled existing local development access. Fixture `MZ00-local-pilot-8fe225ebad`: actor 1 (employee-1), practice 1, site 1, synthetic patient 1 and encounter 1. A owns this database and fixture; no reset performed. Fixture shape is narrowly ready for clinic session and one-encounter shell only; no asserted multi-site, twenty-row board, portal or provider readiness.
+
+One local Rails/PostgreSQL-backed browser walkthrough passed at 2026-10-02T02:27:22.834Z: Edge 154.0.4258.48, viewport 1440x900, en-US, America/Chicago. POST through existing CSRF/session flow returned 201; session actor, clinic practice and current site matched. Clinic shell visible, no page-wide horizontal overflow. `/build.json` returned revision 8fe225ebadf08ede2d4b8f52a94368c6e3373545, version 0.2.4, dirty false. The served SessionGuard module's source-map content matched checkout source after line-ending normalization: SHA256 2f3925c5dd6ad2b0cf6d67ad29778c0df47faa6e933c4fdc14c5d47c0f1cea46. This supplements build metadata with process ancestry, exact checkout roots and actual served frontend source. API source identity is supported by the owned launch chain/root and unchanged backend source; no independent API revision endpoint was invented.
+
+Ignored local artifacts (SHA256):
+- `tmp/modernization-fixture.json`: A2CD04A616796D6851F17715861F6362D148FFDEF626979D8FDC7CAC61925B49.
+- `tmp/modernization-readiness.mjs`: 87E4F7B84DB98BEF88E416C3F6CFA325C0E9F36636C090F907CCED6358026EB2.
+- `tmp/modernization-process-ancestry.json`: C0B7AC1D7D1996E746E9ED028A515A1A62A62C667DFF6312CF594A7E4EB64790.
+- `tmp/modernization-evidence/MZ-00-readiness.json`: AFF4DA624313DDB91929E1B6A34E51F7CF1D236B60A96A62ED3B546F2751EA41.
+- `tmp/modernization-evidence/MZ-00-clinic-desktop.png`: 372FAF4518CA96FF6DE936A1C0AE8934E427F6C3B91A17E4A7240F6DA0B7C9F9.
+
+MZ-00b source-only acceptance relayed by parent: `evidence/MZ-00b-readonly-map.md`, cloud SHA256 f01dcc4ca29b8449ab0dd183d4ee99bf6a621528deeb1aabb6242b7ffa1ca4a9; eleven source/instruction blobs verified there. `showDemoLessons=false` intentionally hides guided public lessons; shared Sandbox reset rebuilds everyone's clinic and interrupts sessions, so it is excluded from worker fixtures. Navigation-tour controls and lesson route locks are intentional. No fixture/reset ownership was inferred from prepared-scenario copy.
+
+Next: C reviews this source/runtime packet and records MZ-00c readiness per scenario. MZ-01 may start only after that decision. Portal and connected-provider proof remain pending and block their dependent scenarios. No Vitest/Rails application suite, comparative task benchmark, domain mutation, external send, provider connection, push or publication ran. All comparative benchmark values remain UNMEASURED; the single browser result is readiness evidence.
+
+Before resuming, compare this checkpoint and the tracker against source and newer parent direction. Keep the same explicit Sol workers and fixed owners. Runtime `/build.json` reports the current documentation HEAD dynamically; refresh declared fixture HEAD to the exact frozen candidate before any subsequent guarded check, preserving this observed evidence revision.
 
 ## Last run
 
-- Date (UTC): 2026-10-02; MZ-00a inspected frozen e5d065fe; integration branch created without advancing main.
-- Changed canonical paths: this brief and the central tracker in the integration workspace; concise progress pointer updated under the vault workflow.
-- Evidence: matching approved document hashes, three passing preflights, bounded source review, resource/status inventory; managed runtime status FAILED as detailed above. No application tests, benchmark measurements, provider calls, fixture resets, push or publication.
-- Documentation validation: verify-vault PASS (43 notes / 522 links); vault-audit completed with existing size/lifecycle advisories; verify-agent-harness FAIL with the same seven unrelated missing plan links recorded in the baseline; git diff --check PASS. No application test evidence reused.
-- All baseline/candidate benchmark metrics remain UNMEASURED. No historical CI failure was relabeled green or unavailable.
-- Next action: parent relay of B MZ-00b and C MZ-00c; resolve exact local runtime readiness before dependent acceptance.
+- Date (UTC): 2026-10-02; current runtime observation at 02:27 UTC, application source e5d065fe, documentation candidate 8fe225eb.
+- Outcome: existing setup completed; scoped isolated clinic runtime and one-patient fixture work; C runtime gate remains pending.
+- Changed canonical paths: this brief, central tracker and required progress pointer. Application source unchanged.
+- Checks actually executed: prewarm/setup/start/status PASS; one local-real-stack browser readiness walkthrough PASS. No application-suite evidence reused, no comparison measurement.
+- Documentation checks: verify-vault PASS (43 notes / 522 links); vault-audit completed with unchanged advisory categories; git diff --check PASS. verify-agent-harness retains the same seven unrelated missing-plan-link failures. Prior CI failures remain separate.
+- Next action: C MZ-00c review, then fixed MZ-01a typography/token/density packet under A's exclusive ownership.

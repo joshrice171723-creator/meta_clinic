@@ -7,7 +7,7 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
-**2026-10-02 - Modernization readiness:** A preserved the approved plan/tracker and froze an isolated integration worktree at e5d065fe. MZ-00a source inspection is pending C; managed runtime status failed with missing pnpm/web dependencies and no owned runtime/database proof. No application changes, tests, benchmarks or release. Current status and next proof remain in [[Meta Clinic Implementation Tracker#Clinic workspace modernization]].
+**2026-10-02 - Modernization readiness:** A preserved the approved plan/tracker and froze an isolated integration worktree at e5d065fe. MZ-00a/b source maps are independently reviewed; existing setup completed and an isolated local clinic readiness walkthrough passed with matching actor/scope, served source and managed process ownership. C MZ-00c remains pending. No application source changes, comparative benchmarks or release. Current status and next proof remain in [[Meta Clinic Implementation Tracker#Clinic workspace modernization]].
 
 
 ## 2026-09-30 - Correct MC02 staff caller boundary inference
