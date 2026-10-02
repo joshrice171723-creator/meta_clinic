@@ -91,6 +91,11 @@ export function EmployeeActivationPage() {
               component="h1"
               id="employee-activation-heading"
               variant="h1"
+              sx={{
+                fontSize: { xs: "1.75rem", sm: "2.1875rem" },
+                fontWeight: 650,
+                lineHeight: 1.15,
+              }}
             >
               {openedFromInvitation
                 ? "Create your password"

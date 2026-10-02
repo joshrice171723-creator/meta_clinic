@@ -440,7 +440,7 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
   );
 }
 
-function PatientLookupResults({
+export function PatientLookupResults({
   search,
   onProceed,
 }: {
@@ -532,8 +532,7 @@ function PatientLookupResults({
                 />
               </Stack>
               <Typography color="text.secondary" variant="body2">
-                Clinic reference:{" "}
-                {patientReferenceLabel(patient.reference) ?? "Not recorded"}
+                Clinic reference: {patient.reference?.trim() || "Not recorded"}
               </Typography>
               <Typography color="text.secondary" variant="body2">
                 Date of birth: {patient.date_of_birth || "Not recorded"} ·

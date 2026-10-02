@@ -1666,7 +1666,13 @@ export function TrackingBoardView({
             target instanceof HTMLElement &&
             event.currentTarget.contains(target)
           ) {
-            target.scrollIntoView({ block: "nearest", inline: "end" });
+            target.scrollIntoView({
+              behavior: window.matchMedia("(max-width: 760px)").matches
+                ? "instant"
+                : "auto",
+              block: "nearest",
+              inline: "end",
+            });
           }
         }}
       >

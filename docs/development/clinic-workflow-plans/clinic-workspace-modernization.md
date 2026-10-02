@@ -476,7 +476,8 @@ Remote maincd1's independent sandbox-marker/access failure and the previously ex
 
 ## Last run
 
-- Date UTC:2026-10-02;67source/readiness packets accepted forPass1;A10a combined assembly completed.
-- Outcome:68/74IMPLEMENTED;7/74VALIDATED. C10bcombined review and actual11/12verification/release outcomes remainpending.
-- Checks:combined fixedallowlist/backend/router/dependency/config invariants verified;priorcompiled/focused evidence bound;managedruntime statusPASS;exact browser-selector/disclosure maintenance and one-line public-login capture fix prepared;no browser run here.
-- Next:publish exact cleanfreeze/runtime/DBproof to parent for the two existing read-only groups;target03i/04b repair before affected safety acceptance;run consolidatedPass2without originalQA restart. No publication.
+- Date UTC:2026-10-02;five independently reviewed corrections integrated against478283d. Canonical tracker current checkpoint contains exact scope and evidence;final formatted identities retained in tmp/modernization-evidence/pass2-repair-integration.json.
+- Outcome:68/74IMPLEMENTED;7/74VALIDATED unchanged. Phone focus,activation,history/refill exact request retention and lookup reference corrections;source acceptance does not award browser/persisted validation. C10b and11/12 remain open.
+- Checks:30/30 targeted controlled-handler/SSR cases PASS,0failed/0skipped;scoped format/typecheck/main+Office PASS. No browser/backend mutation/send. Superseded04b261669FF excluded;current reviewedA9BF00EA applied.
+- Changed canonical paths:this brief and tracker;five production leaves andthree bounded authored test files.
+- Next:fresh read-only proof and exact fixture binding,parent dispatch targeted phone/activation/lookup recapture. G1/G2 previous observations belong to478283d;originalQA and remote-main/release reconciliation remain separate.

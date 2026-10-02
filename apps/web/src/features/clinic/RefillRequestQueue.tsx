@@ -30,6 +30,21 @@ import { useClinic } from "./Workspace";
 import { patientReferenceLabel } from "./patientReference";
 
 type Decision = "approved" | "changed" | "declined";
+type CreateAttempt = {
+  signature: string;
+  patientLabel: string;
+  body: Readonly<{
+    refill_request: Readonly<{
+      request_key: string;
+      patient_id: number;
+      medication_name: string;
+      pharmacy_destination: string;
+      medication_request_series_id: string | undefined;
+      request_note: string | undefined;
+    }>;
+  }>;
+  uncertain: boolean;
+};
 type PriorPrescription = {
   id: number;
   series_id: string;
@@ -104,6 +119,11 @@ export function RefillRequestQueue() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const attempts = useRef(new Map<string, string>());
+  const createAttempt = useRef<CreateAttempt | null>(null);
+  const createInFlight = useRef(false);
+  const createAllowed = useRef(canManage);
+  createAllowed.current = canManage;
+  const [createRetryPending, setCreateRetryPending] = useState(false);
 
   useEffect(() => {
     const query = patientQuery.trim();
@@ -179,36 +199,66 @@ export function RefillRequestQueue() {
   );
 
   const createRequest = async () => {
-    if (!canManage || !selectedPatient || busyKey) return;
-    const values = {
-      patientId: selectedPatient.id,
-      medicationName: medicationName.trim(),
-      pharmacyDestination: pharmacyDestination.trim(),
-      medicationRequestSeriesId: priorPrescription?.series_id,
-      requestNote: requestNote.trim(),
-    };
-    if (!values.medicationName || !values.pharmacyDestination) return;
-    const signature = JSON.stringify(values);
-    const requestKey = attempts.current.get(signature) ?? crypto.randomUUID();
-    attempts.current.set(signature, requestKey);
-    setBusyKey("create");
-    setError("");
-    setNotice("");
-    try {
-      await api("/api/clinic/refill_requests", {
-        method: "POST",
-        body: {
-          refill_request: {
+    if (!createAllowed.current || busyKey || createInFlight.current) return;
+    let attempt = createAttempt.current;
+    if (!attempt) {
+      if (!selectedPatient) return;
+      const values = {
+        patientId: selectedPatient.id,
+        medicationName: medicationName.trim(),
+        pharmacyDestination: pharmacyDestination.trim(),
+        medicationRequestSeriesId: priorPrescription?.series_id,
+        requestNote: requestNote.trim(),
+      };
+      if (!values.medicationName || !values.pharmacyDestination) return;
+      const signature = JSON.stringify(values);
+      const requestKey = attempts.current.get(signature) ?? crypto.randomUUID();
+      attempts.current.set(signature, requestKey);
+      attempt = {
+        signature,
+        patientLabel: `${selectedPatient.display_name} - ${patientReferenceLabel(selectedPatient.reference) || selectedPatient.reference}`,
+        body: Object.freeze({
+          refill_request: Object.freeze({
             request_key: requestKey,
             patient_id: values.patientId,
             medication_name: values.medicationName,
             pharmacy_destination: values.pharmacyDestination,
             medication_request_series_id: values.medicationRequestSeriesId,
             request_note: values.requestNote || undefined,
-          },
-        },
-      });
-      attempts.current.delete(signature);
+          }),
+        }),
+        uncertain: false,
+      };
+      createAttempt.current = attempt;
+    }
+    createInFlight.current = true;
+    setCreateFormOpen(true);
+    setBusyKey("create");
+    setError("");
+    setNotice("");
+    try {
+      const result = await api<{ refill_request: ClinicRefillRequest }>(
+        "/api/clinic/refill_requests",
+        { method: "POST", body: attempt.body },
+      );
+      const saved = result?.refill_request;
+      const submitted = attempt.body.refill_request;
+      if (
+        saved?.patient?.id !== submitted.patient_id ||
+        saved.medication_name !== submitted.medication_name ||
+        saved.pharmacy_destination !== submitted.pharmacy_destination ||
+        (saved.request_note ?? "") !== (submitted.request_note ?? "") ||
+        saved.source !== "staff"
+      ) {
+        throw new ApiError(
+          502,
+          "The saved refill request could not be matched to this attempt.",
+          "outcome_unconfirmed",
+        );
+      }
+      attempts.current.delete(attempt.signature);
+      createAttempt.current = null;
+      setCreateRetryPending(false);
       setSelectedPatient(null);
       setPatientQuery("");
       setMedicationName("");
@@ -218,8 +268,29 @@ export function RefillRequestQueue() {
       setNotice("The refill request was opened for clinical review.");
       requests.refresh();
     } catch (reason) {
-      setMutationError(reason, "The refill request could not be opened.");
+      const unknown =
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
+      // A later rejection cannot resolve an earlier uncertain write.
+      attempt.uncertain ||= unknown;
+      if (attempt.uncertain) {
+        setCreateRetryPending(true);
+      } else {
+        attempts.current.delete(attempt.signature);
+        createAttempt.current = null;
+        setCreateRetryPending(false);
+      }
+      setError(
+        unknown
+          ? "The refill request outcome is not confirmed. Retry the same request before opening another."
+          : reason instanceof Error
+            ? reason.message
+            : "The refill request could not be opened.",
+      );
     } finally {
+      createInFlight.current = false;
       setBusyKey(null);
     }
   };
@@ -412,6 +483,15 @@ export function RefillRequestQueue() {
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {canManage && createRetryPending && createAttempt.current && (
+        <Alert severity="warning">
+          The outcome for {createAttempt.current.patientLabel}:{" "}
+          {createAttempt.current.body.refill_request.medication_name} at{" "}
+          {createAttempt.current.body.refill_request.pharmacy_destination}{" "}
+          remains unconfirmed. Retry the same refill request. Edits below are
+          not sent by this retry.
+        </Alert>
+      )}
       {requests.data && (
         <>
           <Stack
@@ -857,9 +937,13 @@ export function RefillRequestQueue() {
           disableGutters
           elevation={0}
           variant="outlined"
-          expanded={createFormOpen}
+          expanded={createFormOpen || createRetryPending}
           onChange={(_, expanded) => {
-            if (!expanded && (busyKey === "create" || error !== "")) return;
+            if (
+              !expanded &&
+              (busyKey === "create" || createRetryPending || error !== "")
+            )
+              return;
             setCreateFormOpen(expanded);
           }}
           slotProps={{
@@ -966,9 +1050,10 @@ export function RefillRequestQueue() {
                 sx={{ alignSelf: "flex-start" }}
                 disabled={
                   busyKey !== null ||
-                  !selectedPatient ||
-                  !medicationName.trim() ||
-                  !pharmacyDestination.trim()
+                  (!createRetryPending &&
+                    (!selectedPatient ||
+                      !medicationName.trim() ||
+                      !pharmacyDestination.trim()))
                 }
                 onClick={() => void createRequest()}
                 startIcon={
@@ -977,7 +1062,9 @@ export function RefillRequestQueue() {
                   ) : undefined
                 }
               >
-                Open refill request
+                {createRetryPending
+                  ? "Retry same refill request"
+                  : "Open refill request"}
               </Button>
             </Stack>
           </AccordionDetails>

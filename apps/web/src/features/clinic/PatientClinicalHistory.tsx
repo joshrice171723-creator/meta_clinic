@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -42,6 +42,34 @@ type RecordMutation = {
   record: HistoryRecord;
   patient_id: number;
   encounter_id: number;
+};
+
+type RecordSaveAttempt = {
+  endpoint: string;
+  method: "POST" | "PATCH";
+  patientId: number;
+  encounterId: number;
+  kind: HistoryKind;
+  recordId?: number;
+  body: { clinical_history: Record<string, FormValue | number> };
+  outcomeUnknown: boolean;
+};
+type ReviewSaveAttempt = {
+  endpoint: string;
+  patientId: number;
+  encounterId: number;
+  topic: ReviewTopic;
+  body: {
+    review: {
+      encounter_id: number;
+      request_key: string;
+      topic: ReviewTopic;
+      outcome: string;
+      information_source: string;
+      notes: string;
+    };
+  };
+  outcomeUnknown: boolean;
 };
 
 const kinds: HistoryKind[] = ["allergies", "medications", "conditions"];
@@ -276,6 +304,9 @@ export function PatientClinicalHistory({
   const [reviewKey, setReviewKey] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [reviewOutcomeUnknown, setReviewOutcomeUnknown] = useState(false);
+  const mutationAttemptRef = useRef<RecordSaveAttempt | null>(null);
+  const reviewAttemptRef = useRef<ReviewSaveAttempt | null>(null);
+  const submittingRef = useRef(false);
   const outcomeUnknown = mutationOutcomeUnknown || reviewOutcomeUnknown;
 
   useEffect(() => {
@@ -305,6 +336,13 @@ export function PatientClinicalHistory({
   );
 
   function openEditor(kind: HistoryKind, record?: HistoryRecord) {
+    if (
+      submittingRef.current ||
+      mutationAttemptRef.current?.outcomeUnknown ||
+      reviewAttemptRef.current?.outcomeUnknown
+    )
+      return;
+    mutationAttemptRef.current = null;
     const next = { kind, record };
     setEditor(next);
     setForm(initialRecordForm(next));
@@ -314,6 +352,8 @@ export function PatientClinicalHistory({
   }
 
   function changeField(name: string, value: FormValue) {
+    if (submittingRef.current || mutationAttemptRef.current?.outcomeUnknown)
+      return;
     setForm((current) => ({ ...current, [name]: value }));
     if (mutationError && !mutationOutcomeUnknown) {
       setMutationKey(requestKey());
@@ -322,40 +362,62 @@ export function PatientClinicalHistory({
   }
 
   async function saveRecord() {
-    if (!editor || !encounterId) return;
+    if (
+      !editor ||
+      !encounterId ||
+      submittingRef.current ||
+      reviewAttemptRef.current?.outcomeUnknown
+    )
+      return;
+    const attempt: RecordSaveAttempt = mutationAttemptRef.current ?? {
+      endpoint: `${path.split("?")[0]}/${editor.kind}${editor.record ? `/${editor.record.id}` : ""}`,
+      method: editor.record ? "PATCH" : "POST",
+      patientId,
+      encounterId,
+      kind: editor.kind,
+      recordId: editor.record?.id,
+      body: {
+        clinical_history: {
+          encounter_id: encounterId,
+          request_key: mutationKey,
+          ...(editor.record
+            ? { lock_version: editor.record.lock_version }
+            : {}),
+          ...form,
+        },
+      },
+      outcomeUnknown: false,
+    };
+    mutationAttemptRef.current = attempt;
+    submittingRef.current = true;
     setSubmitting(true);
     setMutationError("");
     try {
-      const endpoint = `${path.split("?")[0]}/${editor.kind}${editor.record ? `/${editor.record.id}` : ""}`;
-      const result = await api<RecordMutation>(endpoint, {
-        method: editor.record ? "PATCH" : "POST",
-        body: {
-          clinical_history: {
-            encounter_id: encounterId,
-            request_key: mutationKey,
-            ...(editor.record
-              ? { lock_version: editor.record.lock_version }
-              : {}),
-            ...form,
-          },
-        },
+      const result = await api<RecordMutation>(attempt.endpoint, {
+        method: attempt.method,
+        body: attempt.body,
       });
       if (
-        result.patient_id !== patientId ||
-        result.encounter_id !== encounterId ||
-        (editor.record && result.record.id !== editor.record.id)
+        result.patient_id !== attempt.patientId ||
+        result.encounter_id !== attempt.encounterId ||
+        (attempt.recordId !== undefined &&
+          result.record.id !== attempt.recordId)
       ) {
         throw new Error(
           "The saved history record did not match this patient encounter.",
         );
       }
+      mutationAttemptRef.current = null;
       setEditor(null);
       setMutationOutcomeUnknown(false);
-      setNotice(`${singularLabels[editor.kind]} record saved.`);
+      setNotice(`${singularLabels[attempt.kind]} record saved.`);
       history.refresh();
       onChanged?.();
     } catch (error) {
-      const unknown = clinicalHistoryOutcomeIsUnknown(error);
+      const unknown =
+        attempt.outcomeUnknown || clinicalHistoryOutcomeIsUnknown(error);
+      attempt.outcomeUnknown = unknown;
+      if (!unknown) mutationAttemptRef.current = null;
       setMutationOutcomeUnknown(unknown);
       setMutationError(
         unknown
@@ -365,11 +427,19 @@ export function PatientClinicalHistory({
             : "Unable to save this history record.",
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
 
   function openReview(topic: ReviewTopic) {
+    if (
+      submittingRef.current ||
+      mutationAttemptRef.current?.outcomeUnknown ||
+      reviewAttemptRef.current?.outcomeUnknown
+    )
+      return;
+    reviewAttemptRef.current = null;
     setReviewTopic(topic);
     setReview({ outcome: "", information_source: "", notes: "" });
     setReviewKey(requestKey());
@@ -378,6 +448,8 @@ export function PatientClinicalHistory({
   }
 
   function changeReview(name: keyof typeof review, value: string) {
+    if (submittingRef.current || reviewAttemptRef.current?.outcomeUnknown)
+      return;
     setReview((current) => ({ ...current, [name]: value }));
     if (reviewError && !reviewOutcomeUnknown) {
       setReviewKey(requestKey());
@@ -386,38 +458,55 @@ export function PatientClinicalHistory({
   }
 
   async function saveReview() {
-    if (!reviewTopic || !encounterId) return;
+    if (
+      !reviewTopic ||
+      !encounterId ||
+      submittingRef.current ||
+      mutationAttemptRef.current?.outcomeUnknown
+    )
+      return;
+    const attempt: ReviewSaveAttempt = reviewAttemptRef.current ?? {
+      endpoint: `${path.split("?")[0]}/reviews`,
+      patientId,
+      encounterId,
+      topic: reviewTopic,
+      body: {
+        review: {
+          encounter_id: encounterId,
+          request_key: reviewKey,
+          topic: reviewTopic,
+          ...review,
+        },
+      },
+      outcomeUnknown: false,
+    };
+    reviewAttemptRef.current = attempt;
+    submittingRef.current = true;
     setSubmitting(true);
     setReviewError("");
     try {
       const result = await api<{ patient_id: number; encounter_id: number }>(
-        `${path.split("?")[0]}/reviews`,
-        {
-          method: "POST",
-          body: {
-            review: {
-              encounter_id: encounterId,
-              request_key: reviewKey,
-              topic: reviewTopic,
-              ...review,
-            },
-          },
-        },
+        attempt.endpoint,
+        { method: "POST", body: attempt.body },
       );
       if (
-        result.patient_id !== patientId ||
-        result.encounter_id !== encounterId
+        result.patient_id !== attempt.patientId ||
+        result.encounter_id !== attempt.encounterId
       )
         throw new Error("The review did not match this patient encounter.");
+      reviewAttemptRef.current = null;
       setReviewTopic(null);
       setReviewOutcomeUnknown(false);
       setNotice(
-        `${HISTORY_LABELS[reviewTopic as HistoryKind] || humanize(reviewTopic)} review recorded.`,
+        `${HISTORY_LABELS[attempt.topic as HistoryKind] || humanize(attempt.topic)} review recorded.`,
       );
       history.refresh();
       onChanged?.();
     } catch (error) {
-      const unknown = clinicalHistoryOutcomeIsUnknown(error);
+      const unknown =
+        attempt.outcomeUnknown || clinicalHistoryOutcomeIsUnknown(error);
+      attempt.outcomeUnknown = unknown;
+      if (!unknown) reviewAttemptRef.current = null;
       setReviewOutcomeUnknown(unknown);
       setReviewError(
         unknown
@@ -427,6 +516,7 @@ export function PatientClinicalHistory({
             : "Unable to record this history review.",
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -577,28 +667,28 @@ export function PatientClinicalHistory({
                   </List>
                 )}
                 <>
-                    <Divider />
-                    <Stack
-                      id={`clinical-history-${kind}-review`}
-                      tabIndex={-1}
-                      spacing={0.5}
-                      sx={{ p: 1.25 }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        {reviewItem
-                          ? `${humanize(reviewItem.outcome)} · ${displayTime(reviewItem.reviewed_at)}`
-                          : "Not reviewed in this encounter"}
-                      </Typography>
-                      {data.can_write && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => openReview(kind)}
-                        >
-                          Review list
-                        </Button>
-                      )}
-                    </Stack>
+                  <Divider />
+                  <Stack
+                    id={`clinical-history-${kind}-review`}
+                    tabIndex={-1}
+                    spacing={0.5}
+                    sx={{ p: 1.25 }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      {reviewItem
+                        ? `${humanize(reviewItem.outcome)} · ${displayTime(reviewItem.reviewed_at)}`
+                        : "Not reviewed in this encounter"}
+                    </Typography>
+                    {data.can_write && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => openReview(kind)}
+                      >
+                        Review list
+                      </Button>
+                    )}
+                  </Stack>
                 </>
               </Paper>
             );
@@ -606,32 +696,70 @@ export function PatientClinicalHistory({
         </Box>
         <Paper component="section" variant="outlined" sx={{ p: 1.25 }}>
           <Stack spacing={1}>
-            <Typography variant="subtitle1">Health conditions recorded in intake</Typography>
+            <Typography variant="subtitle1">
+              Health conditions recorded in intake
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Intake answers are separate from the longitudinal condition list. Recording or reviewing intake does not add a diagnosis.
+              Intake answers are separate from the longitudinal condition list.
+              Recording or reviewing intake does not add a diagnosis.
             </Typography>
             {data.reported_intake_conditions?.state === "restricted" ? (
-              <Typography>Intake conditions are unavailable with your current access.</Typography>
+              <Typography>
+                Intake conditions are unavailable with your current access.
+              </Typography>
             ) : data.reported_intake_conditions?.source ? (
               <>
                 <Typography variant="caption" color="text.secondary">
-                  Encounter #{data.reported_intake_conditions.source.encounter_id} · Intake revision {data.reported_intake_conditions.source.version} · {displayTime(data.reported_intake_conditions.source.recorded_at)}
+                  Encounter #
+                  {data.reported_intake_conditions.source.encounter_id} · Intake
+                  revision {data.reported_intake_conditions.source.version} ·{" "}
+                  {displayTime(
+                    data.reported_intake_conditions.source.recorded_at,
+                  )}
                 </Typography>
                 {data.reported_intake_conditions.questions.map((question) => (
                   <Stack key={question.id} spacing={0.5}>
-                    <Typography variant="body2">{question.label} · {humanize(question.answer_state)}{question.source ? ` · ${humanize(question.source)}` : ""}</Typography>
-                    {question.entries.length ? question.entries.map((entry, index) => (
-                      <Typography key={`${question.id}-${index}`} variant="body2">
-                        {entry.name}{entry.current_status ? ` · ${humanize(entry.current_status)}` : ""}{entry.certainty ? ` · ${humanize(entry.certainty)}` : ""}
+                    <Typography variant="body2">
+                      {question.label} · {humanize(question.answer_state)}
+                      {question.source ? ` · ${humanize(question.source)}` : ""}
+                    </Typography>
+                    {question.entries.length ? (
+                      question.entries.map((entry, index) => (
+                        <Typography
+                          key={`${question.id}-${index}`}
+                          variant="body2"
+                        >
+                          {entry.name}
+                          {entry.current_status
+                            ? ` · ${humanize(entry.current_status)}`
+                            : ""}
+                          {entry.certainty
+                            ? ` · ${humanize(entry.certainty)}`
+                            : ""}
+                        </Typography>
+                      ))
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No condition entries recorded in this intake answer. No
+                        absence has been inferred.
                       </Typography>
-                    )) : <Typography variant="body2" color="text.secondary">No condition entries recorded in this intake answer. No absence has been inferred.</Typography>}
+                    )}
                   </Stack>
                 ))}
-                <Button size="small" sx={{ alignSelf: "flex-start" }} href={`/clinic/patients/${patientId}/encounters/${data.reported_intake_conditions.source.encounter_id}?focus=nurse-workspace`}>
+                <Button
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                  href={`/clinic/patients/${patientId}/encounters/${data.reported_intake_conditions.source.encounter_id}?focus=nurse-workspace`}
+                >
                   Open source intake
                 </Button>
               </>
-            ) : <Typography variant="body2" color="text.secondary">No saved intake condition source is available. No absence has been inferred.</Typography>}
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No saved intake condition source is available. No absence has
+                been inferred.
+              </Typography>
+            )}
           </Stack>
         </Paper>
         <Paper component="section" variant="outlined">
@@ -689,7 +817,7 @@ export function PatientClinicalHistory({
           {editor && (
             <Box
               component="fieldset"
-              disabled={mutationOutcomeUnknown}
+              disabled={submitting || mutationOutcomeUnknown}
               sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}
             >
               <RecordFields
@@ -739,7 +867,7 @@ export function PatientClinicalHistory({
         <DialogContent dividers>
           <Stack
             component="fieldset"
-            disabled={reviewOutcomeUnknown}
+            disabled={submitting || reviewOutcomeUnknown}
             spacing={2}
             sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}
           >

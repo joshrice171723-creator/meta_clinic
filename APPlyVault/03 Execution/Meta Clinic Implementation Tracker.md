@@ -80,6 +80,15 @@ A = shared-file/foundation/integration owner; original domain B responsibility i
 
 ### Current packet checkpoint
 
+### Targeted Pass 2 repair checkpoint (2026-10-02)
+
+Counts remain **68/74 IMPLEMENTED;7/74 VALIDATED**. Five independently source-reviewed corrections:02a phone focus requests instant scrolling at the existing760px breakpoint;08b activation responsive heading;03i captures history POST/PATCH/review identity/body/key/version for explicit retry;04b captures exact refill creation request with retained capability guards;03c lookup displays returned references including synthetic collision identifiers. Corrected04b patch A9BF00EA20C0FE81182B921CCF1807111FC3DF2526DEB5A4508DD8E95328B750 supersedes preserved261669FF. Earlier03i/04b source defects are superseded; browser lifecycle/persisted recovery acceptance remains open.
+
+Scoped formatting/TypeScript/main+Office bundles PASS;30/30 targeted cases PASS,0failed/0skipped:12history and10refill controlled actual-handler cases plus8lookup SSR. Mocked hooks omit effects;no browser/API/database/provider execution credited. Reviewed hashes/final formatted identities:ignored tmp/modernization-evidence/pass2-repair-integration.json and named pass2-repairs logs/report. No new validation award.
+
+G1 task-9/pass2-g1/handoff.json records20board identities,desktop/tablet sticky/action focus,three calendar times/durations and no shell/lookup/calendar overflow. G2 task-10/pass2-G2-evidence/handoff.md and artifact-manifest.json recorddesktop/390 entry overflow/media/destinations and Features keyboard focus return. These belong to478283d;affected phone focus/activation/lookup need targeted recapture on this checkpoint. Settled phone focus,narrow stale-row identity readability,native200percent zoom and auth/portal/provider/payment/stock prerequisites remain explicit gaps. Parent dispatches existing helpers after fresh proof/clean source binding;no originalQA restart,publication,reset or sends.
+
+
 ### Combined source assembly and consolidated Pass 2 handoff
 
 **68/74 IMPLEMENTED;7/74 VALIDATED after this checkpoint commit.** C accepted04h against exact base/patch/result54aca568, reusing the current compiled/35-case evidence; it is now the67thsource/readiness packet. A completed10a by assembling and checking one combined candidate: every changed production path is within a fixed packet allowlist; backend,router,dependencies and Vite configuration remain byte-identical to e5; all affected source compiled in main/Office builds with current focused evidence. MZ-10a-combined-source-manifest.json binds current source blobs and prior reports in A-owned ignored evidence storage.10b remains C's independent combined review,not an A-awarded pass. Remaining six outcomes are10b,11a,11b,12a,12b,12c; verification/release records stay PREPARED until actual outcomes.50/60reviews remain recorded; next approach review is due70implemented.
