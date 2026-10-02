@@ -6,6 +6,7 @@ import {
   currentLoginDestination,
 } from "../api/client";
 import { ResourceState } from "./ResourceState";
+import { LoadingFeedback } from "./LoadingFeedback";
 
 export { ResourceState } from "./ResourceState";
 export type { ResourceStateName, ResourceStateProps } from "./ResourceState";
@@ -283,6 +284,7 @@ export function Form({
           {busy ? "Working…" : submit}
         </button>
       </fieldset>
+      <LoadingFeedback active={busy} label="Sending your request…" />
       {error && <ErrorMessage message={error} />}
       {notice && <p role="status">{notice}</p>}
     </form>

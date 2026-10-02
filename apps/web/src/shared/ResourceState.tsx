@@ -1,12 +1,6 @@
 import type { ReactNode } from "react";
-import {
-  Alert,
-  AlertTitle,
-  Button,
-  CircularProgress,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, AlertTitle, Button, Stack } from "@mui/material";
+import { LoadingFeedback } from "./LoadingFeedback";
 
 export type ResourceStateName =
   "loading" | "empty" | "stale" | "error" | "success" | "blocked";
@@ -61,19 +55,8 @@ export function ResourceState(props: ResourceStateProps) {
   const { state, children, onRetry, retryLabel = "Retry" } = props;
   if (state === "loading") {
     return (
-      <Stack
-        direction="row"
-        spacing={1.5}
-        sx={{ alignItems: "center" }}
-        role="status"
-        aria-live="polite"
-        aria-busy="true"
-        data-resource-state="loading"
-      >
-        <CircularProgress size={20} aria-hidden="true" />
-        <Typography color="text.secondary">
-          {props.message ?? "Loading…"}
-        </Typography>
+      <Stack data-resource-state="loading">
+        <LoadingFeedback label={props.message ?? "Loading…"} />
       </Stack>
     );
   }

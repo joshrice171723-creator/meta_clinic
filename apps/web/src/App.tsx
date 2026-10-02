@@ -23,6 +23,7 @@ import { setBusinessDate } from "./shared/businessDate";
 import { DevelopmentToolbar } from "./features/identity/DevelopmentAccountSwitcher";
 import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
 import { DemoEntryLoading } from "./features/demo/DemoEntry";
+import { LoadingFeedback } from "./shared/LoadingFeedback";
 import { hasGrowthPage } from "./features/marketing/marketingPaths";
 import { isDemoFrame } from "./features/demo/frame";
 import {
@@ -292,9 +293,9 @@ const ScribeReviewPage = lazyNamed(
 export function RoutePending({ root = false }: { root?: boolean }) {
   const status = (
     <section aria-labelledby="route-loading-title">
-      <p id="route-loading-title" role="status">
-        Loading this page…
-      </p>
+      <div id="route-loading-title">
+        <LoadingFeedback label="Loading this page…" />
+      </div>
       <p className="page-fine-print">
         If it does not open shortly, reload the page to reconnect.
       </p>
