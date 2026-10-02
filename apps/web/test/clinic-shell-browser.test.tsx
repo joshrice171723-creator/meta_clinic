@@ -58,16 +58,10 @@ beforeAll(async () => {
               const path = id
                 .split("?")[0]
                 .slice(repo.replaceAll("\\", "/").length + 1);
-              return execFileSync(
-                "git",
-                [
-                  "-c",
-                  "safe.directory=" + repo.replaceAll("\\", "/"),
-                  "show",
-                  "5da1a9f5:" + path,
-                ],
-                { cwd: repo, encoding: "utf8" },
-              );
+              return execFileSync("git", ["show", "5da1a9f5:" + path], {
+                cwd: repo,
+                encoding: "utf8",
+              });
             }
             if (id !== entry) return;
             return `
