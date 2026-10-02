@@ -6557,6 +6557,46 @@ export function ReceivingScreen({
             ))}
           </div>
         )}
+        {receipt ? (
+          <div className="inventory-stack compact" aria-label="Recorded receipt details">
+            <Alert severity="info">
+              This receipt is recorded. The details below are read-only; they do not
+              use the defaults for a new delivery.
+            </Alert>
+            <DataPoint label="Receipt started" value={inventoryDateTime(receipt.started_at, data.timezone)} />
+            {receipt.lines.length === 0 && (
+              <Typography variant="body2">Recorded line details are unavailable.</Typography>
+            )}
+            {receipt.lines.map((recordedLine) => {
+              const recordedLot = data.lots.find((record) => record.id === recordedLine.lot_id);
+              const recordedProduct = recordedLot
+                ? data.products.find((record) => record.id === recordedLot.product_id)
+                : undefined;
+              const recordedLocation = data.locations.find((record) => record.id === recordedLine.location_id);
+              return (
+                <div key={recordedLine.id} className="inventory-data-grid two">
+                  <DataPoint label="Product" value={recordedProduct?.name ?? "Product details unavailable"} />
+                  <DataPoint label="Recorded lot" value={recordedLot?.lot_number ?? "Lot details unavailable"} />
+                  <DataPoint label="Lot expiration" value={recordedLot ? inventoryDate(recordedLot.expiration_date, data.timezone) : "Not available"} />
+                  <DataPoint label="Accepted packages" value={number(recordedLine.quantity_packages)} />
+                  <DataPoint label="Accepted stock units" value={number(recordedLine.quantity_units)} />
+                  <DataPoint label="Recorded destination" value={recordedLocation?.path ?? recordedLocation?.name ?? "Location details unavailable"}
+                    detail={`Location reference: ${recordedLine.location_id}`} />
+                  <DataPoint label="Recorded area" value={recordedLine.area_id || "Not recorded"} />
+                  <DataPoint label="Recorded temperature (°C)" value={recordedLine.temperature_c ?? "Not recorded"} />
+                  <DataPoint label="Disposition" value={recordedLine.disposition?.replaceAll("_", " ") || "Not recorded"} />
+                  <DataPoint label="Exception" value={recordedLine.exception?.replaceAll("_", " ") || "Not recorded"} />
+                </div>
+              );
+            })}
+            {shipment.reconciliation && (
+              <Typography variant="body2">
+                Reconciliation: {shipment.reconciliation.reason}
+              </Typography>
+            )}
+          </div>
+        ) : (
+          <>
         <InventoryScanInput
           context="receiving"
           productId={item.id}
@@ -6815,6 +6855,8 @@ export function ReceivingScreen({
                   : "Confirm receipt"}
           </ConfirmButton>
         </div>
+          </>
+        )}
         {receiptLine && (
           <p className="inventory-success-line">
             Recorded: {number(receiptLine.quantity_packages)} {packageUnit} /{" "}
@@ -6836,9 +6878,11 @@ export function ReceivingScreen({
           <DataPoint
             label="This receipt"
             value={
-              countsValid
-                ? `${number(packages)} ${packageUnit} · ${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit}`
-                : "Enter whole package counts"
+              receipt
+                ? "See recorded receipt lines"
+                : countsValid
+                  ? `${number(packages)} ${packageUnit} · ${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit}`
+                  : "Enter whole package counts"
             }
           />
           <DataPoint
