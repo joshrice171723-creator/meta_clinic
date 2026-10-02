@@ -78,7 +78,7 @@ export function PatientContextBar({
     if (
       encounterId &&
       !window.confirm(
-        "Clear the current patient and encounter context? Unsaved work stays in the current page.",
+        "Clear the current patient context? Patient record pages return to Patients; other pages retain encounter and other query context.",
       )
     )
       return;
@@ -88,30 +88,47 @@ export function PatientContextBar({
   return (
     <section className="clinic-patient-context" aria-label="Current patient">
       <div className="clinic-patient-context-identity">
-        <Typography component="span" variant="caption">
-          Current patient
-        </Typography>
-        {!identity.data && !identity.error ? (
-          <span className="clinic-patient-context-loading" role="status">
-            <CircularProgress aria-hidden="true" size={14} />
-            Loading identity…
-          </span>
-        ) : patient ? (
-          <>
-            <strong>{patient.display_name}</strong>
-            {reference && (
-              <Typography component="span" variant="caption">
-                Clinic reference: {reference}
+        <div className="clinic-patient-context-summary">
+          <Typography
+            className="clinic-patient-context-label"
+            component="span"
+            variant="caption"
+          >
+            Current patient
+          </Typography>
+          {!identity.data && !identity.error ? (
+            <span className="clinic-patient-context-loading" role="status">
+              <CircularProgress aria-hidden="true" size={14} />
+              Loading identity…
+            </span>
+          ) : patient ? (
+            <>
+              <strong>{patient.display_name}</strong>
+              {reference && (
+                <Typography
+                  component="span"
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Clinic reference: {reference}
+                </Typography>
+              )}
+              <Typography
+                className="clinic-patient-context-scope"
+                component="span"
+                variant="caption"
+                color="text.secondary"
+              >
+                {practiceName} · {locationName}
+                {encounterId
+                  ? ` · URL encounter ID: ${encounterId} (unverified)`
+                  : ""}
               </Typography>
-            )}
-            <Typography variant="caption" color="text.secondary">
-              {practiceName} · {locationName}
-              {encounterId ? ` · Encounter ${encounterId}` : ""}
-            </Typography>
-          </>
-        ) : (
-          <span role="status">Patient identity unavailable</span>
-        )}
+            </>
+          ) : (
+            <span role="status">Patient identity unavailable</span>
+          )}
+        </div>
       </div>
       <div className="clinic-patient-context-actions">
         {identity.error && (
