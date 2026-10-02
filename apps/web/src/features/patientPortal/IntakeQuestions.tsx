@@ -2,13 +2,14 @@ import {
   Autocomplete,
   Box,
   Button,
+  FormHelperText,
   Menu,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   IntakeFieldFrame,
   IntakeValueControl,
@@ -259,6 +260,7 @@ export function IntakeQuestions({
   medicationOptions = [],
   medicationReferences = [],
   answerStates = [...DEFAULT_ANSWER_STATES],
+  questionErrors = {},
 }: {
   fields: IntakeField[];
   definitions?: IntakeField[];
@@ -269,7 +271,9 @@ export function IntakeQuestions({
   medicationOptions?: string[];
   medicationReferences?: Array<{ id: string; name: string }>;
   answerStates?: string[];
+  questionErrors?: Record<string, string>;
 }) {
+  const feedbackId = useId();
   const [editingAnswers, setEditingAnswers] = useState<string[]>([]);
   const set = (id: string, change: Exclude<IntakeAnswer, string>) => {
     setEditingAnswers((current) => current.filter((fieldId) => fieldId !== id));
@@ -324,9 +328,21 @@ export function IntakeQuestions({
               key={field.id}
               component="section"
               aria-label={`${field.label} question`}
+              data-intake-question={field.id}
+              tabIndex={questionErrors[field.id] ? -1 : undefined}
+              aria-describedby={
+                questionErrors[field.id]
+                  ? `${feedbackId}-${field.id}-error`
+                  : undefined
+              }
               sx={{
                 alignSelf: "start",
                 minWidth: 0,
+                scrollMarginBlock: 16,
+                "&:focus": {
+                  outline: "2px solid currentColor",
+                  outlineOffset: 4,
+                },
                 gridColumn:
                   field.history_kind || field.record_fields || repeatable
                     ? { md: "1 / -1" }
@@ -334,6 +350,11 @@ export function IntakeQuestions({
               }}
             >
               <Stack spacing={1.5}>
+                {questionErrors[field.id] && (
+                  <FormHelperText id={`${feedbackId}-${field.id}-error`} error>
+                    {questionErrors[field.id]}
+                  </FormHelperText>
+                )}
                 {(field.history_kind ||
                   field.record_fields ||
                   repeatable ||

@@ -40,6 +40,13 @@ import {
   type IntakeAnswers,
 } from "../patientPortal/IntakeQuestions";
 import { StaffIntakeSections } from "./StaffIntakeSections";
+import {
+  IntakeActionFeedback,
+  unresolvedIntakeGroupMessage,
+  unresolvedIntakeQuestions,
+  type IntakeActionFailure,
+  type IntakeQuestionError,
+} from "./IntakeActionFeedback";
 import { VitalSignsEntry } from "./VitalSignsEntry";
 import { IntakeEvidencePicker } from "./IntakeEvidencePicker";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
@@ -230,6 +237,10 @@ export function NurseEncounterWorkspaceContent({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [intakeFailure, setIntakeFailure] =
+    useState<IntakeActionFailure | null>(null);
+  const [questionToReview, setQuestionToReview] =
+    useState<IntakeQuestionError | null>(null);
   const [activeChunk, setActiveChunk] = useState(0);
   const [groupExpanded, setGroupExpanded] = useState(true);
   const [activeWorkspace, setActiveWorkspace] = useState("intake");
@@ -246,6 +257,8 @@ export function NurseEncounterWorkspaceContent({
     setBaseline(emptyIntake);
     setSavedIntake(null);
     setError("");
+    setIntakeFailure(null);
+    setQuestionToReview(null);
     setNotice("");
     setActiveChunk(0);
     setGroupExpanded(true);
@@ -255,6 +268,23 @@ export function NurseEncounterWorkspaceContent({
     setRoomId(encounter.room_id);
     setEncounterObservations(observations);
   }, [patient.id, encounter.id]);
+  useEffect(() => {
+    if (
+      !questionToReview ||
+      activeChunk !== questionToReview.chunkIndex ||
+      !groupExpanded
+    )
+      return;
+    const question = Array.from(
+      document
+        .getElementById("nurse-workspace")
+        ?.querySelectorAll<HTMLElement>("[data-intake-question]") ?? [],
+    ).find((element) => element.dataset.intakeQuestion === questionToReview.id);
+    if (!question) return;
+    question.focus({ preventScroll: true });
+    question.scrollIntoView({ block: "nearest" });
+    setQuestionToReview(null);
+  }, [questionToReview, activeChunk, groupExpanded]);
   const [taskKind, setTaskKind] =
     useState<ClinicalTask["task_kind"]>("patient_call");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
@@ -369,7 +399,7 @@ export function NurseEncounterWorkspaceContent({
   }, [dirty]);
 
   useEffect(() => {
-    groupHeading.current?.focus();
+    if (!questionToReview) groupHeading.current?.focus();
   }, [activeChunk]);
 
   useEffect(() => {
@@ -445,6 +475,29 @@ export function NurseEncounterWorkspaceContent({
     (task) => task.state === "cancelled" && task.source_type === "manual",
   );
   const intakeChunks = workspace.questionnaire_form?.chunks ?? [];
+  const remainingFailedQuestions =
+    intakeFailure && workspace.questionnaire_form
+      ? unresolvedIntakeQuestions({
+          fields: workspace.questionnaire_form.fields,
+          chunks: intakeChunks,
+          confirmedChunks: intakeFailure.questions.map(
+            (question) => question.chunkIndex,
+          ),
+          answers: form.questionnaire?.answers ?? {},
+          measuredFields: recordedMeasurements
+            .filter((item) =>
+              ["vital-height", "vital-weight"].includes(item.code),
+            )
+            .map((item) => item.code.slice("vital-".length)),
+          video: encounter.visit_modality === "video",
+        }).filter((question) =>
+          intakeFailure.questions.some(
+            (failed) =>
+              failed.id === question.id &&
+              failed.chunkIndex === question.chunkIndex,
+          ),
+        )
+      : [];
   const confirmedChunkIndexes = form.questionnaire?.confirmed_chunks ?? [];
   const activeChunkIndex = Math.min(
     activeChunk,
@@ -496,7 +549,10 @@ export function NurseEncounterWorkspaceContent({
     !vitalSignsReady ? "Record vital signs or mark them not applicable" : null,
   ].filter((item): item is string => Boolean(item));
 
-  async function perform(operation: () => Promise<void>) {
+  async function perform(
+    operation: () => Promise<void>,
+    onFailure?: (caught: unknown, message: string) => void,
+  ) {
     setBusy(true);
     setError("");
     setNotice("");
@@ -504,17 +560,14 @@ export function NurseEncounterWorkspaceContent({
       await operation();
       resource.refresh();
     } catch (caught) {
-      if (caught instanceof ApiError && caught.code === "outcome_unconfirmed") {
-        setError(
-          "The server outcome is unconfirmed. Refresh this encounter before deciding whether to repeat the action.",
-        );
-      } else {
-        setError(
-          caught instanceof Error
+      const message =
+        caught instanceof ApiError && caught.code === "outcome_unconfirmed"
+          ? "The server outcome is unconfirmed. Refresh this encounter before deciding whether to repeat the action."
+          : caught instanceof Error
             ? caught.message
-            : "The action could not be completed.",
-        );
-      }
+            : "The action could not be completed.";
+      if (onFailure) onFailure(caught, message);
+      else setError(message);
     } finally {
       setBusy(false);
     }
@@ -523,92 +576,134 @@ export function NurseEncounterWorkspaceContent({
   async function saveIntake(formToSave = form, advanceChunk = false) {
     if (intakeConflict) return;
     const requestContext = `${patient.id}:${encounter.id}`;
-    await perform(async () => {
-      const confirmedChunksToSave = formToSave.questionnaire
-        ? Array.from(
-            new Set([
-              ...(formToSave.questionnaire.confirmed_chunks ?? []),
-              ...(advanceChunk ? [activeChunkIndex] : []),
-            ]),
-          ).sort((left, right) => left - right)
-        : [];
-      const questionnaire = formToSave.questionnaire
-        ? {
-            ...formToSave.questionnaire,
-            confirmed_chunks: confirmedChunksToSave,
-          }
-        : undefined;
-      const intakeRequest = {
-        ...formToSave,
-        questionnaire:
-          JSON.stringify(questionnaire) ===
-          JSON.stringify(baseline.questionnaire)
-            ? undefined
-            : questionnaire,
-        expected_version: expectedVersion,
-        observation_ids: observationIds,
-        history_review_ids:
-          formToSave.history_state === "reviewed" ? reviewIds : [],
-      };
-      const signature = JSON.stringify(intakeRequest);
-      if (saveAttempt.current?.signature !== signature) {
-        saveAttempt.current = { signature, key: requestKey() };
-      }
-      const response = await api<{ intake: EncounterIntakeRevision }>(
-        `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/intake_revisions`,
-        {
-          method: "POST",
-          body: {
-            intake: {
-              ...intakeRequest,
-              request_key: saveAttempt.current.key,
+    const attemptedChunk = activeChunkIndex;
+    const attemptedWorkspace =
+      activeWorkspace === "handoff" ? "handoff" : "intake";
+    const confirmedChunksToSave = formToSave.questionnaire
+      ? Array.from(
+          new Set([
+            ...(formToSave.questionnaire.confirmed_chunks ?? []),
+            ...(advanceChunk ? [activeChunkIndex] : []),
+          ]),
+        ).sort((left, right) => left - right)
+      : [];
+    await perform(
+      async () => {
+        const questionnaire = formToSave.questionnaire
+          ? {
+              ...formToSave.questionnaire,
+              confirmed_chunks: confirmedChunksToSave,
+            }
+          : undefined;
+        const intakeRequest = {
+          ...formToSave,
+          questionnaire:
+            JSON.stringify(questionnaire) ===
+            JSON.stringify(baseline.questionnaire)
+              ? undefined
+              : questionnaire,
+          expected_version: expectedVersion,
+          observation_ids: observationIds,
+          history_review_ids:
+            formToSave.history_state === "reviewed" ? reviewIds : [],
+        };
+        const signature = JSON.stringify(intakeRequest);
+        if (saveAttempt.current?.signature !== signature) {
+          saveAttempt.current = { signature, key: requestKey() };
+        }
+        const response = await api<{ intake: EncounterIntakeRevision }>(
+          `/api/clinic/patients/${patient.id}/encounters/${encounter.id}/intake_revisions`,
+          {
+            method: "POST",
+            body: {
+              intake: {
+                ...intakeRequest,
+                request_key: saveAttempt.current.key,
+              },
             },
           },
-        },
-      );
-      if (
-        response.intake.patient_id !== patient.id ||
-        response.intake.encounter_id !== encounter.id
-      )
-        throw new Error(
-          "The saved intake response did not match this encounter.",
         );
-      if (contextRef.current !== requestContext) return;
-      const saved: IntakeForm = {
-        status: response.intake.status,
-        identity_state: response.intake.identity_state,
-        visit_reason_state: response.intake.visit_reason_state,
-        history_state: response.intake.history_state,
-        vitals_state: response.intake.vitals_state,
-        questionnaire: {
-          answers: response.intake.questionnaire?.answers ?? {},
-          question_follow_up: questionFollowUpDrafts(
-            response.intake.questionnaire?.question_follow_up,
-          ),
-          text: response.intake.questionnaire?.text ?? "",
-          status: response.intake.questionnaire?.status ?? "draft",
-          confirmed: false,
-          confirmed_chunks:
-            response.intake.questionnaire?.confirmed_chunks ?? [],
-          evidence_keys:
-            response.intake.questionnaire?.evidence_references?.map(
-              (item) => item.key,
-            ) ?? [],
-        },
-      };
-      setForm(saved);
-      setBaseline(saved);
-      setSavedIntake(response.intake);
-      saveAttempt.current = null;
-      hydratedVersion.current = response.intake.version;
-      if (advanceChunk) {
-        setActiveChunk(() =>
-          Math.min(activeChunkIndex + 1, intakeChunks.length - 1),
-        );
-        setGroupExpanded(activeChunkIndex < intakeChunks.length - 1);
-        setNotice("Group saved.");
-      } else setNotice("Intake revision saved.");
-    });
+        if (
+          response.intake.patient_id !== patient.id ||
+          response.intake.encounter_id !== encounter.id
+        )
+          throw new Error(
+            "The saved intake response did not match this encounter.",
+          );
+        if (contextRef.current !== requestContext) return;
+        setIntakeFailure(null);
+        const saved: IntakeForm = {
+          status: response.intake.status,
+          identity_state: response.intake.identity_state,
+          visit_reason_state: response.intake.visit_reason_state,
+          history_state: response.intake.history_state,
+          vitals_state: response.intake.vitals_state,
+          questionnaire: {
+            answers: response.intake.questionnaire?.answers ?? {},
+            question_follow_up: questionFollowUpDrafts(
+              response.intake.questionnaire?.question_follow_up,
+            ),
+            text: response.intake.questionnaire?.text ?? "",
+            status: response.intake.questionnaire?.status ?? "draft",
+            confirmed: false,
+            confirmed_chunks:
+              response.intake.questionnaire?.confirmed_chunks ?? [],
+            evidence_keys:
+              response.intake.questionnaire?.evidence_references?.map(
+                (item) => item.key,
+              ) ?? [],
+          },
+        };
+        setForm(saved);
+        setBaseline(saved);
+        setSavedIntake(response.intake);
+        saveAttempt.current = null;
+        hydratedVersion.current = response.intake.version;
+        if (advanceChunk) {
+          setActiveChunk(() =>
+            Math.min(activeChunkIndex + 1, intakeChunks.length - 1),
+          );
+          setGroupExpanded(activeChunkIndex < intakeChunks.length - 1);
+          setNotice("Group saved.");
+        } else setNotice("Intake revision saved.");
+      },
+      (caught, message) => {
+        if (contextRef.current !== requestContext) return;
+        if (attemptedWorkspace === "handoff") {
+          setError(message);
+          return;
+        }
+        const questions =
+          caught instanceof ApiError &&
+          caught.status === 422 &&
+          caught.message === unresolvedIntakeGroupMessage &&
+          workspace.questionnaire_form
+            ? unresolvedIntakeQuestions({
+                fields: workspace.questionnaire_form.fields,
+                chunks: intakeChunks,
+                confirmedChunks: confirmedChunksToSave,
+                answers: formToSave.questionnaire?.answers ?? {},
+                measuredFields: recordedMeasurements
+                  .filter(
+                    (item) =>
+                      observationIds.includes(item.id) &&
+                      ["vital-height", "vital-weight"].includes(item.code),
+                  )
+                  .map((item) => item.code.slice("vital-".length)),
+                video: encounter.visit_modality === "video",
+              })
+            : [];
+        setIntakeFailure({
+          message,
+          chunkIndex: attemptedChunk,
+          workspace: attemptedWorkspace,
+          questions,
+        });
+        setActiveWorkspace("intake");
+        setActiveChunk(attemptedChunk);
+        setGroupExpanded(true);
+      },
+    );
   }
 
   async function assignRoom(room: FacilityRoom | null) {
@@ -731,6 +826,8 @@ export function NurseEncounterWorkspaceContent({
     setForm(emptyIntake);
     setBaseline(emptyIntake);
     setError("");
+    setIntakeFailure(null);
+    setQuestionToReview(null);
     setNotice("");
     resource.refresh();
   }
@@ -1368,6 +1465,16 @@ export function NurseEncounterWorkspaceContent({
                                 </Stack>
                               )}
                             <StaffIntakeSections
+                              questionErrors={Object.fromEntries(
+                                remainingFailedQuestions
+                                  .filter(
+                                    (question) => question.chunkIndex === index,
+                                  )
+                                  .map((question) => [
+                                    question.id,
+                                    "Answer this question or choose an explicit resolution before confirming.",
+                                  ]),
+                              )}
                               sectionId={intakeChunks[activeChunkIndex].id}
                               definitions={workspace.questionnaire_form.fields}
                               fields={workspace.questionnaire_form.fields.filter(
@@ -1451,6 +1558,25 @@ export function NurseEncounterWorkspaceContent({
                                 }
                               />
                             )}
+                            {intakeFailure?.workspace === "intake" &&
+                              intakeFailure.chunkIndex === index && (
+                                <IntakeActionFeedback
+                                  failure={intakeFailure}
+                                  questions={remainingFailedQuestions}
+                                  onRefresh={resource.refresh}
+                                  onDiscard={
+                                    dirty && !intakeConflict
+                                      ? discardIntakeEdits
+                                      : undefined
+                                  }
+                                  onReviewQuestion={(question) => {
+                                    setActiveWorkspace("intake");
+                                    setActiveChunk(question.chunkIndex);
+                                    setGroupExpanded(true);
+                                    setQuestionToReview(question);
+                                  }}
+                                />
+                              )}
                             <Stack
                               direction={{ xs: "column", sm: "row" }}
                               spacing={1}
