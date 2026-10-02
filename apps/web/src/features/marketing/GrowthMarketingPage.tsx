@@ -14,6 +14,14 @@ const priority = [
   { label: "Cash-pay care", path: "/primary-care/cash-pay" },
 ];
 
+function WeightLossHeroImage({ src, alt }: { src: string; alt: string }) {
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  return <div className="growth-page__photo-loading" data-image-state={state}>
+    <img src={src} alt={alt} width={1536} height={1024} onLoad={() => setState("ready")} onError={() => setState("error")} />
+    {state !== "ready" && <span className="growth-page__photo-status" role="status">{state === "loading" ? "Loading clinic image…" : "Clinic image unavailable."}</span>}
+  </div>;
+}
+
 const conversionPaths = new Set([
   "/book-demo", "/request-demo", "/contact", "/pilot", "/get-started", "/signup",
 ]);
@@ -217,10 +225,10 @@ function PageBody({ page }: { page: GrowthPage }) {
             <p className="growth-page__lead">{page.lead}</p>
             <div className="growth-page__actions">
               <Button href={page.primaryCta.path} variant="contained" endIcon={<ArrowForwardRoundedIcon />}>{page.primaryCta.label}</Button>
-              <Button href={page.secondaryCta.path} variant="outlined">{page.secondaryCta.label}</Button>
+              <Button href={page.secondaryCta.path} variant={internalPath === "/weight-loss" ? "text" : "outlined"} className={internalPath === "/weight-loss" ? "growth-page__hero-secondary" : undefined}>{page.secondaryCta.label}</Button>
             </div>
           </div>
-          {heroImage ? <figure className={`growth-page__hero-image growth-page__hero-image--${page.imageKind ?? "product"}`}><img src={page.image} alt={page.imageAlt ?? "Meta Clinic clinic workspace"} />{page.imageCaption && <figcaption>{page.imageCaption}</figcaption>}</figure> : null}
+          {heroImage ? <figure className={`growth-page__hero-image growth-page__hero-image--${page.imageKind ?? "product"}`}>{internalPath === "/weight-loss" ? <WeightLossHeroImage key={page.image} src={page.image!} alt={page.imageAlt ?? "Meta Clinic clinic workspace"} /> : <img src={page.image} alt={page.imageAlt ?? "Meta Clinic clinic workspace"} />}{page.imageCaption && <figcaption>{page.imageCaption}</figcaption>}</figure> : null}
         </section>
 
         {page.gallery?.length ? <section className="growth-page__gallery" aria-labelledby="gallery-title"><div className="growth-page__wrap">

@@ -739,6 +739,34 @@
   box-shadow: none;
 }
 
+.growth-page__photo-loading { position: relative; }
+.growth-page__photo-loading:not([data-image-state="ready"]) img { opacity: 0; }
+.growth-page__photo-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+.growth-page__actions .growth-page__hero-secondary {
+  min-height: 55px;
+  padding: 0;
+  color: #8e3540;
+  font-size: 15px;
+  font-weight: 750;
+  text-underline-offset: 5px;
+}
+.growth-page__actions .growth-page__hero-secondary:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+@media (max-width: 420px) {
+  .growth-page__actions .growth-page__hero-secondary { width: 100%; justify-content: center; }
+}
+
 .growth-page__hero-image--product {
   padding: clamp(18px, 3vw, 32px);
   border-radius: 16px;
