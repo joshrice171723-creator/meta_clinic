@@ -371,6 +371,7 @@ export function BillingDashboard() {
   const [checkoutReturnError, setCheckoutReturnError] = useState("");
   const [checkingCheckoutReturn, setCheckingCheckoutReturn] = useState(false);
   const [checkoutReturnRetry, setCheckoutReturnRetry] = useState(0);
+  const billingPageRef = useRef<HTMLDivElement>(null);
   const checkoutReturnHandled = useRef(false);
   const postAttemptRef = useRef<{
     invoiceId: number;
@@ -591,7 +592,7 @@ export function BillingDashboard() {
   ];
 
   return (
-    <div className="billing-page billing-dashboard">
+    <div className="billing-page billing-dashboard" ref={billingPageRef}>
       <header className="billing-header">
         <div>
           <h1>Billing</h1>
@@ -1023,7 +1024,11 @@ export function BillingDashboard() {
         </section>
       </div>
       <Dialog
-        disablePortal
+        container={() =>
+          billingPageRef.current?.closest<HTMLElement>(".clinic-theme") ??
+          billingPageRef.current?.ownerDocument.body ??
+          null
+        }
         open={invoiceOpen && Boolean(selectedInvoice)}
         onClose={() => {
           if (!busyAction) setInvoiceOpen(false);

@@ -39,6 +39,7 @@ beforeAll(async () => {
           if (id.startsWith("\0qa-mock:")) return modules[id.slice(9)];
           if (id === "\0qa-entry.tsx")
             return `import React from "react";
+          import "/src/features/clinic/billing.css";
           import {createRoot} from "react-dom/client";
           import {BillingDashboard} from "/src/features/clinic/BillingDashboard";
           import {BillingPayments} from "/src/features/clinic/BillingInsights";
@@ -47,12 +48,12 @@ beforeAll(async () => {
           createRoot(document.getElementById("root")).render(React.createElement(new URLSearchParams(location.search).has("payments") ? Payments : BillingDashboard));`;
         },
         configureServer(vite) {
-          vite.middlewares.use("/qa", async (_request, response) => {
+          vite.middlewares.use("/qa", async (request, response) => {
             response.setHeader("Content-Type", "text/html");
             response.end(
               await vite.transformIndexHtml(
                 "/qa",
-                '<div id="root"></div><script type="module" src="/qa-entry.tsx"></script>',
+                `${request.url?.includes("theme") ? '<div class="clinic-theme">' : ""}<div id="root"></div>${request.url?.includes("theme") ? "</div>" : ""}<script type="module" src="/qa-entry.tsx"></script>`,
               ),
             );
           });
@@ -153,6 +154,7 @@ async function fixture(
     recoveryGate?: Promise<void>;
     onRequest?: (path: string, method: string) => void;
   },
+  theme = false,
 ) {
   page.setDefaultTimeout(5000);
   page.on("pageerror", (error) => console.error(error));
@@ -259,8 +261,13 @@ async function fixture(
       body: JSON.stringify(body),
     });
   });
-  await page.goto(`${base}/qa?invoice_id=705${cash ? "&cash" : ""}`);
-  const dialog = page.getByRole("dialog", { includeHidden: true });
+  await page.goto(
+    `${base}/qa?invoice_id=705${cash ? "&cash" : ""}${theme ? "&theme" : ""}`,
+  );
+  const dialog = page.getByRole("dialog", {
+    name: "Invoice details",
+    exact: true,
+  });
   await dialog.waitFor();
   return dialog;
 }
@@ -313,7 +320,6 @@ it("#150 restores a saved cash lock after reload and offers recovery instead of 
     const recoveryButton = dialog.getByRole("button", {
       name: "Review pending cash payment",
       exact: true,
-      includeHidden: true,
     });
     await expect.poll(() => recoveryButton.count()).toBe(1);
     await page.reload();
@@ -367,7 +373,6 @@ it("#150 waits for the saved-payment check before offering a new cash payment", 
     const newPayment = dialog.getByRole("button", {
       name: "Record cash payment",
       exact: true,
-      includeHidden: true,
     });
     await expect
       .poll(
@@ -387,3 +392,65 @@ it("#150 waits for the saved-payment check before offering a new cash payment", 
     await page.close();
   }
 }, 15000);
+
+it.each([false, true])(
+  "invoice dialog is accessible and restores focus at 390px with theme=%s",
+  async (theme) => {
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+    });
+    const mutations: string[] = [];
+    try {
+      const dialog = await fixture(
+        page,
+        "0.00",
+        {
+          pending: false,
+          onRequest: (path, method) => {
+            if (method !== "GET") mutations.push(path);
+          },
+        },
+        theme,
+      );
+      await dialog.getByRole("button", { name: "Close", exact: true }).click();
+      await dialog.waitFor({ state: "hidden" });
+      const opener = page.getByRole("button", { name: "#705", exact: true });
+      await opener.focus();
+      await opener.click();
+      await dialog.waitFor();
+      expect(
+        await dialog.evaluate(
+          (node) => node.closest('[aria-hidden="true"]') === null,
+        ),
+      ).toBe(true);
+      expect(
+        await dialog.evaluate((node) => Boolean(node.closest(".clinic-theme"))),
+      ).toBe(theme);
+      const bounds = await dialog.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+      for (let index = 0; index < 6; index += 1) {
+        await page.keyboard.press("Tab");
+        await expect
+          .poll(() =>
+            dialog.evaluate((node) =>
+              node.contains(node.ownerDocument.activeElement),
+            ),
+          )
+          .toBe(true);
+      }
+      await dialog.getByRole("button", { name: "Close", exact: true }).click();
+      await dialog.waitFor({ state: "hidden" });
+      await expect
+        .poll(() =>
+          opener.evaluate((node) => node.ownerDocument.activeElement === node),
+        )
+        .toBe(true);
+      expect(mutations).toEqual([]);
+    } finally {
+      await page.close();
+    }
+  },
+  20000,
+);
