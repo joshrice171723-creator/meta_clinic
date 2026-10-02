@@ -1219,6 +1219,52 @@ export function LiveScribeReviewWorkspace() {
   const otherEncounterRecording = Boolean(
     recording.session && recording.session.encounterId !== encounter?.id,
   );
+  const actionHints: string[] = [];
+  if (!canWrite) {
+    actionHints.push(
+      "Scribe write access is required to create, edit, generate, or record documentation.",
+    );
+  } else {
+    if (encounter && deleted) {
+      actionHints.push(
+        "This Scribe session is deleted and cannot be recorded or processed.",
+      );
+    } else if (encounter && !processingAllowed) {
+      actionHints.push(
+        "Accept recording consent on the Context tab before recording, importing a transcript, or generating a draft.",
+      );
+    }
+    if (hasUnsavedContext) {
+      actionHints.push(
+        "Save or discard visit context before generating a draft or starting a recording.",
+      );
+    }
+    if (hasUnsavedReviewEdits) {
+      actionHints.push(
+        "Save or discard note edits before generating another draft.",
+      );
+    }
+    if (otherEncounterRecording) {
+      actionHints.push(
+        "Another Scribe session is recording. Finish it before starting a recording here.",
+      );
+    }
+    if (encounter && processingAllowed && !hasGrounding) {
+      actionHints.push(
+        "Add visit context or a ready source to enable draft generation.",
+      );
+    }
+    if (selectedDocumentId) {
+      actionHints.push(
+        "Template selection is fixed for this saved document.",
+      );
+    }
+    if (encounter && processingAllowed && hasGrounding && !templateId) {
+      actionHints.push(
+        "Select an active template before generating a draft.",
+      );
+    }
+  }
   const openRecordingDock = (startRecording: boolean) => {
     if (!encounter) return;
     if (recording.session?.encounterId === encounter.id && !startRecording) {
@@ -1474,6 +1520,11 @@ export function LiveScribeReviewWorkspace() {
                     : "Start session"}
                 </Button>
               </Stack>
+              {!canWrite && (
+                <Typography variant="body2" color="text.secondary">
+                  {actionHints[0]}
+                </Typography>
+              )}
               {isDemoFrame() && !contextualClinicalEncounterId && (
                 <Typography variant="body2" color="text.secondary">
                   Starts a sample visit session. Recording is unavailable in
@@ -1623,6 +1674,19 @@ export function LiveScribeReviewWorkspace() {
                   active={sameEncounterRecordingActive}
                 />
               </Stack>
+              {actionHints.length > 0 && (
+                <Stack spacing={0.25}>
+                  {actionHints.map((hint) => (
+                    <Typography
+                      key={hint}
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      {hint}
+                    </Typography>
+                  ))}
+                </Stack>
+              )}
             </Stack>
           )}
         </Stack>

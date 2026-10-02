@@ -104,9 +104,9 @@ function QueueBookingAction({ canConfigure }: { canConfigure: boolean }) {
         <Stack spacing={0.5}>
           <Typography variant="caption" color="text.secondary">
             {options.error
-              ? "Booking availability could not be checked."
+              ? "Booking availability could not be checked. Refresh this page before relying on the result."
               : options.data
-                ? "Video booking needs a connected provider, published policy, successful health check, and eligible visit type."
+                ? "Video booking is disabled or not ready. The clinic needs a connected provider, a published policy, a successful provider health check, and at least one eligible visit type."
                 : "Checking booking availability…"}
           </Typography>
           {canConfigure && options.data && (
@@ -117,6 +117,11 @@ function QueueBookingAction({ canConfigure }: { canConfigure: boolean }) {
             >
               Open video setup
             </Button>
+          )}
+          {!canConfigure && options.data && (
+            <Typography variant="caption" color="text.secondary">
+              Ask a clinic administrator to review the video setup.
+            </Typography>
           )}
         </Stack>
       )}
