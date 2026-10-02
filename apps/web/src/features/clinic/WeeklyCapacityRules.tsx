@@ -95,7 +95,7 @@ export function WeeklyCapacityRules({
               aria-label={`Weekly hours for ${clinicians.find((item) => item.id === first.clinician_id)?.name ?? first.clinician_id} at ${sites.find((item) => item.id === first.site_id)?.name ?? first.site_id}`}
             >
               <Stack spacing={0.5}>
-                <Typography fontWeight={600}>
+                <Typography sx={{ fontWeight: 600 }}>
                   {clinicians.find((item) => item.id === first.clinician_id)
                     ?.name ?? `Clinician #${first.clinician_id}`}{" "}
                   ·{" "}
@@ -134,7 +134,7 @@ export function WeeklyCapacityRules({
                                   key={rule.id}
                                   direction="row"
                                   spacing={1}
-                                  alignItems="center"
+                                  sx={{ alignItems: "center" }}
                                 >
                                   <Typography variant="body2" sx={{ flex: 1 }}>
                                     {clock(rule.start_minute)}–

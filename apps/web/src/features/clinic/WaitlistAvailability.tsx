@@ -57,7 +57,7 @@ export function WaitlistAvailability({
       </Button>
       {open && (
         <>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <TextField
               type="month"
               label="Search month"

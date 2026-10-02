@@ -1280,9 +1280,7 @@ export function NurseEncounterWorkspaceContent({
                               definitions={workspace.questionnaire_form.fields}
                               fields={workspace.questionnaire_form.fields.filter(
                                 (field) =>
-                                  chunk.fields.some(
-                                    (item) => item.id === field.id,
-                                  ) &&
+                                  chunk.fields.includes(field.id) &&
                                   (![
                                     "telehealth_location",
                                     "telehealth_physical_location",
