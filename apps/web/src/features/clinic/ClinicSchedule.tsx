@@ -32,6 +32,7 @@ import { useClinic } from "./Workspace";
 import { workflowStatusLabel } from "./workflowStatus";
 import { patientReferenceLabel } from "./patientReference";
 import { SeriesManagement } from "./SeriesManagement";
+import { ClinicViewLoading } from "./ClinicViewLoading";
 
 const DAY_GEOMETRY = {
   tickMinutes: 30,
@@ -989,7 +990,11 @@ export function ClinicSchedule({
         <Alert severity="info">Choose a location to view its schedule.</Alert>
       ) : !data ? (
         calendar.error ? null : (
-          <Typography role="status">Loading calendar…</Typography>
+          <ClinicViewLoading
+            view="schedule"
+            scheduleMode={view}
+            scheduleMonth={month}
+          />
         )
       ) : (
         <>

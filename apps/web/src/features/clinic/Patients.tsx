@@ -53,6 +53,7 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
 import { PatientDocumentProvenance } from "./PatientDocumentProvenance";
+import { ClinicViewLoading } from "./ClinicViewLoading";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { registrationLanguageSuggestions } from "./registrationLanguageSuggestions";
 import { useRegistrationDialogViewport } from "./registrationDialogViewport";
@@ -94,7 +95,16 @@ export function Patients({ id }: { id?: string }) {
     portal_access?: PortalAccess | null;
     pagination?: Pagination;
   }>(`/api/clinic/patients${id ? `/${id}` : `?page=${page}${siteQuery}`}`);
-  if (!data) return <LoadState error={error} />;
+  if (!data) {
+    if (!error && !id)
+      return (
+        <ClinicViewLoading
+          view="patients"
+          showIdentityLookup={clinic.capabilities.patient_identity_read === true}
+        />
+      );
+    return <LoadState error={error} />;
+  }
   if (data.patient)
     return (
       <PatientRecord
