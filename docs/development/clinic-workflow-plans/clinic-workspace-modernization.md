@@ -376,10 +376,18 @@ Automatic approval review rejected intermediate `git push -u origin codex/clinic
 
 MZ-01b released after C acceptance at candidate 0a850bab: foundation_frame edits only clinicFrame.css and clinicNavigation.css within the existing maximum four-file allowlist, preserving TSX, destinations, capabilities, focus/inert behavior and handlers. MZ-01c remains read-only until MZ-01b accepted. Lead2 confirmed exclusive PatientClinicalHistory ownership for MZ-03i; its future synthetic appointment/waitlist fixture requests remain queued behind shared foundation proof. No reset or unrelated fixture mutation.
 
+### MZ-01b review candidate
+
+Frozen source 22b85efa4839545224dcdcc6358be7aef2bcfa80: only clinicFrame.css and clinicNavigation.css (+17/-20), TSX unchanged. Patch SHA256 63d81bdd5c03da649f52724e05c90cfa1847a1733962690fe82b90fd97462efe (3660 bytes). Compact full review JSON SHA256 7c51ed88cea1d2fd712aeb7252cf0f99b56781b62b268c6d0992a0e5aa2a0a59 (5913 UTF-8 bytes, no final newline); detailed original SHA256 050de4bb59df264447c6b39e5b69353a2016abc5b5063147a5af1265e622260e. Existing synthetic Rails login, actor/scope and exact clean build verified. Paired layout uses exact MZ-01a predecessor CSS interception; all other runtime source remains candidate. Ordinary/long header branch controls only GET session development_demo and synthetic email; it is controlled presentation evidence, not ordinary-authentication proof or a backend identity mutation.
+
+Measured 1440/1280/1024/834/768 widths at 900 height: candidate containment passed everywhere; all21 role-visible nav destinations preserved. Ordinary narrow header 562px baseline to63px candidate; long narrow baseline562px to84px at834 /105px at768. Desktop nav height1268.984375 to1204.796875; effective group gap4px to12px as scoped selector resolves the prior override. Visible toggle44x40 baseline to44x44 candidate. Drawer focus entry, inert main, Escape close and focus return passed at834/768. Long768 screenshot inspected. No dirty-form scope switch, provider/portal behavior or task-time claim.
+
+Targeted clinic-shell + clinic-navigation:16pass/1unchanged baseline-copy fail (1.108s); tracking-board viewport-height selection4pass/49name-filter exclusions (8.4s). Formatting initially failed, scoped repair/check passed; normalized source Git blobs unchanged. MZ-01a typecheck/bundles reused for CSS-only packet. Initial capture stopped on a hidden desktop toggle assertion; probe corrected to visible targets. Next stopped on unchanged line-ending dirty metadata after format; index refresh restored exact candidate. Final paired capture passed. No command remains running. C review pending, accepted count4/74.
+
 ## Last run
 
 - Date (UTC): 2026-10-02; inspected accepted candidate 0a850bab39669367b9c5251c614b3f76285964fc; original application baseline e5d065fe.
 - Outcome: C accepted MZ-01a with scoped rendered and mixed S evidence; count 4/74. MZ-01b implementation released.
 - Changed canonical paths: this brief, central tracker and existing Progress Log pointer. Original dirty checkout preserved.
 - Checks: existing typecheck, S pool, baseline comparison, formatting, bundles and rendered evidence reused without rerun. verify-vault PASS (43 notes/522 links); vault-audit existing size/lifecycle advisories; verify-agent-harness FAIL on the same seven unrelated missing plan tracker links; diff check PASS.
-- Next: integrate MZ-01b bounded CSS, obtain actual BM-02 baseline/candidate observations and targeted S checks, then submit self-contained patch/evidence to C. Review next approach at 10 accepted packets; no publication.
+- Next: submit frozen MZ-01b self-contained patch/evidence to C; release context only after acceptance. Review next approach at 10 accepted packets; no publication.
