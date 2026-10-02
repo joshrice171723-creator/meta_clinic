@@ -483,6 +483,14 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+.clinic-theme .tracking-provider-manage {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0;
+  text-transform: none;
+}
 .clinic-theme .tracking-intake-ownership {
   display: flex;
   flex-wrap: wrap;

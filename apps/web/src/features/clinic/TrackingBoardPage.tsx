@@ -614,7 +614,6 @@ function TrackingBoardRow({
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [waitingDetailsOpen, setWaitingDetailsOpen] = useState(false);
   const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
-  const [intakeDetailsOpen, setIntakeDetailsOpen] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [assignmentPending, setAssignmentPending] = useState(false);
   const [assignmentReloadRequired, setAssignmentReloadRequired] =
@@ -628,6 +627,7 @@ function TrackingBoardRow({
   const [intakeAction, setIntakeAction] = useState<"claim" | "release" | null>(
     null,
   );
+  const intakePendingRef = useRef(false);
   const [intakeError, setIntakeError] = useState<string | null>(null);
   const operations = visit.operations ?? EMPTY_OPERATION_METADATA;
   const stage = VISIT_STAGES.find((s) => s.id === visit.stage)!;
@@ -647,6 +647,9 @@ function TrackingBoardRow({
       ? visit.assignedProviderName
       : null;
   const providerEditable = visit.providerAssignmentAvailable === true;
+  const providerIdentity =
+    assignedProviderLabel ||
+    (assignedClinicianId ? "Provider not recorded" : "Unassigned");
   const assignmentOutcomeUnknown =
     assignmentAttempt !== null && assignmentError !== null;
   const assignmentUnchanged = draftClinicianId === (assignedClinicianId ?? "");
@@ -665,8 +668,19 @@ function TrackingBoardRow({
     hasEncounter ? "open" : hasPatient ? "patient" : "select",
   );
   const primaryAction = intakeClaimed ? "Continue intake" : chartAction.label;
+  const hasAssignmentManagement =
+    providerEditable ||
+    operations.intakeOwnership !== null ||
+    operations.exceptions.length > 0 ||
+    (operations.canClaimIntake && onClaimIntake !== undefined);
   const openProviderEditor = () => {
-    if (!providerEditable) return;
+    if (
+      !hasAssignmentManagement ||
+      assignmentPendingRef.current ||
+      intakePendingRef.current ||
+      assignmentOutcomeUnknown
+    )
+      return;
     setAssignmentError(
       assignmentReloadRequired
         ? "Assignment changed. Reload the board before trying again."
@@ -887,201 +901,34 @@ function TrackingBoardRow({
             <TableCell
               className="tracking-provider-cell"
               data-label={columnLabels[column]}
-              onDoubleClick={providerEditable ? openProviderEditor : undefined}
-              title={
-                providerEditable
-                  ? "Double-click or select to assign"
-                  : undefined
-              }
             >
-              {assignedProviderLabel ? (
-                providerEditable ? (
-                  <Tooltip title={assignedProviderLabel}>
-                    <Button
-                      type="button"
-                      variant="text"
-                      className="tracking-provider-value"
-                      onClick={openProviderEditor}
-                      aria-label={`Assigned provider: ${assignedProviderLabel}. Change assignment.`}
-                    >
-                      {assignedProviderLabel}
-                    </Button>
-                  </Tooltip>
-                ) : (
-                  <Typography
-                    variant="body2"
-                    className="tracking-provider-readonly"
-                  >
-                    {assignedProviderLabel}
-                  </Typography>
-                )
-              ) : !providerEditable ? (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  aria-label="Provider not recorded"
-                >
-                  Provider not recorded
-                </Typography>
-              ) : (
+              <Typography
+                variant="body2"
+                className="tracking-provider-readonly"
+                color={assignedProviderLabel ? undefined : "text.secondary"}
+              >
+                {providerIdentity}
+              </Typography>
+              {hasAssignmentManagement && (
                 <Button
-                  type="button"
-                  variant="outlined"
-                  className="tracking-provider-empty"
+                  size="small"
+                  className="tracking-provider-manage"
+                  aria-haspopup="dialog"
+                  aria-label={`Manage assignment for ${tableLabel.identity}, visit ${visit.id}`}
                   onClick={openProviderEditor}
-                  aria-label={`Assign provider for ${label}`}
                 >
-                  Assign
+                  Manage assignment
                 </Button>
-              )}
-              {(operations.intakeOwnership ||
-                operations.exceptions.length > 0 ||
-                operations.canClaimIntake) && (
-                <Box className="tracking-intake-ownership">
-                  {operations.intakeOwnership && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      className={
-                        operations.intakeOwnership.state === "stale" &&
-                        operations.exceptions.some(
-                          (exception) =>
-                            exception.code === "stale_intake_ownership",
-                        )
-                          ? "tracking-intake-stale-owner"
-                          : undefined
-                      }
-                    >
-                      Intake: {operations.intakeOwnership.ownerName}
-                      {operations.intakeOwnership.state === "stale"
-                        ? " · lease expired"
-                        : " · claimed"}
-                    </Typography>
-                  )}
-                  {operations.exceptions.map((exception) => (
-                    <Fragment key={exception.code}>
-                      {intakeExceptionLabels[exception.code] && (
-                        <Button
-                          size="small"
-                          color="error"
-                          className="tracking-intake-exception-details"
-                          aria-label={`${intakeExceptionLabels[exception.code]}: intake details for ${tableLabel.identity}, visit ${visit.id}`}
-                          onClick={() => setIntakeDetailsOpen(true)}
-                        >
-                          {intakeExceptionLabels[exception.code]}
-                        </Button>
-                      )}
-                      <Typography
-                        variant="caption"
-                        color="error"
-                        className={
-                          intakeExceptionLabels[exception.code]
-                            ? "tracking-intake-exception-message"
-                            : undefined
-                        }
-                      >
-                        {exception.message}
-                      </Typography>
-                    </Fragment>
-                  ))}
-                  {operations.intakeOwnership?.canRelease &&
-                    onReleaseIntake && (
-                      <Button
-                        size="small"
-                        disabled={intakeAction !== null}
-                        onClick={() => {
-                          const ownership = operations.intakeOwnership;
-                          if (!ownership) return;
-                          setIntakeAction("release");
-                          setIntakeError(null);
-                          void onReleaseIntake(
-                            visit,
-                            ownership.token,
-                            intakeOwnershipRequestKey(),
-                          )
-                            .catch((error: unknown) =>
-                              setIntakeError(
-                                error instanceof Error
-                                  ? error.message
-                                  : "Unable to release intake work.",
-                              ),
-                            )
-                            .finally(() => setIntakeAction(null));
-                        }}
-                      >
-                        {intakeAction === "release"
-                          ? "Releasing…"
-                          : "Release intake"}
-                      </Button>
-                    )}
-                  {operations.canClaimIntake && onClaimIntake && (
-                    <Button
-                      size="small"
-                      disabled={intakeAction !== null}
-                      onClick={() => {
-                        setIntakeAction("claim");
-                        setIntakeError(null);
-                        void onClaimIntake(
-                          visit,
-                          operations.intakeOwnership?.token ?? null,
-                          intakeOwnershipRequestKey(),
-                        )
-                          .catch((error: unknown) =>
-                            setIntakeError(
-                              error instanceof Error
-                                ? error.message
-                                : "Unable to claim intake work.",
-                            ),
-                          )
-                          .finally(() => setIntakeAction(null));
-                      }}
-                    >
-                      {intakeAction === "claim" ? "Claiming…" : "Claim intake"}
-                    </Button>
-                  )}
-                  {intakeError && (
-                    <Typography variant="caption" color="error" role="alert">
-                      {intakeError}
-                    </Typography>
-                  )}
-                </Box>
               )}
             </TableCell>
-            <Dialog
-              open={intakeDetailsOpen}
-              onClose={() => setIntakeDetailsOpen(false)}
-              aria-labelledby={`tracking-intake-title-${visit.id}`}
-              maxWidth="sm"
-              fullWidth
-            >
-              <DialogTitle id={`tracking-intake-title-${visit.id}`}>
-                Intake details · {tableLabel.identity}
-              </DialogTitle>
-              <DialogContent>
-                {operations.intakeOwnership && (
-                  <Typography>
-                    Intake owner: {operations.intakeOwnership.ownerName}
-                  </Typography>
-                )}
-                {operations.exceptions.map((exception) => (
-                  <Typography key={exception.code} color="error">
-                    {exception.message}
-                  </Typography>
-                ))}
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setIntakeDetailsOpen(false)}>
-                  Close
-                </Button>
-              </DialogActions>
-            </Dialog>
-            {providerEditable && (
+            {hasAssignmentManagement && (
               <Dialog
                 className="tracking-provider-dialog"
                 open={providerEditorOpen}
                 onClose={() => {
                   if (
                     !assignmentPendingRef.current &&
+                    !intakePendingRef.current &&
                     !assignmentOutcomeUnknown
                   )
                     setProviderEditorOpen(false);
@@ -1091,7 +938,7 @@ function TrackingBoardRow({
                 aria-labelledby={`provider-dialog-title-${visit.id}`}
               >
                 <DialogTitle id={`provider-dialog-title-${visit.id}`}>
-                  Assign provider
+                  Manage assignment
                 </DialogTitle>
                 <DialogContent
                   sx={{ display: "grid", gap: 2, pt: "8px !important" }}
@@ -1100,130 +947,285 @@ function TrackingBoardRow({
                     {tableLabel.identity} · Visit reference: {visit.id} ·{" "}
                     {visit.room ?? "Room unassigned"}
                   </Typography>
-                  <Box
-                    component="label"
-                    htmlFor={`provider-dialog-select-${visit.id}`}
-                    sx={{ fontSize: 13, fontWeight: 600, mb: -1 }}
-                  >
-                    Provider
-                  </Box>
-                  <Box
-                    component="select"
-                    id={`provider-dialog-select-${visit.id}`}
-                    autoFocus
-                    value={draftClinicianId}
-                    onChange={(event) => {
-                      setDraftClinicianId(event.target.value);
-                      setAssignmentAttempt(null);
-                      setAssignmentError(null);
-                    }}
-                    disabled={
-                      assignmentPending ||
-                      assignmentOutcomeUnknown ||
-                      assignmentReloadRequired
-                    }
-                    sx={{
-                      width: "100%",
-                      p: 1.25,
-                      border: 1,
-                      borderColor: "divider",
-                      borderRadius: 1,
-                      bgcolor: "background.paper",
-                      color: "text.primary",
-                      font: "inherit",
-                    }}
-                  >
-                    <option value="">Unassigned</option>
-                    {assignedClinicianId &&
-                      assignedProviderLabel &&
-                      !availableClinicians.some(
-                        (clinician) => clinician.id === assignedClinicianId,
-                      ) && (
-                        <option value={assignedClinicianId} disabled>
-                          {assignedProviderLabel} (current)
-                        </option>
+                  <Typography variant="subtitle2">
+                    Provider assignment
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    The provider is the clinician assigned to this visit.
+                  </Typography>
+                  {providerEditable ? (
+                    <Box sx={{ display: "grid", gap: 2 }}>
+                      <Box
+                        component="label"
+                        htmlFor={`provider-dialog-select-${visit.id}`}
+                        sx={{ fontSize: 13, fontWeight: 600, mb: -1 }}
+                      >
+                        Provider
+                      </Box>
+                      <Box
+                        component="select"
+                        id={`provider-dialog-select-${visit.id}`}
+                        autoFocus
+                        value={draftClinicianId}
+                        onChange={(event) => {
+                          setDraftClinicianId(event.target.value);
+                          setAssignmentAttempt(null);
+                          setAssignmentError(null);
+                        }}
+                        disabled={
+                          assignmentPending ||
+                          intakeAction !== null ||
+                          assignmentOutcomeUnknown ||
+                          assignmentReloadRequired
+                        }
+                        sx={{
+                          width: "100%",
+                          p: 1.25,
+                          border: 1,
+                          borderColor: "divider",
+                          borderRadius: 1,
+                          bgcolor: "background.paper",
+                          color: "text.primary",
+                          font: "inherit",
+                        }}
+                      >
+                        <option value="">Unassigned</option>
+                        {assignedClinicianId &&
+                          assignedProviderLabel &&
+                          !availableClinicians.some(
+                            (clinician) => clinician.id === assignedClinicianId,
+                          ) && (
+                            <option value={assignedClinicianId} disabled>
+                              {assignedProviderLabel} (current)
+                            </option>
+                          )}
+                        {availableClinicians.map((clinician) => (
+                          <option key={clinician.id} value={clinician.id}>
+                            {clinicianLabel(clinician)}
+                          </option>
+                        ))}
+                      </Box>
+                      {assignmentError && (
+                        <Typography color="error" variant="body2" role="alert">
+                          {assignmentError}
+                        </Typography>
                       )}
-                    {availableClinicians.map((clinician) => (
-                      <option key={clinician.id} value={clinician.id}>
-                        {clinicianLabel(clinician)}
-                      </option>
-                    ))}
-                  </Box>
-                  {assignmentError && (
-                    <Typography color="error" variant="body2" role="alert">
-                      {assignmentError}
+                      {assignmentUnchanged && !assignmentError && (
+                        <Typography variant="caption" color="text.secondary">
+                          Choose a different provider to save changes.
+                        </Typography>
+                      )}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2">
+                      Provider: {providerIdentity}
                     </Typography>
                   )}
-                  {assignmentUnchanged && !assignmentError && (
-                    <Typography variant="caption" color="text.secondary">
-                      Choose a different provider to save changes.
-                    </Typography>
+                  {(operations.intakeOwnership ||
+                    operations.exceptions.length > 0 ||
+                    operations.canClaimIntake) && (
+                    <Box sx={{ display: "grid", gap: 1 }}>
+                      <Typography variant="subtitle2">
+                        Intake ownership
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Claim intake to take temporary ownership of intake
+                        work. Release intake to make it available to others.
+                        These actions do not change the assigned provider.
+                      </Typography>
+                      {operations.intakeOwnership && (
+                        <Typography variant="body2">
+                          Intake owner: {operations.intakeOwnership.ownerName}
+                          {operations.intakeOwnership.state === "stale"
+                            ? " · lease expired"
+                            : " · claimed"}
+                        </Typography>
+                      )}
+                      {operations.exceptions.map((exception) => (
+                        <Box key={exception.code}>
+                          {intakeExceptionLabels[exception.code] && (
+                            <Typography variant="subtitle2" color="error">
+                              {intakeExceptionLabels[exception.code]}
+                            </Typography>
+                          )}
+                          <Typography variant="body2" color="error">
+                            {exception.message}
+                          </Typography>
+                        </Box>
+                      ))}
+                      {operations.intakeOwnership?.canRelease &&
+                        onReleaseIntake && (
+                          <Button
+                            size="small"
+                            disabled={
+                              intakeAction !== null ||
+                              assignmentPending ||
+                              assignmentOutcomeUnknown
+                            }
+                            onClick={() => {
+                              if (
+                                intakePendingRef.current ||
+                                assignmentPendingRef.current ||
+                                assignmentOutcomeUnknown
+                              )
+                                return;
+                              const ownership = operations.intakeOwnership;
+                              if (!ownership) return;
+                              intakePendingRef.current = true;
+                              setIntakeAction("release");
+                              setIntakeError(null);
+                              void onReleaseIntake(
+                                visit,
+                                ownership.token,
+                                intakeOwnershipRequestKey(),
+                              )
+                                .catch((error: unknown) =>
+                                  setIntakeError(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Unable to release intake work.",
+                                  ),
+                                )
+                                .finally(() => {
+                                  intakePendingRef.current = false;
+                                  setIntakeAction(null);
+                                });
+                            }}
+                          >
+                            {intakeAction === "release"
+                              ? "Releasing…"
+                              : "Release intake"}
+                          </Button>
+                        )}
+                      {operations.canClaimIntake && onClaimIntake && (
+                        <Button
+                          size="small"
+                          disabled={
+                            intakeAction !== null ||
+                            assignmentPending ||
+                            assignmentOutcomeUnknown
+                          }
+                          onClick={() => {
+                            if (
+                              intakePendingRef.current ||
+                              assignmentPendingRef.current ||
+                              assignmentOutcomeUnknown
+                            )
+                              return;
+                            intakePendingRef.current = true;
+                            setIntakeAction("claim");
+                            setIntakeError(null);
+                            void onClaimIntake(
+                              visit,
+                              operations.intakeOwnership?.token ?? null,
+                              intakeOwnershipRequestKey(),
+                            )
+                              .catch((error: unknown) =>
+                                setIntakeError(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Unable to claim intake work.",
+                                ),
+                              )
+                              .finally(() => {
+                                intakePendingRef.current = false;
+                                setIntakeAction(null);
+                              });
+                          }}
+                        >
+                          {intakeAction === "claim" ? "Claiming…" : "Claim intake"}
+                        </Button>
+                      )}
+                      {intakeError && (
+                        <Typography variant="caption" color="error" role="alert">
+                          {intakeError}
+                        </Typography>
+                      )}
+                    </Box>
                   )}
                 </DialogContent>
                 <DialogActions>
                   <Button
-                    disabled={assignmentPending || assignmentOutcomeUnknown}
+                    disabled={
+                      assignmentPending ||
+                      intakeAction !== null ||
+                      assignmentOutcomeUnknown
+                    }
                     onClick={() => {
+                      if (
+                        assignmentPendingRef.current ||
+                        intakePendingRef.current ||
+                        assignmentOutcomeUnknown
+                      )
+                        return;
                       setAssignmentAttempt(null);
                       setProviderEditorOpen(false);
                     }}
                   >
                     Cancel
                   </Button>
-                  <Button
-                    variant="contained"
-                    disabled={
-                      assignmentPending ||
-                      assignmentReloadRequired ||
-                      assignmentUnchanged
-                    }
-                    onClick={() => {
-                      if (assignmentPendingRef.current) return;
-                      const clinicianId = draftClinicianId || null;
-                      const attempt = providerAssignmentAttempt(
-                        assignmentAttempt,
-                        clinicianId,
-                        providerAssignmentToken,
-                      );
-                      assignmentPendingRef.current = true;
-                      setAssignmentPending(true);
-                      setAssignmentAttempt(attempt);
-                      setAssignmentError(null);
-                      const save = onPersistProvider
-                        ? onPersistProvider(
-                            clinicianId,
-                            providerAssignmentToken,
-                            attempt.requestKey,
-                          )
-                        : Promise.resolve({
-                            token: providerAssignmentToken,
-                          });
-                      void save
-                        .then(({ token }) => {
-                          onAssignClinician(clinicianId, token);
-                          setAssignmentAttempt(null);
-                          setProviderEditorOpen(false);
-                        })
-                        .catch((error: unknown) => {
-                          const failure = providerAssignmentFailure(error);
-                          if (!failure.outcomeUnknown) {
+                  {providerEditable && (
+                    <Button
+                      variant="contained"
+                      disabled={
+                        assignmentPending ||
+                        intakeAction !== null ||
+                        assignmentReloadRequired ||
+                        assignmentUnchanged
+                      }
+                      onClick={() => {
+                        if (
+                          assignmentPendingRef.current ||
+                          intakePendingRef.current
+                        )
+                          return;
+                        const clinicianId = draftClinicianId || null;
+                        const attempt = providerAssignmentAttempt(
+                          assignmentAttempt,
+                          clinicianId,
+                          providerAssignmentToken,
+                        );
+                        assignmentPendingRef.current = true;
+                        setAssignmentPending(true);
+                        setAssignmentAttempt(attempt);
+                        setAssignmentError(null);
+                        const save = onPersistProvider
+                          ? onPersistProvider(
+                              clinicianId,
+                              providerAssignmentToken,
+                              attempt.requestKey,
+                            )
+                          : Promise.resolve({
+                              token: providerAssignmentToken,
+                            });
+                        void save
+                          .then(({ token }) => {
+                            onAssignClinician(clinicianId, token);
                             setAssignmentAttempt(null);
-                          }
-                          setAssignmentReloadRequired(failure.reloadRequired);
-                          setAssignmentError(failure.message);
-                        })
-                        .finally(() => {
-                          assignmentPendingRef.current = false;
-                          setAssignmentPending(false);
-                        });
-                    }}
-                  >
-                    {assignmentPending
-                      ? "Assigning…"
-                      : assignmentOutcomeUnknown
-                        ? "Retry assignment"
-                        : "Assign provider"}
-                  </Button>
+                            if (!intakePendingRef.current)
+                              setProviderEditorOpen(false);
+                          })
+                          .catch((error: unknown) => {
+                            const failure = providerAssignmentFailure(error);
+                            if (!failure.outcomeUnknown) {
+                              setAssignmentAttempt(null);
+                            }
+                            setAssignmentReloadRequired(failure.reloadRequired);
+                            setAssignmentError(failure.message);
+                          })
+                          .finally(() => {
+                            assignmentPendingRef.current = false;
+                            setAssignmentPending(false);
+                          });
+                      }}
+                    >
+                      {assignmentPending
+                        ? "Assigning…"
+                        : assignmentOutcomeUnknown
+                          ? "Retry assignment"
+                          : "Assign provider"}
+                    </Button>
+                  )}
                 </DialogActions>
               </Dialog>
             )}
