@@ -163,8 +163,10 @@ describe("tracking-board identities and waiting times", () => {
     const html = renderToStaticMarkup(<TestTrackingBoard visits={visits} />);
     expect(html).toContain("board_visit_id=EX-001");
     expect(html).toContain("board_visit_id=EX-099");
-    expect(html).not.toContain("Mara");
-    expect(html).toContain("Rivera, M.");
+    expect(html).toContain("Mara Rivera");
+    expect(html).toContain("Milo Rivera");
+    expect(html).toContain("Visit reference: EX-001");
+    expect(html).toContain("Visit reference: EX-099");
   });
   it("distinguishes current-stage wait, total elapsed time and time in care", () => {
     const ready = EXAMPLE_VISITS[2];
@@ -541,7 +543,9 @@ describe("board and Operations presentation boundaries", () => {
     const editable = renderToStaticMarkup(
       <TestTrackingBoard visits={[liveVisit]} clinicians={[clinician]} />,
     );
-    expect(editable).toContain('class="tracking-provider-value"');
+    expect(editable).toMatch(
+      /<button\b(?=[^>]*\bclass="(?:[^"]*\s)?tracking-provider-value(?:\s[^"]*)?")(?=[^>]*\btype="button")(?=[^>]*\baria-label="Assigned provider: Alex Rowan, NP\. Change assignment\.")[^>]*>/,
+    );
     expect(editable).toContain(
       "Assigned provider: Alex Rowan, NP. Change assignment.",
     );
@@ -633,7 +637,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
   });
-  it("places age and gender beneath the patient name instead of the record reference", () => {
+  it("places demographics and source references beneath the full patient name", () => {
     const html = renderToStaticMarkup(
       <TestTrackingBoard
         visits={[
@@ -641,13 +645,16 @@ describe("board and Operations presentation boundaries", () => {
             ...EXAMPLE_VISITS[0],
             age: 37,
             gender: "F",
-            patientReference: "SYN-HIDDEN-REFERENCE",
+            patientDisplayName: "SYN_Rivera, Mara Aurora",
+            patientReference: "SYN-RECORDED-REFERENCE",
           },
         ]}
       />,
     );
+    expect(html).toContain("<strong>SYN_Rivera, Mara Aurora</strong>");
     expect(html).toContain("37 yr · Female");
-    expect(html).not.toContain("SYN-HIDDEN-REFERENCE");
+    expect(html).toContain("Patient reference: SYN-RECORDED-REFERENCE");
+    expect(html).toContain("Visit reference: EX-001");
   });
   it("moves administrative counts to Operations without relabeling directory counts as visits", () => {
     const html = renderToStaticMarkup(<OperationsView clinic={clinic} />);

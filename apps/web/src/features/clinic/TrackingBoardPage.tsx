@@ -180,9 +180,10 @@ function useTrackingBoard(active = true) {
 }
 
 function patientTableLabel(visit: BoardVisit) {
-  const last = visit.lastName.trim() || "Unknown";
-  const firstInitial = visit.firstName.trim().charAt(0);
-  const identity = `${last}, ${firstInitial ? `${firstInitial}.` : "—"}`;
+  const identity =
+    visit.patientDisplayName?.trim() ||
+    [visit.firstName.trim(), visit.lastName.trim()].filter(Boolean).join(" ") ||
+    "Patient name not recorded";
   const demographics = [
     visit.age === null ? null : `${visit.age} yr`,
     visit.gender === "F"
@@ -705,6 +706,9 @@ function TrackingBoardRow({
                     color="text.secondary"
                   >
                     {tableLabel.demographics}
+                    {visit.patientReference &&
+                      ` · Patient reference: ${visit.patientReference}`}{" "}
+                    · Visit reference: {visit.id}
                   </Typography>
                 )}
               </div>
@@ -732,24 +736,40 @@ function TrackingBoardRow({
                   const Icon = statusIcon(visit);
                   return <Icon fontSize="small" aria-hidden="true" />;
                 })()}
+                <span>{operationalStatusLabel(visit, now)}</span>
               </Box>
             </Tooltip>
-            {visit.waitingPolicy && visit.waitingPolicy.state !== "not_applicable" && (
-              <>
-                <Button size="small" onClick={() => setWaitingDetailsOpen(true)}
-                  aria-label={`Waiting review details for ${label}`}>
-                  Waiting review
-                </Button>
-                <Dialog open={waitingDetailsOpen} onClose={() => setWaitingDetailsOpen(false)}
-                  aria-labelledby={`waiting-policy-title-${visit.id}`} maxWidth="sm" fullWidth>
-                  <DialogTitle id={`waiting-policy-title-${visit.id}`}>Waiting review · {label}</DialogTitle>
-                  <DialogContent>
-                    <WaitingPolicyStatus projection={visit.waitingPolicy} />
-                  </DialogContent>
-                  <DialogActions><Button onClick={() => setWaitingDetailsOpen(false)}>Close</Button></DialogActions>
-                </Dialog>
-              </>
-            )}
+            {visit.waitingPolicy &&
+              visit.waitingPolicy.state !== "not_applicable" && (
+                <>
+                  <Button
+                    size="small"
+                    onClick={() => setWaitingDetailsOpen(true)}
+                    aria-label={`Waiting review details for ${label}`}
+                  >
+                    Waiting review
+                  </Button>
+                  <Dialog
+                    open={waitingDetailsOpen}
+                    onClose={() => setWaitingDetailsOpen(false)}
+                    aria-labelledby={`waiting-policy-title-${visit.id}`}
+                    maxWidth="sm"
+                    fullWidth
+                  >
+                    <DialogTitle id={`waiting-policy-title-${visit.id}`}>
+                      Waiting review · {label}
+                    </DialogTitle>
+                    <DialogContent>
+                      <WaitingPolicyStatus projection={visit.waitingPolicy} />
+                    </DialogContent>
+                    <DialogActions>
+                      <Button onClick={() => setWaitingDetailsOpen(false)}>
+                        Close
+                      </Button>
+                    </DialogActions>
+                  </Dialog>
+                </>
+              )}
           </TableCell>
         ) : column === "wait" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
@@ -814,14 +834,15 @@ function TrackingBoardRow({
               {assignedProviderLabel ? (
                 providerEditable ? (
                   <Tooltip title={assignedProviderLabel}>
-                    <button
+                    <Button
                       type="button"
+                      variant="text"
                       className="tracking-provider-value"
                       onClick={openProviderEditor}
                       aria-label={`Assigned provider: ${assignedProviderLabel}. Change assignment.`}
                     >
                       {assignedProviderLabel}
-                    </button>
+                    </Button>
                   </Tooltip>
                 ) : (
                   <Typography
@@ -837,21 +858,23 @@ function TrackingBoardRow({
                   color="text.secondary"
                   aria-label="Provider not recorded"
                 >
-                  —
+                  Provider not recorded
                 </Typography>
               ) : (
-                <button
+                <Button
                   type="button"
+                  variant="outlined"
                   className="tracking-provider-empty"
                   onClick={openProviderEditor}
+                  aria-label={`Assign provider for ${label}`}
                 >
                   Assign
-                </button>
+                </Button>
               )}
               {(operations.intakeOwnership ||
                 operations.exceptions.length > 0 ||
                 operations.canClaimIntake) && (
-                <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
+                <Box className="tracking-intake-ownership">
                   {operations.intakeOwnership && (
                     <Typography variant="caption" color="text.secondary">
                       Intake: {operations.intakeOwnership.ownerName}
@@ -954,7 +977,8 @@ function TrackingBoardRow({
                   sx={{ display: "grid", gap: 2, pt: "8px !important" }}
                 >
                   <Typography variant="body2" color="text.secondary">
-                    {tableLabel.identity} · {visit.room ?? "Room unassigned"}
+                    {tableLabel.identity} · Visit reference: {visit.id} ·{" "}
+                    {visit.room ?? "Room unassigned"}
                   </Typography>
                   <Box
                     component="label"
@@ -1508,22 +1532,24 @@ export function TrackingBoardView({
             All times shown in {timezone}
           </Typography>
         </div>
-        <div className="tracking-freshness" role="status">
-          <span className="tracking-freshness-dot" aria-hidden="true" />
-          {stale
-            ? "Last confirmed snapshot"
-            : `Updated ${formatClockTime(now, timezone)}`}
+        <div className="tracking-header-actions">
+          <div className="tracking-freshness" role="status">
+            <span className="tracking-freshness-dot" aria-hidden="true" />
+            {stale
+              ? "Last confirmed snapshot"
+              : `Updated ${formatClockTime(now, timezone)}`}
+          </div>
+          {onReload && (
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={reloading}
+              onClick={onReload}
+            >
+              {reloading ? "Reloading board…" : "Reload board"}
+            </Button>
+          )}
         </div>
-        {onReload && (
-          <Button
-            variant="outlined"
-            size="small"
-            disabled={reloading}
-            onClick={onReload}
-          >
-            {reloading ? "Reloading board…" : "Reload board"}
-          </Button>
-        )}
       </header>
       {truncated && (
         <p className="tracking-data-warning" role="alert">
@@ -1544,17 +1570,19 @@ export function TrackingBoardView({
         </p>
       )}
       <div className="tracking-stage-filters" aria-label="Filter visits">
-        <button
+        <Button
           type="button"
+          variant="outlined"
           aria-pressed={patientFilter === "mine"}
           onClick={() => selectDesktopFilter("mine")}
         >
           <span>My patients</span>
           <strong>{myPatients.length}</strong>
-        </button>
+        </Button>
         {stageOptions.map((s) => (
-          <button
+          <Button
             type="button"
+            variant="outlined"
             key={s.id}
             aria-pressed={
               stage === s.id && (s.id !== "all" || patientFilter === "all")
@@ -1565,7 +1593,7 @@ export function TrackingBoardView({
             <strong>
               {s.id === "all" ? visits.length : (stageCounts[s.id] ?? 0)}
             </strong>
-          </button>
+          </Button>
         ))}
       </div>
       <div className="tracking-tools">
@@ -1804,13 +1832,13 @@ export function TrackingBoardView({
               : "No visits are currently shown."}
           </p>
           {visits.length > 0 && (
-            <button
-              className="button"
+            <Button
+              variant="outlined"
               type="button"
               onClick={() => selectDesktopFilter("all")}
             >
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
       )}
