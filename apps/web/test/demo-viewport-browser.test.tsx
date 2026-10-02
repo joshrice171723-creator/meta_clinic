@@ -152,6 +152,8 @@ it("fills the live sandbox viewport and keeps the clinic toggle in its header", 
     const initialSrc = await iframe.getAttribute("src");
 
     async function measure(width: number, height: number) {
+      await page.setViewportSize({ width, height });
+      await page.evaluate(() => new Promise(requestAnimationFrame));
       const layout = await page.evaluate(() => {
         const rect = (selector: string) => {
           const value = document
