@@ -187,208 +187,215 @@ export function ClinicFrame({
           }
         }}
       >
-        <Tooltip describeChild title={toggleLabel} placement="right">
-          <IconButton
-            ref={tab}
-            className="clinic-menu-toggle"
-            aria-controls="clinic-sidebar"
-            aria-expanded={!collapsed}
-            aria-label={toggleLabel}
-            data-demo-tour-control="true"
-            onClick={() => {
-              if (!compact) desktopCollapsed.current = !collapsed;
-              setCollapsed(!collapsed);
-            }}
-            size="small"
-          >
-            {compact ? (
-              collapsed ? (
-                <MenuIcon fontSize="small" aria-hidden="true" />
-              ) : (
-                <CloseIcon fontSize="small" aria-hidden="true" />
-              )
-            ) : collapsed ? (
-              <ChevronRightIcon fontSize="small" />
-            ) : (
-              <ChevronLeftIcon fontSize="small" />
-            )}
-            <span className="clinic-menu-toggle-label">Menu</span>
-          </IconButton>
-        </Tooltip>
-        <aside
-          id="clinic-sidebar"
-          className="clinic-sidebar"
-          ref={panel}
-          hidden={compact && collapsed}
-        >
-          <a className="wordmark" href="/clinic">
-            Meta Clinic
-            <span className="brand-dot" />
-          </a>
-          {rail && (
-            <Tooltip
-              describeChild
-              title={`${practiceName} · ${visibleLocationName || "No location selected"} · ${timezone}`}
-              placement="right"
+        <aside id="clinic-sidebar" className="clinic-sidebar" ref={panel}>
+          <div className="clinic-sidebar-header">
+            <a
+              className="wordmark"
+              href="/clinic"
+              hidden={compact && collapsed}
             >
+              Meta Clinic
+              <span className="brand-dot" />
+            </a>
+            <Tooltip describeChild title={toggleLabel} placement="right">
               <IconButton
-                className="clinic-rail-scope"
-                aria-label={`Expand clinic context: ${practiceName}, ${visibleLocationName || "No location selected"}`}
-                aria-controls="clinic-scope"
-                aria-expanded={false}
+                ref={tab}
+                className="clinic-menu-toggle"
+                aria-controls="clinic-sidebar-content"
+                aria-expanded={!collapsed}
+                aria-label={toggleLabel}
+                data-demo-tour-control="true"
                 onClick={() => {
-                  desktopCollapsed.current = false;
-                  focusScope.current = true;
-                  setCollapsed(false);
+                  if (!compact) desktopCollapsed.current = !collapsed;
+                  setCollapsed(!collapsed);
                 }}
+                size="small"
               >
-                <BusinessIcon fontSize="small" />
+                {compact ? (
+                  collapsed ? (
+                    <MenuIcon fontSize="small" aria-hidden="true" />
+                  ) : (
+                    <CloseIcon fontSize="small" aria-hidden="true" />
+                  )
+                ) : collapsed ? (
+                  <ChevronRightIcon fontSize="small" aria-hidden="true" />
+                ) : (
+                  <ChevronLeftIcon fontSize="small" aria-hidden="true" />
+                )}
+                <span className="clinic-menu-toggle-label">Menu</span>
               </IconButton>
             </Tooltip>
-          )}
-          <div id="clinic-scope" className="practice-label" hidden={rail}>
-            {scopeSelector}
-            {!scopeSelector && <strong>{practiceName}</strong>}
-            <small aria-label={`Clinic timezone: ${timezone}`}>
-              {timezone}
-            </small>
-            {!scopeSelector && (
-              <span className="practice-location">
-                <small>Location</small>
-                {locations.length > 1 ? (
-                  <span className="practice-location-picker">
-                    <button
-                      ref={locationTrigger}
-                      type="button"
-                      className="practice-location-trigger"
-                      aria-controls="clinic-location-options"
-                      aria-expanded={locationMenuOpen}
-                      aria-haspopup="listbox"
-                      onClick={() => setLocationMenuOpen((open) => !open)}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === "ArrowDown" ||
-                          event.key === "ArrowUp" ||
-                          event.key === "Enter" ||
-                          event.key === " "
-                        ) {
-                          event.preventDefault();
-                          setHighlightedLocation(
-                            Math.max(
-                              0,
-                              locations.findIndex(
-                                (site) => site.id === selectedLocationId,
-                              ),
-                            ),
-                          );
-                          setLocationMenuOpen(true);
-                        }
-                      }}
-                    >
-                      <span className="practice-location-trigger-name">
-                        {visibleLocationName || "Select a location"}
-                      </span>
-                      <ExpandMoreIcon
-                        aria-hidden="true"
-                        className="practice-location-chevron"
-                        fontSize="small"
-                      />
-                    </button>
-                    {locationMenuOpen && (
-                      <div
-                        id="clinic-location-options"
-                        ref={locationMenu}
-                        className="practice-location-menu"
-                        role="listbox"
-                        aria-label="Current clinic location"
-                        aria-activedescendant={
-                          highlightedLocationId
-                            ? `clinic-location-option-${highlightedLocationId}`
-                            : undefined
-                        }
-                        tabIndex={-1}
+          </div>
+          <div
+            id="clinic-sidebar-content"
+            className="clinic-sidebar-content"
+            hidden={compact && collapsed}
+          >
+            {rail && (
+              <Tooltip
+                describeChild
+                title={`${practiceName} · ${visibleLocationName || "No location selected"} · ${timezone}`}
+                placement="right"
+              >
+                <IconButton
+                  className="clinic-rail-scope"
+                  aria-label={`Expand clinic context: ${practiceName}, ${visibleLocationName || "No location selected"}`}
+                  aria-controls="clinic-scope"
+                  aria-expanded={false}
+                  onClick={() => {
+                    desktopCollapsed.current = false;
+                    focusScope.current = true;
+                    setCollapsed(false);
+                  }}
+                >
+                  <BusinessIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <div id="clinic-scope" className="practice-label" hidden={rail}>
+              {scopeSelector}
+              {!scopeSelector && <strong>{practiceName}</strong>}
+              <small aria-label={`Clinic timezone: ${timezone}`}>
+                {timezone}
+              </small>
+              {!scopeSelector && (
+                <span className="practice-location">
+                  <small>Location</small>
+                  {locations.length > 1 ? (
+                    <span className="practice-location-picker">
+                      <button
+                        ref={locationTrigger}
+                        type="button"
+                        className="practice-location-trigger"
+                        aria-controls="clinic-location-options"
+                        aria-expanded={locationMenuOpen}
+                        aria-haspopup="listbox"
+                        onClick={() => setLocationMenuOpen((open) => !open)}
                         onKeyDown={(event) => {
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            setLocationMenuOpen(false);
-                            locationTrigger.current?.focus();
-                          } else if (event.key === "ArrowDown") {
-                            event.preventDefault();
-                            setHighlightedLocation(
-                              (highlightedLocation + 1) % locations.length,
-                            );
-                          } else if (event.key === "ArrowUp") {
-                            event.preventDefault();
-                            setHighlightedLocation(
-                              (highlightedLocation - 1 + locations.length) %
-                                locations.length,
-                            );
-                          } else if (event.key === "Home") {
-                            event.preventDefault();
-                            setHighlightedLocation(0);
-                          } else if (event.key === "End") {
-                            event.preventDefault();
-                            setHighlightedLocation(locations.length - 1);
-                          } else if (
+                          if (
+                            event.key === "ArrowDown" ||
+                            event.key === "ArrowUp" ||
                             event.key === "Enter" ||
                             event.key === " "
                           ) {
                             event.preventDefault();
-                            const site = locations[highlightedLocation];
-                            if (site) selectLocation(site.id);
+                            setHighlightedLocation(
+                              Math.max(
+                                0,
+                                locations.findIndex(
+                                  (site) => site.id === selectedLocationId,
+                                ),
+                              ),
+                            );
+                            setLocationMenuOpen(true);
                           }
                         }}
                       >
-                        {locations.map((site, index) => (
-                          <button
-                            key={site.id}
-                            id={`clinic-location-option-${site.id}`}
-                            type="button"
-                            role="option"
-                            aria-selected={site.id === selectedLocationId}
-                            className="practice-location-option"
-                            data-highlighted={index === highlightedLocation}
-                            tabIndex={-1}
-                            onMouseEnter={() => setHighlightedLocation(index)}
-                            onClick={() => selectLocation(site.id)}
-                          >
-                            <span>{site.name || site.code}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </span>
-                ) : (
-                  <span className="practice-location-value">
-                    {locationName || "No location selected"}
-                  </span>
-                )}
-              </span>
-            )}
-          </div>
-          <ClinicRailContext.Provider value={rail}>
-            {navigation}
-          </ClinicRailContext.Provider>
-          <div className="clinic-sidebar-bottom">
-            <Tooltip
-              describeChild
-              title="Launch & onboarding"
-              placement="right"
-            >
-              <a href="/portal" aria-label="Launch & onboarding">
-                <LaunchIcon aria-hidden="true" fontSize="small" />
-                <span>Launch &amp; onboarding</span>
-              </a>
-            </Tooltip>
-            {!developmentPreview && !isDemoFrame() && (
-              <Form
-                className="clinic-sign-out"
-                endpoint="/api/session"
-                method="DELETE"
-                submit="Sign out"
-                onSuccess={() => window.location.replace("/login")}
-              />
-            )}
+                        <span className="practice-location-trigger-name">
+                          {visibleLocationName || "Select a location"}
+                        </span>
+                        <ExpandMoreIcon
+                          aria-hidden="true"
+                          className="practice-location-chevron"
+                          fontSize="small"
+                        />
+                      </button>
+                      {locationMenuOpen && (
+                        <div
+                          id="clinic-location-options"
+                          ref={locationMenu}
+                          className="practice-location-menu"
+                          role="listbox"
+                          aria-label="Current clinic location"
+                          aria-activedescendant={
+                            highlightedLocationId
+                              ? `clinic-location-option-${highlightedLocationId}`
+                              : undefined
+                          }
+                          tabIndex={-1}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setLocationMenuOpen(false);
+                              locationTrigger.current?.focus();
+                            } else if (event.key === "ArrowDown") {
+                              event.preventDefault();
+                              setHighlightedLocation(
+                                (highlightedLocation + 1) % locations.length,
+                              );
+                            } else if (event.key === "ArrowUp") {
+                              event.preventDefault();
+                              setHighlightedLocation(
+                                (highlightedLocation - 1 + locations.length) %
+                                  locations.length,
+                              );
+                            } else if (event.key === "Home") {
+                              event.preventDefault();
+                              setHighlightedLocation(0);
+                            } else if (event.key === "End") {
+                              event.preventDefault();
+                              setHighlightedLocation(locations.length - 1);
+                            } else if (
+                              event.key === "Enter" ||
+                              event.key === " "
+                            ) {
+                              event.preventDefault();
+                              const site = locations[highlightedLocation];
+                              if (site) selectLocation(site.id);
+                            }
+                          }}
+                        >
+                          {locations.map((site, index) => (
+                            <button
+                              key={site.id}
+                              id={`clinic-location-option-${site.id}`}
+                              type="button"
+                              role="option"
+                              aria-selected={site.id === selectedLocationId}
+                              className="practice-location-option"
+                              data-highlighted={index === highlightedLocation}
+                              tabIndex={-1}
+                              onMouseEnter={() => setHighlightedLocation(index)}
+                              onClick={() => selectLocation(site.id)}
+                            >
+                              <span>{site.name || site.code}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="practice-location-value">
+                      {locationName || "No location selected"}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+            <ClinicRailContext.Provider value={rail}>
+              {navigation}
+            </ClinicRailContext.Provider>
+            <div className="clinic-sidebar-bottom">
+              <Tooltip
+                describeChild
+                title="Launch & onboarding"
+                placement="right"
+              >
+                <a href="/portal" aria-label="Launch & onboarding">
+                  <LaunchIcon aria-hidden="true" fontSize="small" />
+                  <span>Launch &amp; onboarding</span>
+                </a>
+              </Tooltip>
+              {!developmentPreview && !isDemoFrame() && (
+                <Form
+                  className="clinic-sign-out"
+                  endpoint="/api/session"
+                  method="DELETE"
+                  submit="Sign out"
+                  onSuccess={() => window.location.replace("/login")}
+                />
+              )}
+            </div>
           </div>
         </aside>
       </div>

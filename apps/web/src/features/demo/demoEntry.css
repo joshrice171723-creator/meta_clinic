@@ -129,6 +129,49 @@
   background: var(--meta-terracotta);
 }
 
+/* Only the live sandbox uses a fixed viewport. Entry, error and lesson pages
+   retain their document flow and the marketing footer below them. */
+.demo-journey--sandbox {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  padding-block: max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-bottom));
+  padding-inline: max(8px, env(safe-area-inset-left))
+    max(8px, env(safe-area-inset-right));
+}
+
+.demo-journey--sandbox > :not(style) ~ :not(style) {
+  margin-top: 0;
+}
+
+.demo-journey__sandbox-toolbar {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.demo-journey__sandbox-workspace {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.demo-journey__sandbox-workspace > iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 @media (max-width: 900px) {
   .demo-entry {
     grid-template-columns: 1fr;

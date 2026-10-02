@@ -28,6 +28,25 @@
 .clinic-theme .clinic-sidebar[hidden] {
   display: none;
 }
+.clinic-theme .clinic-sidebar-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -10px -8px 4px;
+  padding: 6px 8px;
+  background: var(--clinic-sidebar-ground);
+}
+.clinic-theme .clinic-sidebar-content {
+  display: contents;
+}
+.clinic-theme .clinic-sidebar-content[hidden] {
+  display: none;
+}
 .clinic-theme .clinic-sidebar .practice-label {
   margin: 0 0 4px;
   padding: 4px 0;
@@ -203,12 +222,10 @@
   margin: 0;
 }
 .clinic-theme .clinic-menu-toggle {
-  display: flex;
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  position: static;
   width: 40px;
   min-height: 44px;
+  flex: 0 0 40px;
   border: 1px solid var(--clinic-control);
   border-radius: 6px;
   background: var(--clinic-surface);
@@ -219,13 +236,6 @@
   cursor: pointer;
   font: inherit;
   z-index: 21;
-}
-.clinic-theme .clinic-shell[data-collapsed="true"] .clinic-menu-toggle {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  right: auto;
-  z-index: 25;
 }
 .clinic-theme .clinic-menu-toggle .MuiSvgIcon-root {
   font-size: 18px;
@@ -315,11 +325,14 @@
   color: inherit;
 }
 .clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar {
-  height: calc(100% - 56px);
-  margin-top: 56px;
   padding: 0 4px 8px;
   scrollbar-gutter: auto;
   scrollbar-width: thin;
+}
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar-header {
+  justify-content: center;
+  margin: 0 -4px 4px;
+  padding: 6px 4px;
 }
 .clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar-frame {
   background: var(--clinic-sidebar-ground);
@@ -511,17 +524,27 @@
   }
   .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-sidebar-frame {
     width: 0;
+    overflow: visible;
   }
   .clinic-theme .clinic-main {
     margin-left: 0;
   }
-  .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-menu-toggle {
-    position: fixed;
+  .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-sidebar {
+    width: 56px;
+    height: 60px;
+    overflow: visible;
+    padding: 8px;
+    border: 0;
   }
-  .clinic-theme .clinic-shell[data-collapsed="false"] .clinic-menu-toggle {
-    display: flex;
-    right: 12px;
-    left: auto;
+  .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-sidebar-header {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    width: 40px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
   }
   .clinic-theme .clinic-topbar {
     min-height: 52px;

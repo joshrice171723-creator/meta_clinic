@@ -800,8 +800,9 @@ export function DemoJourney() {
   return (
     <Stack
       component="main"
-      spacing={2}
-      sx={{ width: "100%", p: { xs: 1, sm: 2 } }}
+      className={sandbox ? "demo-journey--sandbox" : undefined}
+      spacing={sandbox ? 0 : 2}
+      sx={sandbox ? undefined : { width: "100%", p: { xs: 1, sm: 2 } }}
     >
       {error && <Alert severity="error">{error}</Alert>}
       {!restartOpen && sandboxProgress}
@@ -820,6 +821,7 @@ export function DemoJourney() {
       {run.lesson_key && (activeLesson || sandbox) ? (
         <>
           <Paper
+            className={sandbox ? "demo-journey__sandbox-toolbar" : undefined}
             variant="outlined"
             sx={{
               px: sandbox ? 1 : { xs: 1.25, sm: 2 },
@@ -1006,7 +1008,11 @@ export function DemoJourney() {
           </Paper>
           <Paper
             variant="outlined"
-            sx={{ minHeight: 900, position: "relative" }}
+            className={sandbox ? "demo-journey__sandbox-workspace" : undefined}
+            sx={{
+              ...(sandbox ? {} : { minHeight: 900 }),
+              position: "relative",
+            }}
           >
             {(switching || frameLoading) && (
               <Stack
@@ -1050,8 +1056,10 @@ export function DemoJourney() {
                 sx={{
                   border: 0,
                   width: "100%",
-                  minHeight: 900,
+                  height: sandbox ? "100%" : undefined,
+                  minHeight: sandbox ? 0 : 900,
                   display: "block",
+                  ...(sandbox ? { flex: "1 1 auto" } : {}),
                 }}
               />
             ) : (
