@@ -1,4 +1,4 @@
-import { useId, useEffect, useState, type FormEvent } from "react";
+import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   Alert,
   Button,
@@ -32,6 +32,8 @@ import type {
   WorkforceSite,
 } from "./foundationTypes";
 import { businessNow } from "../../shared/businessDate";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 function localDateTime() {
   const current = businessNow();
@@ -248,11 +250,41 @@ export function EmploymentAdminPage() {
   const [emailAddress, setEmailAddress] = useState("");
   const [siteIds, setSiteIds] = useState<number[]>([]);
   const [effectiveFrom, setEffectiveFrom] = useState(localDateTime);
+  const initialEffectiveFrom = useRef(effectiveFrom);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [activationToken, setActivationToken] = useState<string | null>(null);
   const [activationPath, setActivationPath] = useState<string | null>(null);
   const [setupRoleCode, setSetupRoleCode] = useState<string | null>(null);
+  const { registerBlocker } = useClinicNavigation();
+  const defaultRoleId = data?.role_options.find(
+    (role) => role.role_code === "workforce-employee",
+  )?.id;
+  const dirty = Boolean(
+    displayName ||
+    jobTitle ||
+    emailAddress ||
+    membershipId ||
+    siteIds.length ||
+    accountMode !== "new" ||
+    effectiveFrom !== initialEffectiveFrom.current ||
+    (roleVersionId && roleVersionId !== String(defaultRoleId)),
+  );
+  useDemoNavigationBlocker(() => ({ blocked: saving, message: null }));
+  useEffect(() => {
+    if (!dirty) return;
+    const warning = "Discard your unsaved employee setup?";
+    const unregister = registerBlocker(() => warning);
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [dirty, registerBlocker]);
 
   useEffect(() => {
     if (roleVersionId || !data) return;
@@ -279,7 +311,8 @@ export function EmploymentAdminPage() {
     setRoleVersionId("");
     setEmailAddress("");
     setSiteIds([]);
-    setEffectiveFrom(localDateTime());
+    initialEffectiveFrom.current = localDateTime();
+    setEffectiveFrom(initialEffectiveFrom.current);
   };
   const toggleSite = (siteId: number) =>
     setSiteIds((current) =>
