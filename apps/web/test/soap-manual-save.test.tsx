@@ -132,6 +132,8 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
         name: "Objective (O)",
         exact: true,
       });
+      // Wait for the actual working-draft read to enable the editor before entering text.
+      await expect.poll(() => objective.isEnabled(), { timeout: 30000 }).toBe(true);
       await page
         .getByRole("textbox", { name: "Chief Complaint", exact: true })
         .fill("Independent synthetic manual concern");
@@ -928,13 +930,8 @@ it.runIf(Boolean(process.env.QA_REAL_BASE_URL))(
       expect(secondPolicy.status()).toBe(200);
       expect((await secondPolicy.json()).policy.revision).toBe(0);
       await page.goto(`${baseUrl}/clinic/audit`);
-      await expect
-        .poll(() =>
-          page
-            .getByRole("heading", { name: "Practice audit", exact: true })
-            .count(),
-        )
-        .toBe(1);
+      await page.locator(".clinic-shell").waitFor({ timeout: 30000 });
+      await page.getByRole("heading", { name: "Practice audit", exact: true }).waitFor();
       expect(
         await page
           .getByRole("combobox", { name: "Audit action", exact: true })

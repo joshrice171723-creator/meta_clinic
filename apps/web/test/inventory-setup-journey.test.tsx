@@ -223,7 +223,8 @@ it.runIf(realStackEnabled)(
       await page.goto(realUrl(`/clinic/inventory/purchasing?purchase_order_id=${ordered.id}`));
       for (const action of ["Submit purchase order", "Approve purchase order", "Mark order sent"]) {
         await page.getByRole("button", { name: action, exact: true }).click();
-        const confirmation = page.getByRole("dialog", { name: `${action}?`, exact: true });
+        const confirmation = page.getByRole("dialog", { name: "Confirm inventory action", exact: true });
+        await confirmation.getByText(`${action}?`, { exact: true }).waitFor();
         await confirmation.getByRole("textbox", { name: /^Action reason/ }).fill("Synthetic authorized first-run action");
         await confirmation.getByRole("button", { name: action, exact: true }).click();
         await expect.poll(() => confirmation.count()).toBe(0);
@@ -245,10 +246,12 @@ it.runIf(realStackEnabled)(
       await page.getByLabel("Expiration", { exact: true }).fill(expiry.toISOString().slice(0, 10));
       await page.getByRole("textbox", { name: /^Accepted/ }).fill("1");
       const leaf = (await api(page, "/api/clinic/inventory/locations")).data.location_options.find((location: any) => location.name === "Synthetic journey leaf");
-      await page.getByRole("combobox", { name: "Destination", exact: true }).selectOption(String(leaf.id));
+      await page.getByRole("combobox", { name: /^Destination/ }).selectOption(String(leaf.id));
       await page.getByRole("textbox", { name: "Reason", exact: true }).fill("Synthetic first-run receipt");
       await page.getByRole("button", { name: "Confirm receipt", exact: true }).click();
-      await page.getByRole("dialog", { name: "Confirm this receipt?", exact: true }).getByRole("button", { name: "Confirm action", exact: true }).click();
+      const receiptConfirmation = page.getByRole("dialog", { name: "Confirm inventory action", exact: true });
+      await receiptConfirmation.getByText("Confirm this receipt?", { exact: true }).waitFor();
+      await receiptConfirmation.getByRole("button", { name: "Confirm action", exact: true }).click();
       await expect.poll(async () => (await api(page, "/api/clinic/inventory/catalog?view=table")).data.first_run.received).toBe(true);
       await page.goto(realUrl("/clinic/inventory")); await page.reload();
       const completed = (await api(page, "/api/clinic/inventory/catalog?view=table")).data;
@@ -279,8 +282,8 @@ it.runIf(realStackEnabled)(
       await page.getByRole("button", { name: "Record observation", exact: true }).click();
       await page.getByRole("textbox", { name: /^Management reason/ }).fill("Synthetic count reconciled");
       await page.getByRole("button", { name: "Complete session", exact: true }).click();
-      await expect.poll(async () => (await api(page, "/api/clinic/inventory/count-sessions?status=completed")).data.sessions.length).toBe(1);
-      const counted = (await api(page, "/api/clinic/inventory/count-sessions?status=completed")).data.sessions[0];
+      await expect.poll(async () => (await api(page, "/api/clinic/inventory/count-sessions?count_status=completed")).data.sessions.length).toBe(1);
+      const counted = (await api(page, "/api/clinic/inventory/count-sessions?count_status=completed")).data.sessions[0];
       expect(counted.status).toBe("completed");
       expect(counted.line_count).toBe(1);
       await page.reload();

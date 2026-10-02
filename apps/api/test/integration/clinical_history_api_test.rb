@@ -241,7 +241,7 @@ class ClinicalHistoryApiTest < ActionDispatch::IntegrationTest
   end
 
   test "Muse220 intake condition projection uses exact source and does not fall back around denied newest intake" do
-    grant_permissions!(@membership, "intake.write")
+    grant_permissions!(@membership, "intake.write", "encounters.read")
     optional_features = { "clinic_type" => "primary_care", "service_scope" => [], "assessment_scope" => [] }
     Clinic::PracticeFeatureVersion.create!(
       practice: @practice, site: @site, created_by_membership: @membership, revision: 1, optional_features:,
@@ -283,7 +283,8 @@ class ClinicalHistoryApiTest < ActionDispatch::IntegrationTest
     save_conditions.call(@other_site_encounter, ["Independent restricted newest concern"])
     reader = User.create!(email_address: "synthetic-condition-site-reader@example.invalid", password: @password)
     member = @practice.memberships.create!(user: reader)
-    grant_permissions!(member, "patients.read", scope_kind: "site", site: @site)
+    grant_permissions!(member, "patients.read")
+    grant_permissions!(member, "encounters.read", scope_kind: "site", site: @site)
     login(reader)
     get path, headers: @headers
     assert_response :success

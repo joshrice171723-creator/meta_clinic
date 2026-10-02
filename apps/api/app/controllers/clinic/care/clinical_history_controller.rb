@@ -82,7 +82,7 @@ module Clinic
         revision = encounter && revisions.where(encounter: encounter).first
         revision ||= revisions.first
         return { state: "not_recorded", source: nil, questions: [] } unless revision
-        unless current_ability.allowed_permission?("patients.read", site: revision.encounter.site)
+        unless current_ability.allowed_permission?("encounters.read", site: revision.encounter.site)
           return { state: "restricted", source: nil, questions: [] }
         end
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,

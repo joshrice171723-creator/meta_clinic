@@ -214,6 +214,7 @@ it("authorized reported intake conditions remain visible with source without cre
     expect(actual.reported_intake_conditions?.source).toEqual(expect.objectContaining({ encounter_id: scenario.completed_encounter_id, version: scenario.source_version }));
     expect(actual.reported_intake_conditions?.questions.flatMap(question => question.entries.map(entry => entry.name))).toEqual(scenario.names);
     await page.reload();
+    await page.locator(".clinic-shell").waitFor({ state: "visible", timeout: 30000 });
     await reported.getByText(scenario.names[0], { exact: false }).waitFor();
     for (const name of scenario.names) expect(await reported.getByText(name, { exact: false }).count()).toBe(1);
     await reported.getByRole("link", { name: "Open source intake", exact: true }).click();

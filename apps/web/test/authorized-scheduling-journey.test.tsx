@@ -289,6 +289,8 @@ it.skipIf(!realStackEnabled)(
       expect(await appointmentDialog.getByRole("button", { name: "Cancel appointment", exact: true }).isDisabled()).toBe(true);
       await appointmentDialog.getByText("This visit has already started. Appointment cancellation is unavailable. Review the encounter to record the visit outcome.", { exact: true }).waitFor();
       await appointmentDialog.getByRole("link", { name: "Open encounter", exact: true }).click();
+      await page.getByRole("button", { name: "Confirm and begin charting", exact: true }).click();
+      await page.getByRole("navigation", { name: "Encounter sections", exact: true }).getByRole("link", { name: "Completion", exact: true }).click();
       await selectReal(page, "Follow-up status", "No follow-up required");
       const followup = page.waitForResponse(response => new URL(response.url()).pathname.includes(`/encounters/${encounterId}/follow_up`) && response.request().method() === "PUT");
       await page.getByRole("button", { name: "Save follow-up", exact: true }).click();
