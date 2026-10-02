@@ -55,6 +55,7 @@ import { PatientLabReports } from "./PatientLabReports";
 import { PatientDocumentProvenance } from "./PatientDocumentProvenance";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { registrationLanguageSuggestions } from "./registrationLanguageSuggestions";
+import { useRegistrationDialogViewport } from "./registrationDialogViewport";
 
 type LegacyNote = {
   id: number;
@@ -798,6 +799,11 @@ function PatientRecord({
   const [mergeError, setMergeError] = useState("");
   const [mergeBusy, setMergeBusy] = useState(false);
   const registrationDialogRef = useRef<HTMLDivElement>(null);
+  const registrationAnchorRef = useRef<HTMLButtonElement>(null);
+  const registrationDialogInsets = useRegistrationDialogViewport(
+    registrationOpen,
+    registrationAnchorRef,
+  );
   useEffect(() => {
     if (!registrationOpen || !registrationDirty) return;
     const unregister = registerBlocker(
@@ -897,6 +903,7 @@ function PatientRecord({
             sx={{ flexWrap: "wrap" }}
           >
             <Button
+              ref={registrationAnchorRef}
               onClick={() => setRegistrationOpen(true)}
               variant="outlined"
             >
@@ -911,13 +918,43 @@ function PatientRecord({
             </Button>
           </Stack>
           <Dialog
+            container={() =>
+              registrationAnchorRef.current?.closest<HTMLElement>(
+                ".clinic-theme",
+              ) ??
+              registrationAnchorRef.current?.ownerDocument.body ??
+              null
+            }
+            sx={{
+              ...registrationDialogInsets,
+              "& .MuiDialog-paper": {
+                m: { xs: 1.5, sm: 3 },
+                width: { xs: "calc(100% - 24px)", sm: "calc(100% - 48px)" },
+                maxHeight: { xs: "calc(100% - 24px)", sm: "calc(100% - 48px)" },
+              },
+            }}
             fullWidth
             maxWidth="md"
             onClose={closeRegistration}
             open={registrationOpen}
+            aria-labelledby="patient-registration-dialog-title"
           >
-            <DialogTitle>Edit registration details</DialogTitle>
-            <DialogContent ref={registrationDialogRef}>
+            <DialogTitle
+              id="patient-registration-dialog-title"
+              sx={{ flexShrink: 0 }}
+            >
+              Edit registration details
+            </DialogTitle>
+            <DialogContent
+              dividers
+              ref={registrationDialogRef}
+              sx={{
+                minHeight: 0,
+                overflowY: "auto",
+                "& .form-field-hint": { display: "grid", gap: 0.25 },
+                "& .form-field-hint > span": { display: "block" },
+              }}
+            >
               <div
                 onChange={() => {
                   if (!registrationDirty) setRegistrationDirty(true);
@@ -970,7 +1007,7 @@ function PatientRecord({
                 </Alert>
               )}
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ flexShrink: 0, p: 2 }}>
               <Button onClick={closeRegistration}>Cancel</Button>
             </DialogActions>
           </Dialog>

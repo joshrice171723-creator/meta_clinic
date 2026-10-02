@@ -224,7 +224,7 @@ describe("219 registration dialog dismissal", () => {
     record()
       .find((props) => props.children === "Edit registration")
       .onClick();
-    const container = record().find((props) => props.ref);
+    const container = record().find((props) => props.ref && props.dividers);
     container.ref.current = {
       querySelector: (selector: string) =>
         (selector === "fieldset[disabled]" && (saving || pending)) ||
