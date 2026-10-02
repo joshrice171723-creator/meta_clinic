@@ -33,6 +33,7 @@ const drawer = (id: number, site_id: number, currency = "USD") =>
 const target = drawer(707, 704);
 const href = cashCloseoutHref(701, target);
 const baselineRef = process.env.CASH_CLOSEOUT_BASELINE_REF;
+const candidateRef = process.env.CASH_CLOSEOUT_CANDIDATE_REF;
 
 beforeAll(async () => {
   const entry = "\0closeout-entry.tsx";
@@ -50,6 +51,16 @@ beforeAll(async () => {
       ],
     ),
   );
+  const heldCash = candidateRef
+    ? execFileSync(
+        "git",
+        [
+          "show",
+          `${candidateRef}:apps/web/src/features/clinic/CashDrawerOperations.tsx`,
+        ],
+        { cwd: root, encoding: "utf8" },
+      )
+    : null;
   const result = await build({
     configFile: false,
     logLevel: "error",
@@ -80,17 +91,49 @@ beforeAll(async () => {
             const name = id.split("/").pop()!.split(".")[0];
             if (originals[name]) return originals[name];
           }
+          if (
+            heldCash &&
+            id.replaceAll("\\", "/").endsWith("/CashDrawerOperations.tsx")
+          )
+            return heldCash;
           if (!id.startsWith(entry)) return;
           return `import React from "react"; import {createRoot} from "react-dom/client";
         import {OwnerMorningView as CurrentMorning} from "/src/features/clinic/OwnerMorningView";
         import {CashDrawerOperations as CurrentCash} from "/src/features/clinic/CashDrawerOperations";
         import {OwnerMorningView as BeforeMorning} from "/src/features/clinic/OwnerMorningView?baseline=1";
         import {CashDrawerOperations as BeforeCash} from "/src/features/clinic/CashDrawerOperations?baseline=1";
+        import {ClinicNavigationProvider, confirmClinicNavigation} from "/src/features/clinic/clinicNavigation";
         const baseline = document.cookie.includes("closeout_baseline=1");
         const OwnerMorningView = baseline ? BeforeMorning : CurrentMorning;
         const CashDrawerOperations = baseline ? BeforeCash : CurrentCash;
-        createRoot(document.getElementById("root")).render(location.pathname.endsWith("operations")
-          ? React.createElement(OwnerMorningView) : React.createElement(CashDrawerOperations, {invoice: null, onRecorded: () => {}}));`;
+        const blockers = new Set();
+        const registerBlocker = (blocker) => {blockers.add(blocker); return () => blockers.delete(blocker);};
+        const confirmNavigation = () => confirmClinicNavigation([...blockers].map((blocker) => blocker()));
+        function Harness() {
+          const [route, setRoute] = React.useState(location.pathname + location.search);
+          const current = React.useRef(route); current.current = route;
+          const navigate = (href) => {
+            if (!confirmNavigation()) return false;
+            history.pushState(null, "", href);
+            setRoute(location.pathname + location.search); return true;
+          };
+          React.useEffect(() => {
+            const restore = () => {
+              const next = location.pathname + location.search;
+              if (next === current.current) return;
+              if (confirmNavigation()) setRoute(next);
+              else history.replaceState(null, "", current.current);
+            };
+            window.addEventListener("popstate", restore);
+            return () => window.removeEventListener("popstate", restore);
+          }, []);
+          const page = route.startsWith("/clinic/operations")
+            ? React.createElement(OwnerMorningView, {key: route})
+            : React.createElement(CashDrawerOperations, {key: route, invoice: null, onRecorded: () => {}});
+          return React.createElement(ClinicNavigationProvider, {value: {navigate, registerBlocker, confirmNavigation}},
+            page, React.createElement("button", {onClick: () => navigate(location.pathname + location.search)}, "Repeat closeout link"));
+        }
+        createRoot(document.getElementById("root")).render(React.createElement(Harness));`;
         },
       },
     ],
@@ -310,12 +353,42 @@ it("does not offer a closeout shortcut for a missing current-location session", 
   }
 });
 
-it("clears count input when history changes the target within the mounted drawer", async () => {
+it("requires deliberate departure before history changes session identity", async () => {
   const other = drawer(710, 704, "CAD");
   const { page, mutations } = await fixture([target, other]);
   try {
     await page.goto(`${baseUrl}${href}`);
     await page.getByLabel("Counted cash", { exact: true }).fill("93.75");
+    await page
+      .getByLabel("Short / over explanation (optional)")
+      .fill("Synthetic counted draft");
+    const warnings: string[] = [];
+    page.on("dialog", async (dialog) => {
+      warnings.push(dialog.message());
+      await dialog.dismiss();
+    });
+    await page.evaluate(
+      (route) => {
+        history.pushState(null, "", route);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      },
+      cashCloseoutHref(701, other),
+    );
+    await page
+      .getByText("Closeout session #707 · EAST · USD", { exact: true })
+      .waitFor();
+    await expect.poll(() => warnings.length).toBe(1);
+    expect(
+      await page.getByLabel("Counted cash", { exact: true }).inputValue(),
+    ).toBe("93.75");
+    expect(
+      await page.getByLabel("Short / over explanation (optional)").inputValue(),
+    ).toBe("Synthetic counted draft");
+    page.removeAllListeners("dialog");
+    page.on("dialog", async (dialog) => {
+      warnings.push(dialog.message());
+      await dialog.accept();
+    });
     await page.evaluate(
       (route) => {
         history.pushState(null, "", route);
@@ -329,6 +402,48 @@ it("clears count input when history changes the target within the mounted drawer
     expect(
       await page.getByLabel("Counted cash", { exact: true }).inputValue(),
     ).toBe("");
+    expect(warnings).toHaveLength(2);
+    expect(mutations).toEqual([]);
+  } finally {
+    await page.close();
+  }
+});
+
+it("preserves the physical count and explanation through same-session hash Back/Forward and repeated activation", async () => {
+  const { page, mutations } = await fixture();
+  try {
+    await page.goto(`${baseUrl}${href}`);
+    await page.getByLabel("Counted cash", { exact: true }).fill("93.75");
+    await page
+      .getByLabel("Short / over explanation (optional)")
+      .fill("Synthetic counted draft");
+    await page.evaluate(() => {
+      location.hash = "cash-closeout";
+    });
+    await page.goBack();
+    expect(
+      await page.getByLabel("Counted cash", { exact: true }).inputValue(),
+    ).toBe("93.75");
+    await page.goForward();
+    expect(
+      await page.getByLabel("Counted cash", { exact: true }).inputValue(),
+    ).toBe("93.75");
+    expect(
+      await page.getByLabel("Short / over explanation (optional)").inputValue(),
+    ).toBe("Synthetic counted draft");
+    page.on("dialog", async (dialog) => dialog.accept());
+    await page
+      .getByRole("button", { name: "Repeat closeout link", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Repeat closeout link", exact: true })
+      .click();
+    expect(
+      await page.getByLabel("Counted cash", { exact: true }).inputValue(),
+    ).toBe("93.75");
+    expect(
+      await page.getByLabel("Short / over explanation (optional)").inputValue(),
+    ).toBe("Synthetic counted draft");
     expect(mutations).toEqual([]);
   } finally {
     await page.close();

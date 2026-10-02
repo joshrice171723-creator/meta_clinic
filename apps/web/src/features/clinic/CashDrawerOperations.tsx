@@ -23,6 +23,7 @@ import { useResource } from "../../shared/ui";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
 import { cashCloseoutError } from "./cashCloseoutRoute";
+import { useClinicNavigation } from "./clinicNavigation";
 
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
@@ -130,6 +131,7 @@ export function CashDrawerOperations({
   refreshVersion?: number;
 }) {
   const clinic = useClinic();
+  const { registerBlocker } = useClinicNavigation();
   const { capabilities, sites } = clinic;
   const [routeSearch, setRouteSearch] = useState(window.location.search);
   const closeoutRoute = new URLSearchParams(routeSearch).has("cash_closeout");
@@ -161,17 +163,42 @@ export function CashDrawerOperations({
   const [reconciliationNote, setReconciliationNote] = useState("");
   useEffect(() => {
     const restore = () => {
+      const previous = new URLSearchParams(routeSearch);
+      const next = new URLSearchParams(window.location.search);
+      const sameSession = [
+        "cash_drawer_id",
+        "cash_practice_id",
+        "cash_site_id",
+        "cash_currency",
+      ].every((name) => previous.get(name) === next.get(name));
+      // Hash/history changes within this session must retain the physical count.
+      // The route owner handles deliberate departure and remounts a new target
+      // only after the registered unsaved-work blocker permits navigation.
+      if (sameSession || countedCash || explanation) return;
       setRouteSearch(window.location.search);
-      setSelectedDrawerId(
-        new URLSearchParams(window.location.search).get("cash_drawer_id") ?? "",
-      );
+      setSelectedDrawerId(next.get("cash_drawer_id") ?? "");
       setCountedCash("");
       setExplanation("");
       setNewDrawerMode(false);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
-  }, []);
+  }, [routeSearch, countedCash, explanation]);
+  useEffect(() => {
+    if (!countedCash && !explanation) return;
+    const warning =
+      "Cash closeout has an unsaved physical count or explanation. Leave this session and discard it?";
+    const unregister = registerBlocker(() => warning);
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [countedCash, explanation, registerBlocker]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [receiptPaymentId, setReceiptPaymentId] = useState<number | null>(null);
