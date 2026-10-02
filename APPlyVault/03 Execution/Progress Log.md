@@ -7,6 +7,9 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-02 - Modernization readiness:** A preserved the approved plan/tracker and froze an isolated integration worktree at e5d065fe. MZ-00a source inspection is pending C; managed runtime status failed with missing pnpm/web dependencies and no owned runtime/database proof. No application changes, tests, benchmarks or release. Current status and next proof remain in [[Meta Clinic Implementation Tracker#Clinic workspace modernization]].
+
+
 ## 2026-09-30 - Correct MC02 staff caller boundary inference
 
 The [fixed-fe6 inventory](../../records/progress/2026/09/2026-09-30-fe6-requirement-inventory-and-estimate-correction.md) and [historical report correction](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) now record the full staff caller trace: local fulfillment/onboarding/paid-state writes were already grouped at fe6. The earlier inner-function-only inference did not establish a separate commit; prior outer-boundary/applicability assessment was uncertain. Provider GET and receipt delivery inside the transaction are a separate concern. Later b3a9197 is reported pending integration with tests unrun and receives no fe6 credit. Historical numeric fields remain unchanged; documentation only, no app tests or source edits.

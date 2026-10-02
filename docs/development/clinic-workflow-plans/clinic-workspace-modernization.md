@@ -1,0 +1,343 @@
+# Clinic workspace modernization
+
+## Assignment and authority
+
+Joshua approved the complete prepared plan on 2026-10-02 at 02:04:30 UTC and explicitly authorized its implementation and listed benchmark/test work. The parent delegated A as sole local integration/Git executor, B as domain owner, and C as independent reviewer. That later instruction supersedes planning-only language below; fixed packet boundaries, dependencies, safety gates and release/recovery gates remain. Original planning-document creation alone conferred no execution authority. No new credentials, grants, provider connections, external transactions or policy weakening are authorized.
+
+Outcome: reduce unnecessary steps and bring active work into the first useful viewport through surgical improvements to existing components. Retain all existing workflows across specialties, including telehealth, messaging, AI/scribe, clinical work, pharmacy/inventory, cash-pay and optional insurance. No narrowing to weight loss, portfolio changes, new vendor work, service-model merger, audit bypass or financial arithmetic rewrite.
+
+This brief follows [clinic-workflow-planning](../../../.agents/skills/clinic-workflow-planning/SKILL.md). Its eight sections are the assignment specification; the [central implementation tracker](../../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md#clinic-workspace-modernization) owns live slice status. Do not create another project-wide tracker. A written benchmark is not an executed benchmark.
+
+## Current sources and decisions
+
+### Baseline and provenance
+
+- Inspected local frontend source: 20dc2861ca5166a3914c1609bcc06e36052bf283.
+- Published baseline reported by Relay: e5d065fe550350c934274391da46abfdb7325250, version 0.2.4, 2026-10-02 00:51:29 UTC. Local checkout HEAD matched e5d065fe when authoring this brief. Hosted release was reported, not independently redeployed or retested here.
+- Read-only local Git comparison found no changes between those revisions in apps/web/src, apps/web/package.json, frontend/root lockfile paths, root/frontend AGENTS, Vite/Vitest/Playwright configurations, tsconfig.json and test/support. The source map carries forward; this is not new runtime proof.
+- Parent reports existing QA at 179/241 closed, 62 open. This remains a separate original-QA ledger, not the modernization denominator or new acceptance. Historical duplicate numeric IDs retain their original row identity. Checked-in earlier closeout headlines are dated records, not current totals.
+- Earlier local clinical/history and inventory holds were marked superseded in closeout guidance; direct current local reads succeeded. Denied external Library packets remain unavailable and were not fetched, reconstructed or replaced. Packet-dependent original claims are not independently remapped.
+- Existing 20dc local real-stack artifacts include both passing and failing selections. Source identity alone does not make the candidate wholly verified.
+
+Canonical context: [PRODUCT](../../../PRODUCT.md), [product strategy](../../../APPlyVault/01%20Foundation/Meta%20Clinic%20Product%20Strategy%20and%20Scope.md), [Design](../../../APPlyVault/03%20Execution/Design.md), [design history](../../../APPlyVault/03%20Execution/Clinic%20Workspace%20Design.md), [Decisions](../../../APPlyVault/03%20Execution/Decisions.md), [architecture](../../architecture/software-architecture.md), [build and acceptance guide](../meta-clinic-build-and-acceptance.md), [healthcare standards procedure](../healthcare-standards.md), and [code-change workflow](../../../agent-harness/workflows/code-change.md).
+
+### Published-revision validation baseline correction
+
+Trusted read-only CI research relayed by the parent identifies [GitHub Actions run 36947463840](https://github.com/joshrice171723-creator/meta_clinic/actions/runs/36947463840) on published revision e5d065fe, completed 2026-10-02 00:59:18 UTC. This supersedes any earlier claim that CI was unavailable because of billing. Results were supplied by the parent; this documentation task did not rerun CI.
+
+- Rails shards: 671 runs, 19 failures, 67 errors; and 596 runs, 24 failures, 23 errors.
+- Backend-contract seed failed with a clinician capacity conflict.
+- Agent-docs reported seven missing tracker links; lint reported five layout findings.
+- Ruby scan failed its tool-version check (Brakeman 8.0.6 versus 8.1.0); this is not evidence of a proven vulnerability.
+- Frontend tests were canceled. Portable delivery succeeded.
+
+Publication, recovery and hosted checks retain their reported scope; none establishes a passing full CI baseline. These existing failures are a separate validation baseline, not UX benchmark measurements and not automatically modernization assignments. Before accepting an affected slice, map relevant failures to its behavior and evidence; do not dismiss a critical blocker merely because it predates modernization. Preserve unresolved failures explicitly, select the affected flow's own acceptance, and obtain separate authority for repair or execution. No unrelated tracker repair or new QA is authorized here.
+
+
+
+### Inspectable facts
+
+React/React DOM 19.2.8, MUI Material/icons 9.4.0, Emotion cache/react 11.14.0 and styled 11.14.1; installed MUI package manifests declare MIT. Vite 8.2.2, TypeScript 7.0.2, Vitest 4.1.11, Playwright Core locked 1.63.0, Twilio Video 2.35.0. No MUI X, external data grid or calendar package is present in the inspected manifest/lockfile. Recommend no dependency additions.
+
+App.tsx owns lazy routing and navigation blockers; Workspace.tsx owns clinic context, appearance and persistent scribe/telehealth providers. Existing shared/ui.tsx owns Card/Field/Form/resource behavior. Appearance.tsx scopes the theme while public/shared.css, public/clinic.css and public/launch.css remain global compatibility layers. Current appearance has six palettes and defaults to cobalt/light; older design prose is not authority to silently remove choices.
+
+Source-grounded opportunities: waitlist creation precedes waiting patients; refill creation precedes the queue; timecard calculation precedes attention; repeated context/header layers consume vertical space. These are markup-order observations, not measured viewport claims.
+
+Already present: calendar cancellation and started-visit guards, cash refunds, practice AuditEvents, ReminderSettings, patient activity provenance, and clinical-history surfaces. Do not repeat historical missing-feature fixes. Clinical identity confirmation, ownership/locks, audit controls, processor boundaries, inventory units/lots and unfinished work remain invariants.
+
+### Research and interpretation
+
+Official pages reviewed on 2026-10-02:
+- [MUI Table, v9.4.0](https://mui.com/material-ui/react-table/): native table composition, dense treatment, sorting and sticky headers support reuse of existing table components.
+- [MUI themed components](https://mui.com/material-ui/customization/theme-components/): supported overrides and composition support small shared corrections.
+- [MUI Dialog](https://mui.com/material-ui/react-dialog/) and [Drawer](https://mui.com/material-ui/react-drawer/): supported disclosure primitives; adopting one does not prove draft/focus behavior.
+- [MUI X licensing](https://mui.com/x/introduction/licensing/): optional commercial features require separate justified scope and license assessment; none is proposed.
+- WCAG 2.2 Understanding [target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), [focus not obscured](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html), and [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html): preserve keyboard/focus, constrained scrolling and reflow. Repository practical 44px targets remain stronger than the AA 24px minimum with exceptions.
+
+No MUI MCP documentation tool was exposed; official documentation was the fallback. This presentation plan adds no clinical fields, exchange mapping, thresholds or protocols; no FHIR implementation guide establishes page padding or queue order. Any later change to healthcare data or action prerequisites requires the repository's U.S. standards review before implementation. No compliance, clinical or accessibility acceptance is inferred.
+
+### Product decisions awaiting selection
+
+Compact default versus optional density; persistent identity fields and clear-context behavior; which create/admin forms open on demand; day-calendar geometry; whether palettes should ever consolidate. Week view, new statements, clinical deadlines, ownership-policy changes and merged service models are additional scope, not implied requirements. Removing required confirmations to lower a click count is prohibited.
+
+## Connected journey
+
+Use shared configurable workflows, not a specialty-specific replacement:
+
+| Scenario | Actor and existing owning records | Entry and useful outcome | Recovery and permitted parallel work |
+| --- | --- | --- | --- |
+| Public entry and sign-in | Prospect/patient/staff; existing public pages, account and session | Reach the correct entry and return destination without confusing owner, employee or patient authority | Preserve activation/recovery and safe unavailable states; public browsing remains separate |
+| Schedule or walk-in | Authorized scheduling staff; patient, appointment, slot/hold and encounter | Find patient, choose eligible time, check in only on arrival, open correct visit | Keep capacity/eligibility errors, held-slot provenance, cancellation rules, drafts and exact retry |
+| Tracking and encounter | Intake staff/clinician; encounter, intake ownership, provider assignment and notes | Identify patient/state/owner, perform authorized next action and maintain identity checkpoint | Unassigned team work remains visible; chart confirmation is not handoff acceptance |
+| Telehealth, messaging and scribe | Authorized participants/staff; existing sessions, conversations, recording/review state | Continue calls/recording and reach messages while navigating supporting work | Preserve consent, reconnect, failed delivery, manual note fallback and review requirements |
+| Waitlist/refill/follow-up | Scheduling staff/clinician/team; waitlist entry, request and follow-up task | See actionable queue before creation form; act on selected item with context | Preserve offer expiry, clinician attribution, failed delivery, due provenance and open work after encounter closure |
+| Billing and inventory | Authorized billing/inventory staff; invoices, payments, refunds, stock/lot/receipt records | Work selected ledger or lifecycle queue with correct currency/unit/source | Unknown payment/stock outcomes retain reconciliation; unrelated permitted work remains available |
+| Workforce and settings | Employee/reviewer/configuration administrator; existing scoped records | Review attention/current schedule first; distinguish personal from clinic/location settings | Preserve policy/version, permissions, setup dependencies and saved drafts |
+
+The benchmark observes these connected journeys. It does not create new transitions, bulk actions, messages, payment operations or vendor integrations.
+
+## Fields and action rules
+
+Reuse the [existing field/action contract](../meta-clinic-build-and-acceptance.md#action-and-field-contract-before-implementation). No schema or new clinical questionnaire is proposed.
+
+| Display/control | Origin and owning boundary | Presentation proposal and invariant |
+| --- | --- | --- |
+| Patient name/reference, clinic/site, encounter | Existing authorized lookup/context/encounter projection; read-only | Compact but distinguish patient record, current visit and signed history. Do not display a query ID as a verified relationship. Preserve unknown/unavailable state |
+| Stage/time/location/provider/intake owner | Existing board projection and operation metadata | Stable row anatomy, distinct provider and intake-lease labels; no inferred acuity or ownership |
+| Appointment action | Existing capabilities, appointment/encounter status and policy | One primary eligible action; meaningful disabled reason. Started encounter does not become cancellable for convenience |
+| Queue state, assignee/team, due/delivery | Existing request/task records | Queue first; labels and direct destination; no invented deadline/owner or automatic completion |
+| Money/currency/payment/refund/receipt | Existing billing API, exact decimal strings and operation receipts | Keep selected patient/invoice context; cash/card and allocation/adjustment remain distinct; no new arithmetic |
+| Product/package/stock quantity/unit/lot | Existing inventory contract and history | Preserve package versus stock units, expiration and partial receiving; compact grouped forms, never flatten lifecycle distinctions |
+| Personal/clinic/location settings | Existing independent APIs, scopes and versions | Explicit scope label and existing save behavior; no combined save or permission expansion |
+
+Preserve existing exact validation/recovery messages unless a separately reviewed copy change is needed. Unknown outcome retains exact request identity and explicit retry; stale edits require reconciliation. Reordering JSX or opening a dialog must not remount/discard an unsaved form without existing confirmation. PatientContextBar currently parses encounter context from query parameters while patient context also supports route paths: clarify the route/query contract before altering clear-context behavior.
+
+## Ownership and dependency matrix references
+
+Reuse the six-column canonical matrix in the [build and acceptance guide](../meta-clinic-build-and-acceptance.md#workflow-dependency-and-ownership-matrix); no matrix changes are proposed.
+
+| Owning milestone | Relevant existing references | Required preserved pairing |
+| --- | --- | --- |
+| MC-01/03/04 | EN-04, SC-01/02/03, CV-03 | Wrong identity/ineligible transition stays blocked; unrelated authorized search/scheduling remains available |
+| MC-05/06/07 | CV-01/02/03/04/05/06/07/08/09, OP-04/05/10/12 | Unsaved/unsigned/unaccepted states stay distinct; unrelated permitted work and manual fallback remain reachable |
+| MC-08/09 | OP-01/07/10 | Unknown money outcome cannot be claimed successful or blindly repeated; reconciliation remains available |
+| MC-10/11/12 | OP-02/03/04/05/06/07/08/12 | Work and delivery remain distinct; stock units/lots and unfinished tasks survive presentation changes |
+| MC-13/14/15 | CF-02/03/04, OP-05/10/12 | Scope/version restrictions remain; permitted settings and existing work do not become globally blocked |
+
+### Planned agents and workload
+
+Use three persistent worker identities throughout the delivery: shared-foundation/integration owner (A), disjoint domain owner (B), and independent reviewer/verification owner (C). Persistent responsibility does not require simultaneous editing or continuous execution. No agents are launched by this document.
+1. Shared-foundation owner and integration owner: theme/header/shell conventions and exclusive shared-file coordination. During foundation, this is the only source editor.
+2. Bounded disjoint leaf/page worker: begins implementation only after the foundation contract is stable; beforehand maps the next small slice or stays idle.
+3. Independent reviewer/verification owner: reviews one cohesive integrated slice against its feature map and evidence, owns any explicitly authorized focused checks, and does not restart broad QA. Remain assigned throughout: review contracts and source/evidence selections during preparation, then review cohesive integrated slices and authorized verification at useful checkpoints.
+
+Parent/coordinator owns product decisions and user communication. Root policy makes the coordinator sole Git writer by default; calling worker 1 the integration owner means assembling/reconciling the candidate, not authority to stage/commit/merge. Any future delegated Git write needs exact separate authorization. This documentation task authorizes no Git writes or application work. Current root model policy defaults future workers to GPT-6.1 Sol unless Joshua directs otherwise.
+
+The [fixed packet register](../../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md#upfront-assignment-register) defines all 74 assignments upfront. Its maximum allowlists contain one to five existing files, with sequential lifecycle scopes for large files. Use each packet's fixed allowlist, owner and outcome; record the current base SHA and matching authority at dispatch. Tests require separate authorization. Stop/rescope on shared-file collision, new business rules, schema/API changes or material unresolved behavior.
+
+Fixed exclusive file ownership: B owns apps/web/src/features/clinic/CareFlow.tsx, apps/web/src/features/clinic/Billing.tsx and apps/web/src/features/inventory/InventoryApp.tsx. A owns shared files, including Workspace.tsx, Appearance.tsx, foundation styles and staffWorkflow.css, and integration; B owns the domain-specific CSS in B packets; C owns independent review. No parallel edits or formatting in those files. Leaf slices can overlap in time only when files, dependencies and runtime state are disjoint. No parallel shared-sandbox mutations or competing heavy test jobs.
+
+### Reconciliation
+
+Freeze a base SHA and ownership list before each slice. Worker hands off minimal diff, exact source paths/revision, preserved-feature checklist, checks actually performed, artifacts and remaining gaps. Integrator reviews against current source and canonical contracts, coordinates overlap repairs and records the integrated candidate. Use one consolidated reconciliation cycle and repair list per candidate; repeat affected review after relevant fixes until accepted or explicitly blocked. Reviewer examines that candidate, not a stale worker branch. Reuse evidence only with matching relevant source/test/dependency/configuration/environment; list invalidated checks explicitly. Batch failures into one repair list, rerun only failed/invalidated checks when authorized, and update the central tracker and this brief's checkpoint at material boundaries. No completion from a code diff, screenshot, skipped check or plan alone.
+
+## Implementation and acceptance
+
+### Source-grounded batches
+
+All paths below are repository-relative source seams. The central tracker owns the fixed packet assignments, exact maximum allowlists, dependencies, outcomes, review/rollback gates, state and candidate/evidence links. Use its packet register rather than defining assignments later.
+
+| Slice | Existing exact source seams | Proposed bounded result |
+| --- | --- | --- |
+| MZ-01 Foundation/shell | apps/web/src/features/clinic/Appearance.tsx; apps/web/src/features/clinic/appearancePreferences.ts; apps/web/src/features/clinic/appearance.css; apps/web/src/features/clinic/ClinicFrame.tsx; apps/web/src/features/clinic/clinicFrame.css; apps/web/src/features/clinic/Workspace.tsx; apps/web/src/features/clinic/clinicNavigation.css; apps/web/src/features/clinic/PatientContextBar.tsx; apps/web/src/features/clinic/patientContextBar.css | One compact header/context convention; preserve navigation blockers, 900px compact-nav behavior, focus/inert and persistent telehealth/scribe providers. Use the packet register's fixed allowlist, owner and outcome; record the current base SHA and matching authority at dispatch |
+| MZ-02 Board | apps/web/src/features/clinic/TrackingBoardPage.tsx; apps/web/src/features/clinic/trackingBoard.css | Refine existing MUI table, patient/status/owner hierarchy, explicit missing ownership; preserve sorting/column controls/care disclosures, freshness and assignment tokens |
+| MZ-03 Schedule/patient | apps/web/src/features/clinic/ClinicSchedule.tsx; apps/web/src/features/clinic/CareFlow.tsx; apps/web/src/features/clinic/Patients.tsx; apps/web/src/features/clinic/careFlow.css | Consistent day geometry and state-aware actions; compact record/current-visit context without removing chart confirmation. One CareFlow owner |
+| MZ-04 Queues | apps/web/src/features/clinic/WaitlistWorkspace.tsx; apps/web/src/features/clinic/RefillRequestQueue.tsx; apps/web/src/features/clinic/RecallWorklist.tsx; apps/web/src/features/clinic/WorkInbox.tsx | Work queues first, existing creation forms deliberate; one queue per assignment, no generic queue framework |
+| MZ-05 Billing | apps/web/src/features/clinic/Billing.tsx; apps/web/src/features/clinic/BillingDashboard.tsx; apps/web/src/features/clinic/BillingInsights.tsx; apps/web/src/features/clinic/billing.css | Selected patient/invoice/payment context beside actions; ledger first; retain existing cash refund, receipt, allocation and processor controls |
+| MZ-06 Inventory | apps/web/src/features/inventory/InventoryApp.tsx; apps/web/src/features/inventory/inventory.css; apps/web/src/features/inventory/SupplierPricing.tsx; apps/web/src/features/inventory/supplierPricing.css | Preserve Monitor/Procure/Operate/Exceptions lifecycle; prioritize existing queues and selected records over forms; no bulk extraction of the large module |
+| MZ-07 Workforce/settings | apps/web/src/features/workforce/WorkforceApp.tsx; apps/web/src/features/workforce/TimecardReviewPage.tsx; apps/web/src/features/workforce/ScheduleBuilderPage.tsx; apps/web/src/features/identity/Settings.tsx; apps/web/src/features/clinic/PracticeFeatureSettings.tsx; apps/web/src/features/clinic/SiteSchedulingPolicy.tsx; apps/web/src/features/clinic/ServiceOfferingSettings.tsx | Attention/current task before calculate/create forms; personal/clinic/location scope explicit. One page per assignment |
+| MZ-08 Auth/public/adoption | apps/web/src/features/identity/Login.tsx; apps/web/src/features/marketing/MetaClinicMarketing.tsx; apps/web/src/features/marketing/metaClinicMarketing.css | Consistent entry terminology and mobile usability; preserve all account routes, clinic types and separate Launch identity; final changed-surface review |
+
+Dependency order: MZ-00 -> MZ-01 -> MZ-02; execute the fixed adoption packets with their listed prerequisites. File-disjoint A work may overlap B, but one B handles domain packets sequentially. MZ-10 -> MZ-11 -> separately authorized MZ-12 follow all approved adoption. Existing shared/ui.tsx and global public CSS have cross-product consumers: prefer scoped changes. Calendar 104px slot height is repeated in grid rows and event offset; change all coupled geometry together. No package additions, application router replacement or new business-state abstractions.
+
+
+### Complete delivery sequence and exit gates
+
+Every phase below begins PLANNED / NOT STARTED. Benchmark evidence is UNRECORDED. No phase creates permission to run tests, fixtures, deploys or business mutations.
+
+| Phase | Dependency / owners | Bounded deliverable and acceptance | Review, stop and rollback boundary |
+| --- | --- | --- | --- |
+| MZ-00 Demo readiness | Complete-plan approval; A owns runtime/source diagnosis, B maps fixtures and journeys, C reviews evidence | Establish current build identity, authorized role/session, explicit demo mode and controlled synthetic scenario availability. Diagnose sign-out, blocked lessons, unavailable portal and contention separately. Preserve auth and audit behavior. Prioritize demo readiness and establish safe shared-work prerequisites before application implementation | Complete shared readiness first; unresolved portal/provider fixtures block their dependent scenarios only unless safe shared work is impossible. No TTL extension, silent privilege change, external sends or per-user sandbox architecture presumed. If a defect needs code, return a separately bounded repair proposal |
+| MZ-01 Shared contract | MZ-00 and identity/density decisions; A alone edits; B prepares leaf maps; C reviews contract | Compact shell/context and existing header/toolbar conventions; document tokens, spacing, heading semantics, 44px controls, long identity, breakpoints, loading/error states, form disclosure/draft preservation. Validate one reference composition before broad adoption | No router/provider replacement or blanket global CSS rewrite. Revert the bounded presentation diff if identity/focus/draft behavior regresses |
+| MZ-02 Board reference | MZ-01; A owns shared corrections, B owns board leaf, C reviews | Patient/stage/time/location and distinct intake/provider ownership remain legible; next action and return context survive; preserve column preferences, care indicators and freshness. Freeze shared convention after review | Do not deduplicate legitimate encounters, invent waiting-time definitions or automatically retry lease claims |
+| MZ-03 Patient/schedule/clinical | MZ-02; B exclusively owns CareFlow.tsx; A integrates; C reviews | Split into schedule geometry/action discovery; patient lookup/chart/current visit; clinical documentation/ROS/save-state slices. Preserve slot/draft precedence, booking capacity, identity confirmation, note sections, correction provenance, sign/review states and manual entry | Each slice has separate named checks; no concurrent CareFlow edits. Patient/visit mismatch or lost draft stops integration |
+| MZ-04 Queues | MZ-02; B, A integrates, C reviews | Waitlist, refill, recall, inbox and lab/prescription follow-up each receive bounded queue-first treatment. Preserve create/cancel/reopen, validation, clinician attribution, offer expiry, delivery state and open tasks after visit close | No generic queue rewrite, new deadline, bulk send or auto-close; undiscoverable existing action is a presentation seam |
+| MZ-05 Finance | MZ-02; B exclusively owns Billing.tsx; A integrates; C reviews | Ledger/dashboard selected-context hierarchy; existing checkout/payment/refund/receipt and billing-support journeys retained. Show owning balance/source/state and exact uncertain-outcome recovery | No inferred ledger formula, processor/cash merger, new refund execution or subscriptions rewrite. Stop on missing owning projection |
+| MZ-06 Inventory | MZ-02; B exclusively owns InventoryApp.tsx; A integrates; C reviews | Sequential monitor, procurement, receiving, stock/lot, exception/recall forms and queues; existing unit and lifecycle boundaries retained. Review one lifecycle task per slice | No wholesale extraction; no flattening package/stock units, destructive correction or duplicate receipt |
+| MZ-07 Workforce/growth/settings | MZ-02; disjoint leaf ownership | Review attention before calculation/setup; employee schedule/requests/reviewer/payroll/badge routes retained; growth account/inquiry work preserved; personal/practice/site settings grouped by existing save/permission scope | No combined save, new role, commercial pricing or setup-lock bypass |
+| MZ-08 Auth/public | MZ-01; B leaf changes, A shared review | Staff/owner/employee/patient activation/recovery and return destinations retained; scoped public headers/footer/mobile hero consistency and accurate demo links | Marketing promises/pricing need product approval. Avoid investor/portfolio redesign and unrelated copy work |
+| MZ-09 Connected tools and portal | Fixed MZ-09 packet prerequisites; A owns providers/shared integration, B sequential domain packets, C independent review | Explicit telehealth, Scribe/AI, messaging and portal variants below; make only justified adoption changes while proving existing capabilities remain | No new provider, automatic send, consent bypass, auto-sign or unsupported patient authority |
+| MZ-10 Integration | All planned adoption phases accepted, except explicit user-approved deferrals recorded in the central tracker; A assembles, B repairs own leaves, C independent review | Review combined diff/import graph, accumulated shared CSS impact, entry/return continuity, cross-domain context and conflicting drafts; update evidence invalidation manifest | A coordinates shared-conflict repair and targeted review until accepted or explicitly blocked; no parallel formatting or mass cleanup. Coordinator remains sole Git writer |
+| MZ-11 Final verification | MZ-10 and explicit execution authorization; C owns selection | Aggregate valid reused evidence plus named changed-journey checks, both frontend builds if build authorized, paired benchmark observations and responsive/accessibility cases. Record every unexecuted/failed/provider-dependent case | No restart of entire original QA. Open safety regression blocks acceptance; unresolved cosmetic/product choice documented with approved disposition |
+| MZ-12 Release and recovery | Accepted MZ-11, separate explicit release authority; existing release owner | Use current repository release/runbook and Relay handoff; identify accepted revision, recovery artifact, rollback owner/trigger, bounded post-release smoke and tracker evidence | This plan is not release permission. On wrong identity, lost work, unauthorized transition, financial/stock corruption or unusable core journey, stop rollout and follow existing rollback/recovery procedure; do not invent data reversal |
+
+Three-worker operating rhythm: A freezes the shared contract; B uses the packet register's fixed allowlist, owner and outcome, records the current base SHA and matching authority at dispatch, and handles domain packets sequentially; C checks acceptance coverage and evidence validity before running any authorized checks. Use one consolidated reconciliation cycle and repair list per candidate; repeat affected review after relevant fixes until accepted or explicitly blocked. Keep one integrated candidate, one review repair list and one central status record. Work proceeds through all phases; no open-ended "start with the shell and decide later" scope.
+
+### Exact additional retained-workflow seams
+
+All entries are full repository-relative paths. These are inspection/assignment boundaries, not authorization to edit every listed file.
+
+| Capability | Existing seams and boundary |
+| --- | --- |
+| Clinical documentation | apps/web/src/features/clinic/CareFlow.tsx; apps/web/src/features/clinic/NurseEncounterWorkspace.tsx; apps/web/src/features/clinic/StaffIntakeSections.tsx; apps/web/src/features/clinic/ReviewOfSystems.tsx; apps/web/src/features/clinic/HistoryOfPresentIllness.tsx; apps/web/src/features/clinic/EncounterNoteSigning.tsx; apps/web/src/features/clinic/ClinicalPlanWorkspace.tsx; apps/web/src/features/clinic/EncounterFollowUp.tsx; apps/web/src/features/clinic/PatientClinicalHistory.tsx |
+| Clinical follow-up | apps/web/src/features/clinic/PatientCareCoordination.tsx; apps/web/src/features/clinic/PatientLabReports.tsx; apps/web/src/features/clinic/LabReviewWorklist.tsx; apps/web/src/features/clinic/LabFollowUpWorklist.tsx; apps/web/src/features/clinic/PrescriptionReconciliationWorklist.tsx; apps/web/src/features/clinic/PrescriptionFulfillmentPanel.tsx; apps/web/src/features/clinic/MedicationAdministrations.tsx |
+| Demo readiness | apps/web/src/features/demo/DemoFrameBoundary.tsx; apps/web/src/features/demo/DemoJourney.tsx; apps/web/src/features/demo/frame.ts; apps/web/src/features/demo/progression.ts; apps/web/src/features/demo/lessonGuidance.ts; apps/web/src/features/identity/SessionGuard.tsx; apps/web/src/features/identity/DevelopmentAccountSwitcher.tsx |
+| Telehealth | apps/web/src/features/telehealth/TelehealthSessionProvider.tsx; apps/web/src/features/telehealth/TelehealthDock.tsx; apps/web/src/features/telehealth/TelehealthQueue.tsx; apps/web/src/features/telehealth/ClinicianTelehealthVisit.tsx; apps/web/src/features/telehealth/PatientTelehealthVisit.tsx; apps/web/src/features/telehealth/ConsentStep.tsx; apps/web/src/features/telehealth/DeviceCheck.tsx; apps/web/src/features/telehealth/ConnectionRecovery.tsx; apps/web/src/features/telehealth/VisitPreparationDrawer.tsx; apps/web/src/features/telehealth/VisitWrapUp.tsx; apps/web/src/features/telehealth/TelehealthSettings.tsx |
+| Scribe/AI | apps/web/src/features/scribe/ScribeRecordingProvider.tsx; apps/web/src/features/scribe/ScribeRecordingControls.tsx; apps/web/src/features/scribe/ScribePatientPicker.tsx; apps/web/src/features/scribe/ScribeReviewWorkspace.tsx; apps/web/src/features/scribe/LiveScribeReviewWorkspace.tsx; apps/web/src/features/scribe/ScribeSessionRail.tsx; apps/web/src/features/telehealth/ScribeInCall.tsx; apps/web/src/features/telehealth/ScribeAudioBridge.ts |
+| Staff messaging | apps/web/src/features/staff-messaging/LiveStaffMessagingWorkspace.tsx; apps/web/src/features/staff-messaging/StaffMessagingWorkspace.tsx. Keep conversation authority, draft, delivery and retry separate from encounter ownership |
+| Portal | apps/web/src/features/patientPortal/PatientPortal.tsx; apps/web/src/features/patientPortal/PatientPortalActivation.tsx; apps/web/src/features/patientPortal/PatientPortalRecovery.tsx; apps/web/src/features/patientPortal/PatientPortalPassword.tsx; apps/web/src/features/patientPortal/PatientAppointmentRequests.tsx; apps/web/src/features/patientPortal/PatientPrevisitNote.tsx; apps/web/src/features/patientPortal/IntakeQuestions.tsx; apps/web/src/features/patientPortal/PatientRefillRequests.tsx; apps/web/src/features/patientPortal/PatientBillingSupport.tsx; apps/web/src/features/patientPortal/PatientWaitlistOffers.tsx; apps/web/src/features/patientPortal/AfterVisitInstructions.tsx; apps/web/src/features/patientPortal/PatientSubscriptions.tsx; apps/web/src/features/patientPortal/MembershipActivity.tsx; apps/web/src/features/patientPortal/patientPortalTheme.ts |
+| Growth | apps/web/src/features/membershipGrowth/MembershipGrowth.tsx; apps/web/src/features/membershipGrowth/MembershipAccount.tsx; apps/web/src/features/membershipGrowth/MembershipAccountActivation.tsx; apps/web/src/features/membershipGrowth/ServiceInquiries.tsx; apps/web/src/features/membershipGrowth/PublicClinicServices.tsx; apps/web/src/features/membershipGrowth/PublicMembershipDirectory.tsx; apps/web/src/features/membershipGrowth/PublicMembershipStorefront.tsx; apps/web/src/features/membershipGrowth/publicPageTheme.ts |
+| Workforce leaves | apps/web/src/features/workforce/EmploymentAdminPage.tsx; apps/web/src/features/workforce/WorkforceSettingsPage.tsx; apps/web/src/features/workforce/BadgeAdminPage.tsx; apps/web/src/features/workforce/EmployeeHoursPage.tsx; apps/web/src/features/workforce/EmployeeSchedulePage.tsx; apps/web/src/features/workforce/EmployeeRequestsPage.tsx; apps/web/src/features/workforce/RequestReviewPage.tsx; apps/web/src/features/workforce/PayrollExportPage.tsx; apps/web/src/features/workforce/KioskClockPage.tsx; apps/web/src/features/workforce/EmployeeActivationPage.tsx |
+| Settings/operations | apps/web/src/features/clinic/ReminderSettings.tsx; apps/web/src/features/clinic/AuditEvents.tsx; apps/web/src/features/clinic/VisitTypeSettings.tsx; apps/web/src/features/clinic/Facilities.tsx; apps/web/src/features/clinic/Staff.tsx; apps/web/src/features/clinic/ClinicianSetup.tsx; apps/web/src/features/clinic/RolePermissionMatrix.tsx; apps/web/src/features/clinic/Operations.tsx; apps/web/src/features/clinic/OperationsReportsCatalog.tsx; apps/web/src/features/clinic/OperationsProviderReadiness.tsx; apps/web/src/features/clinic/OperationsIntegrationInventory.tsx; apps/web/src/features/clinic/OwnerMorningView.tsx |
+| Shared contracts; read-only unless separately scoped | apps/web/src/App.tsx; apps/web/src/main.tsx; apps/web/src/api/client.ts; apps/web/src/api/contracts.ts; apps/web/src/shared/ui.tsx; apps/web/src/shared/ResourceState.tsx; apps/web/src/shared/forms.css; apps/web/src/shared/businessDate.ts; apps/web/src/shared/VisitInstructionHandout.tsx |
+
+Import/dependency graph: main.tsx -> App.tsx lazy route selection -> Workspace.tsx -> Appearance/ClinicFrame/PatientContextBar and persistent ScribeRecordingProvider/TelehealthSessionProvider -> domain pages. Appearance imports appearance.css, clinicFrame.css, trackingBoard.css, careFlow.css, billing.css and facilities.css, so a stylesheet change may affect a route even when its page imports do not change. Domain pages share UI/resource/API contracts. Public/portal themes have separate owners; adopting clinic globals there is not automatic. InventoryApp and CareFlow contain multiple workflows in one file, so file-disjoint claims must account for that shared implementation boundary.
+
+Useful inspected line anchors: Workspace.tsx:821/824 providers, 944 identity context; Appearance.tsx:128 theme and 148/190 44px targets; PatientContextBar.tsx:24 route/query patient and 59 query encounter; TrackingBoardPage.tsx:551 row, 804 ownership actions, 1633 table; ClinicSchedule.tsx:1135 geometry and 1308 offset, 1512 cancellation eligibility; CareFlow.tsx:3528 SOAP form, 5217 provider workflow, 6438 encounter; Patients.tsx:751 record, 1256 active visit; WaitlistWorkspace.tsx:445 create versus 536 queue; RefillRequestQueue.tsx:453 create versus 566 queue; Billing.tsx:517 ledger, 2089 history, 2636 cash refund; InventoryApp.tsx:3123 lifecycle navigation, 6132 receiving, 6837 lots; TimecardReviewPage.tsx:247 calculation versus 348 attention. Anchors describe inspected baseline, not durable identifiers after edits.
+
+### Audit reconciliation: every finding receives a disposition
+
+Source: user-authorized desktop audit ZIP, main Markdown report dated 2026-10-01, Section 6 (54 findings). Report text was inspected; its historical screenshots are not fresh runtime evidence. Audit identifiers below are separate from the original 241-row QA ledger. "Candidate" means investigate/measure at current baseline, not confirmed unresolved defect.
+
+| Audit finding | Disposition and planned phase |
+| --- | --- |
+| UI-001 | MZ-00 readiness candidate: diagnose session failure; no automatic TTL/security weakening |
+| UI-002 | Current Workspace already has version display; MZ-00 verify build visibility rather than add duplicate |
+| UI-003 | Portal exists; blocked evaluation access is a readiness/fixture gap, MZ-00/09 |
+| UI-004 | MZ-00/08 demo tooling exposure depends on explicit environment/product boundary; no invented IP policy |
+| UI-005 | Current patient record label/navigation exists; MZ-02/03 inspect actual action-return behavior |
+| UI-006 | Existing FrontDesk reschedule dialog; MZ-03 discoverability reuse, not duplicate appointment workflow |
+| UI-007 | Current slot provenance/draft handling exists; MZ-03 verify precedence before altering retained drafts |
+| UI-008 | Reject audit-service bypass. Retain fail-closed controls; MZ-00/03 recovery explanation only |
+| UI-009 | MZ-02 inspect distinct encounters, fixture freshness and count definitions; no automatic patient deduplication |
+| UI-010 | MZ-02 compact lease explanation candidate; no automatic claim retries |
+| UI-011 | MZ-03 registration layout/focus candidate |
+| UI-012 | Current intake/history changes require fresh scoped comparison; MZ-03 explain incomplete save without dropping required answers |
+| UI-013 | MZ-02/03 projected role labels only; no inferred authority |
+| UI-014 | Existing navigation blockers retained; MZ-01 explain blocking reason |
+| UI-015 | Current SOAP save/recovery tests and handlers exist; MZ-03 distinguish working and saved state |
+| UI-016 | MZ-03 identity-confirmation persistence is a safety/product decision; no silent removal |
+| UI-017 | MZ-03 wrong-encounter claim requires current source/destination proof; high-risk acceptance invariant |
+| UI-018 | MZ-00 lesson boundary/readiness investigation; preserve actual locks |
+| UI-019 | MZ-03e primary; MZ-00 only where the restriction is actually a demo lesson boundary. Read-only locked preview needs product/scope decision; preserve required progression |
+| UI-020 | Existing ResourceState/recovery seams; MZ-01/09 targeted dead-end explanation, no blind mutation retry |
+| UI-021 | MZ-06 clarify filtered and total receiving counts |
+| UI-022 | MZ-03 show owning practice/site timezone; UTC may be intentional |
+| UI-023 | MZ-06 reduce redundant count labels without merging distinct counts |
+| UI-024 | MZ-05 ledger/history labels and actor presentation; no invented attribution |
+| UI-025 | MZ-05e: correct the verified billing/catalog care-program copy occurrence if still present; no general data-validation rule |
+| UI-026 | MZ-05e primary; MZ-07h/i only for affected Growth presentation. Retain separate one-off/membership catalog owners and historical versions; reject service-model merger |
+| UI-027 | MZ-05f for the retained billing-support pristine-validation example; MZ-04/07 only if independently verified. Neutral pristine form styling preserves real validation; do not assume the same defect on unrelated queues |
+| UI-028 | Reject unproven ledger arithmetic rewrite; MZ-05 explain source-owned components |
+| UI-029 | Cash refund already exists; MZ-05 discoverability, retain processor boundary |
+| UI-030 | MZ-06f: explain the exact inventory recall disposition/policy restriction; retain case-specific holds, lot selection and eligibility |
+| UI-031 | MZ-06 compact labels/full text, no loss of unit/trace meaning |
+| UI-032 | MZ-06 plain storage terminology retaining leaf-location semantics |
+| UI-033 | MZ-05 accurate projected test-mode disclosure; no unsupported "no funds" promise |
+| UI-034 | MZ-05 distinguish method type and tender using actual data |
+| UI-035 | MZ-02 contained table/column priority candidate; no forced tablet card rewrite |
+| UI-036 | MZ-07 scoped settings grouping, independent saves remain |
+| UI-037 | MZ-01/10 semantic heading hierarchy and all changed surfaces |
+| UI-038 | MZ-03 inspect current calendar control accessible names before patch |
+| UI-039 | MZ-01/10 full accessible text, not title-only truncated controls |
+| UI-040 | MZ-01/03/05 shared timezone-aware display; MZ-07g/k/l as applicable to the settings example. Retain provenance and the actual owning timestamp/zone |
+| UI-041 | Existing timecard policy/version behavior; MZ-07 accurate disabled explanation |
+| UI-042 | MZ-07 inspect destructive-action separation/confirmation without executing revoke |
+| UI-043 | MZ-07 explain setup lock and supported route, no bypass |
+| UI-044 | Existing growth copy coverage; MZ-07/08 compare current source before repeat fix |
+| UI-045 | Same MZ-00 contention/readiness investigation as UI-001, not automatic infrastructure project |
+| UI-046 | Commercial pricing decision deferred to approved product input; no invented rates |
+| UI-047 | MZ-08 measure loaded media/viewport before changing hero spacing |
+| UI-048 | MZ-08 responsive auth fit, including zoom and keyboard |
+| UI-049 | MZ-03/04/07 and MZ-08a auth/entry validation. Retain native constraints unless an equally accessible replacement is explicitly approved |
+| UI-050 | MZ-08 Launch/demo navigation respects permitted product destination |
+| UI-051 | MZ-08 public link hierarchy; no speculative new sitemap content |
+| UI-052 | Earlier footer changes exist; MZ-08 verify current spacing before repeat fix |
+| UI-053 | MZ-03b: minor schedule Export day label consistency; retain export/omitted-record disclosure |
+| UI-054 | Current started-visit cancellation guard/explanation exists; preserve, never substitute no-show transition |
+
+
+### Benchmark protocol (defined, NOT EXECUTED)
+
+Benchmark IDs below are assignment-specific measurement scenarios, not new original-QA issues. All runtime baseline and candidate values are UNMEASURED. Thresholds are proposed acceptance targets pending product approval; none is claimed achieved.
+
+Every future run records:
+- scenario/version, baseline SHA and candidate SHA, relevant source/test hashes, lockfile/configuration hash;
+- independently synthetic fixture ID/revision, seed/setup recipe, isolated database identity, state reset method;
+- exact actor role/capability projection, organization/clinic/site and authorization generation, without credentials;
+- browser/version, OS, viewport CSS size, device scale, text/browser zoom, locale, timezone, fixed business date/clock, network/CPU conditions;
+- initial URL/state, exact user task, start/stop definitions, authorized owner, execution timestamp, evidence type/artifact;
+- task success, safety violations, action count, page/contained-scroll distance, work-item count in first viewport, context visibility, keyboard completion, focus errors, completion time;
+- result PASS/FAIL/UNMEASURED/NOT APPLICABLE, reason, source equivalence basis and unresolved limitations.
+
+Control data deterministically: include long names, collisions, missing/unknown state, stale responses, empty/one/many rows, and a permission-denied actor when relevant. Do not use live patient-derived data. Pin relevant feature configuration, modality and payment model. Default clinical comparison 1440x900, add 1280x800 and affected 1024/834/768 tablet widths; public/auth 390px plus desktop. Keep both versions under identical conditions. Read-only navigation measurements do not authorize later consequential actions; obtain explicit execution authority and an isolated fixture before mutation scenarios.
+
+Metrics:
+- Action count: intentional clicks/taps/key activations that advance the task; count typing as one field-entry action and report navigation/confirmation separately.
+- Scroll: total absolute vertical displacement to reach first actionable item, plus horizontal scrolling separately; do not reward hiding required information.
+- First-viewport work: fully visible actionable rows/items below required context at initial render; exclude decorative metrics and partial clipped rows.
+- Time: task start at ready state to defined observable outcome; record load wait separately. If timing execution is authorized, use five paired runs per scenario, alternate baseline/candidate order, report median/range; no statistical significance or p95 claim from five runs.
+- Safety/retention: zero wrong identity, lost draft, unauthorized action, duplicate mutation, false success or hidden unresolved-work observations in selected cases.
+- Accessibility: keyboard completion, usable names, visible/unobscured focus and focus return, no unintended page-wide horizontal overflow.
+
+| ID / slices | Controlled task and variants | Proposed acceptance | Baseline / candidate / evidence |
+| --- | --- | --- | --- |
+| BM-01 / MZ-02 | Board: 20 visits, long/colliding names, unassigned/claimed/stale care state; identify owner, enter correct visit, return | Correct full patient/encounter and distinct ownership; at least baseline useful rows, no avoidable extra action, no hover-only essential facts | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-02 / MZ-01/09 | Shell: dirty form navigation, allowed scope switch, long context, narrow navigation; variants below for persistent tools | Existing draft blocker/provider lifetimes, focus entry/return and context remain correct; no reset from cosmetic change | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-03 / MZ-03 | Patient lookup: ambiguous identity, record, current visit, signed history, retained draft | Correct patient/visit and required confirmation; source/destination match; no name-only identity assumption or lost work | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-04 / MZ-03 | Slot/calendar: 15/30/60-minute overlaps, off-half-hour starts, held/cancelled/started states, site/browser timezone difference, conflicting retained booking draft | Geometry and source time correct; explicitly approved slot/draft precedence, unchanged eligibility; started encounter cannot be cancelled | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-05 / MZ-04 | Queue-first waitlist/refill/recall: 25 records, expired offer, failed delivery, no clinician profile; create, validation, cancel/reopen with draft | Queue precedes creation, first item visible where alerts permit, creation discoverable; cancellation/draft contract and exact retry remain; clinician attribution preserved | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-06 / MZ-05 | Finance: selected invoice/patient, partial allocation, cash refund context, unknown card outcome, source-owned balance | Context beside action, no unsupported arithmetic/currency/type conflation; exact retry and reconciliation; no unsafe duplicate | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-07 / MZ-06 | Inventory: package/stock units differ, two lots, partial receiving, lifecycle exception/recall | Useful queue/selected record precedes unrelated form; unit/lot/source retained; no duplicate receipt or stale action | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-08 / MZ-07 | Workforce: attention/stale calculation/schedule; growth account/inquiry; personal/practice/site setting saves | Attention/task first, policy/version and independent scoped saves intact; no removed growth workflow or expanded authority | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-09 / MZ-00/08/09 | Demo/auth/public/portal: entry, activation/recovery/return destinations, mobile and keyboard; portal variants below | Correct account/role destination and accurate availability; authorized demo reset separate; portal request/delivery boundaries remain | UNMEASURED / UNMEASURED / UNRECORDED |
+| BM-10 / MZ-03/09 | Clinical documentation: intake/ROS, incomplete validation, correction, working versus saved note, stale save, signed/unsigned review and manual fallback | Zero wrong record/lost draft/unauthorized transition; explicit persisted state, identity check and review/sign controls retained | UNMEASURED / UNMEASURED / UNRECORDED |
+
+These ten scenarios are not ten tests. Split meaningful permission, state and recovery variants; retain explicit NOT EXECUTED for unavailable provider/runtime evidence. Unproved affected provider behavior remains an acceptance gap, never a mock-derived pass.
+
+| Connected-tool variant | Benchmark and proposed capability-preservation acceptance | Existing minimal candidate tests (apps/web/test/) |
+| --- | --- | --- |
+| TH-1 preparation/consent | BM-02/09: queue -> correct visit -> preparation/devices -> consent -> eligible join; preserve denied/not-ready state and patient versus clinician authority | telehealth-lifecycle.test.ts; telehealth-session-provider.test.tsx |
+| TH-2 active/recovery/completion | BM-02/10: navigation during call, device/network interruption, explicit recovery and visit wrap-up; preserve provider lifetime, consent and distinct completed/failed state. No claim of connected media proof from mock tests | telehealth-connection-recovery.test.tsx; telehealth-visit-wrap-up.test.tsx; patient-visit-completion.test.tsx |
+| AI-1 selection/recording | BM-02/10: correct patient/session selection, permission disabled case, recording controls and navigation; no cross-patient recording or lost manual note. Consent/recording scope preserved | scribe-recording-provider.test.tsx; scribe-recording-controls.test.tsx; scribe-patient-picker-s1.test.ts; scribe-audio-bridge.test.ts |
+| AI-2 review/failure | BM-10: unavailable/failed generation, recover session, review draft output and manual note fallback; never imply reviewed/signed/transmitted automatically; in-call and standalone remain distinct | scribe-review-workspace.test.tsx; scribe-recovery-pages.test.tsx; scribe-in-call.test.tsx |
+| MSG-1 draft/delivery | BM-02/05: select authorized conversation, retain draft across navigation, explicit submission and failure/unknown retry; persisted message, delivery and recipient read remain distinct. Execution must use isolated transport and explicit authority | staff-messaging-workspace.test.tsx; muse-invitations-messaging.test.tsx |
+| PORT-1 access/context | BM-09: patient activation/recovery, correct own-record access, unavailable/wrong-context state, return link and accessible mobile layout; no fabricated portal token or demo auth bypass | Relevant current portal/auth entry cases plus scoped connected acceptance if authorized; readiness fixture gap explicit |
+| PORT-2 requests/recovery | BM-05/09: appointment/previsit/refill/waitlist/billing-support requests, validation and exact uncertain recovery; no assumed clinician acceptance or notification delivery | patient-appointment-change-component.test.tsx; patient-previsit-retry.test.tsx; patient-refill-request-recovery.test.ts; patient-waitlist-reply-recovery.test.ts; patient-billing-support-recovery.test.ts |
+| PORT-3 after-visit/membership | BM-06/09/10: published instructions and membership activity/subscription context; persisted publication differs from patient read or outbound delivery; cash/card/provider boundaries retained | patient-membership-activity.test.tsx; subscriptions.test.tsx; patient-visit-completion.test.tsx |
+
+Record human task time separately from automated elapsed time. Record completion successes/attempts and sample count, first actionable row offset in CSS pixels, useful fully visible rows, avoidable detours, repeated field entry, scroll gestures and absolute travel separately for each scrolling container. Record API and frontend build IDs, theme/density, fixture/reset owner, actual CSS viewport/DPR/zoom/timezone and raw observations. Never report improvement percentages without paired measurements or p95 from a few runs.
+
+Overall proposed presentation acceptance: all selected safety/accessibility criteria pass; task actions do not increase; at least one avoidable action is removed where baseline demonstrates one; queue-first cases meet first-item criterion. For dense nonqueue surfaces, compare first-row offset, useful content and scrolling under identical conditions; agree numeric targets only after baseline observation. Task time is descriptive supporting evidence; do not claim speed gains without paired measurement.
+
+### Minimal verification and evidence reuse
+
+No benchmark/test execution in this assignment. Future test execution requires explicit authorization under root policy. Use relevant existing named tests, not the whole QA suite:
+- Shell/board: clinic-shell.test.tsx, patient-context-bar.test.tsx, clinic-navigation.test.ts, tracking-board.test.tsx, tracking-board-identity.test.ts; provider-flow.test.tsx only for changed workflow actions.
+- Calendar/patient: schedule-provenance-context.test.tsx, appointment-safety-guards.test.ts, selected authorized-scheduling-journey.test.tsx, patient-identity-correction.test.ts and encounter-section-navigation.test.tsx.
+- Queues/workforce: waitlist-original-61-78-browser.test.tsx, recall-task-feedback.test.tsx, timecard-attention-browser.test.tsx, timecard-policy-state.test.tsx; staff refill coverage sufficiency still needs scoped selection.
+- Billing/inventory: invoice-details-identity.test.ts, billing-dashboard-payment-evidence.test.tsx, cash-payment-recovery.test.tsx, guided-checkout-receipt.test.tsx, inventory.test.tsx, inventory-cart-draft.test.ts, selected inventory-setup-journey.test.tsx.
+- Settings/public/tools: appearance.test.tsx, telehealth-settings-draft.test.tsx, login-encounter-return.test.tsx and relevant existing public/marketing/scribe/session/messaging cases when affected.
+
+Commands already exist: from apps/web, pnpm run typecheck; pnpm run build:bundle (main AND Office); pnpm exec vitest run <selected files>; pnpm run browser:smoke --route <route> --profile <development-account>. Root bin/agent-check can select tests: do not run it without matching authorization. Use repository resource queuing for authorized heavy commands. Static/source assertions, mocked components, intact local application journeys and external provider evidence are distinct. Skipped tests are unverified. This document authorizes no provider connection. Reuse unchanged valid provider evidence; affected provider-dependent behavior without sufficient proof remains explicitly unverified and requires its own authorized acceptance path.
+
+Reuse backend transaction/permission evidence while relevant source, dependencies and environment remain valid. A shared contract/handler change invalidates its dependent evidence, not every prior test. One short affected-journey walkthrough plus changed responsive branches; no new application-wide QA cycle. At the ten-minute verification checkpoint, name any remaining current failure and bounded next action; batch repairs and rerun only failed/invalidated checks.
+
+## Checkpoint
+
+MZ-00a read-only source/readiness inspection performed; pending C acceptance together with B's MZ-00b map. No application edits and no accepted packet. The central tracker owns live status. Original QA remains separately reported at 179/241 closed, 62 open.
+
+Integration workspace: `C:/Users/joshr/Documents/Codex/2026-10-01/task-6/modernization`, branch `codex/clinic-modernization-20261002`, source frozen at `e5d065fe550350c934274391da46abfdb7325250` (web 0.2.4). It shares the original Git common directory and heavy-resource queue. Original dirty checkout and unrelated worktrees were preserved. Approved plan SHA256 `31B1E867909AEE416FEAE5C15CA57CC1FA4DE7291AF75BE0944C858DDAC8036D` and tracker SHA256 `9B9388001192CF70E4C7A19C6870F4DE9BC98C510FA79009F2797D374CF48EEB` matched before copying; this checkpoint intentionally changes the integration copies.
+
+Source inspection: SessionGuard checks expected user, active clinic access and authorization generation; missing/invalid session timing blocks entry. Trusted visible activity controls heartbeat extension; session change/expiry locks the workspace. Demo resume calls the existing POST endpoint; ordinary re-entry preserves the supported login destination. DevelopmentAccountSwitcher filters account types by portal, passes selected practice/site to the server, preserves optional owner PIN, and retains same-portal return destinations. Its 30-second navigation recovery reopens the existing destination without repeating sign-in. These are source observations, not runtime passes or evidence that lesson restrictions are defects.
+
+Readiness: preflights passed for frontend identity, plan and tracker. `graft map` reported no graph, so direct bounded source reads were used. No prepared slots are registered. Existing heavy metadata reports finished/returncode 0; no lock was removed. Port 54403 was occupied and untouched. `ruby bin/dev status` in the integration checkout failed in 8.75 seconds: Ruby 3.4.10, Bundler 4.0.15, Node 24.19.0, API dependencies and Docker 29.8.0 available; pnpm.cmd 11.19.0 and web dependencies missing; no checkout-owned API/web/worker PID records, database migration/query checks failed. Default 3000/3001 HTTP endpoints answered but are not owned or source-verified for this checkout; PostgreSQL reachability is not an isolated fixture proof. Metadata-only trace: `tmp/task-traces/20261002T021130.086409Z-meta-clinic-dev-status-6acea6d7.json` (local ignored artifact).
+
+C's relayed readiness criterion was independently confirmed in `apps/web/test/support/authorizedRealStack.ts`: HTTP loopback only, schema `authorized-real-stack-v1`, `synthetic: true`, database matching `apply_authorized_qa_20261001_[a-f0-9]{10}_development`, and declared head equality. Generic prepared-slot database names do not qualify. Declared fixture HEAD alone does not prove actual API/frontend process source. Clinic login is not patient-portal readiness. Preserve these guards. Existing documented isolated setup is authorized; next runtime work must use a fresh matching synthetic database, unoccupied ports and existing configured access, without touching 54403 or other owners. No such setup has yet been executed.
+
+Available source fixture/test seams include guarded Development services (`demo_sandbox_preparation`, `demo_sandbox_population`, `demo_clinic_reset`, `backend_samples`) and existing demo reset/navigation, session-transition, development-login and patient-portal lifecycle tests. File existence is not fixture execution or valid evidence reuse. Actual fixture IDs, seed/reset recipe, database, actor projection, browser, viewport, clock and provider isolation remain unverified; no runtime fixture mutation, browser benchmark or application test ran. Known CI run 36947463840 failures remain separately recorded above.
+
+B handoff: inspect only MZ-00b's five exact demo paths at frozen source SHA, using authorized GitHub connector pinned-file reads. Return scenario/lesson restrictions, synthetic fixture/reset ownership, account/portal prerequisites and gaps; no edits, resets, tests, Git writes or domain implementation. C reviews MZ-00a/b before MZ-01. A exclusively owns MZ-01a/b/c files and shared provider boundaries; B exclusively owns CareFlow/Billing/InventoryApp and its domain CSS. Parent relays results.
+
+Transfer: pinned connector file reads are available for this small read-only packet. Git blob IDs permit byte-level verification independent of Windows line endings. No repository archive export tool was exposed; the connector's workflow-artifact downloader requires an existing artifact and is not a repository archive API. Do not guess credentials or use Library/setxattr. Full checkout transfer remains unverified; parent must supply a supported existing authorized transport or keep runtime execution on A. B may return a bounded UTF-8 unified patch with source blob IDs and SHA256 through the parent; A checks exact paths and `git apply --check` before application. No large base64 transcription.
+
+Before resuming, compare this checkpoint and the tracker against source and newer parent direction. Next: receive B fixture map and C readiness decision, then prepare missing local dependencies and isolated runtime through the existing queued lifecycle when its exact fixture ownership is established. No MZ-01 edit before MZ-00c.
+
+## Last run
+
+- Date (UTC): 2026-10-02; MZ-00a inspected frozen e5d065fe; integration branch created without advancing main.
+- Changed canonical paths: this brief and the central tracker in the integration workspace; concise progress pointer updated under the vault workflow.
+- Evidence: matching approved document hashes, three passing preflights, bounded source review, resource/status inventory; managed runtime status FAILED as detailed above. No application tests, benchmark measurements, provider calls, fixture resets, push or publication.
+- Documentation validation: verify-vault PASS (43 notes / 522 links); vault-audit completed with existing size/lifecycle advisories; verify-agent-harness FAIL with the same seven unrelated missing plan links recorded in the baseline; git diff --check PASS. No application test evidence reused.
+- All baseline/candidate benchmark metrics remain UNMEASURED. No historical CI failure was relabeled green or unavailable.
+- Next action: parent relay of B MZ-00b and C MZ-00c; resolve exact local runtime readiness before dependent acceptance.
