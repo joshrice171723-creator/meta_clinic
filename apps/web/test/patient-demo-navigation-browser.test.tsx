@@ -164,7 +164,8 @@ async function fixture() {
   });
   await page.route("**/api/**", async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname;
+    const wirePath = new URL(request.url()).pathname;
+    const path = wirePath.replace(/^\/api\/demo-workspace\//, "/api/");
     const reply = (value: unknown, status = 200) =>
       route.fulfill({
         status,
@@ -173,7 +174,7 @@ async function fixture() {
       });
     if (request.method() === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
-      posts.push({ path, body });
+      posts.push({ path: wirePath, body });
       if (path === "/api/demo/run/view") {
         actor = String(body.account);
         return reply(run());
@@ -286,7 +287,7 @@ it("resumes Patient, preserves a declined draft, then explicitly approves Admin 
       .waitFor();
     expect(posts).toEqual([
       {
-        path: "/api/demo/run/view",
+        path: "/api/demo-workspace/demo/run/view",
         body: {
           account: "admin",
           expected_run_id: "synthetic-handshake-run",
@@ -339,7 +340,10 @@ it("requires explicit consent for Back, and pending or unknown outcomes veto bot
       () => !document.querySelector('iframe[name="clinic-demo-workspace"]'),
     );
     expect(posts).toEqual([
-      { path: "/api/demo/lesson", body: { lesson_key: null, restart: false } },
+      {
+        path: "/api/demo-workspace/demo/lesson",
+        body: { lesson_key: null, restart: false },
+      },
     ]);
     expect(errors).toEqual([]);
   } finally {
@@ -376,7 +380,7 @@ it("reports missing frame confirmation and retries only a fresh handshake", asyn
       .getByRole("heading", { name: "Synthetic Admin workspace" })
       .waitFor();
     expect(posts).toHaveLength(1);
-    expect(posts[0].path).toBe("/api/demo/run/view");
+    expect(posts[0].path).toBe("/api/demo-workspace/demo/run/view");
     expect(errors).toEqual([]);
   } finally {
     await page.close();

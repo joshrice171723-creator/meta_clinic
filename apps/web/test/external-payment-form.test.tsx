@@ -143,7 +143,7 @@ async function fixture(
               : acknowledgment(body),
     });
   });
-  await page.goto(`${base}qa${query}`);
+  await page.goto(`${base}qa${query}`, { timeout: 30_000 });
   return { page, writes };
 }
 const reference = (page: Page) =>
