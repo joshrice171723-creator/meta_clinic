@@ -22,7 +22,7 @@ export function WaitlistAvailability({
     entry.duration_minutes >= 5 &&
     entry.duration_minutes <= 240;
   const calendar = useResource<CalendarResponse>(
-    `/api/clinic/calendar?site_id=${entry.site_id}&date=${month}-01&duration_minutes=${entry.duration_minutes}&waitlist_entry_id=${entry.id}`,
+    `/api/clinic/schedule_calendar?site_id=${entry.site_id}&date=${month}-01&duration_minutes=${entry.duration_minutes}&waitlist_entry_id=${entry.id}`,
     { enabled: open && validMonth && validDuration },
   );
   const data =
