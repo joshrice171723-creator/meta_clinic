@@ -43,6 +43,10 @@ import { stripeSetupReturnMarker } from "./billing/StripeConnectPanel";
 import { patientReferenceLabel } from "./patientReference";
 import { BillingSupportRequestQueue } from "./BillingSupportRequestQueue";
 import {
+  ExternalPaymentForm,
+  pendingExternalPaymentInvoiceId,
+} from "./billing/ExternalPaymentForm";
+import {
   clearInvoicePaymentReturnMarker,
   InvoiceCheckoutControls,
   invoicePaymentReturnMarker,
@@ -327,6 +331,7 @@ export function BillingDashboard() {
     return { pending: invoiceId !== null, invoiceId };
   });
   const canRecordPayment = context.capabilities.billing_payment_record === true;
+  const pendingExternalInvoiceId = pendingExternalPaymentInvoiceId(context);
   const canUseCashDrawer =
     canRecordPayment || context.capabilities.billing_cash_reconcile === true;
   const [activeTab, setActiveTab] = useState(() => {
@@ -359,9 +364,6 @@ export function BillingDashboard() {
   const [confirmAction, setConfirmAction] = useState<"post" | "payment" | null>(
     null,
   );
-  const [paymentReference, setPaymentReference] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentEventAmount, setPaymentEventAmount] = useState("");
   const [busyAction, setBusyAction] = useState<"post" | "payment" | null>(null);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -559,72 +561,6 @@ export function BillingDashboard() {
     }
   };
 
-  const validatePayment = () => {
-    const reference = paymentReference.trim();
-    const allocationAmount = paymentAmount.trim();
-    const eventAmount = paymentEventAmount.trim() || allocationAmount;
-    if (!reference) return "Enter the external payment event reference.";
-    if (reference.length > 255)
-      return "Payment references must be 255 characters or fewer.";
-    if (
-      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(allocationAmount) ||
-      /^0+(?:\.0+)?$/.test(allocationAmount)
-    )
-      return "Enter a positive amount with up to six decimal places.";
-    if (
-      !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(eventAmount) ||
-      /^0+(?:\.0+)?$/.test(eventAmount)
-    )
-      return "Enter a positive payment total with up to six decimal places.";
-    if (compareDecimal(allocationAmount, eventAmount) > 0)
-      return "The amount applied now cannot exceed the total payment event.";
-    return "";
-  };
-
-  const recordPayment = async () => {
-    if (!selectedInvoice || busyAction) return;
-    const validation = validatePayment();
-    if (validation) {
-      setActionError(validation);
-      setConfirmAction(null);
-      return;
-    }
-    setBusyAction("payment");
-    setActionError("");
-    try {
-      await api(
-        `/api/clinic/invoices/${selectedInvoice.id}/payment_allocations`,
-        {
-          method: "POST",
-          body: {
-            payment: {
-              external_event_reference: paymentReference.trim(),
-              currency: selectedInvoice.currency,
-              amount: paymentAmount.trim(),
-              payment_amount: paymentEventAmount.trim() || paymentAmount.trim(),
-            },
-          },
-        },
-      );
-      setActionMessage(
-        `Payment recorded against invoice #${selectedInvoice.id}.`,
-      );
-      setPaymentReference("");
-      setPaymentAmount("");
-      setPaymentEventAmount("");
-      clearActionState();
-      refresh();
-      detailResource.refresh();
-    } catch (reason) {
-      setActionError(
-        reason instanceof Error
-          ? reason.message
-          : "The payment could not be recorded. Check the event reference and try again.",
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  };
   const queueItems: {
     filter: BillingInvoiceFilter;
     label: string;
@@ -1180,7 +1116,9 @@ export function BillingDashboard() {
                     onlinePayment={selectedDetail.online_payment}
                     endpoint={`/api/clinic/invoices/${selectedInvoice.id}/online_payment`}
                     actionLabel="Collect online"
-                    actionsEnabled={canRecordPayment}
+                    actionsEnabled={
+                      canRecordPayment && pendingExternalInvoiceId === null
+                    }
                     allowPaidRefresh
                     onChanged={() => {
                       refresh();
@@ -1235,92 +1173,43 @@ export function BillingDashboard() {
                     </div>
                   )}
                 {selectedInvoice.status === "posted" &&
-                  !isZeroDecimal(selectedInvoice.balance) &&
-                  !onlinePaymentPending &&
+                  (!isZeroDecimal(selectedInvoice.balance) ||
+                    pendingExternalInvoiceId === selectedInvoice.id) &&
+                  (!onlinePaymentPending ||
+                    pendingExternalInvoiceId === selectedInvoice.id) &&
                   canRecordPayment && (
-                    <form
-                      className="billing-payment-form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const validation = validatePayment();
-                        if (validation) {
-                          setActionError(validation);
-                          setConfirmAction(null);
-                        } else {
-                          setActionError("");
-                          setConfirmAction("payment");
-                        }
-                      }}
-                    >
-                      <div>
-                        <h3>Record an external payment</h3>
-                        <p>
-                          Use the processor or bank event reference. Enter the
-                          amount to apply now and, when needed, a larger payment
-                          total to retain as unapplied balance. Only record
-                          money already received; this does not charge a card.
-                        </p>
-                      </div>
-                      <div className="billing-payment-fields">
-                        <TextField
-                          label="Event reference"
-                          size="small"
-                          value={paymentReference}
-                          onChange={(event) =>
-                            setPaymentReference(event.target.value)
-                          }
-                          slotProps={{ htmlInput: { maxLength: 255 } }}
-                          required
-                        />
-                        <TextField
-                          label={`Apply now (${selectedInvoice.currency})`}
-                          size="small"
-                          value={paymentAmount}
-                          onChange={(event) =>
-                            setPaymentAmount(event.target.value)
-                          }
-                          slotProps={{
-                            htmlInput: {
-                              inputMode: "decimal",
-                              pattern: "(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?",
-                            },
-                          }}
-                          required
-                        />
-                        <TextField
-                          label={`Payment total (${selectedInvoice.currency})`}
-                          size="small"
-                          value={paymentEventAmount}
-                          onChange={(event) =>
-                            setPaymentEventAmount(event.target.value)
-                          }
-                          slotProps={{
-                            htmlInput: {
-                              inputMode: "decimal",
-                              pattern: "(?:0|[1-9]\\d*)(?:\\.\\d{1,6})?",
-                            },
-                          }}
-                          placeholder="Same as amount applied"
-                        />
-                      </div>
-                      {confirmAction === "payment" && (
-                        <BillingConfirm
-                          action="payment"
+                    <>
+                      {selectedDetail?.id === selectedInvoice.id ? (
+                        <ExternalPaymentForm
+                          key={`${context.practice.id}:${context.user_id}:${context.membership_id}:${selectedInvoice.id}`}
+                          clinic={context}
                           invoice={selectedInvoice}
-                          onCancel={clearActionState}
-                          onConfirm={() => void recordPayment()}
-                          busy={busyAction === "payment"}
+                          patientId={selectedDetail.patient_id}
+                          patientLabel={
+                            selectedInvoice.patient?.display_name ??
+                            `Patient #${selectedDetail.patient_id}`
+                          }
+                          disabled={
+                            pendingCashState.pending ||
+                            checkingCheckoutReturn ||
+                            Boolean(checkoutReturnError)
+                          }
+                          onPendingChange={(pending) =>
+                            setBusyAction(pending ? "payment" : null)
+                          }
+                          onRecorded={(message) => {
+                            setActionMessage(message);
+                            refresh();
+                            detailResource.refresh();
+                          }}
                         />
+                      ) : (
+                        <Alert severity="info">
+                          Load the current invoice details before recording a
+                          payment.
+                        </Alert>
                       )}
-                      {!confirmAction && (
-                        <Button
-                          className="billing-secondary-button"
-                          type="submit"
-                        >
-                          Review payment
-                        </Button>
-                      )}
-                    </form>
+                    </>
                   )}
                 {actionError && (
                   <p className="billing-inline-error" role="alert">
@@ -1355,7 +1244,10 @@ export function BillingDashboard() {
             !onlinePaymentPending &&
             canRecordPayment && (
               <Button
-                disabled={cashPatientId === undefined}
+                disabled={
+                  cashPatientId === undefined ||
+                  pendingExternalInvoiceId !== null
+                }
                 onClick={() => {
                   setInvoiceOpen(false);
                   setActiveTab("cash");
