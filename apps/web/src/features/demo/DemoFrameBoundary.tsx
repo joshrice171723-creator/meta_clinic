@@ -120,7 +120,11 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         typeof data.generation !== "number"
       )
         return;
-      let allowed = false;
+      const respond = (allowed: boolean) =>
+        window.parent.postMessage(
+          { ...data, type: "demo:navigation-confirmed", allowed },
+          window.location.origin,
+        );
       if (
         run?.active &&
         sandboxRun(run) &&
@@ -128,25 +132,32 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         String(run.run.id) === data.runId &&
         run.run?.account?.user_id === data.userId
       ) {
-        const blockers = collectDemoNavigationBlockers();
-        const detail: NavigationConfirmation = {
-          handled: false,
-          allowed: false,
-        };
-        if (!blockers.blocked)
-          window.dispatchEvent(
-            new CustomEvent("demo:confirm-local-navigation", { detail }),
-          );
-        allowed = blockers.blocked
-          ? false
-          : detail.handled
-            ? detail.allowed
-            : confirmUnregisteredDemoNavigation(blockers);
+        window.parent.postMessage(
+          { ...data, type: "demo:navigation-confirming" },
+          window.location.origin,
+        );
+        // Yield so the parent can acknowledge the request before a native
+        // unsaved-work prompt suspends this frame's message handler.
+        window.setTimeout(() => {
+          const blockers = collectDemoNavigationBlockers();
+          const detail: NavigationConfirmation = {
+            handled: false,
+            allowed: false,
+          };
+          if (!blockers.blocked)
+            window.dispatchEvent(
+              new CustomEvent("demo:confirm-local-navigation", { detail }),
+            );
+          const allowed = blockers.blocked
+            ? false
+            : detail.handled
+              ? detail.allowed
+              : confirmUnregisteredDemoNavigation(blockers);
+          respond(allowed);
+        }, 0);
+        return;
       }
-      window.parent.postMessage(
-        { ...data, type: "demo:navigation-confirmed", allowed },
-        window.location.origin,
-      );
+      respond(false);
     };
     window.addEventListener("message", confirm);
     return () => window.removeEventListener("message", confirm);

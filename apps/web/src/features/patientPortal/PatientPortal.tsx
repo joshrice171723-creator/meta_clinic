@@ -40,6 +40,7 @@ import type {
 } from "../../api/contracts";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { usePatientDemoNavigation } from "./usePatientDemoNavigation";
 import { PatientSubscriptions } from "./PatientSubscriptions";
 import { PatientBillingSupport } from "./PatientBillingSupport";
 import { PatientAppointmentDetails } from "./PatientAppointmentDetails";
@@ -194,6 +195,7 @@ export function PatientPortal({
   environment?: RuntimeEnvironment;
   businessDate?: string;
 }) {
+  usePatientDemoNavigation();
   const resource = useResource<PatientPortalContext>(
     "/api/patient_portal/context",
   );

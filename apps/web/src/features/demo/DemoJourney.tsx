@@ -39,6 +39,7 @@ import {
 } from "./careModels";
 import {
   confirmSandboxNavigation,
+  NavigationConfirmationTimeout,
   sandboxAccounts,
   type SandboxAccountKey,
 } from "./accountSwitch";
@@ -183,6 +184,10 @@ export function DemoJourney() {
   const [frameLoading, setFrameLoading] = useState(false);
   const [frameFailed, setFrameFailed] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
+  const [confirmingNavigation, setConfirmingNavigation] = useState(false);
+  const [navigationRetry, setNavigationRetry] = useState<(() => void) | null>(
+    null,
+  );
   const [preparingSandbox, setPreparingSandbox] = useState(false);
   const [sandboxElapsed, setSandboxElapsed] = useState(0);
   const [lastSandboxDuration, setLastSandboxDuration] = useState<number | null>(
@@ -291,6 +296,47 @@ export function DemoJourney() {
     setPreparingLesson(null);
   };
 
+  useEffect(() => {
+    setNavigationRetry(null);
+  }, [run?.id, run?.account?.user_id]);
+
+  const approveNavigation = async (retry: () => void) => {
+    if (!run?.account) return false;
+    const current = generation.current;
+    setBusy(true);
+    setConfirmingNavigation(true);
+    setNavigationRetry(null);
+    setError(null);
+    try {
+      const allowed = await confirmSandboxNavigation(
+        frameRef.current?.contentWindow,
+        String(run.id),
+        run.account.user_id,
+        current,
+      );
+      if (current !== generation.current) return false;
+      if (!allowed)
+        setError(
+          "Navigation was not approved. Your current workspace and changes are still open. Resolve any pending or unconfirmed action before leaving.",
+        );
+      return allowed;
+    } catch (reason) {
+      if (current === generation.current) {
+        setError(
+          message(
+            reason,
+            "Navigation could not be confirmed. Your workspace is still open.",
+          ),
+        );
+        if (reason instanceof NavigationConfirmationTimeout)
+          setNavigationRetry(() => retry);
+      }
+      return false;
+    } finally {
+      setConfirmingNavigation(false);
+    }
+  };
+
   const registerVisitor = async () => {
     setBusy(true);
     setSwitching(true);
@@ -327,14 +373,12 @@ export function DemoJourney() {
     if (
       run?.sandbox &&
       run.account &&
-      !(await confirmSandboxNavigation(
-        frameRef.current?.contentWindow,
-        String(run.id),
-        run.account.user_id,
-        generation.current,
+      !(await approveNavigation(
+        () => void selectLesson(lesson_key, restart, account, careModel),
       ))
     ) {
       accountBusy.current = false;
+      setBusy(false);
       return;
     }
     const startingSandbox = lesson_key === "sandbox";
@@ -450,11 +494,8 @@ export function DemoJourney() {
     setError(null);
     const current = ++generation.current;
     try {
-      const allowed = await confirmSandboxNavigation(
-        frameRef.current?.contentWindow,
-        String(run.id),
-        run.account.user_id,
-        current,
+      const allowed = await approveNavigation(
+        () => void switchAccount(account),
       );
       if (!allowed || current !== generation.current) return;
       setSwitching(true);
@@ -804,7 +845,26 @@ export function DemoJourney() {
       spacing={sandbox ? 0 : 2}
       sx={sandbox ? undefined : { width: "100%", p: { xs: 1, sm: 2 } }}
     >
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          action={
+            navigationRetry && !busy ? (
+              <Button color="inherit" onClick={navigationRetry}>
+                Retry confirmation
+              </Button>
+            ) : undefined
+          }
+        >
+          {error}
+        </Alert>
+      )}
+      {confirmingNavigation && (
+        <Alert severity="info" role="status">
+          Waiting for the workspace to confirm navigation. Review any discard
+          prompt in the workspace; your account has not changed.
+        </Alert>
+      )}
       {!restartOpen && sandboxProgress}
       {progressError && (
         <Alert
