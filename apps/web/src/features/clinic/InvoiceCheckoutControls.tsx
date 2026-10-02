@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import type { InvoiceOnlinePayment } from "../../api/contracts";
 import { useWorkingDraft } from "./useWorkingDraft";
+import { subscriptionMoney } from "./subscriptions/contracts";
 
 type CheckoutEnvelope = {
   online_payment: InvoiceOnlinePayment;
@@ -263,7 +264,7 @@ export function InvoiceCheckoutControls({
           </Typography>
         )}
         <Typography variant="body2" color="text.secondary">
-          Online payment amount: {payment.currency} {payment.amount}
+          Online payment amount: {subscriptionMoney(payment.amount, payment.currency)}
         </Typography>
         {payment.state === "unavailable" && (
           <Typography variant="body2" color="text.secondary">
@@ -352,7 +353,7 @@ export function InvoiceCheckoutControls({
             </Typography>
           )}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            Online payment amount: {payment.currency} {payment.amount}
+            Online payment amount: {subscriptionMoney(payment.amount, payment.currency)}
           </Typography>
           <Typography>
             {confirmation === "cancel"
