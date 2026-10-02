@@ -24,7 +24,7 @@ import {
 } from "@mui/material";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
-import { api, ApiError } from "../../api/client";
+import { api, ApiError, csrf } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type {
   EmploymentAdminData,
@@ -403,6 +403,7 @@ export function EmploymentAdminPage() {
     let submitted = false;
     try {
       const isoEffectiveFrom = new Date(effectiveFrom).toISOString();
+      await csrf();
       submitted = true;
       if (accountMode === "existing") {
         await api("/api/clinic/workforce/employments", {

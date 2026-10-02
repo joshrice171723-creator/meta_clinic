@@ -13,7 +13,8 @@ import {EmploymentAdminPage} from '/src/features/workforce/EmploymentAdminPage';
 import {ClinicNavigationProvider, confirmClinicNavigation} from '/src/features/clinic/clinicNavigation';
 import {DemoFrameBoundary} from '/src/features/demo/DemoFrameBoundary';
 import {confirmSandboxNavigation} from '/src/features/demo/accountSwitch';
-import {api} from '/src/api/client';
+import {api, clearCsrf} from '/src/api/client';
+window.addEventListener('clear-fixture-csrf', clearCsrf);
 const blockers = new Set();
 const navigation = {navigate: () => false,
   registerBlocker: read => { blockers.add(read); return () => blockers.delete(read); },
@@ -81,6 +82,7 @@ async function fixture(
     saved?: boolean;
     readError?: boolean;
     existing?: boolean;
+    csrfFailure?: boolean;
   } = {},
 ) {
   page.setDefaultTimeout(5000);
@@ -93,6 +95,13 @@ async function fixture(
       "/api/",
     );
     let body: unknown;
+    if (path === "/api/csrf" && scenario.csrfFailure) {
+      await route.fulfill({
+        status: 503,
+        json: { error: "Synthetic CSRF preflight failed" },
+      });
+      return;
+    }
     if (
       path === "/api/clinic/workforce/employments" &&
       route.request().method() === "POST"
@@ -222,6 +231,63 @@ it("actual employee draft cancels switching without actor/draft loss, then expli
       { account: "front_desk", expected_run_id: 1, expected_user_id: 10 },
     ]);
     expect(submissions).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
+it("proven CSRF preflight failure retains an editable draft and ordinary cancellation, with no POST", async () => {
+  const page = await browser.newPage();
+  try {
+    const scenario = { csrfFailure: false };
+    const { frame, switches, submissions } = await fixture(
+      page,
+      undefined,
+      scenario,
+    );
+    scenario.csrfFailure = true;
+    await page
+      .frames()[1]
+      .evaluate(() => window.dispatchEvent(new Event("clear-fixture-csrf")));
+    const name = frame.getByRole("textbox", { name: /^Employee name/ });
+    await name.fill("Synthetic CSRF draft");
+    await frame
+      .locator("form")
+      .evaluate((form) =>
+        form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        ),
+      );
+    await expect
+      .poll(() =>
+        frame
+          .getByText("Unable to connect. Please try again.", { exact: true })
+          .count(),
+      )
+      .toBe(1);
+    expect(submissions).toEqual([]);
+    expect(await frame.locator("form").getAttribute("inert")).toBeNull();
+    expect(
+      await frame
+        .getByRole("button", {
+          name: "Check saved employee setup",
+          exact: true,
+        })
+        .count(),
+    ).toBe(0);
+    await name.fill("Synthetic CSRF editable draft");
+    const prompts: string[] = [];
+    page.on("dialog", async (dialog) => {
+      prompts.push(dialog.message());
+      await dialog.dismiss();
+    });
+    await page.getByRole("button", { name: "Front Desk", exact: true }).click();
+    await expect
+      .poll(() => page.getByText("cancelled", { exact: true }).count())
+      .toBe(1);
+    expect(prompts).toEqual(["Discard your unsaved employee setup?"]);
+    expect(switches).toEqual([]);
+    expect(await name.inputValue()).toBe("Synthetic CSRF editable draft");
   } finally {
     await page.close();
   }
