@@ -69,6 +69,31 @@ Home: [[00 Home]] · Direction: [[Meta Clinic Product Strategy and Scope]] · Ac
 
 This is the single current Meta Clinic implementation tracker. Individual tasks execute bounded work and report outcomes here; do not maintain a competing mutable checklist. D-071 supersedes the former Shortcut-only tracking direction. Historical plans remain detailed inputs, not current completion authority.
 
+## Location specialty separation
+
+**Requested 2026-10-02. Current phase: tracker ready; implementation not started.** [Assignment brief and acceptance scenarios](../../docs/development/clinic-workflow-plans/location-specialty-separation.md). This is the single live checklist for this assignment across MC-01/04/05/06/10/12/13/14/15, not a new platform or replacement of BH-01/BH-02 or weight-loss scope.
+
+**Outcome:** each location uses its own specialty and selected services for new work. Shared capabilities remain reusable, permissions stay independent, and authorized history/unfinished work retain their original location and revisions. Specialty separation must hold on the server as well as in visible screens.
+
+Status: Pending → In progress → Implemented, proof pending → Verified. Use Blocked only with the exact dependency. Planning has its own completion state. Every completed row needs actual evidence; no percentages or credit for inherited assumptions.
+
+| Order / ID | Step | Status | Completion evidence required / next action |
+| --- | --- | --- | --- |
+| 0 / LS-00 | Establish scope, ordered tracker and acceptance brief | Planning complete | This section and linked brief; no application completion implied. |
+| 1 / LS-01 | Reconcile latest main, overlapping edits and all affected entry points | Pending — next | Source/owner inventory covering setup, effective context, offerings/booking/series, intake/chart, tasks, portal and reports; mark partial/uninspected coverage. |
+| 2 / LS-02 | Define weight-loss-only, behavioral-health-only, service-dependent and shared behavior | Pending | Reviewed capability-to-location/service/action table, including fields/templates and exclusions; reconcile D-078 and clinical references where needed. No blanket specialty checks for shared tools. |
+| 3 / LS-03 | Enforce effective location configuration on backend new-work paths | Pending | Explicit location, specialty/service compatibility, draft/finalized state and independent permission decisions; wrong-context request denied while unrelated work succeeds. |
+| 4 / LS-04 | Correct setup, presets and generated catalog availability | Pending | Only applicable visit/form/service choices; repeat application preserves identities/customizations; no psychiatric-service activation merely from selecting Behavioral Health. |
+| 5 / LS-05 | Apply separation to booking, recurring visits and patient intake | Pending | W/B location journey, public/staff/request entry points, modality and payment independence; correct form/version survives reload. |
+| 6 / LS-06 | Apply separation to encounter screens, templates and clinical actions | Pending | Weight-program versus therapy/psychiatry presentation; selected services respected; protected notes retain their own authorization; shared observations/plans remain usable. |
+| 7 / LS-07 | Prevent location-switch, stale-response, draft and deep-link mixing | Pending | W → B → W, open tabs, Back/Forward, delayed responses, interrupted saves and explicit retries cannot act on the wrong patient/location/encounter. |
+| 8 / LS-08 | Preserve history and unfinished work when configuration changes | Pending | Existing impact review, source revisions, authorized historical reads, disabled-new-work denial and retained task owners; no copied signatures or rewritten records. |
+| 9 / LS-09 | Reconcile downstream billing, medication, portal, follow-up and reporting | Pending | Correct source attribution/filtering and independent service gates; organization-wide aggregation does not grant new-work authority; every listed surface accounted for. |
+| 10 / LS-10 | Review complete paired weight-loss and behavioral-health journeys | Pending | Scoped source/check evidence plus separate browser outcomes for the brief's positive/negative scenarios; record role/site denial and shared-work success. No automated tests unless explicitly requested. |
+| 11 / LS-11 | Close evidence gaps, update documentation and integrate owned changes | Pending | Every row reconciled to actual evidence, unresolved coverage retained, clean scoped diff and Git handoff. Deployment remains separate. |
+
+**Latest checkpoint:** baseline `e562e57f6484`; current configuration/preset changes reconciled with the earlier partial audit. Original checkout's location-setup edits remain untouched. Next is LS-01; no implementation, browser or clinical acceptance is claimed. Update this section after each completed slice or material blocker, with evidence and the next unfinished step.
+
 ## Clinic workspace modernization
 
 **2026-10-02 05:11 UTC - Joshua-approved two-pass execution supersedes per-packet browser sequencing.** Pass 1 integrates all 74 fixed packets using exact source reconciliation, independent source review, typecheck, focused changed-behavior tests and main/Office builds per compatible batch. Screenshots, viewport/zoom/keyboard observations, broad browser journeys and before/after benchmarks move to Pass 2 on the stable combined build. Outstanding browser evidence does not block the next source packet; actual code dependencies, exclusive ownership, rollback boundaries and safety gates remain. Count IMPLEMENTED only from committed, independently reviewed and appropriately tested evidence; count VALIDATED separately after its bounded acceptance. Review the approach after each ten implemented packets. No deployment or 100% validated claim before Pass 2. Current checkpoint: **8/74 IMPLEMENTED; 7/74 VALIDATED** (MZ-00a/b/c, MZ-01a/b/c validated; MZ-02a implemented; MZ-08a implemented and C-accepted for its original narrow rendered/native-constraint gate). Actual browser zoom, authenticated portal and broader journey proof remain open. The ready batch has 12 clinical plus 26 operations records; MZ-08a is already integrated and will be reused, not counted twice. Unchanged adoption candidates require review/check evidence and are not awarded from empty source patches alone.
