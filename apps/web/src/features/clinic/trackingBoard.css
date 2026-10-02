@@ -162,7 +162,7 @@
 .clinic-theme .tracking-table-container {
   width: 100%;
   max-width: 100%;
-  max-height: max(12rem, calc(100dvh - 29rem));
+  max-height: max(12rem, calc(100dvh - 28rem));
   overflow: auto;
   scroll-behavior: auto;
   scroll-padding-block: 64px 12px;
