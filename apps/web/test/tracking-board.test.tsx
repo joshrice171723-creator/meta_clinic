@@ -694,12 +694,15 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).toContain(
-      'aria-label="Lease expired: intake details for Mara Rivera, visit EX-001"',
+      'aria-label="Manage assignment for Mara Rivera, visit EX-001"',
     );
-    expect(html).toContain("tracking-intake-exception-message");
-    expect(html).toContain(message);
-    expect(html).toContain("Claim intake");
+    // Closed-dialog markup keeps lease details/actions out of the table;
+    // the browser case verifies the opened lease and explicit claim.
+    expect(html).not.toContain("Lease expired: intake details");
+    expect(html).not.toContain(message);
+    expect(html).not.toContain("Claim intake");
     expect(html).not.toContain("Release intake");
+    expect(html).not.toContain('role="dialog"');
     const denied = renderToStaticMarkup(
       <TestTrackingBoard
         visits={[
@@ -720,8 +723,12 @@ describe("board and Operations presentation boundaries", () => {
         onClaimIntake={async () => undefined}
       />,
     );
+    expect(denied).toContain(
+      'aria-label="Manage assignment for Mara Rivera, visit EX-001"',
+    );
     expect(denied).not.toContain("Claim intake");
-    expect(denied).toContain("Review is required before continuing.");
+    expect(denied).not.toContain("Release intake");
+    expect(denied).not.toContain("Review is required before continuing.");
   });
   it("moves administrative counts to Operations without relabeling directory counts as visits", () => {
     const html = renderToStaticMarkup(<OperationsView clinic={clinic} />);

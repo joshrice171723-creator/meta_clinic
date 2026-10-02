@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createServer, transformWithOxc, type ViteDevServer } from "vite";
-import { chromium, type Browser, type Page } from "playwright-core";
+import {
+  chromium,
+  type Browser,
+  type Locator,
+  type Page,
+} from "playwright-core";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +13,31 @@ let server: ViteDevServer;
 let browser: Browser;
 let baseUrl: string;
 const root = fileURLToPath(new URL("../", import.meta.url));
+const locatorAssertionTimeout = 5000;
+
+async function expectVisible(locator: Locator, visible = true) {
+  await expect
+    .poll(() => locator.isVisible(), { timeout: locatorAssertionTimeout })
+    .toBe(visible);
+}
+
+async function expectEnabled(locator: Locator, enabled: boolean) {
+  await expect
+    .poll(() => locator.isEnabled(), { timeout: locatorAssertionTimeout })
+    .toBe(enabled);
+}
+
+async function expectText(locator: Locator, text: string) {
+  await expect
+    .poll(() => locator.textContent(), { timeout: locatorAssertionTimeout })
+    .toContain(text);
+}
+
+async function expectCount(locator: Locator, count: number) {
+  await expect
+    .poll(() => locator.count(), { timeout: locatorAssertionTimeout })
+    .toBe(count);
+}
 
 const recall = {
   id: 81,
@@ -48,9 +78,9 @@ async function openOutreach(page: Page) {
     window.__navigationApproved = false;
   });
   await page.getByRole("button", { name: "Log outreach attempt" }).click();
-  await expect(
+  await expectVisible(
     page.getByRole("region", { name: "Log outreach attempt" }),
-  ).toBeVisible();
+  );
   const channel = page.getByRole("combobox", { name: "Outreach channel" });
   await channel.click();
   await page.getByRole("option", { name: "Phone" }).click();
@@ -198,17 +228,16 @@ it.each(["wrong-recall", "malformed"])(
     await page
       .getByRole("button", { name: "Record outreach attempt", exact: true })
       .click();
-    await expect(page.getByRole("alert")).toContainText(
-      "outcome is not confirmed",
-    );
-    await expect(
+    await expectText(page.getByRole("alert"), "outcome is not confirmed");
+    await expectVisible(
       page.getByRole("button", { name: "Retry same action" }),
-    ).toBeVisible();
-    await expect(
+    );
+    await expectEnabled(
       page.getByRole("combobox", { name: "Outreach channel" }),
-    ).toBeDisabled();
+      false,
+    );
     const cancel = page.getByRole("button", { name: "Cancel" });
-    await expect(cancel).toBeDisabled();
+    await expectEnabled(cancel, false);
 
     await page.evaluate(() => {
       window.confirm = () => false;
@@ -224,12 +253,13 @@ it.each(["wrong-recall", "malformed"])(
     );
 
     await page.getByRole("button", { name: "Retry same action" }).click();
-    await expect(
+    await expectCount(
       page.getByRole("alert").filter({ hasText: "outcome is not confirmed" }),
-    ).toHaveCount(0);
-    await expect(
+      0,
+    );
+    await expectVisible(
       page.getByText("The outreach attempt was recorded. No message was sent."),
-    ).toBeVisible();
+    );
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toEqual(bodies[0]);
     const firstEvent = (bodies[0] as { recall_event: Record<string, unknown> })
@@ -259,29 +289,29 @@ it("unlocks a deterministic rejection and leaves a dirty action only after confi
     window.confirm = () => false;
   });
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(
+  await expectVisible(
     page.getByRole("region", { name: "Log outreach attempt" }),
-  ).toBeVisible();
+  );
   await page.evaluate(() => {
     window.confirm = () => true;
   });
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(
+  await expectCount(
     page.getByRole("region", { name: "Log outreach attempt" }),
-  ).toHaveCount(0);
+    0,
+  );
   expect(postCount).toBe(0);
 
   await openOutreach(page);
   await page
     .getByRole("button", { name: "Record outreach attempt", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText(
-    "Synthetic validation rejection",
-  );
-  await expect(
+  await expectText(page.getByRole("alert"), "Synthetic validation rejection");
+  await expectEnabled(
     page.getByRole("combobox", { name: "Outreach channel" }),
-  ).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    true,
+  );
+  await expectEnabled(page.getByRole("button", { name: "Cancel" }), true);
   expect(postCount).toBe(1);
   await page.close();
 });
@@ -308,8 +338,8 @@ it("does not dismiss a pending write or allow navigation before its result arriv
       .getByRole("button", { name: "Record outreach attempt", exact: true })
       .click();
     await started;
-    await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Saving." })).toBeDisabled();
+    await expectEnabled(page.getByRole("button", { name: "Cancel" }), false);
+    await expectEnabled(page.getByRole("button", { name: "Saving." }), false);
     await page.evaluate(() => {
       window.confirm = () => false;
       window.__navigationApproved = false;
@@ -333,6 +363,5 @@ declare global {
     __navigateAttempts: number;
     __navigationApproved: boolean;
     __recallWarning?: () => string | null;
-    confirm: (message?: string) => boolean;
   }
 }

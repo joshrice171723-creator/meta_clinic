@@ -82,6 +82,9 @@ afterAll(async () => {
   await server?.close();
 }, 30000);
 
+const leaseMessage =
+  "The intake ownership lease expired. Refresh and claim the work explicitly before continuing.";
+
 function board(mode: "claim" | "release") {
   return {
     as_of: "2030-02-04T10:35:00Z",
@@ -117,6 +120,10 @@ function board(mode: "claim" | "release") {
         },
         appointment: null,
         care_summary: null,
+        exceptions:
+          mode === "claim"
+            ? [{ code: "stale_intake_ownership", message: leaseMessage }]
+            : [],
         provider: {
           clinician_profile_id: "21",
           display_name: "Synthetic provider 21",
@@ -237,6 +244,23 @@ it.each(["claim", "release"] as const)(
     });
     try {
       const dialog = h.page.getByRole("dialog", { name: "Manage assignment" });
+      if (mode === "claim") {
+        const owner = dialog.getByText(
+          /^Intake owner: Synthetic nurse.*lease expired$/,
+        );
+        await owner.waitFor();
+        expect(await owner.isVisible()).toBe(true);
+        expect(
+          await dialog.getByText("Lease expired", { exact: true }).isVisible(),
+        ).toBe(true);
+        expect(
+          await dialog.getByText(leaseMessage, { exact: true }).isVisible(),
+        ).toBe(true);
+        expect(
+          await dialog.getByRole("button", { name: /Lease expired/ }).count(),
+        ).toBe(0);
+        expect(h.mutations).toEqual([]);
+      }
       await dialog
         .getByLabel("Provider", { exact: true })
         .selectOption("api-provider-22");

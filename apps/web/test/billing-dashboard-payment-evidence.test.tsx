@@ -11,7 +11,8 @@ const modules: Record<string, string> = {
     sites: [{id: 704, name: "Synthetic site"}], capabilities: {billing_read: true,
     patient_identity_read: true, billing_payment_record: new URLSearchParams(location.search).has("cash")}};
     export const useClinic = () => clinic;`,
-  "./BillingInsights": `export const BillingCollectionWorklist = () => null;
+  "./BillingInsights": `export const BillingCollectionContext = () => null;
+    export const BillingCollectionWorklist = () => null;
     export const BillingIncomeOutlook = () => null; export const BillingPayments = () => null;`,
   "./subscriptions/SubscriptionBilling":
     "export const SubscriptionBilling = () => null;",
