@@ -474,10 +474,21 @@ Prepared test maintenance is exact: four frozen inventory/settings selectors upd
 
 Remote maincd1's independent sandbox-marker/access failure and the previously executed red e5 CI baseline remain release reconciliation gates;no automatic push/merge/deployment. Existing release/recovery runbook and accepted revision must be concrete before12outcomes. OriginalQA179closed/62open remains separate. Parent should route03i/04b narrowly to their existing exclusive owner for actual safety repair,not a new source-review campaign;other read-only groups can proceed against the declared freeze with explicit affected-source invalidation.
 
+### Combined review closure and narrow persisted inventory checkpoint (2026-10-02)
+
+**69/74 IMPLEMENTED;7/74 VALIDATED after this documentation checkpoint.** C accepted MZ-10b combined source review at754ebb5798d80cdd32c2c236837100806b09a144 using the existing independently reviewed integration manifests and G3 evidence:83executed controlled/mock cases PASS,158fingerprint-valid selected passes reused,plus30current safety/lookup passes reused. MZ-10a/b source assembly/review are complete;11a/b and12a/b/c remain open. No new product-validation award follows. G3 persisted invoice#149 remains SKIPPED because its real-stack fixture was not enabled/prepared;initial browser-path/previsit5second deadline failures are retained. Original04e baseline static failure remains preserved separately from corrected bounded assertions;no blanket UCUM/provenance acceptance or green CI claim.
+
+Inventory lease G4-INV-20261002-0812 explicitly released after exactlyone confirmed UI partial receipt,withoutretry. task-8/G4-inventory-evidence/reconciliation-summary.json and artifact-manifest.json bind actual source754ebb,submission08:30:43Z and then-valid proof. Its readback began08:32:43Z,21seconds afterproof expiry;it is retained with that limit. A's new actual read-only Rails proof08:40:26Z verifies persisted receipt1,line1,lot1,batch1,ledger1,reconciliation1,shipment1,order1/product1:100each received/available,2packages ordered,1received,1missing/outstanding,POpartially_received;exactlyone receipt/ledger. Original20patients/25waitlist preserved. Proof:ignored tmp/modernization-evidence/G4-inventory-persisted-proof.json;no replay/mutation occurred.
+
+404classification:ReceivingQuery defaults status=open,excludes any shipment with receipt/reconciliation,and selects by filtered.find(shipment_id). A's read-only actual query reproduced RecordNotFound for acknowledged shipment1 inopen andselected1 withstatus=reconciled.404is expected for that open-only route afterack;clean UI acknowledgement/recovery/reload remains an acceptance gap. This narrow proof does NOT establish two lots,recall,count,transfer,full lifecycle or fullG4 acceptance.
+
+Remaining gates:phone focusconsistency,original controlled503dismiss draftprobe/editor readiness,persistedinvoice149,remainingG4,pairedbenchmarks/native200percent zoom,portal/provider prerequisites andremote-maincd1access reconciliation. No new broadQA,sourcechanges,push/deployment or external sends. User requests NEW Sol live exploration of app AND /demo in parentcloud browser only after accepted integration,push andpublication of the exact deployed build;existing release/recovery gates remain.
+
 ## Last run
 
-- Date UTC:2026-10-02;five independently reviewed corrections integrated against478283d. Canonical tracker current checkpoint contains exact scope and evidence;final formatted identities retained in tmp/modernization-evidence/pass2-repair-integration.json.
-- Outcome:68/74IMPLEMENTED;7/74VALIDATED unchanged. Phone focus,activation,history/refill exact request retention and lookup reference corrections;source acceptance does not award browser/persisted validation. C10b and11/12 remain open.
-- Checks:30/30 targeted controlled-handler/SSR cases PASS,0failed/0skipped;scoped format/typecheck/main+Office PASS. No browser/backend mutation/send. Superseded04b261669FF excluded;current reviewedA9BF00EA applied.
-- Changed canonical paths:this brief and tracker;five production leaves andthree bounded authored test files.
-- Next:fresh read-only proof and exact fixture binding,parent dispatch targeted phone/activation/lookup recapture. G1/G2 previous observations belong to478283d;originalQA and remote-main/release reconciliation remain separate.
+- Date UTC:2026-10-02; inspected754ebb andactualisolatedDBproof08:40:26Z;inventorylease released.
+- Outcome:69/74IMPLEMENTED;7/74VALIDATED afterdocumentationcheckpoint. C10bsource review closed;11/12remain open.
+- Checks:readonlypersistedreceipt IDs/quantities andopen/reconciled selection verified;source404classification;83G3executed+158reused+30safetylookup evidence retained. No newtests orDBmutations.
+- Changed canonical paths:thisbrief andcentraltracker only;local ignoredproof refreshed.
+- Limits:realstackinvoice149SKIP,original04ebaselinefailure,phonefocus/503draft/G4breadth/benchmarks/zoom/provider/remote-main/release gates remainexplicit.
+- Next:boundedremainingrepair/acceptance;NEW Sol app AND/demo walkthrough onlyafterexactbuildpublication.
