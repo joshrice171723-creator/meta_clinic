@@ -566,7 +566,9 @@ h2 {
   letter-spacing: -0.035em;
   line-height: 1.1;
 }
-.career-heading h2 span { color: #e7c4a8; }
+.career-heading h2 span {
+  color: #e7c4a8;
+}
 .career-heading > p {
   color: #d5e2dd;
   font-size: 13px;
@@ -585,14 +587,18 @@ h2 {
   letter-spacing: -0.025em;
   font-weight: 550;
 }
-.career-intro > p, .career-inventory > p:not(.career-outcome) {
+.career-intro > p,
+.career-inventory > p:not(.career-outcome) {
   font-size: 15px;
   line-height: 1.8;
   color: #d5e2dd;
   margin-top: 20px;
   max-width: 60ch;
 }
-.career-intro .career-legacy { color: #f7faf8; font-weight: 600; }
+.career-intro .career-legacy {
+  color: #f7faf8;
+  font-weight: 600;
+}
 .career-case .text-link {
   color: #e7c4a8;
   display: inline-block;
@@ -601,9 +607,15 @@ h2 {
   text-decoration: underline;
   text-underline-offset: 5px;
 }
-.career-case a:hover { color: #f7faf8; }
-.career-case a:focus-visible { outline-color: #e7c4a8; }
-.career-case .tags { margin: 28px 0 0; }
+.career-case a:hover {
+  color: #f7faf8;
+}
+.career-case a:focus-visible {
+  outline-color: #e7c4a8;
+}
+.career-case .tags {
+  margin: 28px 0 0;
+}
 .career-case .tags li {
   color: #d5e2dd;
   border-color: #5d7d73;
@@ -623,10 +635,20 @@ h2 {
   letter-spacing: -0.025em;
   margin-top: 12px;
 }
-.career-outcome strong { color: #e7c4a8; font-weight: 650; }
-.career-domains { margin: 0; }
-.career-domains > div { padding-top: 24px; }
-.career-domains dt { font-weight: 600; font-size: 16px; }
+.career-outcome strong {
+  color: #e7c4a8;
+  font-weight: 650;
+}
+.career-domains {
+  margin: 0;
+}
+.career-domains > div {
+  padding-top: 24px;
+}
+.career-domains dt {
+  font-weight: 600;
+  font-size: 16px;
+}
 .career-domains dd {
   margin: 6px 0 0;
   color: #d5e2dd;
@@ -640,9 +662,19 @@ h2 {
   border-top: 1px solid #5d7d73;
   padding-top: 30px;
 }
-.career-ownership h3 { font-size: 21px; font-weight: 550; }
-.career-ownership p { color: #d5e2dd; font-size: 14px; line-height: 1.8; }
-.project-category { color: var(--muted); font-size: 12px; }
+.career-ownership h3 {
+  font-size: 21px;
+  font-weight: 550;
+}
+.career-ownership p {
+  color: #d5e2dd;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.project-category {
+  color: var(--muted);
+  font-size: 12px;
+}
 .project-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -712,8 +744,12 @@ details p {
   grid-template-columns: 1fr 1fr;
   gap: 80px;
 }
-.skills-intro h2 { font-size: 36px; letter-spacing: -0.03em; }
-.skills-intro > p, .healthcare-judgment > p {
+.skills-intro h2 {
+  font-size: 36px;
+  letter-spacing: -0.03em;
+}
+.skills-intro > p,
+.healthcare-judgment > p {
   margin-top: 20px;
   font-size: 15px;
   line-height: 1.8;
@@ -722,20 +758,38 @@ details p {
   border-left: 1px solid #b4bdad;
   padding-left: 48px;
 }
-.healthcare-judgment h3 { font-size: 28px; line-height: 1.35; letter-spacing: -0.025em; font-weight: 550; }
-.skill-lines, .privacy-principles { margin: 28px 0 0; }
-.skill-lines > div, .privacy-principles > div {
+.healthcare-judgment h3 {
+  font-size: 28px;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+  font-weight: 550;
+}
+.skill-lines,
+.privacy-principles {
+  margin: 28px 0 0;
+}
+.skill-lines > div,
+.privacy-principles > div {
   border-top: 1px solid #b4bdad;
   padding: 17px 0;
 }
-.skill-lines dt, .privacy-principles dt { font-size: 14px; font-weight: 650; }
-.skill-lines dd, .privacy-principles dd {
+.skill-lines dt,
+.privacy-principles dt {
+  font-size: 14px;
+  font-weight: 650;
+}
+.skill-lines dd,
+.privacy-principles dd {
   margin: 5px 0 0;
   font-size: 13px;
   line-height: 1.8;
   color: #4b5347;
 }
-.healthcare-judgment .privacy-context { font-size: 13px; color: #4b5347; margin-top: 12px; }
+.healthcare-judgment .privacy-context {
+  font-size: 13px;
+  color: #4b5347;
+  margin-top: 12px;
+}
 .independent-work-section {
   padding-top: 58px;
   padding-bottom: 58px;
@@ -1211,19 +1265,58 @@ details p {
   }
 }
 @media (max-width: 1050px) {
-  .career-grid, .career-ownership, .skills-grid { gap: 40px; }
-  .healthcare-judgment { padding-left: 32px; }
+  .career-grid,
+  .career-ownership,
+  .skills-grid {
+    gap: 40px;
+  }
+  .healthcare-judgment {
+    padding-left: 32px;
+  }
 }
 @media (max-width: 760px) {
-  .career-case { padding: 44px 0; margin-top: 36px; }
-  .career-heading { flex-direction: column; align-items: flex-start; gap: 16px; padding-bottom: 26px; }
-  .career-heading > p { text-align: left; }
-  .career-grid, .career-ownership, .skills-grid { grid-template-columns: 1fr; gap: 32px; }
-  .career-grid { padding: 30px 0; }
-  .career-ownership { gap: 14px; padding-top: 26px; }
-  .skills-section { padding: 48px 0; }
-  .skills-intro h2 { font-size: 30px; }
-  .healthcare-judgment { border-left: 0; border-top: 1px solid #b4bdad; padding: 32px 0 0; }
-  .site-header nav { gap: 13px; font-size: 11px; }
-  .actions { flex-wrap: wrap; }
+  .career-case {
+    padding: 44px 0;
+    margin-top: 36px;
+  }
+  .career-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding-bottom: 26px;
+  }
+  .career-heading > p {
+    text-align: left;
+  }
+  .career-grid,
+  .career-ownership,
+  .skills-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .career-grid {
+    padding: 30px 0;
+  }
+  .career-ownership {
+    gap: 14px;
+    padding-top: 26px;
+  }
+  .skills-section {
+    padding: 48px 0;
+  }
+  .skills-intro h2 {
+    font-size: 30px;
+  }
+  .healthcare-judgment {
+    border-left: 0;
+    border-top: 1px solid #b4bdad;
+    padding: 32px 0 0;
+  }
+  .site-header nav {
+    gap: 13px;
+    font-size: 11px;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
 }
