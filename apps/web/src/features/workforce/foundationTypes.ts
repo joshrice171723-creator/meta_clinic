@@ -6,6 +6,7 @@ export type WorkforceSite = {
 
 export type WorkforceEmployment = {
   id: number;
+  access_revision?: string;
   status: "active" | "inactive";
   effective_from: string;
   effective_until: string | null;

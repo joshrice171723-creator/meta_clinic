@@ -1,4 +1,11 @@
-import { useId, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useId,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type FormEvent,
+} from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -38,6 +45,7 @@ import type {
 import { businessNow } from "../../shared/businessDate";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
+import { BulkRoleEditor, sameRoleScope } from "./BulkRoleEditor";
 
 function localDateTime() {
   const current = businessNow();
@@ -63,12 +71,14 @@ function EmploymentAccessEditor({
   sites,
   refresh,
   setFeedback,
+  onBlockingChange,
 }: {
   employment: WorkforceEmployment;
   roles: EmploymentAdminData["role_options"];
   sites: WorkforceSite[];
   refresh: () => void;
   setFeedback: (feedback: Feedback | null) => void;
+  onBlockingChange: (id: number, blocked: boolean) => void;
 }) {
   const activeRole = employment.roles[0];
   const [roleVersionId, setRoleVersionId] = useState(
@@ -79,6 +89,97 @@ function EmploymentAccessEditor({
   );
   const [saving, setSaving] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
+  const [revokeAcknowledged, setRevokeAcknowledged] = useState(false);
+  const [accessUnknown, setAccessUnknown] = useState(false);
+  const [unknownAction, setUnknownAction] = useState<
+    "revoke" | "restore" | "edit"
+  >("edit");
+  const { registerBlocker } = useClinicNavigation();
+  const changed =
+    roleVersionId !== String(activeRole?.role_version_id ?? "") ||
+    JSON.stringify([...siteIds].sort()) !==
+      JSON.stringify(
+        employment.sites
+          .filter((site) => site.active)
+          .map((site) => site.id)
+          .sort(),
+      );
+  useEffect(() => {
+    onBlockingChange(employment.id, changed || saving || accessUnknown);
+  }, [employment.id, changed, saving, accessUnknown, onBlockingChange]);
+  const checkAccess = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const fresh = await api<EmploymentAdminData>(
+        "/api/clinic/workforce/employments",
+      );
+      const saved = fresh.employments.find(
+        (record) =>
+          record.id === employment.id &&
+          record.membership_summary.id === employment.membership_summary.id &&
+          record.membership_summary.email_address ===
+            employment.membership_summary.email_address,
+      );
+      const role = roles.find((option) => String(option.id) === roleVersionId);
+      const confirmed =
+        unknownAction === "revoke"
+          ? saved &&
+            !saved.membership_summary.active &&
+            saved.status === "inactive" &&
+            saved.roles.length === 0
+          : role &&
+            saved &&
+            sameRoleScope(saved, role) &&
+            saved.roles.every((grant) => grant.role_version_id === role.id) &&
+            JSON.stringify(
+              saved.sites
+                .filter((site) => site.active)
+                .map((site) => site.id)
+                .sort(),
+            ) === JSON.stringify([...siteIds].sort());
+      if (!confirmed)
+        throw new Error(
+          "Saved access does not yet confirm this action. Do not repeat it.",
+        );
+      setAccessUnknown(false);
+      setFeedback({
+        severity: "success",
+        text: "Employee access confirmed in saved records.",
+      });
+      refresh();
+    } catch (reason) {
+      setFeedback({
+        severity: "error",
+        text:
+          reason instanceof Error
+            ? reason.message
+            : "Unable to confirm saved access.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+  useDemoNavigationBlocker(() => ({
+    blocked: saving || accessUnknown,
+    message: changed ? "Discard unsaved employee access changes?" : null,
+  }));
+  useEffect(() => {
+    if (!changed && !saving && !accessUnknown) return;
+    const message = accessUnknown
+      ? "Employee access outcome is unconfirmed. Keep this page open and check saved access."
+      : "Discard unsaved employee access changes?";
+    const unregister = registerBlocker(() => message);
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = message;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [changed, saving, accessUnknown, registerBlocker]);
   const toggleSite = (siteId: number) =>
     setSiteIds((current) =>
       current.includes(siteId)
@@ -86,17 +187,27 @@ function EmploymentAccessEditor({
         : [...current, siteId],
     );
   const update = async (accountAction?: "revoke" | "restore") => {
+    if (saving || accessUnknown) return;
     setSaving(true);
     setFeedback(null);
+    let submitted = false;
     try {
+      await csrf();
+      submitted = true;
       await api(`/api/clinic/workforce/employments/${employment.id}`, {
         method: "PATCH",
         body: {
-          employment: {
-            role_version_id: roleVersionId,
-            site_ids: siteIds,
-            ...(accountAction ? { account_action: accountAction } : {}),
-          },
+          employment:
+            accountAction === "revoke"
+              ? { account_action: "revoke" }
+              : {
+                  role_version_id: roleVersionId,
+                  ...(accountAction
+                    ? {}
+                    : { expected_access_revision: employment.access_revision }),
+                  site_ids: siteIds,
+                  ...(accountAction ? { account_action: accountAction } : {}),
+                },
         },
       });
       setFeedback({
@@ -110,6 +221,17 @@ function EmploymentAccessEditor({
       });
       refresh();
     } catch (reason) {
+      if (
+        submitted &&
+        (!(reason instanceof ApiError) ||
+          reason.status === 408 ||
+          reason.status >= 500 ||
+          reason.code === "outcome_unconfirmed" ||
+          reason.code === "session_changed")
+      ) {
+        setUnknownAction(accountAction ?? "edit");
+        setAccessUnknown(true);
+      }
       setFeedback({
         severity: "error",
         text:
@@ -124,119 +246,155 @@ function EmploymentAccessEditor({
 
   return (
     <Stack spacing={1.5} sx={{ minWidth: { md: 360 } }}>
-      <FormControl size="small" fullWidth>
-        <InputLabel id={`employment-${employment.id}-role-label`}>
-          Access role
-        </InputLabel>
-        <Select
-          labelId={`employment-${employment.id}-role-label`}
-          label="Access role"
-          value={roleVersionId}
-          onChange={(event) => setRoleVersionId(event.target.value)}
-        >
-          {roles.map((role) => (
-            <MenuItem key={role.id} value={String(role.id)}>
-              {role.label || roleLabel(role.role_code)}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormGroup row>
-        {sites.map((site) => (
-          <FormControlLabel
-            key={site.id}
-            control={
-              <Checkbox
-                size="small"
-                checked={siteIds.includes(site.id)}
-                onChange={() => toggleSite(site.id)}
-              />
-            }
-            label={site.name}
-          />
-        ))}
-      </FormGroup>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button
-          variant="outlined"
-          disabled={saving || !roleVersionId || siteIds.length === 0}
-          onClick={() => void update()}
-        >
-          Save role and sites
-        </Button>
-      </Stack>
-      <Divider />
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Button
-          color={employment.membership_summary.active ? "warning" : "primary"}
-          disabled={
-            saving ||
-            (!employment.membership_summary.active &&
-              (!roleVersionId || siteIds.length === 0))
-          }
-          onClick={() =>
-            employment.membership_summary.active
-              ? setRevokeOpen(true)
-              : void update("restore")
-          }
-        >
-          {employment.membership_summary.active
-            ? "Revoke clinic account"
-            : "Restore clinic account"}
-        </Button>
-        {!employment.membership_summary.active &&
-          employment.active_work_by_site.some(({ count }) => count > 0) && (
-            <Button
-              href="/clinic/work?assignment=offboarded"
-              variant="outlined"
-            >
-              Review work needing coverage
+      {accessUnknown && (
+        <Alert
+          severity="warning"
+          action={
+            <Button disabled={saving} onClick={() => void checkAccess()}>
+              Check saved access
             </Button>
-          )}
-      </Stack>
-      <Dialog open={revokeOpen} onClose={() => setRevokeOpen(false)}>
-        <DialogTitle>
-          Revoke {employment.staff_member.display_name}’s clinic account?
-        </DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1.5}>
-            <Typography>
-              Active assigned work stays with this employee. Eligible staff can
-              claim it from the clinical work queue.
-            </Typography>
-            <Typography variant="subtitle2">Active work by location</Typography>
-            {employment.active_work_by_site.length ? (
-              employment.active_work_by_site.map(({ site_id, count }) => (
-                <Typography key={site_id ?? "no-site"}>
-                  {sites.find((site) => site.id === site_id)?.name ??
-                    employment.sites.find((site) => site.id === site_id)
-                      ?.name ??
-                    (site_id ? `Site ${site_id}` : "No location")}
-                  : {count}
-                </Typography>
-              ))
-            ) : (
-              <Typography>No active assigned work.</Typography>
-            )}
-            <Typography variant="caption" color="text.secondary">
-              Counts reflect the employment list when it was loaded.
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRevokeOpen(false)}>Cancel</Button>
-          <Button
-            color="warning"
-            disabled={saving}
-            onClick={() => {
-              setRevokeOpen(false);
-              void update("revoke");
-            }}
+          }
+        >
+          Employee access outcome is unconfirmed. Do not repeat this change.
+          Account switching is blocked until saved access confirms it.
+        </Alert>
+      )}
+      <Stack spacing={1.5} inert={accessUnknown}>
+        <FormControl size="small" fullWidth>
+          <InputLabel id={`employment-${employment.id}-role-label`}>
+            Access role
+          </InputLabel>
+          <Select
+            labelId={`employment-${employment.id}-role-label`}
+            label="Access role"
+            value={roleVersionId}
+            onChange={(event) => setRoleVersionId(event.target.value)}
           >
-            Revoke account
+            {roles.map((role) => (
+              <MenuItem key={role.id} value={String(role.id)}>
+                {role.label || roleLabel(role.role_code)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormGroup row>
+          {sites.map((site) => (
+            <FormControlLabel
+              key={site.id}
+              control={
+                <Checkbox
+                  size="small"
+                  checked={siteIds.includes(site.id)}
+                  onChange={() => toggleSite(site.id)}
+                />
+              }
+              label={site.name}
+            />
+          ))}
+        </FormGroup>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button
+            variant="outlined"
+            disabled={saving || !roleVersionId || siteIds.length === 0}
+            onClick={() => void update()}
+          >
+            Save role and sites
           </Button>
-        </DialogActions>
-      </Dialog>
+        </Stack>
+        <Divider />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button
+            color={employment.membership_summary.active ? "warning" : "primary"}
+            disabled={
+              saving ||
+              (!employment.membership_summary.active &&
+                (!roleVersionId || siteIds.length === 0))
+            }
+            onClick={() =>
+              employment.membership_summary.active
+                ? (setRevokeAcknowledged(false), setRevokeOpen(true))
+                : void update("restore")
+            }
+          >
+            {employment.membership_summary.active
+              ? "Revoke clinic account"
+              : "Restore clinic account"}
+          </Button>
+          {!employment.membership_summary.active &&
+            employment.active_work_by_site.some(({ count }) => count > 0) && (
+              <Button
+                href="/clinic/work?assignment=offboarded"
+                variant="outlined"
+              >
+                Review work needing coverage
+              </Button>
+            )}
+        </Stack>
+        <Dialog open={revokeOpen} onClose={() => setRevokeOpen(false)}>
+          <DialogTitle>
+            Revoke {employment.staff_member.display_name}’s clinic account?
+          </DialogTitle>
+          <DialogContent dividers>
+            <Stack spacing={1.5}>
+              <Typography>
+                {employment.membership_summary.email_address} · account{" "}
+                {employment.membership_summary.id} · employee {employment.id}
+              </Typography>
+              <Typography>
+                The login will be deactivated, clinic access and all active
+                account role grants revoked, and active sessions closed. Pending
+                employee invitations will be revoked. This does not delete the
+                employee or reassign their work.
+              </Typography>
+              <Typography>
+                Active assigned work stays with this employee. Eligible staff
+                can claim it from the clinical work queue.
+              </Typography>
+              <Typography variant="subtitle2">
+                Active work by location
+              </Typography>
+              {employment.active_work_by_site.length ? (
+                employment.active_work_by_site.map(({ site_id, count }) => (
+                  <Typography key={site_id ?? "no-site"}>
+                    {sites.find((site) => site.id === site_id)?.name ??
+                      employment.sites.find((site) => site.id === site_id)
+                        ?.name ??
+                      (site_id ? `Site ${site_id}` : "No location")}
+                    : {count}
+                  </Typography>
+                ))
+              ) : (
+                <Typography>No active assigned work.</Typography>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                Counts reflect the employment list when it was loaded.
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={revokeAcknowledged}
+                    onChange={(_, checked) => setRevokeAcknowledged(checked)}
+                  />
+                }
+                label={`I intend to revoke clinic access for ${employment.membership_summary.email_address}`}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRevokeOpen(false)}>Cancel</Button>
+            <Button
+              color="warning"
+              disabled={saving || !revokeAcknowledged}
+              onClick={() => {
+                setRevokeOpen(false);
+                void update("revoke");
+              }}
+            >
+              Revoke account
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Stack>
     </Stack>
   );
 }
@@ -245,6 +403,7 @@ export function EmploymentAdminPage() {
   const fieldId = useId();
   const { data, error, refresh } = useResource<EmploymentAdminData>(
     "/api/clinic/workforce/employments",
+    { retainDataOnRefresh: true },
   );
   const [displayName, setDisplayName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
@@ -257,10 +416,26 @@ export function EmploymentAdminPage() {
   const initialEffectiveFrom = useRef(effectiveFrom);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [bulkAccessBlocked, setBulkAccessBlocked] = useState(false);
+  const [invitationToRevoke, setInvitationToRevoke] = useState<
+    EmploymentAdminData["invitations"][number] | null
+  >(null);
+  const [invitationRevokeAcknowledged, setInvitationRevokeAcknowledged] =
+    useState(false);
+  const [individualAccessBlocked, setIndividualAccessBlocked] = useState<
+    Record<number, boolean>
+  >({});
+  const accessBlockingChanged = useCallback(
+    (id: number, blocked: boolean) =>
+      setIndividualAccessBlocked((current) =>
+        current[id] === blocked ? current : { ...current, [id]: blocked },
+      ),
+    [],
+  );
   const [activationToken, setActivationToken] = useState<string | null>(null);
   const [activationPath, setActivationPath] = useState<string | null>(null);
   const [setupRoleCode, setSetupRoleCode] = useState<string | null>(null);
-  const [setupOpen, setSetupOpen] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState<{
     mode: "existing" | "new";
     displayName: string;
@@ -469,6 +644,7 @@ export function EmploymentAdminPage() {
       if (
         submitted &&
         (!(reason instanceof ApiError) ||
+          reason.status === 408 ||
           reason.status >= 500 ||
           reason.code === "outcome_unconfirmed")
       ) {
@@ -604,7 +780,23 @@ export function EmploymentAdminPage() {
         <Typography variant="h2" sx={{ mb: 2 }}>
           Current employees
         </Typography>
-        <Stack spacing={0} divider={<Divider flexItem />}>
+        <BulkRoleEditor
+          data={data}
+          refresh={refresh}
+          disabled={
+            saving ||
+            unconfirmed !== null ||
+            dirty ||
+            Object.values(individualAccessBlocked).some(Boolean)
+          }
+          onBlockingChange={setBulkAccessBlocked}
+        />
+        <Divider sx={{ my: 2 }} />
+        <Stack
+          spacing={0}
+          divider={<Divider flexItem />}
+          inert={bulkAccessBlocked}
+        >
           {data.employments.map((employment) => (
             <Stack
               key={employment.id}
@@ -649,11 +841,18 @@ export function EmploymentAdminPage() {
                 </Typography>
               </Stack>
               <EmploymentAccessEditor
+                key={JSON.stringify([
+                  employment.id,
+                  employment.membership_summary.active,
+                  employment.roles,
+                  employment.sites,
+                ])}
                 employment={employment}
                 roles={data.role_options}
                 sites={data.sites}
                 refresh={refresh}
                 setFeedback={setFeedback}
+                onBlockingChange={accessBlockingChanged}
               />
             </Stack>
           ))}
@@ -690,7 +889,7 @@ export function EmploymentAdminPage() {
             component="form"
             spacing={2.5}
             onSubmit={submit}
-            inert={unconfirmed !== null}
+            inert={unconfirmed !== null || bulkAccessBlocked}
           >
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary">
@@ -895,8 +1094,11 @@ export function EmploymentAdminPage() {
                 </Stack>
                 <Button
                   color="warning"
-                  disabled={saving}
-                  onClick={() => revokeInvitation(invitation.id)}
+                  disabled={saving || bulkAccessBlocked}
+                  onClick={() => {
+                    setInvitationRevokeAcknowledged(false);
+                    setInvitationToRevoke(invitation);
+                  }}
                 >
                   Revoke invitation
                 </Button>
@@ -905,6 +1107,56 @@ export function EmploymentAdminPage() {
           </Stack>
         </Paper>
       )}
+      <Dialog
+        open={invitationToRevoke !== null}
+        onClose={() => setInvitationToRevoke(null)}
+        aria-labelledby="revoke-invitation-title"
+      >
+        <DialogTitle id="revoke-invitation-title">
+          Revoke this employee invitation?
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            <Typography>
+              {invitationToRevoke?.display_name} ·{" "}
+              {invitationToRevoke?.email_address} · invitation{" "}
+              {invitationToRevoke?.id}
+            </Typography>
+            <Typography>
+              The invitation code and activation link will stop working. The
+              employee will need a new invitation to activate this login.
+            </Typography>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={invitationRevokeAcknowledged}
+                  onChange={(_, checked) =>
+                    setInvitationRevokeAcknowledged(checked)
+                  }
+                />
+              }
+              label="I intend to revoke this employee invitation"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInvitationToRevoke(null)}>Cancel</Button>
+          <Button
+            color="warning"
+            disabled={
+              saving || bulkAccessBlocked || !invitationRevokeAcknowledged
+            }
+            onClick={() => {
+              if (!invitationToRevoke) return;
+              const id = invitationToRevoke.id;
+              setInvitationToRevoke(null);
+              void revokeInvitation(id);
+            }}
+          >
+            Confirm invitation revoke
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
