@@ -38,6 +38,7 @@ import {
   clinicRoute,
   clinicRouteHref,
   clinicTarget,
+  confirmClinicNavigation,
   useClinicNavigation,
   type ClinicHomeView,
   type ClinicNavigateOptions,
@@ -726,13 +727,15 @@ function ClinicApplication({
     },
     [],
   );
-  const confirmNavigation = useCallback(() => {
-    const messages = [...blockerRef.current]
-      .map((blocker) => blocker())
-      .filter(Boolean);
-    const message = [...new Set(messages)].join("\n\n");
-    return !message || window.confirm(message);
-  }, []);
+  const confirmNavigation = useCallback(
+    (options?: { includeBeforeUnload?: boolean }) => {
+      return confirmClinicNavigation(
+        [...blockerRef.current].map((blocker) => blocker()),
+        options?.includeBeforeUnload,
+      );
+    },
+    [],
+  );
   const navigate = useCallback(
     (href: string, options: ClinicNavigateOptions = {}) => {
       const target = clinicTarget(href, window.location.origin);

@@ -3,6 +3,11 @@ import { Alert, Box, Button, Stack } from "@mui/material";
 import { api } from "../../api/client";
 import { isDemoFrame, notifyDemo } from "./frame";
 import type { NavigationConfirmation } from "./accountSwitch";
+import { confirmClinicNavigation } from "../clinic/clinicNavigation";
+import {
+  collectDemoNavigationBlockers,
+  type DemoNavigationBlockers,
+} from "./navigationBlockers";
 
 type FrameRun = {
   active: boolean;
@@ -49,6 +54,20 @@ const navigationTour = (run: FrameRun) =>
   run.run?.lesson_key === "navigation_tour";
 
 const sandboxRun = (run: FrameRun) => run.run?.sandbox === true;
+
+export function confirmUnregisteredDemoNavigation(
+  blockers: DemoNavigationBlockers = { blocked: false, messages: [] },
+) {
+  if (blockers.blocked) return false;
+  // Patient dialogs do not register clinic blockers. Require explicit discard
+  // consent even when no beforeunload handler reports their component draft.
+  return confirmClinicNavigation(
+    blockers.messages.length
+      ? blockers.messages
+      : ["Switch accounts and discard any unsaved changes?"],
+    true,
+  );
+}
 
 export function demoRouteAllowed(
   href: string,
@@ -109,19 +128,20 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         String(run.run.id) === data.runId &&
         run.run?.account?.user_id === data.userId
       ) {
+        const blockers = collectDemoNavigationBlockers();
         const detail: NavigationConfirmation = {
           handled: false,
           allowed: false,
         };
-        window.dispatchEvent(
-          new CustomEvent("demo:confirm-local-navigation", { detail }),
-        );
-        // Patient forms use the existing beforeunload protection instead of clinic navigation.
-        const unload = new Event("beforeunload", { cancelable: true });
-        allowed = detail.handled
-          ? detail.allowed
-          : window.dispatchEvent(unload) ||
-            window.confirm("Leave this workspace and discard unsaved changes?");
+        if (!blockers.blocked)
+          window.dispatchEvent(
+            new CustomEvent("demo:confirm-local-navigation", { detail }),
+          );
+        allowed = blockers.blocked
+          ? false
+          : detail.handled
+            ? detail.allowed
+            : confirmUnregisteredDemoNavigation(blockers);
       }
       window.parent.postMessage(
         { ...data, type: "demo:navigation-confirmed", allowed },
