@@ -19,13 +19,18 @@ import {DemoJourney} from '/src/features/demo/DemoJourney.tsx';
 import {DemoFrameBoundary} from '/src/features/demo/DemoFrameBoundary.tsx';
 import {PatientPortal} from '/src/features/patientPortal/PatientPortal.tsx';
 import {useDemoNavigationBlocker} from '/src/features/demo/navigationBlockers.ts';
-const readers = [];
+const readers = new Set();
 const add = window.addEventListener.bind(window);
+const remove = window.removeEventListener.bind(window);
 window.addEventListener = (type, reader, options) => {
-  if(type === 'message') readers.push(reader);
+  if(type === 'message') readers.add(reader);
   return add(type, reader, options);
 };
-window.qaSuspend = () => readers.forEach(reader => window.removeEventListener('message', reader));
+window.removeEventListener = (type, reader, options) => {
+  if(type === 'message') readers.delete(reader);
+  return remove(type, reader, options);
+};
+window.qaSuspend = () => readers.forEach(reader => remove('message', reader));
 window.qaRestore = () => readers.forEach(reader => add('message', reader));
 function Workspace() {
   const [draft,setDraft] = useState('');
