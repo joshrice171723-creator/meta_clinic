@@ -264,7 +264,8 @@ export function InvoiceCheckoutControls({
           </Typography>
         )}
         <Typography variant="body2" color="text.secondary">
-          Online payment amount: {subscriptionMoney(payment.amount, payment.currency)}
+          Online payment amount:{" "}
+          {subscriptionMoney(payment.amount, payment.currency)}
         </Typography>
         {payment.state === "unavailable" && (
           <Typography variant="body2" color="text.secondary">
@@ -353,7 +354,8 @@ export function InvoiceCheckoutControls({
             </Typography>
           )}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            Online payment amount: {subscriptionMoney(payment.amount, payment.currency)}
+            Online payment amount:{" "}
+            {subscriptionMoney(payment.amount, payment.currency)}
           </Typography>
           <Typography>
             {confirmation === "cancel"

@@ -143,7 +143,12 @@ function PatientDirectoryShape({
                   key={row}
                   direction="row"
                   spacing={2}
-                  sx={{ px: 1.5, py: 1.25, borderBottom: 1, borderColor: "divider" }}
+                  sx={{
+                    px: 1.5,
+                    py: 1.25,
+                    borderBottom: 1,
+                    borderColor: "divider",
+                  }}
                 >
                   {["22%", "18%", "18%", "16%", "12%"].map((width, index) => (
                     <Skeleton
@@ -200,13 +205,27 @@ function ScheduleShape({
                 key={row}
                 direction="row"
                 spacing={1}
-                sx={{ minHeight: 72, alignItems: "center", borderBottom: 1, borderColor: "divider" }}
+                sx={{
+                  minHeight: 72,
+                  alignItems: "center",
+                  borderBottom: 1,
+                  borderColor: "divider",
+                }}
               >
-                <Skeleton variant="text" animation={false} width={48} height={20} />
+                <Skeleton
+                  variant="text"
+                  animation={false}
+                  width={48}
+                  height={20}
+                />
                 {[0, 1, 2].map((lane) => (
                   <Box key={lane} sx={{ flex: 1, px: 0.5 }}>
                     {row % 3 === lane && (
-                      <Skeleton variant="rounded" animation={false} height={38} />
+                      <Skeleton
+                        variant="rounded"
+                        animation={false}
+                        height={38}
+                      />
                     )}
                   </Box>
                 ))}
@@ -220,7 +239,9 @@ function ScheduleShape({
 
   const monthCellCount = month
     ? new Date(`${month}-01T12:00:00Z`).getUTCDay() +
-      new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate()
+      new Date(
+        Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0),
+      ).getUTCDate()
     : 35;
 
   return (
@@ -251,7 +272,12 @@ function ScheduleShape({
               borderColor: "divider",
             }}
           >
-            <Skeleton variant="text" animation={false} width="28%" height={24} />
+            <Skeleton
+              variant="text"
+              animation={false}
+              width="28%"
+              height={24}
+            />
             <Skeleton variant="text" animation={false} width="62%" />
             <Skeleton variant="text" animation={false} width="54%" />
           </Box>

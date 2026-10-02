@@ -443,8 +443,10 @@ export type IntakeQuestionTaskSource = {
   source_revision_version: number | null;
   source_answer_state: string;
   source_available: boolean;
-  source_answer?: import("../features/patientPortal/IntakeQuestions").IntakeAnswer | null;
-  source_question?: import("../features/patientPortal/IntakeQuestions").IntakeField | null;
+  source_answer?:
+    import("../features/patientPortal/IntakeQuestions").IntakeAnswer | null;
+  source_question?:
+    import("../features/patientPortal/IntakeQuestions").IntakeField | null;
   source_form_id: string | null;
   source_questionnaire_version: number | null;
   source_recorded_by_membership_id: number | null;
@@ -461,7 +463,7 @@ export type IntakeQuestionTasksProjection = {
   patient_id: number;
   encounter_id: number;
   actor_membership_id: number;
-  eligible_assignees: Array<{membership_id: number; label: string}>;
+  eligible_assignees: Array<{ membership_id: number; label: string }>;
   sources: IntakeQuestionTaskSource[];
   links: IntakeQuestionTaskLink[];
   tasks: ClinicalTask[];
@@ -1476,11 +1478,7 @@ export type ServiceDisableImpact = {
     key: string;
     label: string;
     status:
-      | "available"
-      | "restricted"
-      | "unknown"
-      | "unavailable"
-      | "not_applicable";
+      "available" | "restricted" | "unknown" | "unavailable" | "not_applicable";
     count: number | null;
     note: string;
     required: boolean;
@@ -1497,7 +1495,9 @@ export type ServiceDisablePreview = {
   coverage: "source_backed_references";
   limitations: string[];
   services: Array<ServiceDisableImpact & { service: ClinicServiceCode }>;
-  assessments: Array<ServiceDisableImpact & { assessment: ClinicAssessmentCode }>;
+  assessments: Array<
+    ServiceDisableImpact & { assessment: ClinicAssessmentCode }
+  >;
 };
 export type PracticeFeatures = {
   site_id?: number | null;
@@ -1603,7 +1603,14 @@ export type Appointment = {
       mode: "required" | "not_required";
       site_id: number;
       service_offering_id: number;
-      resources: { id: number; name: string; kind: "chair" | "equipment"; room_id: number | null; active: boolean; version: number }[];
+      resources: {
+        id: number;
+        name: string;
+        kind: "chair" | "equipment";
+        room_id: number | null;
+        active: boolean;
+        version: number;
+      }[];
     } | null;
   } | null;
   reason?: string | null;

@@ -642,8 +642,7 @@ export function BillingIncomeOutlook() {
           ? "Choose a 3, 6 or 12 month outlook."
           : "");
   const updating =
-    initialized.current &&
-    (!nextRequest || appliedRequest !== nextRequest);
+    initialized.current && (!nextRequest || appliedRequest !== nextRequest);
   const selected =
     outlook?.currencies.find((item) => item.currency === currency) ??
     outlook?.currencies[0];

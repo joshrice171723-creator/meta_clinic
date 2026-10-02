@@ -238,7 +238,10 @@ function ScopedAuditEvents() {
           label="From (clinic date)"
           value={dateDraft.from}
           onChange={(event) => {
-            setDateDraft((current) => ({ ...current, from: event.target.value }));
+            setDateDraft((current) => ({
+              ...current,
+              from: event.target.value,
+            }));
             setDateError(undefined);
           }}
           size="small"
@@ -352,7 +355,8 @@ function ScopedAuditEvents() {
                           </Typography>
                         )}
                         <Typography variant="body2">
-                          {auditActor(event.actor_reference)} ({event.actor_reference})
+                          {auditActor(event.actor_reference)} (
+                          {event.actor_reference})
                         </Typography>
                       </TableCell>
                       <TableCell>{auditAction(event.action_code)}</TableCell>
