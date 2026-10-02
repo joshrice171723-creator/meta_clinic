@@ -346,7 +346,7 @@ module Development
       def prepare_enrollment!(run)
         finalize_clinic!(run)
         version_id = publish_membership!(run)
-        GuidedClinicDemo.enroll!(run:, version_id:, selections: []) unless run.patient_user_id
+        GuidedClinicDemo.enroll!(run:, version_id:, selections: []) unless run.patient_user_id && run.membership_prospect_id
       end
 
       def prepare_paid_patient!(run)
