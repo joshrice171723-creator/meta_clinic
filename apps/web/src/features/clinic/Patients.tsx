@@ -1432,8 +1432,8 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
     <Card title="Active visit">
       <p>
         Open encounter #{encounter.id}, started{" "}
-        {clinicDateTime(encounter.started_at, timezone)}. Confirm the patient and
-        encounter when resuming.
+        {clinicDateTime(encounter.started_at, timezone)}. Confirm the patient
+        and encounter when resuming.
       </p>
       <Button
         component="a"

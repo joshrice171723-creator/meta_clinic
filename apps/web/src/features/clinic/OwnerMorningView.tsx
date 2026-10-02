@@ -212,7 +212,11 @@ export function OwnerMorningView() {
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
-        sx={{ mb: 1.5, justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" } }}
+        sx={{
+          mb: 1.5,
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", sm: "center" },
+        }}
       >
         <Box>
           <Typography component="h2" variant="h6" id="owner-morning-heading">

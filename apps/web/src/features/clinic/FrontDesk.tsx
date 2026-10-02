@@ -619,7 +619,9 @@ function AppointmentDayQueue({
     if (!reschedule.outcomeUnconfirmed) {
       if (rescheduleResourceAvailability.issue) {
         setReschedule((current) =>
-          current ? { ...current, error: rescheduleResourceAvailability.issue } : current,
+          current
+            ? { ...current, error: rescheduleResourceAvailability.issue }
+            : current,
         );
         return;
       }
@@ -635,27 +637,36 @@ function AppointmentDayQueue({
     const expectedResourceRevision = reschedule.outcomeUnconfirmed
       ? reschedule.expectedResourceRevision
       : rescheduleResourceAvailability.data?.revision;
-    const requestBody = reschedule.outcomeUnconfirmed && reschedule.requestBody
-      ? reschedule.requestBody
-      : {
-          appointment: {
-            starts_at: startsAt.toISOString(),
-            ends_at: endsAt.toISOString(),
-            site_id: reschedule.siteId,
-            room_id: reschedule.roomId || null,
-            booked_clinician_id: reschedule.clinicianId,
-            visit_type_id: reschedule.visitTypeId,
-            service_offering_id: reschedule.serviceOfferingId || null,
-            ...(reschedule.serviceOfferingId
-              ? { expected_resource_revision: expectedResourceRevision }
-              : {}),
-            expected_updated_at: reschedule.appointment.updated_at,
-            request_key: reschedule.requestKey,
-            ...rescheduleOverbookRequest(reschedule),
-          },
-        };
+    const requestBody =
+      reschedule.outcomeUnconfirmed && reschedule.requestBody
+        ? reschedule.requestBody
+        : {
+            appointment: {
+              starts_at: startsAt.toISOString(),
+              ends_at: endsAt.toISOString(),
+              site_id: reschedule.siteId,
+              room_id: reschedule.roomId || null,
+              booked_clinician_id: reschedule.clinicianId,
+              visit_type_id: reschedule.visitTypeId,
+              service_offering_id: reschedule.serviceOfferingId || null,
+              ...(reschedule.serviceOfferingId
+                ? { expected_resource_revision: expectedResourceRevision }
+                : {}),
+              expected_updated_at: reschedule.appointment.updated_at,
+              request_key: reschedule.requestKey,
+              ...rescheduleOverbookRequest(reschedule),
+            },
+          };
     setReschedule((current) =>
-      current ? { ...current, busy: true, error: "", expectedResourceRevision, requestBody } : current,
+      current
+        ? {
+            ...current,
+            busy: true,
+            error: "",
+            expectedResourceRevision,
+            requestBody,
+          }
+        : current,
     );
     try {
       await api(`/api/clinic/appointments/${reschedule.appointment.id}`, {
@@ -697,9 +708,13 @@ function AppointmentDayQueue({
               ...current,
               busy: false,
               outcomeUnconfirmed,
-              expectedResourceRevision: outcomeUnconfirmed ? current.expectedResourceRevision : undefined,
+              expectedResourceRevision: outcomeUnconfirmed
+                ? current.expectedResourceRevision
+                : undefined,
               requestBody: outcomeUnconfirmed ? current.requestBody : undefined,
-              requestKey: outcomeUnconfirmed ? current.requestKey : crypto.randomUUID(),
+              requestKey: outcomeUnconfirmed
+                ? current.requestKey
+                : crypto.randomUUID(),
               error: outcomeUnconfirmed
                 ? `${message} The change was not retried. Keep these times and retry only after checking the schedule.`
                 : `${message} Review the appointment before trying again.`,
@@ -1077,11 +1092,17 @@ function AppointmentDayQueue({
         setupOptionsError={
           offerings.error || clinicians.error || visitTypes.error || rooms.error
         }
-        onChange={(next) => setReschedule(next ? {
-          ...next,
-          expectedResourceRevision: undefined,
-          requestBody: undefined,
-        } : next)}
+        onChange={(next) =>
+          setReschedule(
+            next
+              ? {
+                  ...next,
+                  expectedResourceRevision: undefined,
+                  requestBody: undefined,
+                }
+              : next,
+          )
+        }
         onClose={() => {
           if (!reschedule?.busy) setReschedule(undefined);
         }}
@@ -1184,7 +1205,11 @@ function AppointmentRow({
           </Typography>
         )}
         {appointment.room_code && <span>Room {appointment.room_code}</span>}
-        <BookedSchedulingResources snapshot={appointment.service_offering_snapshot?.resource_compatibility} />
+        <BookedSchedulingResources
+          snapshot={
+            appointment.service_offering_snapshot?.resource_compatibility
+          }
+        />
       </div>
       <div data-label="Status">
         <Chip size="small" label={status.label} color={status.color} />
@@ -1214,7 +1239,9 @@ function AppointmentRow({
           <span>Confirm and check-in require completed appointment setup.</span>
         )}
         {showDate && actions.canStartVisit && (
-          <span>Check-in is unavailable while this visit needs a new location.</span>
+          <span>
+            Check-in is unavailable while this visit needs a new location.
+          </span>
         )}
         {canTransition &&
           actions.canCancel &&
@@ -1696,7 +1723,9 @@ export function RescheduleDialog({
           {overbookPolicyError && (
             <Alert severity="warning">{overbookPolicyError}</Alert>
           )}
-          {resourceAvailability && <SchedulingResourceAvailability resource={resourceAvailability} />}
+          {resourceAvailability && (
+            <SchedulingResourceAvailability resource={resourceAvailability} />
+          )}
           {(draft?.overbookRequested ||
             (overbookPolicy?.can_overbook &&
               overbookPolicy.policy.overbook_enabled)) && (

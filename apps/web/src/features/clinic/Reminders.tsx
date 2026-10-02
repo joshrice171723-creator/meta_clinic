@@ -1078,9 +1078,9 @@ export function Reminders() {
       <Alert severity="info" sx={{ mb: 2 }}>
         <strong>Delivery history:</strong> statuses can include queued, accepted
         by the provider, delivered, failed, held by policy, unknown, suppressed,
-        or cancelled. These are recorded delivery states; provider acceptance
-        is not proof of delivery, and delivery is not proof that the patient
-        read the message.
+        or cancelled. These are recorded delivery states; provider acceptance is
+        not proof of delivery, and delivery is not proof that the patient read
+        the message.
       </Alert>
 
       <Paper

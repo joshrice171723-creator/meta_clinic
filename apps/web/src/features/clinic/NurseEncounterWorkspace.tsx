@@ -1200,8 +1200,8 @@ export function NurseEncounterWorkspaceContent({
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  Open any group to review its questions. Save and confirm groups
-                  in order; previewing a group does not complete it.
+                  Open any group to review its questions. Save and confirm
+                  groups in order; previewing a group does not complete it.
                 </Typography>
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;
