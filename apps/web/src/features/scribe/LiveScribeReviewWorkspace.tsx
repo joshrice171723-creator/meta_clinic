@@ -1255,14 +1255,10 @@ export function LiveScribeReviewWorkspace() {
       );
     }
     if (selectedDocumentId) {
-      actionHints.push(
-        "Template selection is fixed for this saved document.",
-      );
+      actionHints.push("Template selection is fixed for this saved document.");
     }
     if (encounter && processingAllowed && hasGrounding && !templateId) {
-      actionHints.push(
-        "Select an active template before generating a draft.",
-      );
+      actionHints.push("Select an active template before generating a draft.");
     }
   }
   const openRecordingDock = (startRecording: boolean) => {

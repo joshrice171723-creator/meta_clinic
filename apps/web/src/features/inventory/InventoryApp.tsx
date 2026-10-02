@@ -6558,34 +6558,97 @@ export function ReceivingScreen({
           </div>
         )}
         {receipt ? (
-          <div className="inventory-stack compact" aria-label="Recorded receipt details">
+          <div
+            className="inventory-stack compact"
+            aria-label="Recorded receipt details"
+          >
             <Alert severity="info">
-              This receipt is recorded. The details below are read-only; they do not
-              use the defaults for a new delivery.
+              This receipt is recorded. The details below are read-only; they do
+              not use the defaults for a new delivery.
             </Alert>
-            <DataPoint label="Receipt started" value={inventoryDateTime(receipt.started_at, data.timezone)} />
+            <DataPoint
+              label="Receipt started"
+              value={inventoryDateTime(receipt.started_at, data.timezone)}
+            />
             {receipt.lines.length === 0 && (
-              <Typography variant="body2">Recorded line details are unavailable.</Typography>
+              <Typography variant="body2">
+                Recorded line details are unavailable.
+              </Typography>
             )}
             {receipt.lines.map((recordedLine) => {
-              const recordedLot = data.lots.find((record) => record.id === recordedLine.lot_id);
+              const recordedLot = data.lots.find(
+                (record) => record.id === recordedLine.lot_id,
+              );
               const recordedProduct = recordedLot
-                ? data.products.find((record) => record.id === recordedLot.product_id)
+                ? data.products.find(
+                    (record) => record.id === recordedLot.product_id,
+                  )
                 : undefined;
-              const recordedLocation = data.locations.find((record) => record.id === recordedLine.location_id);
+              const recordedLocation = data.locations.find(
+                (record) => record.id === recordedLine.location_id,
+              );
               return (
                 <div key={recordedLine.id} className="inventory-data-grid two">
-                  <DataPoint label="Product" value={recordedProduct?.name ?? "Product details unavailable"} />
-                  <DataPoint label="Recorded lot" value={recordedLot?.lot_number ?? "Lot details unavailable"} />
-                  <DataPoint label="Lot expiration" value={recordedLot ? inventoryDate(recordedLot.expiration_date, data.timezone) : "Not available"} />
-                  <DataPoint label="Accepted packages" value={number(recordedLine.quantity_packages)} />
-                  <DataPoint label="Accepted stock units" value={number(recordedLine.quantity_units)} />
-                  <DataPoint label="Recorded destination" value={recordedLocation?.path ?? recordedLocation?.name ?? "Location details unavailable"}
-                    detail={`Location reference: ${recordedLine.location_id}`} />
-                  <DataPoint label="Recorded area" value={recordedLine.area_id || "Not recorded"} />
-                  <DataPoint label="Recorded temperature (°C)" value={recordedLine.temperature_c ?? "Not recorded"} />
-                  <DataPoint label="Disposition" value={recordedLine.disposition?.replaceAll("_", " ") || "Not recorded"} />
-                  <DataPoint label="Exception" value={recordedLine.exception?.replaceAll("_", " ") || "Not recorded"} />
+                  <DataPoint
+                    label="Product"
+                    value={
+                      recordedProduct?.name ?? "Product details unavailable"
+                    }
+                  />
+                  <DataPoint
+                    label="Recorded lot"
+                    value={recordedLot?.lot_number ?? "Lot details unavailable"}
+                  />
+                  <DataPoint
+                    label="Lot expiration"
+                    value={
+                      recordedLot
+                        ? inventoryDate(
+                            recordedLot.expiration_date,
+                            data.timezone,
+                          )
+                        : "Not available"
+                    }
+                  />
+                  <DataPoint
+                    label="Accepted packages"
+                    value={number(recordedLine.quantity_packages)}
+                  />
+                  <DataPoint
+                    label="Accepted stock units"
+                    value={number(recordedLine.quantity_units)}
+                  />
+                  <DataPoint
+                    label="Recorded destination"
+                    value={
+                      recordedLocation?.path ??
+                      recordedLocation?.name ??
+                      "Location details unavailable"
+                    }
+                    detail={`Location reference: ${recordedLine.location_id}`}
+                  />
+                  <DataPoint
+                    label="Recorded area"
+                    value={recordedLine.area_id || "Not recorded"}
+                  />
+                  <DataPoint
+                    label="Recorded temperature (°C)"
+                    value={recordedLine.temperature_c ?? "Not recorded"}
+                  />
+                  <DataPoint
+                    label="Disposition"
+                    value={
+                      recordedLine.disposition?.replaceAll("_", " ") ||
+                      "Not recorded"
+                    }
+                  />
+                  <DataPoint
+                    label="Exception"
+                    value={
+                      recordedLine.exception?.replaceAll("_", " ") ||
+                      "Not recorded"
+                    }
+                  />
                 </div>
               );
             })}
@@ -6597,264 +6660,266 @@ export function ReceivingScreen({
           </div>
         ) : (
           <>
-        <InventoryScanInput
-          context="receiving"
-          productId={item.id}
-          disabled={scanDisabled || busy}
-          label="Scan selected purchase-order product"
-          manualFallback="Select the purchase-order line manually and verify the product label."
-          onMatch={() => undefined}
-        />
-        {shipment.reconciliation && (
-          <Alert severity="info">
-            {number(shipment.reconciliation.accepted_packages)} accepted,{" "}
-            {number(shipment.reconciliation.missing_packages)} missing,{" "}
-            {number(shipment.reconciliation.rejected_packages)} rejected and{" "}
-            {number(shipment.reconciliation.excess_packages)} excess packages
-            refused. {shipment.reconciliation.reason}
-          </Alert>
-        )}
-        {recall && accepted && (
-          <div className="inventory-warning" role="alert">
-            <strong>
-              Recall {matchingRecalls.length === 1 ? "match" : "matches"}:{" "}
-              {matchingRecalls.map((record) => record.reference).join(", ")}
-            </strong>
-            <p>
-              This lot matches {matchingRecalls.length} open recall{" "}
-              {matchingRecalls.length === 1 ? "case" : "cases"} and must be
-              received into a quarantine location.
-            </p>
-          </div>
-        )}
-        <div className="inventory-data-grid two">
-          <Field label="Product / package">
-            <input
-              value={`${item.name} · ${number(line.units_per_package)} ${baseUnit} per ordered ${packageUnit}`}
-              readOnly
+            <InventoryScanInput
+              context="receiving"
+              productId={item.id}
+              disabled={scanDisabled || busy}
+              label="Scan selected purchase-order product"
+              manualFallback="Select the purchase-order line manually and verify the product label."
+              onMatch={() => undefined}
             />
-          </Field>
-          <Field label="Lot number">
-            <input
-              value={displayedLot}
-              readOnly={!!shipment.reconciliation}
-              onChange={(event) => selectLot(event.target.value)}
-            />
-          </Field>
-          <Field label="Expiration">
-            <input
-              type="date"
-              value={
-                shipment.reconciliation
-                  ? (recordedObservation?.expires_on ?? "")
-                  : expirationDate
-              }
-              readOnly={!!shipment.reconciliation}
-              onChange={(event) => setExpirationDate(event.target.value)}
-            />
-          </Field>
-          <TextField
-            size="small"
-            label={`Accepted (${packageUnit})`}
-            value={packages}
-            disabled={busy || !!receipt || !!shipment.reconciliation}
-            slotProps={{ htmlInput: { inputMode: "numeric" } }}
-            onChange={(event) => setPackages(event.target.value)}
-            helperText={
-              countsValid
-                ? `Stock-unit equivalent: ${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit}`
-                : "Enter whole package counts."
-            }
-          />
-          <TextField
-            size="small"
-            label="Missing packages"
-            value={missingPackages}
-            disabled={busy || !!receipt || !!shipment.reconciliation}
-            slotProps={{ htmlInput: { inputMode: "numeric" } }}
-            onChange={(event) => setMissingPackages(event.target.value)}
-          />
-          <TextField
-            size="small"
-            label="Rejected packages"
-            value={rejectedPackages}
-            disabled={busy || !!receipt || !!shipment.reconciliation}
-            slotProps={{ htmlInput: { inputMode: "numeric" } }}
-            onChange={(event) => setRejectedPackages(event.target.value)}
-            helperText="Expected packages refused at receiving; no stock is added."
-          />
-          <TextField
-            size="small"
-            label="Excess packages refused"
-            value={excessPackages}
-            disabled={busy || !!receipt || !!shipment.reconciliation}
-            slotProps={{ htmlInput: { inputMode: "numeric" } }}
-            onChange={(event) => setExcessPackages(event.target.value)}
-            helperText="Additional unaccepted packages beyond this delivery allocation."
-          />
-          {hasDiscrepancy && (
-            <TextField
-              select
-              size="small"
-              label="Discrepancy"
-              value={exceptionKind}
-              disabled={busy || !!receipt || !!shipment.reconciliation}
-              onChange={(event) => setExceptionKind(event.target.value)}
-            >
-              {[
-                ["short_delivery", "Short delivery"],
-                ["damaged", "Damaged goods"],
-                ["wrong_item", "Wrong item"],
-                ["wrong_lot", "Wrong lot"],
-                ["temperature", "Temperature exception"],
-                ["expiry", "Expiry exception"],
-                ["excess", "Excess delivery"],
-                ["other", "Other discrepancy"],
-              ].map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-          <Field label="Temperature (°C)">
-            <input
-              value={
-                shipment.reconciliation
-                  ? (recordedObservation?.temperature_c ?? "")
-                  : temperature
-              }
-              readOnly={!!shipment.reconciliation}
-              onChange={(event) => setTemperature(event.target.value)}
-            />
-          </Field>
-          <Field label="Destination">
-            <select
-              value={destination?.id ?? ""}
-              onChange={(event) => {
-                const selected = data.locations.find(
-                  (record) => record.id === event.target.value,
-                );
-                setDestinationId(event.target.value);
-                setAreaId(selected?.areas[0] ?? "");
-              }}
-            >
-              {eligibleLocations.map((record) => (
-                <option key={record.id} value={record.id}>
-                  {record.path}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {eligibleLocations.length === 0 && (
-            <Alert severity="warning">
-              {recall
-                ? "Create an active quarantine leaf location before receiving this recalled lot."
-                : "Create an active leaf location before receiving stock."}
-              <Button
-                href="/clinic/inventory/locations?return_to=/clinic/inventory/receiving"
-                color="inherit"
-                sx={{ ml: 1 }}
-              >
-                Manage storage locations
-              </Button>
-            </Alert>
-          )}
-          {destination && destination.areas.length > 0 && (
-            <Field label="Area">
-              <select
-                value={effectiveAreaId}
-                onChange={(event) => setAreaId(event.target.value)}
-              >
-                {destination.areas.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-          <Field label="Reason">
-            <input
-              value={shipment.reconciliation?.reason ?? reason}
-              readOnly={!!shipment.reconciliation}
-              onChange={(event) => setReason(event.target.value)}
-            />
-          </Field>
-        </div>
-        {!balanced && (
-          <Alert severity="warning">
-            Accepted + missing + rejected packages must equal{" "}
-            {number(allocation?.expected_packages ?? "0")} expected packages.
-          </Alert>
-        )}
-        <div className="inventory-form-actions">
-          <PermissionNote
-            allowed={capability(data, "inventory.receive")}
-            permission="inventory.receive"
-          />
-          {lookupLot &&
-            displayedLot.trim() &&
-            !lookupReady &&
-            (lookupMatches && lotLookup?.error ? (
-              <Alert
-                severity="error"
-                action={
+            {shipment.reconciliation && (
+              <Alert severity="info">
+                {number(shipment.reconciliation.accepted_packages)} accepted,{" "}
+                {number(shipment.reconciliation.missing_packages)} missing,{" "}
+                {number(shipment.reconciliation.rejected_packages)} rejected and{" "}
+                {number(shipment.reconciliation.excess_packages)} excess
+                packages refused. {shipment.reconciliation.reason}
+              </Alert>
+            )}
+            {recall && accepted && (
+              <div className="inventory-warning" role="alert">
+                <strong>
+                  Recall {matchingRecalls.length === 1 ? "match" : "matches"}:{" "}
+                  {matchingRecalls.map((record) => record.reference).join(", ")}
+                </strong>
+                <p>
+                  This lot matches {matchingRecalls.length} open recall{" "}
+                  {matchingRecalls.length === 1 ? "case" : "cases"} and must be
+                  received into a quarantine location.
+                </p>
+              </div>
+            )}
+            <div className="inventory-data-grid two">
+              <Field label="Product / package">
+                <input
+                  value={`${item.name} · ${number(line.units_per_package)} ${baseUnit} per ordered ${packageUnit}`}
+                  readOnly
+                />
+              </Field>
+              <Field label="Lot number">
+                <input
+                  value={displayedLot}
+                  readOnly={!!shipment.reconciliation}
+                  onChange={(event) => selectLot(event.target.value)}
+                />
+              </Field>
+              <Field label="Expiration">
+                <input
+                  type="date"
+                  value={
+                    shipment.reconciliation
+                      ? (recordedObservation?.expires_on ?? "")
+                      : expirationDate
+                  }
+                  readOnly={!!shipment.reconciliation}
+                  onChange={(event) => setExpirationDate(event.target.value)}
+                />
+              </Field>
+              <TextField
+                size="small"
+                label={`Accepted (${packageUnit})`}
+                value={packages}
+                disabled={busy || !!receipt || !!shipment.reconciliation}
+                slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                onChange={(event) => setPackages(event.target.value)}
+                helperText={
+                  countsValid
+                    ? `Stock-unit equivalent: ${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit}`
+                    : "Enter whole package counts."
+                }
+              />
+              <TextField
+                size="small"
+                label="Missing packages"
+                value={missingPackages}
+                disabled={busy || !!receipt || !!shipment.reconciliation}
+                slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                onChange={(event) => setMissingPackages(event.target.value)}
+              />
+              <TextField
+                size="small"
+                label="Rejected packages"
+                value={rejectedPackages}
+                disabled={busy || !!receipt || !!shipment.reconciliation}
+                slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                onChange={(event) => setRejectedPackages(event.target.value)}
+                helperText="Expected packages refused at receiving; no stock is added."
+              />
+              <TextField
+                size="small"
+                label="Excess packages refused"
+                value={excessPackages}
+                disabled={busy || !!receipt || !!shipment.reconciliation}
+                slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                onChange={(event) => setExcessPackages(event.target.value)}
+                helperText="Additional unaccepted packages beyond this delivery allocation."
+              />
+              {hasDiscrepancy && (
+                <TextField
+                  select
+                  size="small"
+                  label="Discrepancy"
+                  value={exceptionKind}
+                  disabled={busy || !!receipt || !!shipment.reconciliation}
+                  onChange={(event) => setExceptionKind(event.target.value)}
+                >
+                  {[
+                    ["short_delivery", "Short delivery"],
+                    ["damaged", "Damaged goods"],
+                    ["wrong_item", "Wrong item"],
+                    ["wrong_lot", "Wrong lot"],
+                    ["temperature", "Temperature exception"],
+                    ["expiry", "Expiry exception"],
+                    ["excess", "Excess delivery"],
+                    ["other", "Other discrepancy"],
+                  ].map(([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              <Field label="Temperature (°C)">
+                <input
+                  value={
+                    shipment.reconciliation
+                      ? (recordedObservation?.temperature_c ?? "")
+                      : temperature
+                  }
+                  readOnly={!!shipment.reconciliation}
+                  onChange={(event) => setTemperature(event.target.value)}
+                />
+              </Field>
+              <Field label="Destination">
+                <select
+                  value={destination?.id ?? ""}
+                  onChange={(event) => {
+                    const selected = data.locations.find(
+                      (record) => record.id === event.target.value,
+                    );
+                    setDestinationId(event.target.value);
+                    setAreaId(selected?.areas[0] ?? "");
+                  }}
+                >
+                  {eligibleLocations.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {record.path}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {eligibleLocations.length === 0 && (
+                <Alert severity="warning">
+                  {recall
+                    ? "Create an active quarantine leaf location before receiving this recalled lot."
+                    : "Create an active leaf location before receiving stock."}
                   <Button
-                    onClick={() => {
-                      setLotLookup(undefined);
-                      setLotLookupAttempt((attempt) => attempt + 1);
-                    }}
+                    href="/clinic/inventory/locations?return_to=/clinic/inventory/receiving"
+                    color="inherit"
+                    sx={{ ml: 1 }}
                   >
-                    Retry lot check
+                    Manage storage locations
                   </Button>
+                </Alert>
+              )}
+              {destination && destination.areas.length > 0 && (
+                <Field label="Area">
+                  <select
+                    value={effectiveAreaId}
+                    onChange={(event) => setAreaId(event.target.value)}
+                  >
+                    {destination.areas.map((area) => (
+                      <option key={area} value={area}>
+                        {area}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <Field label="Reason">
+                <input
+                  value={shipment.reconciliation?.reason ?? reason}
+                  readOnly={!!shipment.reconciliation}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </Field>
+            </div>
+            {!balanced && (
+              <Alert severity="warning">
+                Accepted + missing + rejected packages must equal{" "}
+                {number(allocation?.expected_packages ?? "0")} expected
+                packages.
+              </Alert>
+            )}
+            <div className="inventory-form-actions">
+              <PermissionNote
+                allowed={capability(data, "inventory.receive")}
+                permission="inventory.receive"
+              />
+              {lookupLot &&
+                displayedLot.trim() &&
+                !lookupReady &&
+                (lookupMatches && lotLookup?.error ? (
+                  <Alert
+                    severity="error"
+                    action={
+                      <Button
+                        onClick={() => {
+                          setLotLookup(undefined);
+                          setLotLookupAttempt((attempt) => attempt + 1);
+                        }}
+                      >
+                        Retry lot check
+                      </Button>
+                    }
+                  >
+                    {lotLookup.error} Check this lot before accepting stock.
+                  </Alert>
+                ) : (
+                  <p role="status">Checking lot expiry and recall records…</p>
+                ))}
+              <ConfirmButton
+                disabled={
+                  busy ||
+                  !!receipt ||
+                  !!shipment.reconciliation ||
+                  !capability(data, "inventory.receive") ||
+                  (accepted &&
+                    (!destination ||
+                      !lotNumber.trim() ||
+                      !expirationDate ||
+                      !lookupReady)) ||
+                  !reason.trim() ||
+                  !allocation ||
+                  !balanced
+                }
+                onConfirm={confirm}
+                confirmationTitle={
+                  hasDiscrepancy
+                    ? "Reconcile this delivery?"
+                    : "Confirm this receipt?"
+                }
+                confirmationContent={
+                  <p>
+                    {number(packages)} packages accepted;{" "}
+                    {number(missingPackages)} missing;{" "}
+                    {number(rejectedPackages)} rejected;{" "}
+                    {number(excessPackages)} excess refused. Only accepted
+                    packages enter inventory. Missing and rejected packages
+                    remain outstanding on the PO.
+                  </p>
                 }
               >
-                {lotLookup.error} Check this lot before accepting stock.
-              </Alert>
-            ) : (
-              <p role="status">Checking lot expiry and recall records…</p>
-            ))}
-          <ConfirmButton
-            disabled={
-              busy ||
-              !!receipt ||
-              !!shipment.reconciliation ||
-              !capability(data, "inventory.receive") ||
-              (accepted &&
-                (!destination ||
-                  !lotNumber.trim() ||
-                  !expirationDate ||
-                  !lookupReady)) ||
-              !reason.trim() ||
-              !allocation ||
-              !balanced
-            }
-            onConfirm={confirm}
-            confirmationTitle={
-              hasDiscrepancy
-                ? "Reconcile this delivery?"
-                : "Confirm this receipt?"
-            }
-            confirmationContent={
-              <p>
-                {number(packages)} packages accepted; {number(missingPackages)}{" "}
-                missing; {number(rejectedPackages)} rejected;{" "}
-                {number(excessPackages)} excess refused. Only accepted packages
-                enter inventory. Missing and rejected packages remain
-                outstanding on the PO.
-              </p>
-            }
-          >
-            {shipment.reconciliation
-              ? "Delivery reconciled"
-              : receipt
-                ? "Receipt recorded"
-                : hasDiscrepancy
-                  ? "Reconcile delivery"
-                  : "Confirm receipt"}
-          </ConfirmButton>
-        </div>
+                {shipment.reconciliation
+                  ? "Delivery reconciled"
+                  : receipt
+                    ? "Receipt recorded"
+                    : hasDiscrepancy
+                      ? "Reconcile delivery"
+                      : "Confirm receipt"}
+              </ConfirmButton>
+            </div>
           </>
         )}
         {receiptLine && (

@@ -132,7 +132,9 @@ export function appointmentTimeRange(
       clinicDateValue(startsAt, timezone) !== clinicDateValue(endsAt, timezone);
     const format = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
-      ...(crossesDay ? { month: "short" as const, day: "numeric" as const } : {}),
+      ...(crossesDay
+        ? { month: "short" as const, day: "numeric" as const }
+        : {}),
       hour: "numeric",
       minute: "2-digit",
       timeZoneName: "short",

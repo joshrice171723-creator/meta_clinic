@@ -2324,7 +2324,9 @@ function ScopedWorkInbox() {
                       work.loading || work.data.offboarded_tasks_page.page <= 1
                     }
                     onClick={() =>
-                      setOffboardedPage(work.data!.offboarded_tasks_page.page - 1)
+                      setOffboardedPage(
+                        work.data!.offboarded_tasks_page.page - 1,
+                      )
                     }
                   >
                     Previous
@@ -2335,7 +2337,9 @@ function ScopedWorkInbox() {
                       work.data.offboarded_tasks_page.total_pages
                     }
                     onClick={() =>
-                      setOffboardedPage(work.data!.offboarded_tasks_page.page + 1)
+                      setOffboardedPage(
+                        work.data!.offboarded_tasks_page.page + 1,
+                      )
                     }
                   >
                     Next
@@ -2459,35 +2463,35 @@ function ScopedWorkInbox() {
           {!anyLoading &&
             patientFlowItemCount === 0 &&
             sourceErrors.length === 0 && (
-            <Box sx={{ py: 5, textAlign: "center" }}>
-              <AssignmentOutlinedIcon
-                sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
-              />
-              <Typography variant="h6">
-                {hasOtherSourcePages
-                  ? "No matching work on the loaded pages"
-                  : "No matching work"}
-              </Typography>
-              <Typography color="text.secondary">
-                {hasOtherSourcePages
-                  ? "Filters apply to the loaded pages. Navigate source pages to check the remaining work."
-                  : "Try another scope or work type. New authorized work will appear here when it is created."}
-              </Typography>
-            </Box>
-          )}
+              <Box sx={{ py: 5, textAlign: "center" }}>
+                <AssignmentOutlinedIcon
+                  sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
+                />
+                <Typography variant="h6">
+                  {hasOtherSourcePages
+                    ? "No matching work on the loaded pages"
+                    : "No matching work"}
+                </Typography>
+                <Typography color="text.secondary">
+                  {hasOtherSourcePages
+                    ? "Filters apply to the loaded pages. Navigate source pages to check the remaining work."
+                    : "Try another scope or work type. New authorized work will appear here when it is created."}
+                </Typography>
+              </Box>
+            )}
           {!anyLoading &&
             patientFlowItemCount === 0 &&
             sourceErrors.length > 0 && (
-            <Box sx={{ py: 5, textAlign: "center" }}>
-              <Typography variant="h6">
-                No work is available from the loaded queues
-              </Typography>
-              <Typography color="text.secondary">
-                Retry the unavailable sources before treating this view as
-                clear.
-              </Typography>
-            </Box>
-          )}
+              <Box sx={{ py: 5, textAlign: "center" }}>
+                <Typography variant="h6">
+                  No work is available from the loaded queues
+                </Typography>
+                <Typography color="text.secondary">
+                  Retry the unavailable sources before treating this view as
+                  clear.
+                </Typography>
+              </Box>
+            )}
           {canLoadScheduledVisits && (
             <Paper
               component="section"
