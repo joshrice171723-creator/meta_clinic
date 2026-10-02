@@ -260,7 +260,10 @@ describe("system appearance and UI scope", () => {
       const html = renderToStaticMarkup(
         <ClinicNavigation capabilities={capabilities} path={path} />,
       );
-      expect(html).toContain('href="/clinic/patients" aria-current="page"');
+      const patientsLink = html.match(
+        /<a\b[^>]*href="\/clinic\/patients"[^>]*>/,
+      )?.[0];
+      expect(patientsLink).toContain('aria-current="page"');
       expect(html.match(/aria-current="page"/g)).toHaveLength(1);
       expect(html).not.toContain("/clinic/staff");
     }
@@ -283,7 +286,16 @@ describe("system appearance and UI scope", () => {
         path="/clinic"
       />,
     );
-    expect(restricted.match(/<a /g)).toHaveLength(3);
+    expect(
+      [...restricted.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map(
+        (match) => match[1],
+      ),
+    ).toEqual([
+      "/clinic/work",
+      "/clinic/operations",
+      "/clinic/operations#connectors-transmissions",
+      "/clinic/settings",
+    ]);
     expect(restricted.match(/<button /g)).toBeNull();
     expect(restricted).toContain("/clinic/work");
     expect(restricted).toContain("/clinic/operations");

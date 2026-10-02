@@ -151,6 +151,12 @@ export function ClinicAppearanceScope({
                 minHeight: 44,
                 fontSize: CLINIC_TYPOGRAPHY.button.fontSize,
                 lineHeight: CLINIC_TYPOGRAPHY.button.lineHeight,
+                whiteSpace: "normal",
+                overflowWrap: "normal",
+                wordBreak: "normal",
+                maxWidth: "100%",
+                overflowX: "auto",
+                justifyContent: "safe center",
                 textTransform: "none",
                 fontWeight: 650,
                 ...(preferences.palette === "astra"

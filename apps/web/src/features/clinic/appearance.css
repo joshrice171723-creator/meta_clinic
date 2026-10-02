@@ -349,7 +349,8 @@
   font-family: var(--clinic-font-ui);
   font-size: 16px;
   line-height: var(--clinic-body-line-height);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .clinic-theme ::selection {
   background: var(--clinic-accent);
@@ -482,6 +483,12 @@
   border-color: var(--clinic-control);
   min-height: 44px;
   font-size: 16px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  overflow-x: auto;
+  justify-content: safe center;
 }
 .clinic-theme .text-link {
   color: var(--clinic-accent);
@@ -504,12 +511,15 @@
   padding: 14px 18px;
   border-radius: var(--clinic-radius-control);
   font-size: 16px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  overflow-x: auto;
 }
 .clinic-theme .form-success {
   color: var(--clinic-success);
   background: var(--clinic-success-bg);
   font-size: 16px;
+  overflow-wrap: normal;
+  overflow-x: auto;
 }
 .clinic-theme .form-success p {
   color: inherit;
@@ -568,7 +578,24 @@
 .clinic-theme .settings-account {
   color: var(--clinic-text);
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.clinic-theme .material-body,
+.clinic-theme .preserve-lines {
+  overflow-wrap: normal;
+  word-break: normal;
+  overflow-x: auto;
+}
+.clinic-theme code {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: pre;
+  overflow-x: auto;
 }
 .clinic-theme .settings-form > fieldset {
   display: grid;
