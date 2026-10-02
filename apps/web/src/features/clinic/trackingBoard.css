@@ -678,18 +678,44 @@
   max-width: 1080px;
 }
 @media (min-width: 761px) {
+  .clinic-theme .tracking-board {
+    display: flex;
+    flex-direction: column;
+    height: var(--tracking-workspace-height, auto);
+    min-height: 0;
+  }
+  .clinic-theme .tracking-board > :not(.tracking-table-container) {
+    flex: 0 0 auto;
+  }
   .clinic-theme .tracking-board-header {
     margin-bottom: 8px;
     padding-bottom: 6px;
+  }
+  .clinic-theme .tracking-board-header > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    flex: 1 1 420px;
+    min-width: 0;
   }
   .clinic-theme .tracking-board-header h1 {
     font-size: 1.5rem;
   }
   .clinic-theme .tracking-board-date {
     font-size: 0.875rem;
+    margin: 0;
+  }
+  .clinic-theme .tracking-board-toolbar {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
   }
   .clinic-theme .tracking-stage-filters {
-    margin-bottom: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
   }
   .clinic-theme .tracking-stage-filters button {
     min-height: 36px;
@@ -700,10 +726,17 @@
     font-size: 14px;
   }
   .clinic-theme .tracking-tools {
-    margin-bottom: 6px;
+    flex: 0 0 auto;
+    margin-bottom: 0;
+  }
+  .clinic-theme .tracking-column-selector summary {
+    min-height: 36px;
+    padding-block: 6px;
   }
   .clinic-theme .tracking-table-container {
-    max-height: max(12rem, calc(100dvh - 22rem));
+    flex: 1 1 0;
+    min-height: 12rem;
+    max-height: none;
   }
   .clinic-theme .tracking-table-container .MuiTableCell-body {
     padding: 6px 8px;
@@ -804,6 +837,7 @@
 @media (min-width: 761px) and (pointer: coarse),
   (min-width: 761px) and (max-width: 1024px) {
   .clinic-theme .tracking-stage-filters button,
+  .clinic-theme .tracking-column-selector summary,
   .clinic-theme .tracking-intake-ownership > .MuiButton-root,
   .clinic-theme .tracking-provider-value {
     min-height: 44px;

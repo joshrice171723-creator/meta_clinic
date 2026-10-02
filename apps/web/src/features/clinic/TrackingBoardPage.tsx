@@ -1371,6 +1371,39 @@ export function TrackingBoardView({
   ) => Promise<void>;
   clinicians?: readonly BoardClinician[];
 }) {
+  const boardElement = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const board = boardElement.current;
+    const workspace = board?.closest(".clinic-main") ?? board?.parentElement;
+    if (!board || !workspace) return;
+    const fitWorkspace = () => {
+      if (window.matchMedia("(max-width: 760px)").matches) {
+        board.style.removeProperty("--tracking-workspace-height");
+        return;
+      }
+      const padding =
+        Number.parseFloat(
+          getComputedStyle(board.parentElement!).paddingBottom,
+        ) || 0;
+      const bottom = Math.min(
+        workspace.getBoundingClientRect().bottom,
+        window.innerHeight,
+      );
+      const height = Math.max(
+        0,
+        bottom - board.getBoundingClientRect().top - padding,
+      );
+      board.style.setProperty("--tracking-workspace-height", `${height}px`);
+    };
+    fitWorkspace();
+    const observer = new ResizeObserver(fitWorkspace);
+    observer.observe(workspace);
+    window.addEventListener("resize", fitWorkspace);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", fitWorkspace);
+    };
+  }, []);
   const boardParams = new URLSearchParams(
     typeof window === "undefined" ? "" : window.location.search,
   );
@@ -1644,7 +1677,11 @@ export function TrackingBoardView({
   };
   const boardDate = formatBoardDate(now, timezone);
   return (
-    <section className="tracking-board" aria-label="Tracking Board">
+    <section
+      ref={boardElement}
+      className="tracking-board"
+      aria-label="Tracking Board"
+    >
       <header className="tracking-board-header">
         <div>
           <h1>Tracking Board</h1>
@@ -1690,89 +1727,91 @@ export function TrackingBoardView({
           still shown.
         </p>
       )}
-      <div className="tracking-stage-filters" aria-label="Filter visits">
-        <Button
-          type="button"
-          variant="outlined"
-          aria-pressed={patientFilter === "mine"}
-          onClick={() => selectDesktopFilter("mine")}
-        >
-          <span>My patients</span>
-          <strong>{myPatients.length}</strong>
-        </Button>
-        {stageOptions.map((s) => (
+      <div className="tracking-board-toolbar">
+        <div className="tracking-stage-filters" aria-label="Filter visits">
           <Button
             type="button"
             variant="outlined"
-            key={s.id}
-            aria-pressed={
-              stage === s.id && (s.id !== "all" || patientFilter === "all")
-            }
-            onClick={() => selectDesktopFilter(s.id)}
+            aria-pressed={patientFilter === "mine"}
+            onClick={() => selectDesktopFilter("mine")}
           >
-            <span>{s.label}</span>
-            <strong>
-              {s.id === "all" ? visits.length : (stageCounts[s.id] ?? 0)}
-            </strong>
+            <span>My patients</span>
+            <strong>{myPatients.length}</strong>
           </Button>
-        ))}
-      </div>
-      <div className="tracking-tools">
-        <div className="tracking-stage-select">
-          <label htmlFor="board-stage">Visit stage</label>
-          <select
-            id="board-stage"
-            value={stage}
-            onChange={(e) => setStage(e.target.value)}
-          >
-            {stageOptions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label} (
-                {s.id === "all" ? stageCounts.all : (stageCounts[s.id] ?? 0)})
-              </option>
-            ))}
-          </select>
+          {stageOptions.map((s) => (
+            <Button
+              type="button"
+              variant="outlined"
+              key={s.id}
+              aria-pressed={
+                stage === s.id && (s.id !== "all" || patientFilter === "all")
+              }
+              onClick={() => selectDesktopFilter(s.id)}
+            >
+              <span>{s.label}</span>
+              <strong>
+                {s.id === "all" ? visits.length : (stageCounts[s.id] ?? 0)}
+              </strong>
+            </Button>
+          ))}
         </div>
-        <div className="tracking-patient-select">
-          <label htmlFor="board-patient-filter">Patient view</label>
-          <select
-            id="board-patient-filter"
-            value={patientFilter}
-            onChange={(event) =>
-              setPatientFilter(event.target.value as "all" | "mine")
-            }
-          >
-            <option value="all">All patients ({visits.length})</option>
-            <option value="mine">My patients ({myPatients.length})</option>
-          </select>
-        </div>
-        <details
-          className="tracking-column-selector"
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || !event.currentTarget.open) return;
-
-            event.preventDefault();
-            event.currentTarget.open = false;
-            event.currentTarget.querySelector("summary")?.focus();
-          }}
-        >
-          <summary>Columns</summary>
-          <div role="group" aria-label="Choose tracking board columns">
-            {allColumns.map((column) => (
-              <label key={column} htmlFor={`tracking-column-${column}`}>
-                <input
-                  id={`tracking-column-${column}`}
-                  aria-label={`Show ${columnLabels[column]} column`}
-                  type="checkbox"
-                  checked={columns.includes(column)}
-                  disabled={columns.length === 1 && columns[0] === column}
-                  onChange={() => toggleColumn(column)}
-                />
-                {columnLabels[column]}
-              </label>
-            ))}
+        <div className="tracking-tools">
+          <div className="tracking-stage-select">
+            <label htmlFor="board-stage">Visit stage</label>
+            <select
+              id="board-stage"
+              value={stage}
+              onChange={(e) => setStage(e.target.value)}
+            >
+              {stageOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label} (
+                  {s.id === "all" ? stageCounts.all : (stageCounts[s.id] ?? 0)})
+                </option>
+              ))}
+            </select>
           </div>
-        </details>
+          <div className="tracking-patient-select">
+            <label htmlFor="board-patient-filter">Patient view</label>
+            <select
+              id="board-patient-filter"
+              value={patientFilter}
+              onChange={(event) =>
+                setPatientFilter(event.target.value as "all" | "mine")
+              }
+            >
+              <option value="all">All patients ({visits.length})</option>
+              <option value="mine">My patients ({myPatients.length})</option>
+            </select>
+          </div>
+          <details
+            className="tracking-column-selector"
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !event.currentTarget.open) return;
+
+              event.preventDefault();
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+            }}
+          >
+            <summary>Columns</summary>
+            <div role="group" aria-label="Choose tracking board columns">
+              {allColumns.map((column) => (
+                <label key={column} htmlFor={`tracking-column-${column}`}>
+                  <input
+                    id={`tracking-column-${column}`}
+                    aria-label={`Show ${columnLabels[column]} column`}
+                    type="checkbox"
+                    checked={columns.includes(column)}
+                    disabled={columns.length === 1 && columns[0] === column}
+                    onChange={() => toggleColumn(column)}
+                  />
+                  {columnLabels[column]}
+                </label>
+              ))}
+            </div>
+          </details>
+        </div>
       </div>
       <TableContainer
         component={Paper}
