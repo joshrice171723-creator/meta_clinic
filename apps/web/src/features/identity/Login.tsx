@@ -73,12 +73,16 @@ export function Login({
       className={`wrap inner-page login-layout${developmentLogin && !credentialMode ? " development-login-layout" : ""}`}
     >
       <div className="inner-page-copy">
-        <h1>
-          Streamline your practice.
-          <br />
-          <em>Scale your organization.</em>
-        </h1>
-        <p>Your clinics, your team, and your workflows in one place.</p>
+        <h1>{portalName}</h1>
+        <p>
+          {ownerPortal
+            ? "Meta Clinic owners use their platform account to manage organizations and clinics."
+            : employeePortal
+              ? "Clinic employees use the account provided by their organization."
+              : patientPortal
+                ? "Patients use the account activated from their clinic invitation."
+                : "Use this account for launch paperwork, onboarding, and training. Clinic team access is separate."}
+        </p>
       </div>
       <section className="form-card login-card">
         {environment === "test" ? (
@@ -156,17 +160,19 @@ export function Login({
           </div>
         ) : (
           <>
-            <div
+            <Stack
+              component="nav"
               className="portal-type-links"
+              direction="row"
               aria-label="Choose your sign-in space"
             >
-              <a
+              <Button
                 aria-current={ownerPortal ? "page" : undefined}
                 href="/login?next=%2Fowner"
               >
                 Owner
-              </a>
-              <a
+              </Button>
+              <Button
                 aria-current={
                   !ownerPortal && !employeePortal && !patientPortal
                     ? "page"
@@ -175,35 +181,26 @@ export function Login({
                 href="/login"
               >
                 Launch &amp; onboarding
-              </a>
-              <a
+              </Button>
+              <Button
                 aria-current={patientPortal ? "page" : undefined}
                 href="/login?next=%2Fpatient-portal"
               >
                 Patient portal
-              </a>
-              <a
+              </Button>
+              <Button
                 aria-current={employeePortal ? "page" : undefined}
                 href="/login?next=%2Fclinic"
               >
                 Clinic team
-              </a>
-            </div>
+              </Button>
+            </Stack>
             <p className="page-fine-print">
               <a href="/memberships">
                 New to a clinic? Explore membership options without an account.
               </a>
             </p>
-            <h2>{portalName}</h2>
-            <p>
-              {ownerPortal
-                ? "Meta Clinic owners use their platform account to manage organizations and clinics."
-                : employeePortal
-                  ? "Clinic employees use the account provided by their organization."
-                  : patientPortal
-                    ? "Patients use the account activated from their clinic invitation."
-                    : "Use this account for launch paperwork, onboarding, and training. Clinic team access is separate."}
-            </p>
+            <h2>Sign in</h2>
             <Form endpoint="/api/session" submit="Sign in" onSuccess={done}>
               <Field
                 name="email_address"
