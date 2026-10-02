@@ -778,12 +778,12 @@ function MessageHistory({
         <Typography variant="h6">
           {reminderId
             ? "Selected reminder was not found"
-            : "No sent messages found"}
+            : "No messages with a recorded delivery attempt"}
         </Typography>
         <Typography color="text.secondary">
           {reminderId
             ? "It may have been removed or is outside your current clinic access."
-            : "Messages appear here after a delivery attempt is made."}
+            : "Messages appear here after a delivery attempt is recorded."}
         </Typography>
       </Box>
     );
@@ -1076,10 +1076,11 @@ export function Reminders() {
       )}
 
       <Alert severity="info" sx={{ mb: 2 }}>
-        <strong>Message lifecycle:</strong> draft → approved → queued → sent or
-        failed → acknowledged. The status on each reminder is the server record;
-        a queued or provider-accepted sandbox message is not proof that a
-        patient received it.
+        <strong>Delivery history:</strong> statuses can include queued, accepted
+        by the provider, delivered, failed, held by policy, unknown, suppressed,
+        or cancelled. These are recorded delivery states; provider acceptance
+        is not proof of delivery, and delivery is not proof that the patient
+        read the message.
       </Alert>
 
       <Paper

@@ -196,10 +196,9 @@ function RecallWorklistContent() {
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
           To create a recall, open a patient encounter and save Follow-up as
-          Needed with the clinician-entered plan and due date. Work due dates
-          here, document outreach, and keep deferrals and completion evidence
-          with the patient record. This queue does not infer screening intervals
-          or send messages.
+          Needed with the clinician-entered plan and due date. Review due work
+          here, record outreach that already happened, or update the worklist
+          status. The queue does not infer screening intervals or send messages.
         </Typography>
         <Button href="/clinic/patients" variant="outlined" sx={{ mt: 2 }}>
           Open patient register to record follow-up
@@ -339,9 +338,9 @@ function RecallWorklistContent() {
                     {recall.plan}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Effective due: {formatDateTime(recall.effective_due_at)}
+                    Worklist due: {formatDateTime(recall.effective_due_at)}
                     {recall.status === "snoozed" &&
-                      " · based on the recorded snooze"}
+                      " · set by the recorded snooze"}
                     {` · ${recall.outreach_count} outreach attempt${recall.outreach_count === 1 ? "" : "s"}`}
                   </Typography>
                   {recall.assignee_label && (
@@ -405,8 +404,8 @@ function RecallWorklistContent() {
                   color="text.secondary"
                   sx={{ mt: 0.75 }}
                 >
-                  Source due: {formatDateTime(detail.recall.source_due_at)} ·
-                  Effective due:{" "}
+                  Clinician follow-up due:{" "}
+                  {formatDateTime(detail.recall.source_due_at)} · Worklist due:{" "}
                   {formatDateTime(detail.recall.effective_due_at)}
                 </Typography>
               </Box>
@@ -644,7 +643,13 @@ function RecallActionDialog({
                   ? recall.status === "completed"
                     ? "Reopening returns the authoritative encounter follow-up to needed."
                     : "Reopening returns this deferred recall to the active queue without changing its clinician-recorded follow-up state."
-                  : "This changes the recall queue projection and preserves the clinician follow-up plan."}
+                  : action === "snooze"
+                    ? "Snoozing moves this item out of the due queue until the chosen date and time. " +
+                      "The clinician-entered plan and due date stay unchanged."
+                    : action === "exclude"
+                      ? "Excluding removes this item from the active worklist. " +
+                        "The clinician follow-up stays in the encounter and can be reopened."
+                      : "This changes the recall queue projection and preserves the clinician follow-up plan."}
           </Typography>
           {action === "record_outreach" && (
             <TextField

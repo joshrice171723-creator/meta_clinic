@@ -59,6 +59,34 @@ const emptyDraft: Partial<PackageTerms> = {
   display_order: 0,
 };
 
+const subscriptionTermFields = ["renewal", "cancellation", "refund_policy"] as const;
+type SubscriptionTermField = (typeof subscriptionTermFields)[number];
+
+const subscriptionTermFieldLabels: Record<SubscriptionTermField, string> = {
+  renewal: "Renewal",
+  cancellation: "Cancellation",
+  refund_policy: "Refund policy",
+};
+
+const subscriptionTermOptionLabels: Record<
+  SubscriptionTermField,
+  Record<string, string>
+> = {
+  renewal: {
+    none: "No renewal",
+    manual: "Manual renewal",
+    automatic: "Automatic monthly renewal",
+  },
+  cancellation: {
+    immediate: "Immediately",
+    end_of_term: "At the end of the paid term",
+  },
+  refund_policy: {
+    none: "None",
+    manual_review: "Manual review",
+  },
+};
+
 function HelpLabel({ label, help }: { label: string; help: string }) {
   return (
     <Stack
@@ -893,19 +921,17 @@ export function SubscriptionCatalog() {
                             </MenuItem>
                           ))}
                         </TextField>
-                        {(
-                          ["renewal", "cancellation", "refund_policy"] as const
-                        ).map((field) => (
+                        {subscriptionTermFields.map((field) => (
                           <TextField
                             key={field}
                             select
                             label={
                               <HelpLabel
-                                label={field.replaceAll("_", " ")}
+                                label={subscriptionTermFieldLabels[field]}
                                 help={
                                   {
                                     renewal:
-                                      "Automatic charges every month through Stripe until canceled and always ends after the paid period. Manual requires a new purchase.",
+                                      "Automatic memberships are charged monthly through Stripe. If canceled, access ends at the end of the paid period. Manual renewals require a new purchase.",
                                     cancellation:
                                       "Whether access ends immediately or at the end of the paid term.",
                                     refund_policy:
@@ -935,6 +961,12 @@ export function SubscriptionCatalog() {
                                 setDraft(field, e.target.value);
                               }
                             }}
+                            helperText={
+                              field === "cancellation" &&
+                              draft.renewal === "automatic"
+                                ? "Automatic renewal uses end-of-term cancellation."
+                                : undefined
+                            }
                           >
                             {{
                               renewal: ["none", "manual", "automatic"],
@@ -942,7 +974,7 @@ export function SubscriptionCatalog() {
                               refund_policy: ["none", "manual_review"],
                             }[field].map((v) => (
                               <MenuItem value={v} key={v}>
-                                {v.replaceAll("_", " ")}
+                                {subscriptionTermOptionLabels[field][v] || v}
                               </MenuItem>
                             ))}
                           </TextField>
