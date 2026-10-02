@@ -109,7 +109,13 @@ async function open(respond: (route: Route, body: Body) => Promise<void>) {
     }
     unexpected.push(`${req.method()} ${url.origin}${url.pathname}`); return route.abort();
   });
-  await page.goto(origin + "/patient-flow-recovery-fixture");
+  // Cold Vite dependency discovery is startup work, separate from action waits.
+  await page.goto(origin + "/patient-flow-recovery-fixture", {
+    waitUntil: "domcontentloaded",
+    timeout: 15000,
+  });
+  await page.getByRole("button", { name: "Claim work", exact: true })
+    .waitFor({ state: "visible" });
   await page.getByText("Actions and details", { exact: true }).click();
   const detail = page.locator("details");
   await detail.getByRole("combobox", { name: "Owner", exact: true }).click();
