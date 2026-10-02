@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 type PatientEducationMaterial = {
   id: number;
@@ -40,12 +41,37 @@ export function PatientEducationMaterials() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const attempts = useRef(new Map<number, string>());
+  const attempts = useRef(
+    new Map<
+      number,
+      { requestKey: string; busy: boolean; uncertain: boolean }
+    >(),
+  );
+  useDemoNavigationBlocker(() => ({
+    blocked:
+      busyId !== null ||
+      [...attempts.current.values()].some(
+        (attempt) => attempt.busy || attempt.uncertain,
+      ),
+    message: null,
+  }));
 
   const acknowledge = async (material: PatientEducationMaterial) => {
-    if (busyId !== null || material.acknowledged_at) return;
-    const requestKey = attempts.current.get(material.id) ?? crypto.randomUUID();
-    attempts.current.set(material.id, requestKey);
+    if (
+      busyId !== null ||
+      (material.acknowledged_at &&
+        !attempts.current.get(material.id)?.uncertain)
+    )
+      return;
+    const attempt = attempts.current.get(material.id) ?? {
+      requestKey: crypto.randomUUID(),
+      busy: false,
+      uncertain: false,
+    };
+    if (attempt.busy) return;
+    attempts.current.set(material.id, attempt);
+    attempt.busy = true;
+    const requestKey = attempt.requestKey;
     setBusyId(material.id);
     setError("");
     setNotice("");
@@ -63,17 +89,20 @@ export function PatientEducationMaterials() {
       setNotice(`Marked “${material.material_title}” as viewed.`);
       materials.refresh();
     } catch (reason) {
-      const outcomeUnknown =
-        reason instanceof ApiError &&
-        (reason.status === 408 || reason.status >= 500);
+      attempt.uncertain ||=
+        !(reason instanceof ApiError) ||
+        reason.status === 408 ||
+        reason.status >= 500 ||
+        reason.code === "outcome_unconfirmed";
       setError(
-        outcomeUnknown
+        attempt.uncertain
           ? "We could not confirm the acknowledgement. Retry this same material before changing anything."
           : reason instanceof Error
             ? reason.message
             : "The acknowledgement could not be recorded.",
       );
     } finally {
+      attempt.busy = false;
       setBusyId(null);
     }
   };
@@ -167,7 +196,8 @@ export function PatientEducationMaterials() {
                 >
                   Open material <LaunchIcon fontSize="small" />
                 </Link>
-                {!material.acknowledged_at && (
+                {(!material.acknowledged_at ||
+                  attempts.current.get(material.id)?.uncertain) && (
                   <Button
                     size="small"
                     variant="outlined"
@@ -181,7 +211,9 @@ export function PatientEducationMaterials() {
                   >
                     {busyId === material.id
                       ? "Recording…"
-                      : "I viewed this material"}
+                      : material.acknowledged_at
+                        ? "Retry acknowledgment"
+                        : "I viewed this material"}
                   </Button>
                 )}
               </Stack>

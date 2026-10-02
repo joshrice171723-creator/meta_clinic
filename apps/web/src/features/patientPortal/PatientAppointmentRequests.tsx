@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import {
@@ -170,6 +171,21 @@ export function PatientAppointmentRequests({
     >
   >({});
   const minimum = useMemo(() => localDateTime(new Date()), []);
+  useDemoNavigationBlocker(() => ({
+    blocked: Boolean(
+      busy ||
+      outcomeUnconfirmed ||
+      callbackOutcomeUnconfirmed ||
+      submission.current?.busy ||
+      submission.current?.outcomeUnconfirmed ||
+      callbackAttempt.current?.busy ||
+      callbackAttempt.current?.outcomeUnconfirmed,
+    ),
+    message:
+      siteId || visitTypeId || change || confirmation
+        ? "Discard your unsaved appointment choices?"
+        : null,
+  }));
   const intervalDuration =
     new Date(endsAt).valueOf() - new Date(startsAt).valueOf();
   const intervalValid =
@@ -845,6 +861,15 @@ export function AppointmentChangeDialog({
   const intervalValid =
     kind === "cancel" ||
     (intervalDuration > 0 && intervalDuration <= 4 * 60 * 60 * 1_000);
+  useDemoNavigationBlocker(() => ({
+    blocked: Boolean(
+      busy ||
+      outcomeUnconfirmed ||
+      submission.current?.busy ||
+      submission.current?.outcomeUnconfirmed,
+    ),
+    message: "Discard your unsaved appointment change?",
+  }));
 
   async function submit() {
     const current = submission.current!;

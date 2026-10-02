@@ -14,6 +14,7 @@ import {
 import type { PatientRefillRequest } from "../../api/contracts";
 import { api } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 import {
   RefillRequestSubmission,
@@ -57,6 +58,18 @@ export function PatientRefillRequests() {
     );
     return response.request;
   });
+
+  useDemoNavigationBlocker(() => ({
+    blocked:
+      busy ||
+      outcomeUnconfirmed ||
+      submission.current?.busy === true ||
+      submission.current?.outcomeUnconfirmed === true,
+    message:
+      medicationName || pharmacyDestination || requestNote
+        ? "Discard your unsaved refill request?"
+        : null,
+  }));
 
   const submit = async () => {
     const current = submission.current!;

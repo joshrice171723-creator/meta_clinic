@@ -1,3 +1,5 @@
+import type { SandboxAccountKey } from "./accountSwitch";
+
 export type DemoRunStepStatus = "locked" | "available" | "complete";
 
 export type DemoRunStep = {
@@ -25,6 +27,14 @@ export type DemoRun = {
   patient: { id?: number | string; name?: string } | null;
   lesson_key: string | null;
   sandbox: boolean;
+  account?: {
+    key: SandboxAccountKey;
+    label: string;
+    user_id: number | string;
+    portal: "clinic" | "patient";
+  } | null;
+  accounts?: { key: SandboxAccountKey; label: string; available: boolean }[];
+  account_pending?: boolean;
   lessons: DemoLesson[];
   steps: DemoRunStep[];
 };

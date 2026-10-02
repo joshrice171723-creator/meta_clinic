@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 export type ClinicHomeView = "tracking" | "schedule";
 
@@ -14,7 +14,7 @@ export type ClinicNavigateOptions = {
 };
 
 type ClinicNavigationValue = {
-  confirmNavigation?: () => boolean;
+  confirmNavigation?: (options?: { includeBeforeUnload?: boolean }) => boolean;
   navigate: (href: string, options?: ClinicNavigateOptions) => boolean;
   registerBlocker: (blocker: (() => string | null) | null) => () => void;
 };
@@ -23,6 +23,21 @@ const ClinicNavigationContext = createContext<ClinicNavigationValue>({
   navigate: () => false,
   registerBlocker: () => () => {},
 });
+
+export function confirmClinicNavigation(
+  messages: (string | null)[],
+  includeBeforeUnload = false,
+) {
+  const warnings = messages.filter(Boolean);
+  if (
+    includeBeforeUnload &&
+    !window.dispatchEvent(new Event("beforeunload", { cancelable: true })) &&
+    warnings.length === 0
+  )
+    warnings.push("Leave this workspace and discard unsaved changes?");
+  const message = [...new Set(warnings)].join("\n\n");
+  return !message || window.confirm(message);
+}
 
 export function normalizeClinicPath(pathname: string) {
   return pathname.replace(/\/+$/, "") || "/";
@@ -82,6 +97,19 @@ export function ClinicNavigationProvider({
   value: ClinicNavigationValue;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    const confirm = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ handled: boolean; allowed: boolean }>
+      ).detail;
+      detail.handled = true;
+      detail.allowed =
+        value.confirmNavigation?.({ includeBeforeUnload: true }) ?? false;
+    };
+    window.addEventListener("demo:confirm-local-navigation", confirm);
+    return () =>
+      window.removeEventListener("demo:confirm-local-navigation", confirm);
+  }, [value]);
   return (
     <ClinicNavigationContext value={value}>{children}</ClinicNavigationContext>
   );

@@ -15,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { IntakeQuestions } from "./IntakeQuestions";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 type Answer =
   | string
@@ -190,6 +191,15 @@ export function PatientPrevisitNote({
   const appointmentIdRef = useRef(appointmentId);
   const loadSequenceRef = useRef(0);
   appointmentIdRef.current = appointmentId;
+  useDemoNavigationBlocker(() => ({
+    blocked: Boolean(
+      busy || outcomeUnknown || inFlight.current || attempt.current?.uncertain,
+    ),
+    message:
+      open && data && hasUnsavedPrevisitDraft(text, answers, baseline)
+        ? "Discard your unsaved patient intake and visit note?"
+        : null,
+  }));
   useEffect(() => {
     loadSequenceRef.current += 1;
     setOpen(false);

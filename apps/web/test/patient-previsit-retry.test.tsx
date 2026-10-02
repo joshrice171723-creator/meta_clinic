@@ -94,6 +94,15 @@ async function open(page: Page) {
 const editor = (page: Page) =>
   page.getByRole("textbox", { name: "Anything else the clinic should know?" });
 
+const navigationBlockers = (page: Page) =>
+  page.evaluate(() => {
+    const detail = { blocked: false, messages: [] as string[] };
+    window.dispatchEvent(
+      new CustomEvent("demo:collect-navigation-blockers", { detail }),
+    );
+    return detail;
+  });
+
 it("retries an unconfirmed draft with identical body/key after 408 and a later rejection", async () => {
   const page = await browser.newPage();
   const requests: any[] = [];
@@ -115,8 +124,13 @@ it("retries an unconfirmed draft with identical body/key after 408 and a later r
     return route.fulfill({ json: receipt(body) });
   });
   await open(page);
+  expect(await navigationBlockers(page)).toEqual({
+    blocked: false,
+    messages: ["Discard your unsaved patient intake and visit note?"],
+  });
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await page.getByText(/original save outcome is still unknown/).waitFor();
+  expect((await navigationBlockers(page)).blocked).toBe(true);
   expect(await editor(page).isDisabled()).toBe(true);
   await page.getByRole("button", { name: "Retry same request" }).click();
   await expect.poll(() => requests.length).toBe(2);
@@ -139,6 +153,10 @@ it("retries an unconfirmed draft with identical body/key after 408 and a later r
     expected_version: 0,
   });
   expect(await editor(page).isDisabled()).toBe(false);
+  expect(await navigationBlockers(page)).toEqual({
+    blocked: false,
+    messages: [],
+  });
   await page.close();
 });
 

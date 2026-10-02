@@ -2,10 +2,18 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Box, Button, Stack } from "@mui/material";
 import { api } from "../../api/client";
 import { isDemoFrame, notifyDemo } from "./frame";
+import type { NavigationConfirmation } from "./accountSwitch";
+import { confirmClinicNavigation } from "../clinic/clinicNavigation";
+import {
+  collectDemoNavigationBlockers,
+  type DemoNavigationBlockers,
+} from "./navigationBlockers";
 
 type FrameRun = {
   active: boolean;
   run?: {
+    id?: string;
+    account?: { user_id: number | string } | null;
     mode: "clinic" | "patient";
     lesson_key?: string | null;
     sandbox?: boolean;
@@ -47,6 +55,20 @@ const navigationTour = (run: FrameRun) =>
 
 const sandboxRun = (run: FrameRun) => run.run?.sandbox === true;
 
+export function confirmUnregisteredDemoNavigation(
+  blockers: DemoNavigationBlockers = { blocked: false, messages: [] },
+) {
+  if (blockers.blocked) return false;
+  // Patient dialogs do not register clinic blockers. Require explicit discard
+  // consent even when no beforeunload handler reports their component draft.
+  return confirmClinicNavigation(
+    blockers.messages.length
+      ? blockers.messages
+      : ["Switch accounts and discard any unsaved changes?"],
+    true,
+  );
+}
+
 export function demoRouteAllowed(
   href: string,
   run: FrameRun,
@@ -56,7 +78,10 @@ export function demoRouteAllowed(
   const target = new URL(href, origin);
   if (target.origin !== origin) return false;
   if (sandboxRun(run))
-    return run.run.mode === "clinic" && target.pathname.startsWith("/clinic");
+    return run.run.mode === "clinic"
+      ? /^\/clinic(?:\/|$)/.test(target.pathname)
+      : /^\/patient-portal(?:\/|$)/.test(target.pathname) ||
+          target.pathname === "/memberships/account";
   if (navigationTour(run))
     return (
       run.run.mode === "clinic" && navigationTourPaths.has(target.pathname)
@@ -79,6 +104,53 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [blockedLink, setBlockedLink] = useState(false);
+  useEffect(() => {
+    const confirm = (event: MessageEvent<unknown>) => {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== window.parent ||
+        !event.data ||
+        typeof event.data !== "object"
+      )
+        return;
+      const data = event.data as Record<string, unknown>;
+      if (
+        data.type !== "demo:confirm-navigation" ||
+        typeof data.requestId !== "string" ||
+        typeof data.generation !== "number"
+      )
+        return;
+      let allowed = false;
+      if (
+        run?.active &&
+        sandboxRun(run) &&
+        run.run?.id !== undefined &&
+        String(run.run.id) === data.runId &&
+        run.run?.account?.user_id === data.userId
+      ) {
+        const blockers = collectDemoNavigationBlockers();
+        const detail: NavigationConfirmation = {
+          handled: false,
+          allowed: false,
+        };
+        if (!blockers.blocked)
+          window.dispatchEvent(
+            new CustomEvent("demo:confirm-local-navigation", { detail }),
+          );
+        allowed = blockers.blocked
+          ? false
+          : detail.handled
+            ? detail.allowed
+            : confirmUnregisteredDemoNavigation(blockers);
+      }
+      window.parent.postMessage(
+        { ...data, type: "demo:navigation-confirmed", allowed },
+        window.location.origin,
+      );
+    };
+    window.addEventListener("message", confirm);
+    return () => window.removeEventListener("message", confirm);
+  }, [run]);
   useEffect(() => {
     document.body.dataset.demoActive = "true";
     return () => {

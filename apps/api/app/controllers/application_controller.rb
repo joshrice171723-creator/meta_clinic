@@ -66,11 +66,24 @@ class ApplicationController < ActionController::Base
         session[:development_demo_user_id] == record.user_id &&
         Development::TestAccounts.matches?(record.user, session[:development_test_profile])
     else
-      (DevelopmentAccess.allowed?(request) ||
-        (GuidedDemoAccess.hosted? && Development::DemoRun.active.where(id: session[:guided_clinic_demo_run_id])
-          .where("operator_user_id = :id OR patient_user_id = :id", id: record&.user_id).exists?)) && record && !record.user.admin? &&
+      ((DevelopmentAccess.allowed?(request) &&
+        (!session[:sandbox_account] || valid_guided_demo_user?(record))) ||
+        (GuidedDemoAccess.hosted? && valid_guided_demo_user?(record))) && record && !record.user.admin? &&
         session[:development_demo_user_id] == record.user_id
     end
+  end
+
+  def valid_guided_demo_user?(record)
+    run = Development::DemoRun.active.find_by(id: session[:guided_clinic_demo_run_id])
+    return false unless run && record
+    if session[:sandbox_account] && Development::DemoLessonCatalog.sandbox?(run.lesson_key)
+      account = Development::SandboxAccounts.resolve(run, session[:sandbox_account])
+      account.user.id == record.user_id
+    else
+      record.user_id.in?([ run.operator_user_id, run.patient_user_id ].compact)
+    end
+  rescue ActiveRecord::RecordNotFound
+    false
   end
 
   def development_omni?
