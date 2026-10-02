@@ -216,7 +216,7 @@ async function open(mode = "success") {
         request.method() === "PATCH"
       ) {
         const id = Number(path.split("/").at(-1));
-        const input = request.postDataJSON().employment;
+        const input = request.postDataJSON().employment as { role_version_id?: number | string; expected_access_revision?: string; site_ids?: unknown; account_action?: string; [key: string]: unknown; };
         writes.push({ id, employment: input });
         const record = records.find((item) => item.id === id)!;
         if (mode === "atomic-stale") {
@@ -248,7 +248,7 @@ async function open(mode = "success") {
             record.active_for_work = false;
           } else {
             const role = roles.find(
-              (item) => item.id === input.role_version_id,
+              (item) => item.id === Number(input.role_version_id),
             )!;
             record.roles = [
               {
@@ -631,7 +631,7 @@ it("individual access controls stay inert during a delayed write and saved-acces
     expect(await role.evaluate((el) => !!el.closest("[inert]"))).toBe(true);
     expect(await site.evaluate((el) => !!el.closest("[inert]"))).toBe(true);
     expect(await page.evaluate(() => (window as unknown as { readBlockers: () => { blocked: boolean } }).readBlockers().blocked)).toBe(true);
-    expect(writes).toEqual([{ id: 1, employment: { role_version_id: 12, expected_access_revision: employee(1).access_revision, site_ids: [1, 2] } }]);
+    expect(writes).toEqual([{ id: 1, employment: { role_version_id: "12", expected_access_revision: employee(1).access_revision, site_ids: [1, 2] } }]);
     releaseIndividualPatch();
     await page.getByText("Employee access outcome is unconfirmed.", { exact: false }).waitFor();
     await page.getByRole("button", { name: "Check saved access", exact: true }).first().click();
