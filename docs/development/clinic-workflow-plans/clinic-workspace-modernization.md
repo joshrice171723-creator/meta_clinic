@@ -486,12 +486,12 @@ Remaining gates:phone focusconsistency,original controlled503dismiss draftprobe/
 
 ## Last run
 
-- Date UTC:2026-10-02 22:19 UTC; inspected next productc32bdac7 and final fixtured241b353.
-- Outcome:first-wave0a5cf060 publication verified; NEXT changed-scope implementation/review/verification accepted. Canonical NEXT publication pending actual receipt.
-- Checks:final TypeScriptPASS; main/Office bundlesPASS with exact unchanged product/config/locked-dependency reuse; provider5, Patient3, Recall4, final changed assertions6, outreach3/95 and repaired bounds1/22PASS. Raw prior failures preserved.
-- Canonical paths:thisbrief,centraltracker,ProgressLog. Status stays72implemented/10boundedvalidated of74; originalQA179closed62open unchanged.
-- Limits:full-App/native200/paired/provider/MZ11 and excluded artifacts remain open; no fresh116workflow verdicts or greenCI claim. User narrowed future QA to changed behavior; Office read404 prevents synchronization.
-- Next:soleA executes accepted-scope canonical publication; parent maps affected workflowIDs and owns independent deployed retest. Loops remainPAUSED; existing nightly unchanged.
+- Date UTC:2026-10-02 22:29 UTC; deployed exacte562e57f, productc32 unchanged.
+- Outcome:authorized NEXT publicationSUCCESS; remote/main/live/localfrontend match,4routes200,20assets byte-match, normalbackup/restore/recovery/hosted verifierPASS. Receipt SHA256b2d256ba85d92bd92ea8da611678057450406857b76f93f07e5e2e09528bd603.
+- Checks:final TypeScript/main/Office bundlesPASS with documented source/dependency reuse; provider5, Patient3, Recall4, final changedassertions6, outreach3/95, calendarbounds1/22PASS. Earlier failures retained; prior0a5fullCIFAILED and currentfullCI notclaimedgreen.
+- Canonical paths:thisbrief,centraltracker,ProgressLog; subsequentdocs-only checkpoint. Fixed74status72implemented/10boundedvalidated and originalQA179closed62open unchanged.
+- Limits:missingConnectors, deniedPatientFlow, workforceatomic proof and full-App/native200/paired/provider/MZ11 remainopen; localAPI3241 notretargeted. No fresh116workflow verdicts.
+- Next:designated soleQAfeatureowner resolvesaffectedIDs/page synchronization when existingbridge works; parent supplies held artifacts/protocol. No unchanged-workflow/tablet/phone campaign. LoopsPAUSED and existingnightlyunchanged.
 
 ## Next integration checkpoint - 2026-10-02 22:00 UTC
 
@@ -514,3 +514,16 @@ Actual changed recovery evidence: provider5/5PASS, including its final refreshed
 Retained gaps: unchanged-shell834 focus expectation stays open; Billing historical fixture missing-export failure was source-repaired without another unchanged-payment run. Earlier15MembershipGrowth payment/onboarding failures/errors remain separate; no safety gate was weakened. Missing originalConnectors, deniedPatientFlow and workforceatomic proof remain excluded. No further tablet/phone/unchanged-workflow campaign; user explicitly narrowed QA to affected workflow IDs. OriginalQA179closed62open,72/74implemented10/74boundedvalidated andMZ11 gaps remain unchanged.
 
 Accepted NEXT code may now advance main and use the existing canonical matched-image/backup/full scratch restore/encrypted recovery/hosted verifier release procedure. Publication is pending its actual immutable receipt; no source acceptance claim substitutes for deployment proof. QA116-ID impact mapping and Office synchronization are separate; current Office read failed404tunnel_client_not_seen and no post was accepted. No new access,credentials,providers,reset,schedule or external transaction.
+
+
+## NEXT publication completed - 2026-10-02 22:29 UTC
+
+Authorized canonical publication completed at `2026-10-02T22:27:10.9218865Z` for `e562e57f6484ebe95ca9e31a80cf511117635b79`, version0.2.4. Origin/main, clean owned main, hosted HTTPS build and localhost3000 frontend build match. Four routes returned200; all20sampled served application assets matched local byte hashes. Existing matched-image, both-database backup/full scratch restore, encrypted recovery roundtrip and hosted verifier gates passed. Immutable receipt `tmp/next-desktop/publication-receipt.json`, SHA256`b2d256ba85d92bd92ea8da611678057450406857b76f93f07e5e2e09528bd603`. Prior0a5 receipt and all failed check attempts remain preserved. The local3000 check proves frontend identity; the older prepared localAPI3241 was not retargeted and no exact NEXT local-backend claim is made.
+
+The code source is published; this subsequent documentation-only checkpoint does not change deployed code or request another publication. Existing paused loops, single daily02AmericaChicago schedule, credentials/access/provider policies and data boundaries remain unchanged; no host reset or new timer.
+
+Separate fullCI evidence for prior0a5: run37065235524FAILED (Rails624runs/24failures/66errors and659runs/20failures/24errors; reported capacity-seed conflict,7agent-doc links,5lint layouts, Brakeman8.0.6versus8.1.0; frontendCANCELLED, portablePASS). Several baseline categories are known but not all causes established. Currente562 fullCI is not claimed green. This is separate from scoped changed-behavior PASS and from baselinee5 run36947463840, which also actually executed and failed. No new broadQA was launched.
+
+Remaining concrete exclusions: missing originalConnectors patch prevents its follow-up delta; PatientFlow artifact403 requires correctly scoped access/attachment rather than bypass; workforceatomic source awaits bounded protocol and PostgreSQL proof. Full-App/native200/paired/provider/MZ11 acceptance remains open. Fixed74counts stay72implemented/10boundedvalidated; originalQA179closed62open remains separate.
+
+Completed source-impact handoff:37production paths in18areas, exact0a5→e562; `tmp/next-desktop/change-impact.json`, SHA256`851ca5d8aa85c00075e6157859dbad1634c006e2de03a16fe5141dc0a5d41556`. Canonical116workflowIDs are unset because expanded grid was unavailable locally (expected116/pointer23/emptycoverage), and Office read404tunnel_client_not_seen blocked synchronization. No guessed IDs or fabricated verdicts. Sole designatedQAfeatureowner01a0feaf-11a1-71ed-b9cb-d22890cba0fb owns subsequent mapping/page changes; untouched workflows retain prior stale/untouched verdicts.
