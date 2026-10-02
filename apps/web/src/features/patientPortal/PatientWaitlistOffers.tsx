@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import type { WaitlistItem } from "../clinic/WaitlistWorkspace";
 import {
   WaitlistReplySubmission,
@@ -40,6 +41,17 @@ export function PatientWaitlistOffers() {
   }, []);
   const [callbackKey, setCallbackKey] = useState(() => crypto.randomUUID());
   const [callbackRequested, setCallbackRequested] = useState(false);
+  const callbackAttempt = useRef({ busy: false, uncertain: false });
+  useDemoNavigationBlocker(() => ({
+    blocked:
+      busy ||
+      uncertain ||
+      callbackAttempt.current.busy ||
+      callbackAttempt.current.uncertain ||
+      submission.current?.busy === true ||
+      submission.current?.outcomeUnconfirmed === true,
+    message: null,
+  }));
   async function reply(
     offer: WaitlistReplyOffer,
     action: "accept" | "decline",
@@ -108,11 +120,13 @@ export function PatientWaitlistOffers() {
     if (
       busy ||
       callbackRequested ||
+      callbackAttempt.current.busy ||
       submission.current?.busy ||
       submission.current?.outcomeUnconfirmed
     )
       return;
     setBusy(true);
+    callbackAttempt.current.busy = true;
     setError("");
     setNotice("");
     try {
@@ -127,18 +141,25 @@ export function PatientWaitlistOffers() {
           },
         },
       });
+      callbackAttempt.current.uncertain = false;
       setCallbackRequested(true);
       setCallbackKey(crypto.randomUUID());
       setNotice(
         "Your request was sent to the clinic front desk. The clinic will review it and contact you about joining the waitlist.",
       );
     } catch (value) {
+      callbackAttempt.current.uncertain ||=
+        !(value instanceof ApiError) ||
+        value.status === 408 ||
+        value.status >= 500 ||
+        value.code === "outcome_unconfirmed";
       setError(
         value instanceof Error
           ? value.message
           : "Your request could not be confirmed. Retry the same request.",
       );
     } finally {
+      callbackAttempt.current.busy = false;
       setBusy(false);
     }
   }

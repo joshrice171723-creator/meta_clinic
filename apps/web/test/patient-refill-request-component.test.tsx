@@ -8,6 +8,14 @@ const harness = vi.hoisted(() => ({
   cursor: 0,
   api: vi.fn(),
   refresh: vi.fn(),
+  blocker: null as null | (() => { blocked: boolean; message: string | null }),
+}));
+vi.mock("../src/features/demo/navigationBlockers", () => ({
+  useDemoNavigationBlocker: (
+    read: () => { blocked: boolean; message: string | null },
+  ) => {
+    harness.blocker = read;
+  },
 }));
 vi.mock("react", async (original) => {
   const react = await original<typeof import("react")>();
@@ -102,6 +110,7 @@ beforeEach(() => {
   harness.cursor = 0;
   harness.api.mockReset();
   harness.refresh.mockReset();
+  harness.blocker = null;
 });
 describe("refill component handler recovery with controlled hooks", () => {
   it("locks fields across lost response then rejection and explicitly retries exact body", async () => {
@@ -117,6 +126,7 @@ describe("refill component handler recovery with controlled hooks", () => {
     expect(harness.api).toHaveBeenCalledTimes(1);
     expect(harness.refresh).not.toHaveBeenCalled();
     expect(send().children).toBe("Retry same request");
+    expect(harness.blocker?.().blocked).toBe(true);
     for (const label of [
       "Medication name",
       "Pharmacy destination",
@@ -128,6 +138,7 @@ describe("refill component handler recovery with controlled hooks", () => {
       expect(send().children).not.toBe("Sending request…"),
     );
     expect(field("Medication name").disabled).toBe(true);
+    expect(harness.blocker?.().blocked).toBe(true);
     await send().onClick!();
     await vi.waitFor(() =>
       expect(send().children).not.toBe("Sending request…"),
@@ -144,6 +155,7 @@ describe("refill component handler recovery with controlled hooks", () => {
       request_note: "Synthetic note",
     });
     expect(field("Medication name").disabled).toBe(false);
+    expect(harness.blocker?.().blocked).toBe(false);
     expect(harness.refresh).toHaveBeenCalledTimes(1);
     expect(
       render().some(
@@ -168,6 +180,7 @@ describe("refill component handler recovery with controlled hooks", () => {
     await handler();
     expect(harness.api).toHaveBeenCalledTimes(1);
     expect(field("Medication name").disabled).toBe(true);
+    expect(harness.blocker?.().blocked).toBe(true);
     complete({
       request: {
         ...response(harness.api.mock.calls[0][1].body).request,
