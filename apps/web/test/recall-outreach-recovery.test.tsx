@@ -53,7 +53,9 @@ async function openOutreach(page: Page) {
 async function installCommonRoutes(page: Page) {
   // Every API request is synthetic; unmatched calls fail closed at the route.
   await page.route("**/api/**", (route) =>
-    route.fulfill({ status: 503, body: "Synthetic API request was not intercepted" }),
+    new URL(route.request().url()).pathname.startsWith("/api/")
+      ? route.fulfill({ status: 503, body: "Synthetic API request was not intercepted" })
+      : route.continue(),
   );
   await page.route("**/api/csrf", (route) =>
     route.fulfill({ json: { csrf_token: "synthetic-csrf" } }),

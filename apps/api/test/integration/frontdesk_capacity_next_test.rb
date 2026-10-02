@@ -100,7 +100,8 @@ class FrontdeskCapacityNextTest < ActionDispatch::IntegrationTest
     end
     [4, 241, "5.5", "invalid"].each do |duration|
       get_calendar(duration_minutes: duration)
-      assert_response :unprocessable_entity
+      assert_response :bad_request
+      assert_equal "duration_minutes", response.parsed_body.fetch("field")
     end
     get_calendar(waitlist_entry_id: @entry.id, duration_minutes: 30)
     assert_response :unprocessable_entity
