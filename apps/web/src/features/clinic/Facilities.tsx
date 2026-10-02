@@ -288,9 +288,6 @@ export function Facilities() {
   return (
     <div className="facilities-page">
       <Stack spacing={1} sx={{ mb: 3 }}>
-        <Typography variant="overline" color="text.secondary">
-          OPERATIONS / CLINIC SETUP
-        </Typography>
         <Typography variant="h1">Clinic setup</Typography>
         <Typography color="text.secondary">
           Define the clinic model and intended services, then configure visit
@@ -428,11 +425,20 @@ export function Facilities() {
               <Typography variant="h2">
                 {selectedId ? "Facility profile" : "Add facility site"}
               </Typography>
+              {selected && (
+                <Typography variant="body2" color="text.secondary">
+                  {selected.name ?? selected.code}
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
                 This profile is used for site identity, delivery context and
                 regular operating hours. Those hours help determine when
                 appointments can be offered; clinician hours and optional
                 capacity limits further shape availability.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Saves here update this facility profile. Profile setup, rooms,
+                service offerings, and scheduling policies save separately.
               </Typography>
             </Stack>
             <div className="facility-form-grid">

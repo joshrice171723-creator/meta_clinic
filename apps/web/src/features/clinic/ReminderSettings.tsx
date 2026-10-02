@@ -135,6 +135,18 @@ function ReminderPolicyForm({
         void save();
       }}
     >
+      <Typography variant="body2" color="text.secondary">
+        Saved reminder policy revision {saved.revision}
+        {saved.effective_from
+          ? ` · Effective ${new Date(saved.effective_from).toLocaleString()}`
+          : ""}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Changes apply when appointment reminders are next previewed and
+        scheduled. Existing scheduled messages keep their recorded time. Manual
+        messages remain available. Patient consent, opt-outs, quiet hours and
+        appointment eligibility still apply.
+      </Typography>
       <FormControlLabel
         control={
           <Switch
@@ -160,12 +172,6 @@ function ReminderPolicyForm({
         slotProps={{ htmlInput: { min: 1, max: 168, step: 1 } }}
         helperText="Text reminders use the current verified SMS destination. Choose 1 to 168 hours."
       />
-      <Typography variant="body2" color="text.secondary">
-        Changes apply when appointment reminders are next previewed and
-        scheduled. Existing scheduled messages keep their recorded time. Manual
-        messages remain available. Patient consent, opt-outs, quiet hours and
-        appointment eligibility still apply.
-      </Typography>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       <Stack direction="row" spacing={1}>

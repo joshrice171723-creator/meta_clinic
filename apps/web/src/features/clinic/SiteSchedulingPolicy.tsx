@@ -62,7 +62,9 @@ export function SiteSchedulingPolicySettings({ siteId }: { siteId: number }) {
       policyResource.refresh();
     } catch (error) {
       setFeedback(
-        error instanceof Error ? error.message : "Unable to save scheduling policy.",
+        error instanceof Error
+          ? error.message
+          : "Unable to save scheduling policy.",
       );
       policyResource.refresh();
     } finally {
@@ -72,11 +74,21 @@ export function SiteSchedulingPolicySettings({ siteId }: { siteId: number }) {
 
   return (
     <Paper variant="outlined" sx={{ p: 3, mt: 2 }}>
-      <Stack spacing={1.5} component="form" onSubmit={(event) => void save(event)}>
+      <Stack
+        spacing={1.5}
+        component="form"
+        onSubmit={(event) => void save(event)}
+      >
         <Typography component="h2" variant="h6">
-          Scheduling policy
+          Location scheduling policy
         </Typography>
-        {policyResource.error && <Alert severity="error">{policyResource.error}</Alert>}
+        <Typography variant="body2" color="text.secondary">
+          This policy applies to the selected location. Compatibility settings
+          below save separately.
+        </Typography>
+        {policyResource.error && (
+          <Alert severity="error">{policyResource.error}</Alert>
+        )}
         {!policyResource.data && !policyResource.error && <LoadState />}
         {policyResource.data && (
           <>
@@ -115,28 +127,50 @@ export function SiteSchedulingPolicySettings({ siteId }: { siteId: number }) {
                   multiple
                   disableCloseOnSelect
                   disabled={!policyResource.data.can_write || saving}
-                  options={(types.data?.visit_types ?? []).filter((type) => !type.retired_at)}
-                  value={(types.data?.visit_types ?? []).filter((type) => eligibleIds.includes(type.id))}
+                  options={(types.data?.visit_types ?? []).filter(
+                    (type) => !type.retired_at,
+                  )}
+                  value={(types.data?.visit_types ?? []).filter((type) =>
+                    eligibleIds.includes(type.id),
+                  )}
                   getOptionLabel={(type) => type.code}
                   isOptionEqualToValue={(left, right) => left.id === right.id}
-                  onChange={(_event, selected) => setEligibleIds(selected.map((type) => type.id))}
-                  renderInput={(params) => <TextField {...params} label="Eligible visit types" />}
+                  onChange={(_event, selected) =>
+                    setEligibleIds(selected.map((type) => type.id))
+                  }
+                  renderInput={(params) => (
+                    <TextField {...params} label="Eligible visit types" />
+                  )}
                 />
                 {eligibleIds.length === 0 && (
                   <Typography variant="body2" color="text.secondary">
-                    Choose at least one active visit type to enable saving overbooking.
+                    Choose at least one active visit type to enable saving
+                    overbooking.
                   </Typography>
                 )}
               </>
             )}
             <Typography variant="body2" color="text.secondary">
               Recurrence is limited to 2–12 weekly visits within 180 days.
-              Overbooking requires a separate staff permission and reason; patient,
-              room, hours, blocks, holds, and offers remain protected.
+              Overbooking requires a separate staff permission and reason;
+              patient, room, hours, blocks, holds, and offers remain protected.
             </Typography>
-            {feedback && <Alert severity={feedback.startsWith("Scheduling policy") ? "success" : "error"}>{feedback}</Alert>}
+            {feedback && (
+              <Alert
+                severity={
+                  feedback.startsWith("Scheduling policy") ? "success" : "error"
+                }
+              >
+                {feedback}
+              </Alert>
+            )}
             {policyResource.data.can_write && (
-              <Button type="submit" variant="contained" disabled={saving || (overbook && eligibleIds.length === 0)} sx={{ alignSelf: "flex-start" }}>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={saving || (overbook && eligibleIds.length === 0)}
+                sx={{ alignSelf: "flex-start" }}
+              >
                 {saving ? "Saving…" : "Save scheduling policy"}
               </Button>
             )}

@@ -11,8 +11,11 @@ export function Staff() {
   if (!data) return <LoadState error={error} />;
   return (
     <>
-      <p className="eyebrow">YOUR TEAM</p>
-      <h1>Employees.</h1>
+      <h1>Employees</h1>
+      <p>
+        No login, clinical authority, or access grant is created or revoked by
+        these controls.
+      </p>
       <Card title="Staff directory">
         <div className="clinic-table-wrap">
           <table>
@@ -68,10 +71,6 @@ export function Staff() {
               maxLength={120}
             />
           </Form>
-          <p>
-            No login, clinical authority, or access grant is created or revoked
-            by these controls.
-          </p>
         </Card>
       )}
     </>

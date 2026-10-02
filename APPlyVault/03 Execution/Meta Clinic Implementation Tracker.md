@@ -32,7 +32,7 @@ Board BM-01 has 20 synthetic rows after additive helper work; existing patient/e
 Release reconciliation flag, separate from the UI baseline: parent reports remote main cd1ef7209c874671a1462f3565a63c647275f051 changes missing sandbox preparation markers to completed, with an additional access-test expected404/actual200 failure. Preserve e5 source baseline here; do not merge this independent change automatically or attribute that failure to UI work. Final integration/release must reconcile the independently reviewed change.
 
 
-**2026-10-02 - Authorized two-pass implementation in progress; 62/74 IMPLEMENTED and 7/74 VALIDATED.** The complete [clinic workspace modernization assignment and benchmark](../../docs/development/clinic-workflow-plans/clinic-workspace-modernization.md) follows the repository clinic-workflow-planning skill. This is the live phase register; the linked brief owns specification, exact candidate source seams, audit reconciliation, benchmark definitions and acceptance. Original QA remains a separately owned ledger (parent-reported 179/241 closed, 62 open); no issue closure or percentage award follows from this plan.
+**2026-10-02 - Authorized two-pass implementation in progress; 66/74 IMPLEMENTED and 7/74 VALIDATED.** The complete [clinic workspace modernization assignment and benchmark](../../docs/development/clinic-workflow-plans/clinic-workspace-modernization.md) follows the repository clinic-workflow-planning skill. This is the live phase register; the linked brief owns specification, exact candidate source seams, audit reconciliation, benchmark definitions and acceptance. Original QA remains a separately owned ledger (parent-reported 179/241 closed, 62 open); no issue closure or percentage award follows from this plan.
 
 Baseline: `e5d065fe550350c934274391da46abfdb7325250`, web 0.2.4, Relay-reported release 2026-10-02 00:51:29 UTC. Read-only comparison carried frontend source mapping forward from `20dc2861ca5166a3914c1609bcc06e36052bf283`. Current evidence includes bounded local clinic readiness and accepted MZ-01a rendered typography. Comparative task benchmarks remain **UNMEASURED**; no timing improvement or broader acceptance is inferred.
 
@@ -79,6 +79,15 @@ A = shared-file/foundation/integration owner; original domain B responsibility i
 
 
 ### Current packet checkpoint
+
+### Pass 1 final domain-source checkpoint (2026-10-02)
+
+**66/74 IMPLEMENTED;7/74 VALIDATED after this integration commit.** Final07l/m/n/o independently reviewed frozen candidates applied against exact source identities. Scoped formatting,TypeScript,main/Office builds PASS;35/35affected non-browser operations/report/navigation/scheduling cases PASS. Lead2's16 and Lead3's42 fixed domain packets are now integrated/adopted with bounded source/check evidence. Lead3 immutable final inventory SHA256fde3c8ec516331a41b855321a206b763e4b827ae903a43a5e95317756a0e6fba ties86unique source files/59changed27unchanged and94leaf occurrences to42packets; these are source identities, not86new features or validation awards.05d-v2/06d-v2 supersede their preserved original revisions. No extra worker/review campaign/browser execution was started.
+
+Shared04h candidate is committed but independent C source review is still pending; it is the sole remaining feature implementation count and is **not counted**. Candidate blob54aca5683f36395f9450a1b95b5d730756c80052/patchSHA2680684cd560e779f86e1fca73beb66c5c9e0fe28dea86d51c62e239eb75e7c1.09a remains unchanged accepted-provider-contract adoption.10a assembly may complete after04hsource gate;10b is C's actual combined review.11/12 verification/release-only outcomes remain prepared for actual Pass2 evidence and cannot be counted from draft documents. BeforePass2, apply the four frozen remaining exact browser-selector copy amendments in inventory-setup-journey (Add to cart/In cart/Create purchase orders) and practice-feature-service-disable (Save location profile), preserving existing source/request/permission/quantity assertions. These prepared amendments are in Lead3's frozen inventory; no browser skip or pass is inferred.
+
+Retain current failed-baseline evidence,04b/03i unknown-outcome body/key repair needs,board heuristic scroll/focus/identity observation,portal/provider/payment/stock coverage and all benchmark gaps. Current source can support one stable combinedPass2build after actual C review and any relevant safety repairs. Remote maincd1ef720's independent sandbox marker/access failure remains final-release reconciliation work; do not silently merge it or blame the UI batch. Next: obtain04h/combinedC review, freeze accepted source,then execute authorizedPass2gates without restarting originalQA. No push/deployment.
+
 
 ### Pass 1 second source-batch checkpoint (2026-10-02)
 

@@ -127,74 +127,6 @@ export function ClinicianSetup() {
     <Stack spacing={2} sx={{ mb: 3 }}>
       <Paper variant="outlined" sx={{ p: 3 }}>
         <Stack spacing={2}>
-          <Typography variant="h2">Clinical departments</Typography>
-          <Typography color="text.secondary">
-            Add departments for this clinic. Clinician scheduling uses these
-            saved options.
-          </Typography>
-          {departmentFeedback && (
-            <Alert severity={departmentFeedback.error ? "error" : "success"}>
-              {departmentFeedback.text}
-            </Alert>
-          )}
-          <Stack
-            component="form"
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void addDepartment();
-            }}
-          >
-            <TextField
-              fullWidth
-              label="Department name"
-              value={departmentName}
-              onChange={(event) => setDepartmentName(event.target.value)}
-              disabled={savingDepartment}
-              slotProps={{ htmlInput: { maxLength: 80 } }}
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={savingDepartment || !departmentName.trim()}
-              sx={{ flexShrink: 0 }}
-            >
-              Add department
-            </Button>
-          </Stack>
-          {availableSuggestions.length > 0 && (
-            <Stack
-              direction="row"
-              spacing={1}
-              useFlexGap
-              sx={{ flexWrap: "wrap" }}
-            >
-              <Typography color="text.secondary" sx={{ alignSelf: "center" }}>
-                Suggested:
-              </Typography>
-              {availableSuggestions.map((suggestion) => (
-                <Button
-                  key={suggestion}
-                  size="small"
-                  disabled={savingDepartment}
-                  onClick={() => void addDepartment(suggestion)}
-                >
-                  Add {suggestion}
-                </Button>
-              ))}
-            </Stack>
-          )}
-          {departments.data.departments.length > 0 && (
-            <Typography variant="body2" color="text.secondary">
-              Available:{" "}
-              {departments.data.departments.map((item) => item.code).join(", ")}
-            </Typography>
-          )}
-        </Stack>
-      </Paper>
-      <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack spacing={2}>
           <Typography variant="h2">Clinicians for scheduling</Typography>
           <Typography color="text.secondary">
             Invite and activate the clinician in Workforce first. Select their
@@ -289,6 +221,74 @@ export function ClinicianSetup() {
           >
             Add clinician to scheduling
           </Button>
+        </Stack>
+      </Paper>
+      <Paper variant="outlined" sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Typography variant="h2">Clinical departments</Typography>
+          <Typography color="text.secondary">
+            Add departments for this clinic. Clinician scheduling uses these
+            saved options.
+          </Typography>
+          {departmentFeedback && (
+            <Alert severity={departmentFeedback.error ? "error" : "success"}>
+              {departmentFeedback.text}
+            </Alert>
+          )}
+          <Stack
+            component="form"
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void addDepartment();
+            }}
+          >
+            <TextField
+              fullWidth
+              label="Department name"
+              value={departmentName}
+              onChange={(event) => setDepartmentName(event.target.value)}
+              disabled={savingDepartment}
+              slotProps={{ htmlInput: { maxLength: 80 } }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={savingDepartment || !departmentName.trim()}
+              sx={{ flexShrink: 0 }}
+            >
+              Add department
+            </Button>
+          </Stack>
+          {availableSuggestions.length > 0 && (
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ flexWrap: "wrap" }}
+            >
+              <Typography color="text.secondary" sx={{ alignSelf: "center" }}>
+                Suggested:
+              </Typography>
+              {availableSuggestions.map((suggestion) => (
+                <Button
+                  key={suggestion}
+                  size="small"
+                  disabled={savingDepartment}
+                  onClick={() => void addDepartment(suggestion)}
+                >
+                  Add {suggestion}
+                </Button>
+              ))}
+            </Stack>
+          )}
+          {departments.data.departments.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              Available:{" "}
+              {departments.data.departments.map((item) => item.code).join(", ")}
+            </Typography>
+          )}
         </Stack>
       </Paper>
     </Stack>

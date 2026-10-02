@@ -28,7 +28,6 @@ export function OperationsView({
   const c = clinic.capabilities;
   return (
     <>
-      <p className="eyebrow">PRACTICE OPERATIONS</p>
       <h1>Morning view</h1>
       <p className="clinic-lead">
         Review the day's schedule, cash drawer, invoices, and staffing before
@@ -149,7 +148,7 @@ export function OperationsView({
             )}
             <li>
               <a className="text-link" href="/clinic/settings">
-                My settings →
+                My preferences →
               </a>
               <p>Appearance preferences for your signed-in account.</p>
             </li>
@@ -172,6 +171,9 @@ export function Operations() {
         readinessAndReports={
           <>
             <OwnerMorningView />
+            <LabReviewWorklist />
+            <LabFollowUpWorklist />
+            <OperationFollowUps />
             <OperationsWorkflowGuide capabilities={context.capabilities} />
             <div className="clinic-grid">
               <OperationsProviderReadiness
@@ -193,13 +195,6 @@ export function Operations() {
                 timezone={context.practice.timezone}
               />
             </div>
-          </>
-        }
-        followUps={
-          <>
-            <LabReviewWorklist />
-            <LabFollowUpWorklist />
-            <OperationFollowUps />
           </>
         }
       />
