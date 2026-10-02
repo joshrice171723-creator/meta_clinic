@@ -260,9 +260,10 @@ async function open(mode = "success") {
               },
             ];
             record.access_revision = `${"f".repeat(63)}${id}`;
-            if (Array.isArray(input.site_ids))
+            const siteIds = input.site_ids;
+            if (Array.isArray(siteIds))
               record.sites = sites
-                .filter((site) => input.site_ids.includes(site.id))
+                .filter((site) => siteIds.includes(site.id))
                 .map((site) => ({
                   ...site,
                   active: true,
