@@ -9,6 +9,7 @@ import { OperationsIntegrationInventory } from "./OperationsIntegrationInventory
 import { OperationsReportsCatalog } from "./OperationsReportsCatalog";
 import { OperationsWorkflowGuide } from "./OperationsWorkflowGuide";
 import { OwnerMorningView } from "./OwnerMorningView";
+import { OwnerCloseOfDayView } from "./OwnerCloseOfDayView";
 import { RolePermissionMatrix } from "./RolePermissionMatrix";
 import { useClinic, useClinicOverview } from "./Workspace";
 
@@ -171,6 +172,7 @@ export function Operations() {
         readinessAndReports={
           <>
             <OwnerMorningView />
+            <OwnerCloseOfDayView />
             <LabReviewWorklist />
             <LabFollowUpWorklist />
             <OperationFollowUps />
