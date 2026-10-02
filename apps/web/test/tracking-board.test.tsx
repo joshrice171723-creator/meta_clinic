@@ -1141,6 +1141,11 @@ describe("viewport-height clinic menu navigation", () => {
         ...Object.keys(CLINIC_STATUS_COLORS.light),
       ].map((key) => `--clinic-${key}`),
     );
+    postcss
+      .parse(readFileSync("src/features/clinic/appearance.css", "utf8"))
+      .walkDecls(/^--clinic-/, (declaration) => {
+        tokens.add(declaration.prop);
+      });
     for (const file of ["clinicFrame.css", "trackingBoard.css"]) {
       const css = readFileSync(`src/features/clinic/${file}`, "utf8");
       for (const match of css.matchAll(/var\((--clinic-[\w-]+)\)/g))
@@ -1159,7 +1164,8 @@ describe("viewport-height clinic menu navigation", () => {
       '.clinic-shell[data-collapsed="false"] .clinic-menu-toggle',
     );
     expect(css).toContain("right: 12px");
-    expect(css).toContain("margin-left: 56px");
+    expect(css).toContain("grid-template-columns: 56px minmax(0, 1fr)");
+    expect(css).toContain("margin-left: 0");
     const boardCss = readFileSync(
       "src/features/clinic/trackingBoard.css",
       "utf8",
