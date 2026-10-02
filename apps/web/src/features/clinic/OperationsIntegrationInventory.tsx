@@ -126,14 +126,14 @@ export function OperationsIntegrationInventory({
   }>("/api/clinic/reports/reminder_delivery_activity", {
     enabled: canReadReminders,
   });
-  const reminderActivity = reminders.data?.report;
+  const reminderActivity = canReadReminders ? reminders.data?.report : undefined;
   const payment = useResource<StripeConnectionStatus>(
     "/api/clinic/stripe_connect",
     {
       enabled: canReadBilling,
     },
   );
-  const connection = payment.data;
+  const connection = canReadBilling ? payment.data : undefined;
   const simulated = connection?.source === "local_membership_payment_simulator";
   const collections = useResource<{
     report: {
@@ -167,7 +167,7 @@ export function OperationsIntegrationInventory({
   }>("/api/clinic/reports/payment_collection_activity", {
     enabled: canReadBilling,
   });
-  const collectionActivity = collections.data?.report;
+  const collectionActivity = canReadBilling ? collections.data?.report : undefined;
   const prescriptions = useResource<{
     report: {
       source: string;
@@ -213,7 +213,7 @@ export function OperationsIntegrationInventory({
   }>("/api/clinic/reports/prescription_simulator_activity", {
     enabled: canReadClinical,
   });
-  const activity = prescriptions.data?.report;
+  const activity = canReadClinical ? prescriptions.data?.report : undefined;
   const attentionItems: string[] = [];
   const reconciliationCount =
     collectionActivity?.needs_reconciliation_count ?? 0;
