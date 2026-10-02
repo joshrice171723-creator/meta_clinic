@@ -184,6 +184,14 @@ export function WaitlistWorkspace() {
     expiresDate: string;
     expiresTime: string;
   } | null>(null);
+  const offerHeading = useRef<HTMLHeadingElement>(null);
+  const revealOffer = useRef(false);
+  useEffect(() => {
+    if (!revealOffer.current || !offerHeading.current) return;
+    revealOffer.current = false;
+    offerHeading.current.focus({ preventScroll: true });
+    offerHeading.current.scrollIntoView({ block: "start" });
+  }, [offer]);
   const [kind, setKind] = useState("weekly");
   const [weekday, setWeekday] = useState("1");
   const [startTime, setStartTime] = useState("09:00");
@@ -360,6 +368,7 @@ export function WaitlistWorkspace() {
     const expiration = starts
       ? Math.min(new Date(starts).valueOf(), defaultExpiration)
       : defaultExpiration;
+    revealOffer.current = true;
     setOffer({
       entry,
       startsDate: starts ? localDatePart(localInput(starts)) : "",
@@ -593,7 +602,13 @@ export function WaitlistWorkspace() {
           {offer && (
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Stack spacing={2}>
-                <Typography variant="h6">
+                <Typography
+                  ref={offerHeading}
+                  component="h2"
+                  variant="h6"
+                  tabIndex={-1}
+                  sx={{ scrollMarginBlock: 2 }}
+                >
                   Offer to {offer.entry.patient_name}
                 </Typography>
                 <TextField
