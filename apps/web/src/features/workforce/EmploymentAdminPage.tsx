@@ -122,7 +122,10 @@ function EmploymentAccessEditor({
       setRoleVersionId(nextRoleId);
       setSiteIds(nextSiteIds);
     }
-    previousAccess.current = { roleVersionId: nextRoleId, siteIds: nextSiteIds };
+    previousAccess.current = {
+      roleVersionId: nextRoleId,
+      siteIds: nextSiteIds,
+    };
   }, [
     employment.roles,
     employment.sites,

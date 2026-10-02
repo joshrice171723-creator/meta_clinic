@@ -76,7 +76,11 @@ function ActivityDetails({
       elevation={0}
       slots={{ heading: "h4" }}
       slotProps={{ transition: { timeout: 0 } }}
-      sx={{ minWidth: 0, bgcolor: "transparent", "&::before": { display: "none" } }}
+      sx={{
+        minWidth: 0,
+        bgcolor: "transparent",
+        "&::before": { display: "none" },
+      }}
     >
       <AccordionSummary
         id={`${id}-header`}
@@ -126,7 +130,9 @@ export function OperationsIntegrationInventory({
   }>("/api/clinic/reports/reminder_delivery_activity", {
     enabled: canReadReminders,
   });
-  const reminderActivity = canReadReminders ? reminders.data?.report : undefined;
+  const reminderActivity = canReadReminders
+    ? reminders.data?.report
+    : undefined;
   const payment = useResource<StripeConnectionStatus>(
     "/api/clinic/stripe_connect",
     {
@@ -167,7 +173,9 @@ export function OperationsIntegrationInventory({
   }>("/api/clinic/reports/payment_collection_activity", {
     enabled: canReadBilling,
   });
-  const collectionActivity = canReadBilling ? collections.data?.report : undefined;
+  const collectionActivity = canReadBilling
+    ? collections.data?.report
+    : undefined;
   const prescriptions = useResource<{
     report: {
       source: string;
@@ -337,7 +345,8 @@ export function OperationsIntegrationInventory({
                             "reconciliation",
                           )}
                         {collectionActivity.needs_reconciliation_count > 0 &&
-                          collectionActivity.in_flight_count > 0 && " · "}
+                          collectionActivity.in_flight_count > 0 &&
+                          " · "}
                         {collectionActivity.in_flight_count > 0 &&
                           activityCountMessage(
                             collectionActivity.in_flight_count,
@@ -363,19 +372,17 @@ export function OperationsIntegrationInventory({
                       : " · No collection intent recorded"}
                     .
                   </Typography>
-                  {collectionActivity.reconciliation_records.map(
-                    (record) => (
-                      <Button
-                        key={record.id}
-                        href={`/clinic/billing/patients?patient_id=${record.patient_id}&invoice_id=${record.invoice_id}&collection_intent_id=${record.id}`}
-                        size="small"
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        Review invoice {record.invoice_id} · collection{" "}
-                        {record.id} needing reconciliation
-                      </Button>
-                    ),
-                  )}
+                  {collectionActivity.reconciliation_records.map((record) => (
+                    <Button
+                      key={record.id}
+                      href={`/clinic/billing/patients?patient_id=${record.patient_id}&invoice_id=${record.invoice_id}&collection_intent_id=${record.id}`}
+                      size="small"
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Review invoice {record.invoice_id} · collection{" "}
+                      {record.id} needing reconciliation
+                    </Button>
+                  ))}
                   {collectionActivity.reconciliation_records_capped && (
                     <Typography variant="caption">
                       Showing the latest 25 reconciliation records. Open Billing
@@ -418,22 +425,31 @@ export function OperationsIntegrationInventory({
                             ([state, amount]) =>
                               `${humanizeActivityLabel(state)} ${amount}`,
                           )
-                          .join(" · ") || "none"}. These are requested
-                        amounts, not collected or settled funds.
+                          .join(" · ") || "none"}
+                        . These are requested amounts, not collected or settled
+                        funds.
                       </Typography>
                     ))}
                     {collectionActivity.reconciliation_records.map((record) => (
-                      <Typography variant="caption" key={`reconciliation-${record.id}`}>
+                      <Typography
+                        variant="caption"
+                        key={`reconciliation-${record.id}`}
+                      >
                         Reconciliation record {record.id} · invoice{" "}
-                        {record.invoice_id} · patient {record.patient_id} · updated{" "}
+                        {record.invoice_id} · patient {record.patient_id} ·
+                        updated{" "}
                         {formatActivityTime(record.updated_at, timezone)}
                       </Typography>
                     ))}
                     {collectionActivity.in_flight_records.map((record) => (
-                      <Typography variant="caption" key={`details-${record.id}`}>
-                        {humanizeActivityLabel(record.state)} record {record.id} ·
-                        invoice {record.invoice_id} · patient {record.patient_id} ·
-                        updated {formatActivityTime(record.updated_at, timezone)}
+                      <Typography
+                        variant="caption"
+                        key={`details-${record.id}`}
+                      >
+                        {humanizeActivityLabel(record.state)} record {record.id}{" "}
+                        · invoice {record.invoice_id} · patient{" "}
+                        {record.patient_id} · updated{" "}
+                        {formatActivityTime(record.updated_at, timezone)}
                       </Typography>
                     ))}
                     <Typography variant="caption" color="text.secondary">
@@ -496,7 +512,8 @@ export function OperationsIntegrationInventory({
                       ([state, count]) =>
                         `${humanizeActivityLabel(state)} ${count}`,
                     )
-                    .join(" · ") || "none"}.
+                    .join(" · ") || "none"}
+                  .
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Internal source: {reminderActivity.source}
@@ -571,20 +588,20 @@ export function OperationsIntegrationInventory({
                   : " · No attempt recorded"}
                 .
               </Typography>
-              {activity.current_revision_unresolved_records.map(
-                (record) => (
-                  <Button
-                    key={record.id}
-                    href={`/clinic/patients/${record.patient_id}/encounters/${record.encounter_id}?medication_request_revision_id=${record.medication_request_revision_id}&prescription_attempt_id=${record.id}`}
-                    size="small"
-                    sx={{ alignSelf: "flex-start" }}
-                  >
-                    Review request revision {record.medication_request_revision_id}
-                    {" · "}patient {record.patient_id}{" · "}
-                    {humanizeActivityLabel(record.outcome)}
-                  </Button>
-                ),
-              )}
+              {activity.current_revision_unresolved_records.map((record) => (
+                <Button
+                  key={record.id}
+                  href={`/clinic/patients/${record.patient_id}/encounters/${record.encounter_id}?medication_request_revision_id=${record.medication_request_revision_id}&prescription_attempt_id=${record.id}`}
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Review request revision{" "}
+                  {record.medication_request_revision_id}
+                  {" · "}patient {record.patient_id}
+                  {" · "}
+                  {humanizeActivityLabel(record.outcome)}
+                </Button>
+              ))}
               {activity.current_revision_unresolved_records_capped && (
                 <Typography variant="caption">
                   Showing the latest 25 current request revisions needing
@@ -602,13 +619,15 @@ export function OperationsIntegrationInventory({
                   have an unreconciled unknown attempt.
                 </Typography>
                 <Typography variant="body2">
-                  Recorded outcomes: {Object.entries(activity.outcome_counts)
+                  Recorded outcomes:{" "}
+                  {Object.entries(activity.outcome_counts)
                     .map(
                       ([outcome, count]) =>
                         `${humanizeActivityLabel(outcome)} ${count}`,
                     )
-                    .join(" · ") || "none"}. These include earlier attempts
-                  and do not identify current requests.
+                    .join(" · ") || "none"}
+                  . These include earlier attempts and do not identify current
+                  requests.
                 </Typography>
                 <Typography variant="body2">
                   Latest attempt per request revision:{" "}
@@ -617,8 +636,8 @@ export function OperationsIntegrationInventory({
                       ([outcome, count]) =>
                         `${humanizeActivityLabel(outcome)} ${count}`,
                     )
-                    .join(" · ") || "none"}. Revisions may have been
-                  superseded.
+                    .join(" · ") || "none"}
+                  . Revisions may have been superseded.
                 </Typography>
                 <Typography variant="body2">
                   Current request revisions by latest outcome:{" "}
@@ -627,8 +646,8 @@ export function OperationsIntegrationInventory({
                       ([outcome, count]) =>
                         `${humanizeActivityLabel(outcome)} ${count}`,
                     )
-                    .join(" · ") || "none"}. These are local simulator
-                  records, not pharmacy responses.
+                    .join(" · ") || "none"}
+                  . These are local simulator records, not pharmacy responses.
                 </Typography>
                 {activity.current_revision_unresolved_records.map((record) => (
                   <Typography variant="caption" key={`unresolved-${record.id}`}>
@@ -644,7 +663,8 @@ export function OperationsIntegrationInventory({
                     Unknown-outcome attempt {record.id} · patient{" "}
                     {record.patient_id} · encounter {record.encounter_id} ·
                     request revision {record.medication_request_revision_id} ·
-                    submitted {formatActivityTime(record.submitted_at, timezone)}
+                    submitted{" "}
+                    {formatActivityTime(record.submitted_at, timezone)}
                   </Typography>
                 ))}
                 {activity.current_revision_unknown_records_capped && (
@@ -669,8 +689,10 @@ export function OperationsIntegrationInventory({
                     size="small"
                     sx={{ alignSelf: "flex-start" }}
                   >
-                    Open request revision {record.medication_request_revision_id}
-                    {" · "}patient {record.patient_id}{" · "}
+                    Open request revision{" "}
+                    {record.medication_request_revision_id}
+                    {" · "}patient {record.patient_id}
+                    {" · "}
                     {humanizeActivityLabel(record.outcome)}
                   </Button>
                 ))}
@@ -680,7 +702,8 @@ export function OperationsIntegrationInventory({
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary">
-                  Internal source: {activity.source} · adapter: {activity.adapter}
+                  Internal source: {activity.source} · adapter:{" "}
+                  {activity.adapter}
                 </Typography>
               </ActivityDetails>
             </>
@@ -725,9 +748,9 @@ export type ScribeActivityReport = {
   };
 };
 
-export function ScribeActivitySummary(
-  { timezone }: { timezone?: string } = {},
-) {
+export function ScribeActivitySummary({
+  timezone,
+}: { timezone?: string } = {}) {
   const [page, setPage] = useState(1);
   const resource = useResource<{ report: ScribeActivityReport }>(
     `/api/clinic/reports/scribe_activity?page=${page}`,
@@ -797,11 +820,13 @@ export function ScribeActivitySummary(
                     variant="caption"
                     key={`details-${item.record_type}-${item.id}`}
                   >
-                    {humanizeActivityLabel(item.record_type)} {item.id} · encounter{" "}
-                    {item.encounter_id} · {humanizeActivityLabel(item.status)} · updated{" "}
+                    {humanizeActivityLabel(item.record_type)} {item.id} ·
+                    encounter {item.encounter_id} ·{" "}
+                    {humanizeActivityLabel(item.status)} · updated{" "}
                     {formatActivityTime(
                       item.updated_at,
-                      timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+                      timezone ||
+                        Intl.DateTimeFormat().resolvedOptions().timeZone,
                     )}
                   </Typography>
                 ))}
@@ -834,20 +859,34 @@ export function ScribeActivitySummary(
           )}
           <ActivityDetails label="Scribe status details">
             <Typography variant="body2">
-              Current approved drafts: {report.current_draft_counts.approved ?? 0}
-              ; current exported drafts: {report.current_draft_counts.exported ?? 0}.
-              Superseded drafts are excluded.
+              Current approved drafts:{" "}
+              {report.current_draft_counts.approved ?? 0}; current exported
+              drafts: {report.current_draft_counts.exported ?? 0}. Superseded
+              drafts are excluded.
             </Typography>
             <Typography variant="body2">
-              Draft statuses: {Object.entries(report.current_draft_counts)
-                .map(([state, count]) => `${humanizeActivityLabel(state)} ${count}`)
-                .join(" · ") || "none"}. Source statuses:{" "}
+              Draft statuses:{" "}
+              {Object.entries(report.current_draft_counts)
+                .map(
+                  ([state, count]) =>
+                    `${humanizeActivityLabel(state)} ${count}`,
+                )
+                .join(" · ") || "none"}
+              . Source statuses:{" "}
               {Object.entries(report.source_counts)
-                .map(([state, count]) => `${humanizeActivityLabel(state)} ${count}`)
-                .join(" · ") || "none"}. Recording statuses:{" "}
+                .map(
+                  ([state, count]) =>
+                    `${humanizeActivityLabel(state)} ${count}`,
+                )
+                .join(" · ") || "none"}
+              . Recording statuses:{" "}
               {Object.entries(report.recording_counts)
-                .map(([state, count]) => `${humanizeActivityLabel(state)} ${count}`)
-                .join(" · ") || "none"}.
+                .map(
+                  ([state, count]) =>
+                    `${humanizeActivityLabel(state)} ${count}`,
+                )
+                .join(" · ") || "none"}
+              .
             </Typography>
           </ActivityDetails>
           <Typography variant="caption" color="text.secondary">
@@ -855,13 +894,14 @@ export function ScribeActivitySummary(
             {formatActivityTime(
               report.as_of,
               timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-            )}. Last recording change:{" "}
+            )}
+            . Last recording change:{" "}
             {formatActivityTime(
               report.latest_recording_update_at,
               timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-            )}.
-            Recording counts describe capture state, not transcription success.
-            Review the encounter before retrying.
+            )}
+            . Recording counts describe capture state, not transcription
+            success. Review the encounter before retrying.
           </Typography>
           <Button
             size="small"

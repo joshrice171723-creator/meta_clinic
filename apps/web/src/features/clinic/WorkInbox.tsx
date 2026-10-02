@@ -471,8 +471,13 @@ function mutationFailure(error: unknown) {
 }
 
 type PatientFlowTaskAction =
-  | "claim" | "assign" | "accept_transfer" | "reject_transfer"
-  | "dependencies" | "start" | "complete";
+  | "claim"
+  | "assign"
+  | "accept_transfer"
+  | "reject_transfer"
+  | "dependencies"
+  | "start"
+  | "complete";
 
 type PatientFlowTaskController = {
   busy: string;
@@ -491,8 +496,11 @@ type PatientFlowTaskController = {
 
 function createPatientFlowTaskController(onChange: () => void = () => {}) {
   const controller: PatientFlowTaskController = {
-    busy: "", error: "", inFlight: { current: false },
-    attempts: { current: new Map() }, unknownAttempt: null,
+    busy: "",
+    error: "",
+    inFlight: { current: false },
+    attempts: { current: new Map() },
+    unknownAttempt: null,
     listeners: new Set(),
     notify: () => {
       for (const update of controller.listeners) update();
@@ -530,7 +538,9 @@ function TaskActions({
   const [localBusy, setLocalBusy] = useState("");
   const [localError, setLocalError] = useState("");
   const [, redraw] = useState(0);
-  const localAttempts = useRef(new Map<string, { key: string; version: number }>());
+  const localAttempts = useRef(
+    new Map<string, { key: string; version: number }>(),
+  );
   const localInFlight = useRef(false);
   const attempts = controller?.attempts ?? localAttempts;
   const inFlight = controller?.inFlight ?? localInFlight;
@@ -541,7 +551,9 @@ function TaskActions({
     if (!controller) return;
     const update = () => redraw((value) => value + 1);
     controller.listeners.add(update);
-    return () => { controller.listeners.delete(update); };
+    return () => {
+      controller.listeners.delete(update);
+    };
   }, [controller]);
   const setBusy = (value: string) => {
     if (!controller) return setLocalBusy(value);
@@ -561,7 +573,8 @@ function TaskActions({
   ) {
     const unresolved = controller?.unknownAttempt;
     if (inFlight.current || (unresolved && !exactRetry)) return;
-    if (unresolved && unresolved.actorMembershipId !== actorMembershipId) return;
+    if (unresolved && unresolved.actorMembershipId !== actorMembershipId)
+      return;
     // Unknown retries use the original reviewed task, payload, key and version.
     const reviewedTask = unresolved?.task ?? task;
     if (unresolved) {
@@ -581,20 +594,17 @@ function TaskActions({
       const response = await api<{
         task: ClinicalTaskItem;
         task_receipt?: ClinicalTaskMutationReceipt;
-      }>(
-        `/api/clinic/clinical_tasks/${reviewedTask.id}`,
-        {
-          method: "PATCH",
-          body: {
-            task: {
-              action,
-              expected_version: attempt.version,
-              request_key: attempt.key,
-              ...values,
-            },
+      }>(`/api/clinic/clinical_tasks/${reviewedTask.id}`, {
+        method: "PATCH",
+        body: {
+          task: {
+            action,
+            expected_version: attempt.version,
+            request_key: attempt.key,
+            ...values,
           },
         },
-      );
+      });
       if (
         response.task?.id !== reviewedTask.id ||
         !Number.isSafeInteger(response.task.version) ||
@@ -625,9 +635,12 @@ function TaskActions({
       );
     } catch (reason) {
       const failure = mutationFailure(reason);
-      const unknown = failure.outcomeUnknown || Boolean(
-        controller && (unresolved || (reason instanceof ApiError && reason.status === 408)),
-      );
+      const unknown =
+        failure.outcomeUnknown ||
+        Boolean(
+          controller &&
+          (unresolved || (reason instanceof ApiError && reason.status === 408)),
+        );
       if (controller && unknown) {
         controller.unknownAttempt ??= {
           action,
@@ -637,9 +650,11 @@ function TaskActions({
         };
       }
       if (!unknown) attempts.current.delete(signature);
-      setError(controller && unknown
-        ? "The outcome is unknown. Conflicting task actions are locked; retry the exact task action to confirm it."
-        : failure.message);
+      setError(
+        controller && unknown
+          ? "The outcome is unknown. Conflicting task actions are locked; retry the exact task action to confirm it."
+          : failure.message,
+      );
     } finally {
       inFlight.current = false;
       setBusy("");
@@ -647,14 +662,24 @@ function TaskActions({
   }
 
   const errorNotice = error && (
-    <Alert severity="error" action={controller?.unknownAttempt ? (
-      <Button color="inherit" disabled={Boolean(busy)} onClick={() => {
-        const pending = controller.unknownAttempt;
-        if (pending) void transition(pending.action, pending.values, true);
-      }}>
-        Retry exact task action
-      </Button>
-    ) : undefined}>
+    <Alert
+      severity="error"
+      action={
+        controller?.unknownAttempt ? (
+          <Button
+            color="inherit"
+            disabled={Boolean(busy)}
+            onClick={() => {
+              const pending = controller.unknownAttempt;
+              if (pending)
+                void transition(pending.action, pending.values, true);
+            }}
+          >
+            Retry exact task action
+          </Button>
+        ) : undefined
+      }
+    >
       {error}
     </Alert>
   );
@@ -1542,7 +1567,8 @@ function PatientFlowCard({
 }) {
   const context = useClinic();
   const localController = useRef<PatientFlowTaskController | null>(null);
-  if (!localController.current) localController.current = createPatientFlowTaskController();
+  if (!localController.current)
+    localController.current = createPatientFlowTaskController();
   const sharedController = taskController ?? localController.current;
   const task = item.mutation?.kind === "task" ? item.mutation.task : undefined;
   const scheduleHref = patientFlowScheduleHref(task, context);
@@ -1724,14 +1750,17 @@ function ScopedWorkInbox() {
   const taskController = (taskId: number) => {
     let controller = taskControllers.current.get(taskId);
     if (!controller) {
-      controller = createPatientFlowTaskController(() => redrawTaskOutcomes((value) => value + 1));
+      controller = createPatientFlowTaskController(() =>
+        redrawTaskOutcomes((value) => value + 1),
+      );
       taskControllers.current.set(taskId, controller);
     }
     return controller;
   };
   useDemoNavigationBlocker(() => {
     const blocked = [...taskControllers.current.values()].some(
-      (controller) => controller.inFlight.current || controller.unknownAttempt !== null,
+      (controller) =>
+        controller.inFlight.current || controller.unknownAttempt !== null,
     );
     return {
       blocked,
@@ -2795,8 +2824,11 @@ function ScopedWorkInbox() {
                               key={item.id}
                               item={item}
                               work={work.data}
-                              taskController={item.mutation?.kind === "task"
-                                ? taskController(item.mutation.task.id) : undefined}
+                              taskController={
+                                item.mutation?.kind === "task"
+                                  ? taskController(item.mutation.task.id)
+                                  : undefined
+                              }
                               onChanged={(message) => {
                                 setNotice(message ?? "");
                                 setRefreshRevision((value) => value + 1);

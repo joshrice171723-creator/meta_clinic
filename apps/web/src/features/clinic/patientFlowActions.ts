@@ -15,7 +15,10 @@ function recordedId(value: number | null | undefined): value is number {
 // These are entry-point guards. Rails still authorizes the actual resource/site.
 export function patientFlowScheduleHref(
   task: ClinicalTask | undefined,
-  context: Pick<ClinicWorkspaceContext, "capabilities" | "current_site" | "sites">,
+  context: Pick<
+    ClinicWorkspaceContext,
+    "capabilities" | "current_site" | "sites"
+  >,
 ) {
   const { capabilities, current_site, sites } = context;
   const canBook =
