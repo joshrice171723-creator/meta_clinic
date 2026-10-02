@@ -47,6 +47,10 @@ const readinessLabels: Record<TelehealthQueueRow["readiness"], string> = {
   ended: "Ended",
 };
 
+function visitCount(value: number, singular: string, plural: string) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
 function dateTime(value: string, timeZone: string) {
   const date = new Date(value);
   if (Number.isNaN(date.valueOf())) return "Time unavailable";
@@ -319,24 +323,36 @@ export function TelehealthQueue() {
           aria-atomic="true"
         >
           <Chip
-            label={`${visits.length}${response.data.next_cursor ? " shown" : ""} visits`}
+            label={`${visits.length}${response.data.next_cursor ? " shown" : ""} ${visits.length === 1 ? "visit" : "visits"}`}
             color={visits.length > 0 ? "primary" : "default"}
             size="small"
           />
           <Chip
-            label={`${readinessSummary.waiting} waiting`}
+            label={visitCount(
+              readinessSummary.waiting,
+              "waiting visit",
+              "waiting visits",
+            )}
             color={readinessSummary.waiting > 0 ? "warning" : "default"}
             size="small"
             variant="outlined"
           />
           <Chip
-            label={`${readinessSummary.connected} connected`}
+            label={visitCount(
+              readinessSummary.connected,
+              "connected visit",
+              "connected visits",
+            )}
             color={readinessSummary.connected > 0 ? "success" : "default"}
             size="small"
             variant="outlined"
           />
           <Chip
-            label={`${readinessSummary.preparation_needed + readinessSummary.consent_needed} need preparation`}
+            label={visitCount(
+              readinessSummary.preparation_needed + readinessSummary.consent_needed,
+              "visit needs preparation",
+              "visits need preparation",
+            )}
             color={
               readinessSummary.preparation_needed +
                 readinessSummary.consent_needed >

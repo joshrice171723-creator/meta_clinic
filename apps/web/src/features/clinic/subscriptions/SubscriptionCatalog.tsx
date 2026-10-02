@@ -394,8 +394,8 @@ export function SubscriptionCatalog() {
                         : kind === "family"
                           ? item.published_snapshot
                             ? programHasDraftChanges(item)
-                              ? "Published · draft changes"
-                              : "Published"
+                              ? "Published version · draft edits"
+                              : "Published version"
                             : "Draft"
                           : "Available";
                       return (
@@ -408,8 +408,10 @@ export function SubscriptionCatalog() {
                             <span
                               className="subscription-catalog__status"
                               data-status={
-                                status.includes("draft changes")
+                                status.includes("draft edits")
                                   ? "changed"
+                                  : status.startsWith("Published")
+                                    ? "published"
                                   : status.toLowerCase()
                               }
                             >
@@ -496,6 +498,11 @@ export function SubscriptionCatalog() {
                     Draft privately, preview the patient experience, then
                     publish an immutable version.
                   </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Editing changes the draft only. The published version stays
+                    active until you publish a new version; earlier published
+                    versions remain available for existing records.
+                  </Typography>
                 </div>
                 {data.capabilities.write && (
                   <Button
@@ -548,7 +555,7 @@ export function SubscriptionCatalog() {
                             {p.retired
                               ? "Retired"
                               : p.published_version_id
-                                ? "Published + draft"
+                                ? "Published version + draft edits"
                                 : "Draft"}
                           </span>
                           <div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -99,6 +99,20 @@ export type BillingWorkspaceData = Omit<
 export function billingMoney(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
+}
+
+function outlookMonthOffset(value: string, offset: number) {
+  const [year, month] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 + offset, 1))
+    .toISOString()
+    .slice(0, 7);
+}
+
+function outlookRequest(start: string, months: number) {
+  return `?${new URLSearchParams({
+    outlook_start: start,
+    outlook_months: String(months),
+  })}`;
 }
 
 const collectionStatusLabels: Record<BillingCollectionStatus, string> = {
@@ -581,16 +595,55 @@ export function BillingIncomeOutlook() {
   const [months, setMonths] = useState(6);
   const [currency, setCurrency] = useState("");
   const [request, setRequest] = useState("");
+  const [appliedRequest, setAppliedRequest] = useState<string | null>(null);
+  const initialized = useRef(false);
   const resource = useResource<{ income_outlook: IncomeOutlook }>(
     `/api/clinic/billing/income_outlook${request}`,
   );
   const outlook = resource.data?.income_outlook;
   useEffect(() => {
-    if (!outlook) return;
-    setStart((current) => current || outlook.start_month.slice(0, 7));
-    setMonths((current) => current || outlook.months);
-    setCurrency((current) => current || outlook.currencies[0]?.currency || "");
+    if (!outlook || initialized.current) return;
+    initialized.current = true;
+    const initialStart = outlook.start_month.slice(0, 7);
+    setStart(initialStart);
+    setMonths(outlook.months);
+    setCurrency(outlook.currencies[0]?.currency || "");
+    setAppliedRequest(outlookRequest(initialStart, outlook.months));
   }, [outlook]);
+  const minimumStart = outlook
+    ? outlookMonthOffset(outlook.history_end.slice(0, 7), 1)
+    : "";
+  const maximumStart = outlook
+    ? outlookMonthOffset(outlook.history_end.slice(0, 7), 24)
+    : "";
+  const validStart =
+    /^\d{4}-(0[1-9]|1[0-2])$/.test(start) &&
+    (!minimumStart || start >= minimumStart) &&
+    (!maximumStart || start <= maximumStart);
+  const validMonths = [3, 6, 12].includes(months);
+  const nextRequest =
+    validStart && validMonths ? outlookRequest(start, months) : null;
+  useEffect(() => {
+    if (!initialized.current || appliedRequest === null || !nextRequest) return;
+    if (nextRequest === appliedRequest) return;
+    const timer = window.setTimeout(() => {
+      setRequest(nextRequest);
+      setAppliedRequest(nextRequest);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [appliedRequest, nextRequest]);
+  const inputError =
+    initialized.current &&
+    (!start
+      ? "Choose a starting month."
+      : !validStart
+        ? `Choose a month from ${minimumStart} through ${maximumStart}.`
+        : !validMonths
+          ? "Choose a 3, 6 or 12 month outlook."
+          : "");
+  const updating =
+    initialized.current &&
+    (!nextRequest || appliedRequest !== nextRequest);
   const selected =
     outlook?.currencies.find((item) => item.currency === currency) ??
     outlook?.currencies[0];
@@ -606,27 +659,19 @@ export function BillingIncomeOutlook() {
         </div>
         <Chip label="Planning estimate" variant="outlined" />
       </div>
-      <Box
-        component="form"
-        className="billing-outlook-controls"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setRequest(
-            `?${new URLSearchParams({ outlook_start: start, outlook_months: String(months) })}`,
-          );
-        }}
-      >
+      <Box className="billing-outlook-controls">
         <TextField
           type="month"
           label="Starting month"
           size="small"
           value={start}
           onChange={(event) => setStart(event.target.value)}
-          required
           slotProps={{
             inputLabel: { shrink: true },
-            htmlInput: { min: outlook?.start_month.slice(0, 7) },
+            htmlInput: { min: minimumStart, max: maximumStart },
           }}
+          error={Boolean(inputError)}
+          helperText={inputError || "Updates automatically when inputs change."}
         />
         <TextField
           select
@@ -656,11 +701,13 @@ export function BillingIncomeOutlook() {
             ))}
           </TextField>
         )}
-        <Button type="submit" variant="contained">
-          Update outlook
-        </Button>
       </Box>
-      {!outlook ? (
+      {updating && (
+        <Alert severity={inputError ? "warning" : "info"}>
+          {inputError || "Recalculating the read-only planning estimate…"}
+        </Alert>
+      )}
+      {updating ? null : !outlook ? (
         <LoadState error={resource.error} />
       ) : !selected ? (
         <div className="billing-empty-state">

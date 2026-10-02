@@ -22,10 +22,12 @@ import PhoneInTalkOutlinedIcon from "@mui/icons-material/PhoneInTalkOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
+import type { Patient } from "../../api/contracts";
 import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { patientReferenceLabel } from "./patientReference";
+import { useClinicNavigation } from "./clinicNavigation";
 
 type RecallStatus =
   "all" | "due" | "upcoming" | "snoozed" | "excluded" | "completed";
@@ -152,6 +154,7 @@ function RecallWorklistContent() {
   const [detailError, setDetailError] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
   const [action, setAction] = useState<RecallAction | null>(null);
+  const [outreachId, setOutreachId] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const query = new URLSearchParams({ status });
   if (current_site?.id) query.set("site_id", String(current_site.id));
@@ -260,6 +263,7 @@ function RecallWorklistContent() {
         >
           {(Object.keys(statusLabels) as RecallStatus[]).map((value) => (
             <Tab
+              disabled={outreachId !== null}
               key={value}
               value={value}
               label={`${statusLabels[value]}${value === "all" || !resource.data ? "" : ` (${resource.data.summary[value]})`}`}
@@ -350,18 +354,44 @@ function RecallWorklistContent() {
                   )}
                 </Stack>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <Button href={recall.encounter.href} variant="outlined">
-                    Open encounter
+                  <Button href={recall.encounter.href} variant="contained">
+                    Review encounter follow-up
                   </Button>
+                  {resource.data?.capabilities.write &&
+                    !["completed", "excluded", "snoozed"].includes(recall.status) && (
+                      <Button
+                        startIcon={<PhoneInTalkOutlinedIcon />}
+                        variant="outlined"
+                        disabled={outreachId !== null}
+                        onClick={() => {
+                          setNotice("");
+                          setOutreachId(recall.id);
+                        }}
+                      >
+                        Log outreach attempt
+                      </Button>
+                    )}
                   <Button
                     startIcon={<HistoryOutlinedIcon />}
-                    variant="contained"
+                    variant="text"
+                    disabled={outreachId !== null}
                     onClick={() => setSelectedId(recall.id)}
                   >
                     Review history
                   </Button>
                 </Stack>
               </Stack>
+              {outreachId === recall.id && (
+                <InlineRecallOutreach
+                  recallId={recall.id}
+                  onClose={() => setOutreachId(null)}
+                  onSaved={(message) => {
+                    setNotice(message);
+                    setOutreachId(null);
+                    resource.refresh();
+                  }}
+                />
+              )}
             </Box>
           ))}
         </Stack>
@@ -536,27 +566,125 @@ function RecallWorklistContent() {
   );
 }
 
+function InlineRecallOutreach({
+  recallId,
+  onClose,
+  onSaved,
+}: {
+  recallId: number;
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const resource = useResource<RecallDetailResponse>(`/api/clinic/recalls/${recallId}`);
+  if (!resource.data || resource.data.recall.id !== recallId) {
+    return (
+      <Stack spacing={1} sx={{ mt: 2 }}>
+        {resource.error ? (
+          <Alert severity="error" action={<Button onClick={resource.refresh}>Retry</Button>}>
+            {resource.error}
+          </Alert>
+        ) : <Typography role="status">Loading current recall.</Typography>}
+        <Button onClick={onClose}>Cancel</Button>
+      </Stack>
+    );
+  }
+  if (["completed", "excluded", "snoozed"].includes(resource.data.recall.status)) {
+    return (
+      <Alert severity="info" sx={{ mt: 2 }} action={<Button onClick={onClose}>Close</Button>}>
+        This recall has changed. Review its current history before logging outreach.
+      </Alert>
+    );
+  }
+  return (
+    <RecallActionDialog
+      inline
+      action="record_outreach"
+      recall={resource.data.recall}
+      onClose={onClose}
+      onSaved={(message) => onSaved(message)}
+    />
+  );
+}
+
+function RecallContactPreference({ patientId }: { patientId: number }) {
+  const resource = useResource<{ patient: Patient }>(`/api/clinic/patients/${patientId}`);
+  if (resource.error) return (
+    <Alert severity="warning" action={<Button onClick={resource.refresh}>Retry</Button>}>
+      Contact preferences unavailable. Review the patient record before any new contact.
+    </Alert>
+  );
+  if (!resource.data) return <Typography role="status">Loading contact preferences.</Typography>;
+  if (resource.data.patient.id !== patientId) return <Alert severity="warning">Contact preferences could not be confirmed.</Alert>;
+  const preference = resource.data.patient.communication_preference;
+  return (
+    <Box>
+      <Typography variant="body2">
+        Recorded preferred channel: {preference?.preferred_contact_method || "Not recorded"}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        General communication consent: {preference
+          ? preference.general_communications_consent ? "Consented" : "Not consented"
+          : "Not recorded"}. Reminder consent: {preference
+          ? preference.appointment_reminders_consent ? "Consented" : "Not consented"
+          : "Not recorded"}.
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Confirm permission and the appropriate contact details in the patient record before new outreach.
+      </Typography>
+      <Button href={`/clinic/patients/${patientId}`} size="small">
+        Review patient contact details and permissions
+      </Button>
+    </Box>
+  );
+}
+
 function RecallActionDialog({
   action,
   recall,
   onClose,
   onSaved,
+  inline = false,
 }: {
   action: RecallAction;
   recall: RecallItem;
   onClose: () => void;
   onSaved: (message: string, result: RecallDetailResponse) => void;
+  inline?: boolean;
 }) {
-  const [channel, setChannel] = useState("phone");
+  const [channel, setChannel] = useState("");
   const [reason, setReason] = useState("");
   const [completionEvidence, setCompletionEvidence] = useState("");
   const [snoozedUntil, setSnoozedUntil] = useState(
     localDateTime(recall.effective_due_at),
   );
+  const initialSnoozedUntil = useRef(snoozedUntil);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const requestKey = useRef(crypto.randomUUID());
+  const { registerBlocker } = useClinicNavigation();
+  const dirty = Boolean(channel || reason || completionEvidence) ||
+    (action === "snooze" && snoozedUntil !== initialSnoozedUntil.current);
+  useEffect(() => {
+    if (!dirty && !busy && !outcomeUnconfirmed) return;
+    const warning = busy || outcomeUnconfirmed
+      ? "The recall action may be unresolved. Reconcile the same action before leaving."
+      : "Leave and discard this unsaved recall action?";
+    const unregister = registerBlocker(() => warning);
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [dirty, busy, outcomeUnconfirmed, registerBlocker]);
+  const close = () => {
+    if (!busy && !outcomeUnconfirmed &&
+      (!dirty || window.confirm("Discard this unsaved recall action?"))) onClose();
+  };
 
   const submit = async () => {
     if (busy) return;
@@ -591,6 +719,13 @@ function RecallActionDialog({
           },
         },
       );
+      if (result.recall.id !== recall.id ||
+        result.recall.patient.id !== recall.patient.id ||
+        result.recall.encounter.id !== recall.encounter.id ||
+        !Number.isInteger(result.recall.version) ||
+        result.recall.version <= recall.version) {
+        throw new ApiError(502, "The saved recall could not be confirmed.", "outcome_unconfirmed");
+      }
       onSaved(
         action === "record_outreach"
           ? "The outreach attempt was recorded. No message was sent."
@@ -599,13 +734,13 @@ function RecallActionDialog({
       );
     } catch (reasonValue) {
       const unknown =
-        reasonValue instanceof ApiError &&
+        !(reasonValue instanceof ApiError) ||
         (reasonValue.code === "outcome_unconfirmed" ||
           reasonValue.status === 408 ||
           reasonValue.status >= 500);
-      setOutcomeUnconfirmed(unknown);
+      setOutcomeUnconfirmed((current) => current || unknown);
       setError(
-        unknown
+        unknown || outcomeUnconfirmed
           ? "The outcome is not confirmed. Retry this exact action before changing any details."
           : reasonValue instanceof Error
             ? reasonValue.message
@@ -620,20 +755,29 @@ function RecallActionDialog({
     action === "snooze" || action === "exclude" || action === "reopen";
   const disabled =
     busy ||
+    (action === "record_outreach" && !channel) ||
     (requiresReason && !reason.trim()) ||
     (action === "complete" && !completionEvidence.trim()) ||
     (action === "snooze" && !snoozedUntil);
 
-  return (
-    <Dialog
-      open
-      onClose={() => !busy && !outcomeUnconfirmed && onClose()}
-      fullWidth
-      maxWidth="sm"
-    >
+  const content = (
+    <>
       <DialogTitle>{actionLabels[action]}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
+          <Box>
+            <Typography sx={{ fontWeight: 700 }}>
+              {recall.patient.display_name} · {patientReferenceLabel(recall.patient.reference) || recall.patient.reference}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Source: {recall.source_kind === "telehealth" ? "Telehealth" : "In-person"} encounter {formatDateTime(recall.encounter.started_at)}
+            </Typography>
+            <Typography sx={{ whiteSpace: "pre-wrap" }}>{recall.plan}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Source due: {formatDateTime(recall.source_due_at)} · Effective due: {formatDateTime(recall.effective_due_at)}
+            </Typography>
+          </Box>
+          {action === "record_outreach" && <RecallContactPreference patientId={recall.patient.id} />}
           <Typography color="text.secondary">
             {action === "record_outreach"
               ? "Record an attempt that already occurred. This action does not send a message."
@@ -657,7 +801,7 @@ function RecallActionDialog({
               required
               label="Outreach channel"
               value={channel}
-              disabled={outcomeUnconfirmed}
+              disabled={busy || outcomeUnconfirmed}
               onChange={(event) => setChannel(event.target.value)}
             >
               {[
@@ -686,7 +830,7 @@ function RecallActionDialog({
                   : "Reason"
               }
               value={reason}
-              disabled={outcomeUnconfirmed}
+              disabled={busy || outcomeUnconfirmed}
               onChange={(event) => setReason(event.target.value)}
               slotProps={{ htmlInput: { maxLength: 1_000 } }}
             />
@@ -697,7 +841,7 @@ function RecallActionDialog({
               type="datetime-local"
               label="Snooze until"
               value={snoozedUntil}
-              disabled={outcomeUnconfirmed}
+              disabled={busy || outcomeUnconfirmed}
               onChange={(event) => setSnoozedUntil(event.target.value)}
               slotProps={{ inputLabel: { shrink: true } }}
             />
@@ -709,7 +853,7 @@ function RecallActionDialog({
               minRows={4}
               label="Completion outcome"
               value={completionEvidence}
-              disabled={outcomeUnconfirmed}
+              disabled={busy || outcomeUnconfirmed}
               onChange={(event) => setCompletionEvidence(event.target.value)}
               slotProps={{ htmlInput: { maxLength: 4_000 } }}
             />
@@ -718,7 +862,7 @@ function RecallActionDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button disabled={busy || outcomeUnconfirmed} onClick={onClose}>
+        <Button disabled={busy || outcomeUnconfirmed} onClick={close}>
           Cancel
         </Button>
         <Button
@@ -733,6 +877,15 @@ function RecallActionDialog({
               : actionLabels[action]}
         </Button>
       </DialogActions>
+    </>
+  );
+  return inline ? (
+    <Paper component="section" variant="outlined" aria-label="Log outreach attempt" sx={{ mt: 2 }}>
+      {content}
+    </Paper>
+  ) : (
+    <Dialog open onClose={close} fullWidth maxWidth="sm">
+      {content}
     </Dialog>
   );
 }
