@@ -1,14 +1,25 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LaunchIcon from "@mui/icons-material/Launch";
 import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import BusinessIcon from "@mui/icons-material/Business";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import type { ClinicSite } from "../../api/contracts";
 import { Form } from "../../shared/ui";
 import { isDemoFrame } from "../demo/frame";
 
 export const COMPACT_NAV_QUERY = "(max-width: 900px)";
+export const ClinicRailContext = createContext(false);
 export function compactNavigation() {
   return (
     typeof window !== "undefined" &&
@@ -42,6 +53,8 @@ export function ClinicFrame({
 }) {
   const [compact, setCompact] = useState(compactNavigation);
   const [collapsed, setCollapsed] = useState(compactNavigation);
+  const desktopCollapsed = useRef(false);
+  const focusScope = useRef(false);
   const tab = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
   const locationMenu = useRef<HTMLDivElement>(null);
@@ -49,6 +62,14 @@ export function ClinicFrame({
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [highlightedLocation, setHighlightedLocation] = useState(0);
   const drawer = compact && !collapsed;
+  const rail = !compact && collapsed;
+  const toggleLabel = compact
+    ? collapsed
+      ? "Open clinic menu"
+      : "Close clinic menu"
+    : collapsed
+      ? "Expand sidebar"
+      : "Collapse sidebar";
   const selectedLocation = locations.find(
     (site) => site.id === selectedLocationId,
   );
@@ -72,11 +93,22 @@ export function ClinicFrame({
         if (panel.current?.contains(document.activeElement))
           tab.current?.focus();
         setCollapsed(true);
-      } else setCollapsed(false);
+      } else setCollapsed(desktopCollapsed.current);
     };
     media.addEventListener("change", change);
     return () => media.removeEventListener("change", change);
   }, []);
+  useEffect(() => {
+    if (!collapsed && focusScope.current) {
+      focusScope.current = false;
+      if (panel.current) panel.current.scrollTop = 0;
+      (
+        panel.current?.querySelector<HTMLElement>(
+          '.practice-label [role="combobox"]:not([aria-disabled="true"]), .practice-label button:not(:disabled)',
+        ) ?? tab.current
+      )?.focus();
+    }
+  }, [collapsed]);
   useEffect(() => {
     if (!drawer) return;
     const previousOverflow = document.body.style.overflow;
@@ -109,7 +141,7 @@ export function ClinicFrame({
       document.removeEventListener("pointerdown", closeOnOutsideClick);
   }, [locationMenuOpen]);
   return (
-    <div className="clinic-shell" data-collapsed={collapsed}>
+    <div className="clinic-shell" data-collapsed={collapsed} data-rail={rail}>
       {drawer && (
         <button
           type="button"
@@ -143,7 +175,7 @@ export function ClinicFrame({
             event.currentTarget.querySelectorAll<HTMLElement>(
               'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
             ),
-          );
+          ).filter((control) => control.getClientRects().length > 0);
           const first = controls[0];
           const last = controls[controls.length - 1];
           if (event.shiftKey && document.activeElement === first) {
@@ -155,37 +187,71 @@ export function ClinicFrame({
           }
         }}
       >
-        <IconButton
-          ref={tab}
-          className="clinic-menu-toggle"
-          aria-controls="clinic-sidebar"
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Open clinic menu" : "Collapse clinic menu"}
-          data-demo-tour-control="true"
-          onClick={() => setCollapsed(!collapsed)}
-          size="small"
-        >
-          {collapsed ? (
-            <MenuIcon fontSize="small" aria-hidden="true" />
-          ) : (
-            <CloseIcon fontSize="small" aria-hidden="true" />
-          )}
-          <span className="clinic-menu-toggle-label">Menu</span>
-        </IconButton>
+        <Tooltip describeChild title={toggleLabel} placement="right">
+          <IconButton
+            ref={tab}
+            className="clinic-menu-toggle"
+            aria-controls="clinic-sidebar"
+            aria-expanded={!collapsed}
+            aria-label={toggleLabel}
+            data-demo-tour-control="true"
+            onClick={() => {
+              if (!compact) desktopCollapsed.current = !collapsed;
+              setCollapsed(!collapsed);
+            }}
+            size="small"
+          >
+            {compact ? (
+              collapsed ? (
+                <MenuIcon fontSize="small" aria-hidden="true" />
+              ) : (
+                <CloseIcon fontSize="small" aria-hidden="true" />
+              )
+            ) : collapsed ? (
+              <ChevronRightIcon fontSize="small" />
+            ) : (
+              <ChevronLeftIcon fontSize="small" />
+            )}
+            <span className="clinic-menu-toggle-label">Menu</span>
+          </IconButton>
+        </Tooltip>
         <aside
           id="clinic-sidebar"
           className="clinic-sidebar"
           ref={panel}
-          hidden={collapsed}
+          hidden={compact && collapsed}
         >
           <a className="wordmark" href="/clinic">
             Meta Clinic
             <span className="brand-dot" />
           </a>
-          <div className="practice-label">
+          {rail && (
+            <Tooltip
+              describeChild
+              title={`${practiceName} · ${visibleLocationName || "No location selected"} · ${timezone}`}
+              placement="right"
+            >
+              <IconButton
+                className="clinic-rail-scope"
+                aria-label={`Expand clinic context: ${practiceName}, ${visibleLocationName || "No location selected"}`}
+                aria-controls="clinic-scope"
+                aria-expanded={false}
+                onClick={() => {
+                  desktopCollapsed.current = false;
+                  focusScope.current = true;
+                  setCollapsed(false);
+                }}
+              >
+                <BusinessIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <div id="clinic-scope" className="practice-label" hidden={rail}>
             {scopeSelector}
             {!scopeSelector && <strong>{practiceName}</strong>}
-            <small>Clinic timezone · {timezone}</small>
+            <small aria-label={`Clinic timezone: ${timezone}`}>
+              {timezone}
+            </small>
             {!scopeSelector && (
               <span className="practice-location">
                 <small>Location</small>
@@ -300,12 +366,20 @@ export function ClinicFrame({
               </span>
             )}
           </div>
-          {navigation}
+          <ClinicRailContext.Provider value={rail}>
+            {navigation}
+          </ClinicRailContext.Provider>
           <div className="clinic-sidebar-bottom">
-            <a href="/portal">
-              <LaunchIcon aria-hidden="true" fontSize="small" />
-              <span>Launch &amp; onboarding</span>
-            </a>
+            <Tooltip
+              describeChild
+              title="Launch & onboarding"
+              placement="right"
+            >
+              <a href="/portal" aria-label="Launch & onboarding">
+                <LaunchIcon aria-hidden="true" fontSize="small" />
+                <span>Launch &amp; onboarding</span>
+              </a>
+            </Tooltip>
             {!developmentPreview && !isDemoFrame() && (
               <Form
                 className="clinic-sign-out"

@@ -20,6 +20,7 @@ import {
   ListItemText,
   ListSubheader,
   Typography,
+  Tooltip,
 } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -50,7 +51,7 @@ import type {
 import { api, setClinicPractice } from "../../api/client";
 import { ClinicScopeSelector } from "./ClinicScopeSelector";
 import { Form, LoadState, useResource } from "../../shared/ui";
-import { ClinicFrame } from "./ClinicFrame";
+import { ClinicFrame, ClinicRailContext } from "./ClinicFrame";
 import {
   clinicTarget,
   type ClinicHomeView,
@@ -203,6 +204,7 @@ export function ClinicNavigation({
   path: string;
   homeView?: ClinicHomeView;
 }) {
+  const rail = useContext(ClinicRailContext);
   const frontDesk = [
     capabilities.patient_identity_read,
     capabilities.appointments_read,
@@ -419,19 +421,29 @@ export function ClinicNavigation({
                       : currentPath === href ||
                         currentPath.startsWith(href + "/");
                 return (
-                  <ListItemButton
-                    component="a"
+                  <Tooltip
                     key={href}
-                    href={href}
-                    selected={current}
-                    aria-current={current ? "page" : undefined}
-                    data-demo-tour-navigation="true"
+                    describeChild
+                    title={description ? `${label} — ${description}` : label}
+                    placement="right"
                   >
-                    <ListItemIcon>
-                      <Icon aria-hidden="true" fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary={label} secondary={description} />
-                  </ListItemButton>
+                    <ListItemButton
+                      component="a"
+                      href={href}
+                      selected={current}
+                      aria-label={label}
+                      aria-current={current ? "page" : undefined}
+                      data-demo-tour-navigation="true"
+                    >
+                      <ListItemIcon>
+                        <Icon aria-hidden="true" fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText
+                        className={rail ? "clinic-nav-rail-label" : undefined}
+                        primary={label}
+                      />
+                    </ListItemButton>
+                  </Tooltip>
                 );
               })}
             </List>

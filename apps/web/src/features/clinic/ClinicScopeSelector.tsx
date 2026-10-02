@@ -68,12 +68,13 @@ export function ClinicScopeSelector({
   );
   return (
     <Stack
-      spacing={1.5}
+      className="clinic-scope-selector"
+      spacing={1}
       sx={{
         minWidth: 0,
         width: "100%",
-        mt: 1,
-        p: 1.25,
+        mt: 0.5,
+        p: 0.75,
         borderRadius: 1,
         bgcolor: "#ffffff",
         color: "#111827",
@@ -84,17 +85,17 @@ export function ClinicScopeSelector({
         select
         id="clinic-organization"
         label="Organization"
-        helperText={
-          organizations.length > 1
-            ? "Choose another organization to see its clinics and locations."
-            : undefined
-        }
         size="small"
         fullWidth
         value={organizationKey}
         disabled={disabled || organizations.length < 2}
         sx={neutralSelectSx}
-        slotProps={{ select: { MenuProps: neutralMenuProps } }}
+        slotProps={{
+          select: {
+            MenuProps: neutralMenuProps,
+            title: current?.organization?.name ?? "Independent clinics",
+          },
+        }}
         onChange={(event) => {
           const practice = practices.find(
             (item) =>
@@ -119,7 +120,9 @@ export function ClinicScopeSelector({
         value={context.practice.id}
         disabled={disabled || clinics.length < 2}
         sx={neutralSelectSx}
-        slotProps={{ select: { MenuProps: neutralMenuProps } }}
+        slotProps={{
+          select: { MenuProps: neutralMenuProps, title: context.practice.name },
+        }}
         onChange={(event) => onPracticeChange(Number(event.target.value))}
       >
         {clinics.map((practice) => (
@@ -140,7 +143,14 @@ export function ClinicScopeSelector({
           sx={neutralSelectSx}
           slotProps={{
             inputLabel: { shrink: true },
-            select: { displayEmpty: true, MenuProps: neutralMenuProps },
+            select: {
+              displayEmpty: true,
+              MenuProps: neutralMenuProps,
+              title:
+                context.current_site?.name ||
+                context.current_site?.code ||
+                "No location selected",
+            },
           }}
           onChange={(event) => onLocationChange(Number(event.target.value))}
         >

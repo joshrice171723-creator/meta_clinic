@@ -1,10 +1,10 @@
 .clinic-theme .clinic-shell {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   min-height: 100dvh;
 }
 .clinic-theme .clinic-shell[data-collapsed="true"] {
-  grid-template-columns: 0 minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
 }
 .clinic-theme .clinic-sidebar-frame {
   position: sticky;
@@ -21,15 +21,16 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 16px 12px;
+  scroll-padding-top: 56px;
+  padding: 10px 8px;
   gap: 6px;
 }
 .clinic-theme .clinic-sidebar[hidden] {
   display: none;
 }
 .clinic-theme .clinic-sidebar .practice-label {
-  margin: 0 0 8px;
-  padding: 8px 0;
+  margin: 0 0 4px;
+  padding: 4px 0;
   line-height: 1.5;
 }
 .clinic-theme .clinic-sidebar .practice-location {
@@ -164,8 +165,8 @@
   min-height: 44px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 4px 8px;
 }
 .clinic-theme .clinic-sidebar nav .MuiSvgIcon-root,
 .clinic-theme .clinic-sidebar-bottom .MuiSvgIcon-root {
@@ -202,10 +203,10 @@
   margin: 0;
 }
 .clinic-theme .clinic-menu-toggle {
-  display: none;
+  display: flex;
   position: absolute;
-  top: 14px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
   width: 40px;
   min-height: 44px;
   border: 1px solid var(--clinic-control);
@@ -220,9 +221,9 @@
   z-index: 21;
 }
 .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-menu-toggle {
-  position: fixed;
-  top: 14px;
-  left: 14px;
+  position: absolute;
+  top: 8px;
+  left: 8px;
   right: auto;
   z-index: 25;
 }
@@ -245,10 +246,127 @@
   color: var(--clinic-accent);
 }
 .clinic-theme .clinic-main {
-  margin-left: 12px;
+  margin-left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100dvh;
+}
+.clinic-theme .clinic-main > .clinic-content {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.clinic-theme .clinic-main > :not(.clinic-content) {
+  flex-shrink: 0;
+}
+@media (min-width: 761px) {
+  .clinic-theme .clinic-main:has(> .tracking-board-page) {
+    height: 100dvh;
+  }
 }
 .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-main {
-  margin-left: 56px;
+  margin-left: 0;
+}
+.clinic-theme .clinic-sidebar .wordmark {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding-right: 40px;
+  font-size: 15px;
+}
+.clinic-theme .clinic-sidebar .practice-label[hidden] {
+  display: none;
+}
+.clinic-theme .clinic-content {
+  max-width: none;
+  margin: 0;
+  padding: 16px 16px 24px;
+}
+.clinic-theme .clinic-shell .clinic-content {
+  max-width: none;
+  margin: 0;
+}
+.clinic-theme .clinic-sidebar .clinic-work-navigation {
+  gap: 8px;
+}
+.clinic-theme .clinic-sidebar .MuiListSubheader-root {
+  padding: 0 8px 2px;
+}
+.clinic-theme .clinic-sidebar .MuiListItemIcon-root {
+  min-width: 22px;
+}
+.clinic-theme .clinic-sidebar .MuiListItemText-primary {
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.clinic-theme .clinic-scope-selector .MuiOutlinedInput-root {
+  min-height: 36px;
+  font-size: 14px;
+}
+.clinic-theme .clinic-scope-selector .MuiSelect-select {
+  padding: 7px 28px 7px 9px;
+}
+.clinic-theme .clinic-scope-selector .MuiInputLabel-root {
+  font-size: 16px;
+}
+.clinic-theme .clinic-rail-scope {
+  width: 40px;
+  height: 44px;
+  color: inherit;
+}
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar {
+  height: calc(100% - 56px);
+  margin-top: 56px;
+  padding: 0 4px 8px;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+}
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar-frame {
+  background: var(--clinic-sidebar-ground);
+}
+.clinic-theme .clinic-shell[data-rail="true"] .wordmark,
+.clinic-theme .clinic-shell[data-rail="true"] .MuiListSubheader-root,
+.clinic-theme .clinic-nav-rail-label,
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar-bottom > a span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.clinic-theme .clinic-shell[data-rail="true"] .wordmark {
+  display: none;
+}
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar nav a,
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar-bottom > a {
+  width: 40px;
+  min-height: 44px;
+  justify-content: center;
+  gap: 0;
+  padding: 4px;
+}
+.clinic-theme .clinic-shell[data-rail="true"] .MuiListItemIcon-root {
+  min-width: 0;
+}
+.clinic-theme .clinic-sidebar nav a[aria-current="page"] {
+  border-left: 3px solid var(--clinic-sidebar-selected-on);
+}
+.clinic-theme .clinic-shell[data-rail="true"] .clinic-sign-out button {
+  padding: 4px 0;
+  min-height: 44px;
+  min-width: 0;
+  font-size: 12px;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.clinic-theme .clinic-sidebar a:focus-visible,
+.clinic-theme .clinic-sidebar button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
 }
 .clinic-theme .clinic-nav-backdrop {
   position: fixed;
@@ -395,7 +513,10 @@
     width: 0;
   }
   .clinic-theme .clinic-main {
-    margin-left: 48px;
+    margin-left: 0;
+  }
+  .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-menu-toggle {
+    position: fixed;
   }
   .clinic-theme .clinic-shell[data-collapsed="false"] .clinic-menu-toggle {
     display: flex;
@@ -423,7 +544,7 @@
     padding: 8px 12px;
   }
   .clinic-theme .clinic-content {
-    padding: 18px 16px 40px;
+    padding: 16px 12px 24px;
   }
   .clinic-theme .clinic-content.tracking-board-page {
     padding: 8px 8px 20px;
@@ -431,6 +552,16 @@
   .clinic-theme .clinic-sidebar {
     border-right: 1px solid var(--clinic-border);
     border-bottom: 0;
+  }
+  .clinic-theme .clinic-topbar,
+  .clinic-theme .clinic-development-toolbar.MuiStack-root {
+    padding-left: 56px;
+  }
+  .clinic-theme
+    .clinic-main:not(:has(.clinic-topbar)):not(
+      :has(.clinic-development-toolbar)
+    ) {
+    padding-top: 56px;
   }
 }
 @media (forced-colors: active) {
