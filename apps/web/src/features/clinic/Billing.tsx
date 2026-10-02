@@ -394,7 +394,10 @@ export function Billing() {
           gap: 3,
           gridTemplateColumns: checkoutEncounterId
             ? "minmax(0, 1fr)"
-            : { lg: "minmax(260px, 0.75fr) minmax(0, 2fr)" },
+            : {
+                xs: "minmax(0, 1fr)",
+                lg: "minmax(260px, 0.75fr) minmax(0, 2fr)",
+              },
         }}
       >
         {checkoutEncounterId ? (
