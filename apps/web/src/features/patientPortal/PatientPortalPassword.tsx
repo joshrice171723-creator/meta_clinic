@@ -58,8 +58,17 @@ export function PatientPortalPassword() {
       variant="outlined"
       sx={{ p: { xs: 2.5, sm: 3.5 } }}
     >
-      <Stack component="form" spacing={2} onSubmit={submit}>
-        <Typography variant="h2" component="h2">
+      <Stack
+        component="form"
+        aria-labelledby="patient-portal-password-heading"
+        spacing={2}
+        onSubmit={submit}
+      >
+        <Typography
+          id="patient-portal-password-heading"
+          variant="h2"
+          component="h2"
+        >
           Password
         </Typography>
         <Typography color="text.secondary">

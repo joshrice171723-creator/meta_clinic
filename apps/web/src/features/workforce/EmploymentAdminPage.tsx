@@ -158,6 +158,9 @@ function EmploymentAccessEditor({
         >
           Save role and sites
         </Button>
+      </Stack>
+      <Divider />
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <Button
           color={employment.membership_summary.active ? "warning" : "primary"}
           disabled={
@@ -463,6 +466,71 @@ export function EmploymentAdminPage() {
       )}
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Typography variant="h2" sx={{ mb: 2 }}>
+          Current employees
+        </Typography>
+        <Stack spacing={0} divider={<Divider flexItem />}>
+          {data.employments.map((employment) => (
+            <Stack
+              key={employment.id}
+              direction={{ xs: "column", md: "row" }}
+              spacing={2}
+              sx={{
+                py: 2,
+                alignItems: { md: "center" },
+                justifyContent: "space-between",
+              }}
+            >
+              <Stack spacing={0.5}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center", flexWrap: "wrap" }}
+                >
+                  <Typography sx={{ fontWeight: 700 }}>
+                    {employment.staff_member.display_name}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    color={employment.active_for_work ? "success" : "default"}
+                    label={employment.active_for_work ? "Active" : "Inactive"}
+                  />
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  {employment.membership_summary.email_address}
+                </Typography>
+                <Typography variant="body2">
+                  {Array.from(
+                    new Set(
+                      employment.roles.map((role) => roleLabel(role.role_code)),
+                    ),
+                  ).join(", ") || "Employee"}
+                </Typography>
+                <Typography variant="body2">
+                  {employment.sites
+                    .filter((site) => site.active)
+                    .map((site) => site.name)
+                    .join(", ") || "No eligible sites"}
+                </Typography>
+              </Stack>
+              <EmploymentAccessEditor
+                employment={employment}
+                roles={data.role_options}
+                sites={data.sites}
+                refresh={refresh}
+                setFeedback={setFeedback}
+              />
+            </Stack>
+          ))}
+          {data.employments.length === 0 && (
+            <Typography color="text.secondary">
+              No employees have workforce access yet.
+            </Typography>
+          )}
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
         <Stack component="form" spacing={2.5} onSubmit={submit}>
           <Stack spacing={0.5}>
             <Typography variant="h2">Add employee</Typography>
@@ -675,71 +743,6 @@ export function EmploymentAdminPage() {
           </Stack>
         </Paper>
       )}
-
-      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
-        <Typography variant="h2" sx={{ mb: 2 }}>
-          Current employees
-        </Typography>
-        <Stack spacing={0} divider={<Divider flexItem />}>
-          {data.employments.map((employment) => (
-            <Stack
-              key={employment.id}
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              sx={{
-                py: 2,
-                alignItems: { md: "center" },
-                justifyContent: "space-between",
-              }}
-            >
-              <Stack spacing={0.5}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: "center", flexWrap: "wrap" }}
-                >
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {employment.staff_member.display_name}
-                  </Typography>
-                  <Chip
-                    size="small"
-                    color={employment.active_for_work ? "success" : "default"}
-                    label={employment.active_for_work ? "Active" : "Inactive"}
-                  />
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {employment.membership_summary.email_address}
-                </Typography>
-                <Typography variant="body2">
-                  {Array.from(
-                    new Set(
-                      employment.roles.map((role) => roleLabel(role.role_code)),
-                    ),
-                  ).join(", ") || "Employee"}
-                </Typography>
-                <Typography variant="body2">
-                  {employment.sites
-                    .filter((site) => site.active)
-                    .map((site) => site.name)
-                    .join(", ") || "No eligible sites"}
-                </Typography>
-              </Stack>
-              <EmploymentAccessEditor
-                employment={employment}
-                roles={data.role_options}
-                sites={data.sites}
-                refresh={refresh}
-                setFeedback={setFeedback}
-              />
-            </Stack>
-          ))}
-          {data.employments.length === 0 && (
-            <Typography color="text.secondary">
-              No employees have workforce access yet.
-            </Typography>
-          )}
-        </Stack>
-      </Paper>
     </Stack>
   );
 }

@@ -86,8 +86,10 @@ describe("development account preview", () => {
     expect(html).toContain("Omni");
     expect(html).toContain("Omni");
     expect(html).toContain("Select clinic team account");
-    expect(html).toContain("Streamline your practice.");
-    expect(html).toContain("Scale your organization.");
+    expect(html).toContain("Launch &amp; onboarding");
+    expect(html).toContain(
+      "Use this account for launch paperwork, onboarding, and training. Clinic team access is separate.",
+    );
     expect(html).toContain(">Owner<");
     expect(html).toContain(">Launch<");
     expect(html).toContain(">Patient<");

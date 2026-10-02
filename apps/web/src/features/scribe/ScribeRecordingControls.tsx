@@ -1078,14 +1078,18 @@ export function ScribeRecordingControls({
         <Stack
           direction={embedded ? "column" : { xs: "column", sm: "row" }}
           spacing={1}
-          sx={{ alignItems: embedded ? "stretch" : { sm: "center" } }}
+          useFlexGap
+          sx={{
+            alignItems: embedded ? "stretch" : { sm: "center" },
+            flexWrap: "wrap",
+          }}
         >
           {!embedded && (
             <Box sx={{ minWidth: 112 }}>
               <Typography
                 id="scribe-recording-heading"
+                component="h2"
                 variant="subtitle2"
-                sx={{ fontWeight: 700 }}
               >
                 Visit audio
               </Typography>
@@ -1130,10 +1134,10 @@ export function ScribeRecordingControls({
               ...(embedded
                 ? {
                     "& > .MuiButton-root": {
-                      flex: "1 1 0",
+                      flex: "1 1 auto",
                       minWidth: 0,
                       minHeight: 44,
-                      whiteSpace: "nowrap",
+                      whiteSpace: "normal",
                     },
                   }
                 : {}),
@@ -1239,7 +1243,7 @@ export function ScribeRecordingControls({
         </Stack>
         {!compact && (
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               {audioSource.kind === "authorized_stream"
                 ? `${audioSource.label} input level`
                 : "Microphone input level"}

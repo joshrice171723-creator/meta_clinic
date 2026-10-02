@@ -283,6 +283,16 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
       )}
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
         <Stack component="form" spacing={3} onSubmit={submit}>
+          <Typography variant="h2">
+            {siteScope
+              ? "New location settings version"
+              : "New practice settings version"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {data.current_version
+              ? `Current effective revision ${data.current_version.revision} is read-only. Saving creates a new immutable revision.`
+              : "No effective version exists for this scope."}
+          </Typography>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <FormControl fullWidth>
               <InputLabel id={`${fieldId}-3-label`}>Settings scope</InputLabel>
@@ -487,17 +497,12 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
           <Stack
             direction="row"
             sx={{
-              justifyContent: "space-between",
+              justifyContent: "flex-end",
               alignItems: "center",
               flexWrap: "wrap",
               gap: 2,
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              {data.current_version
-                ? `Current effective revision ${data.current_version.revision}. Saving creates an immutable revision.`
-                : "No effective version exists for this scope."}
-            </Typography>
             <Button
               type="submit"
               variant="contained"

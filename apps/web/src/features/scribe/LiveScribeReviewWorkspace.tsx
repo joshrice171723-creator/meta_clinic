@@ -683,11 +683,13 @@ export function LiveScribeReviewWorkspace() {
         );
         if (
           uncertainMessage &&
-          !(reason instanceof ApiError &&
+          !(
+            reason instanceof ApiError &&
             reason.status >= 400 &&
             reason.status < 500 &&
             reason.status !== 408 &&
-            reason.code !== "outcome_unconfirmed")
+            reason.code !== "outcome_unconfirmed"
+          )
         )
           setOutcomeUnknown(uncertainMessage);
       }
@@ -751,7 +753,9 @@ export function LiveScribeReviewWorkspace() {
       "create-synthetic",
       async () => {
         if (!selectedPatient)
-          throw new Error("Choose a patient before creating a sample encounter.");
+          throw new Error(
+            "Choose a patient before creating a sample encounter.",
+          );
         const result = await api<{ encounter: ScribeEncounter }>(
           "/api/clinic/scribe/encounters/create_synthetic",
           {
@@ -1277,7 +1281,7 @@ export function LiveScribeReviewWorkspace() {
         height: { xs: "auto", md: "100dvh" },
         minHeight: { xs: 640, md: 620 },
         overflow: "hidden",
-        backgroundColor: "#fff",
+        backgroundColor: "background.paper",
       }}
     >
       {!compactRail && rail}
@@ -1377,10 +1381,11 @@ export function LiveScribeReviewWorkspace() {
                 sx={{
                   width: 26,
                   height: 26,
-                  bgcolor: "#fff",
-                  color: "#75717a",
-                  border: "1px solid #cbc9cf",
-                  fontSize: 12,
+                  bgcolor: "background.paper",
+                  color: "text.secondary",
+                  border: 1,
+                  borderColor: "divider",
+                  fontSize: 14,
                   mt: 0.25,
                 }}
               >
@@ -1403,23 +1408,17 @@ export function LiveScribeReviewWorkspace() {
                 <>
                   <Typography
                     component="h1"
-                    noWrap
-                    sx={{
-                      "&&": {
-                        m: 0,
-                        fontSize: 18,
-                        lineHeight: 1.45,
-                        fontWeight: 700,
-                        color: "#242126",
-                      },
-                    }}
+                    variant="h6"
+                    sx={{ m: 0, overflowWrap: "anywhere" }}
                   >
                     {patient?.display_name ?? "Scribe"}
                   </Typography>
                   <Stack
                     direction="row"
                     spacing={1.5}
+                    useFlexGap
                     sx={{
+                      flexWrap: "wrap",
                       alignItems: "center",
                       color: "text.secondary",
                       mt: 0.5,
@@ -1431,11 +1430,7 @@ export function LiveScribeReviewWorkspace() {
                       sx={{ alignItems: "center" }}
                     >
                       <CalendarTodayOutlinedIcon sx={{ fontSize: 13 }} />
-                      <Typography
-                        variant="caption"
-                        noWrap
-                        sx={{ fontSize: 11 }}
-                      >
+                      <Typography variant="body2">
                         {formatSessionDate(
                           encounter?.created_at ?? selectedSummary?.created_at,
                         )}
@@ -1447,9 +1442,7 @@ export function LiveScribeReviewWorkspace() {
                       sx={{ alignItems: "center" }}
                     >
                       <LanguageOutlinedIcon sx={{ fontSize: 13 }} />
-                      <Typography variant="caption" sx={{ fontSize: 11 }}>
-                        English
-                      </Typography>
+                      <Typography variant="body2">English</Typography>
                     </Stack>
                   </Stack>
                 </>
@@ -1457,17 +1450,24 @@ export function LiveScribeReviewWorkspace() {
             </Box>
           </Stack>
           {newSession ? (
-            <Stack spacing={0.75} sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}>
+            <Stack
+              spacing={0.75}
+              sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}
+            >
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Button
                   variant="contained"
-                  disabled={!canWrite || !selectedPatient || pendingAction !== null}
-                  onClick={() =>
-                    void (isDemoFrame() && !contextualClinicalEncounterId
-                      ? createSyntheticEncounter()
-                      : createEncounter()).catch(() => undefined)
+                  disabled={
+                    !canWrite || !selectedPatient || pendingAction !== null
                   }
-                  sx={{ height: 36 }}
+                  onClick={() =>
+                    void (
+                      isDemoFrame() && !contextualClinicalEncounterId
+                        ? createSyntheticEncounter()
+                        : createEncounter()
+                    ).catch(() => undefined)
+                  }
+                  sx={{ minHeight: 44 }}
                 >
                   {contextualClinicalEncounterId
                     ? "Start linked session"
@@ -1475,8 +1475,9 @@ export function LiveScribeReviewWorkspace() {
                 </Button>
               </Stack>
               {isDemoFrame() && !contextualClinicalEncounterId && (
-                <Typography variant="caption" color="text.secondary">
-                  Starts a sample visit session. Recording is unavailable in this demo.
+                <Typography variant="body2" color="text.secondary">
+                  Starts a sample visit session. Recording is unavailable in
+                  this demo.
                 </Typography>
               )}
             </Stack>
@@ -1491,8 +1492,10 @@ export function LiveScribeReviewWorkspace() {
               <Stack
                 direction="row"
                 spacing={1}
+                useFlexGap
                 sx={{
                   width: "100%",
+                  flexWrap: "wrap",
                   alignItems: "center",
                   justifyContent: { xs: "flex-start", lg: "flex-end" },
                 }}
@@ -1502,7 +1505,7 @@ export function LiveScribeReviewWorkspace() {
                   sx={{
                     width: 148,
                     flex: "0 1 148px",
-                    "& .MuiInputBase-root": { height: 40, fontSize: 12 },
+                    "& .MuiInputBase-root": { height: 44, fontSize: 16 },
                   }}
                   disabled={
                     !canWrite ||
@@ -1547,21 +1550,16 @@ export function LiveScribeReviewWorkspace() {
                   }
                   onClick={() => void generateDraft().catch(() => undefined)}
                   sx={{
-                    height: 40,
-                    minWidth: 100,
-                    bgcolor: "#3a252c",
-                    color: "#fff",
+                    minWidth: 140,
                     borderRadius: 1,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                    "&:hover": { bgcolor: "#2b1a20" },
+                    whiteSpace: "normal",
                   }}
                 >
-                  Create
+                  Generate draft
                 </Button>
                 <Button
                   variant="contained"
+                  color="success"
                   startIcon={<MicNoneOutlinedIcon sx={{ fontSize: 18 }} />}
                   disabled={
                     !canWrite ||
@@ -1577,15 +1575,9 @@ export function LiveScribeReviewWorkspace() {
                       : openRecordingDock(true)
                   }
                   sx={{
-                    height: 40,
                     minWidth: 136,
                     borderRadius: 1,
-                    bgcolor: "#0eaa55",
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                    "&:hover": { bgcolor: "#0b9148" },
+                    whiteSpace: "normal",
                   }}
                 >
                   {sameEncounterRecordingActive
@@ -1604,15 +1596,14 @@ export function LiveScribeReviewWorkspace() {
                   sx={{
                     fontSize: 14,
                     color: sameEncounterRecordingActive
-                      ? "#13b85c"
+                      ? "success.main"
                       : "text.disabled",
                   }}
                 />
                 <Typography
-                  variant="caption"
+                  variant="body2"
                   sx={{
                     minWidth: 34,
-                    fontSize: 10.5,
                     fontVariantNumeric: "tabular-nums",
                     color: "text.secondary",
                   }}
@@ -1655,14 +1646,14 @@ export function LiveScribeReviewWorkspace() {
             aria-label="Scribe session documents"
             sx={{
               px: { xs: 1, sm: 1.75 },
-              minHeight: 40,
+              minHeight: 44,
               borderBottom: 1,
               borderColor: "divider",
               "& .MuiTab-root": {
-                minHeight: 40,
+                minHeight: 44,
                 minWidth: 80,
                 px: 1.25,
-                fontSize: 11,
+                fontSize: 14,
                 textTransform: "none",
               },
               "& .MuiTabs-indicator": { height: 2 },
@@ -1703,7 +1694,7 @@ export function LiveScribeReviewWorkspace() {
                 p: { xs: 1, sm: 1.5 },
                 height: "100%",
                 overflowY: "auto",
-                backgroundColor: "#faf9f9",
+                backgroundColor: "background.default",
               }}
             >
               <Stack
@@ -1712,7 +1703,7 @@ export function LiveScribeReviewWorkspace() {
                   minHeight: "100%",
                   p: { xs: 1.5, sm: 2 },
                   borderRadius: 1.5,
-                  backgroundColor: "#fff",
+                  backgroundColor: "background.paper",
                   boxShadow: "0 1px 10px rgba(45, 35, 39, 0.035)",
                 }}
               >
@@ -1720,11 +1711,8 @@ export function LiveScribeReviewWorkspace() {
                   direction="row"
                   sx={{ alignItems: "center", justifyContent: "space-between" }}
                 >
-                  <Typography
-                    component="h2"
-                    sx={{ fontSize: 12, fontWeight: 700 }}
-                  >
-                    notes
+                  <Typography component="h2" variant="subtitle1">
+                    Visit context
                   </Typography>
                   <Stack direction="row" sx={{ alignItems: "center" }}>
                     <Button
@@ -1739,13 +1727,10 @@ export function LiveScribeReviewWorkspace() {
                       variant="outlined"
                       sx={{
                         minWidth: 64,
-                        height: 32,
                         borderRadius: 1,
-                        fontSize: 11,
-                        fontWeight: 700,
                       }}
                     >
-                      {pendingAction === "context" ? "Saving…" : "Save"}
+                      {pendingAction === "context" ? "Saving…" : "Save context"}
                     </Button>
                   </Stack>
                 </Stack>
@@ -1771,8 +1756,8 @@ export function LiveScribeReviewWorkspace() {
                     flex: 1,
                     "& .MuiInputBase-root": {
                       alignItems: "flex-start",
-                      fontSize: 12,
-                      lineHeight: 1.65,
+                      fontSize: 16,
+                      lineHeight: 1.5,
                     },
                   }}
                 />
@@ -1781,7 +1766,7 @@ export function LiveScribeReviewWorkspace() {
                     <Typography
                       variant="body2"
                       color="text.secondary"
-                      sx={{ mb: 0.75, fontSize: 10.5 }}
+                      sx={{ mb: 0.75 }}
                     >
                       Recording consent:{" "}
                       {encounter.consent_status.replaceAll("_", " ")}.
@@ -1793,12 +1778,10 @@ export function LiveScribeReviewWorkspace() {
                       sx={{
                         flexWrap: "wrap",
                         "& .MuiButton-root": {
-                          minHeight: 34,
+                          minHeight: 44,
                           px: 1.5,
                           borderRadius: 1,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          whiteSpace: "nowrap",
+                          whiteSpace: "normal",
                         },
                       }}
                     >
@@ -1918,15 +1901,14 @@ export function LiveScribeReviewWorkspace() {
                     boxShadow: "0 5px 18px rgba(47, 35, 40, 0.08)",
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontSize: 11.5 }}>
+                  <Typography variant="body2">
                     Add context or edit your note above…
                   </Typography>
                 </Box>
                 <Typography
-                  variant="caption"
+                  variant="body2"
                   color="text.secondary"
                   align="center"
-                  sx={{ fontSize: 9 }}
                 >
                   Medical knowledge only. Check sources and use your clinical
                   judgment.
@@ -2036,7 +2018,7 @@ export function LiveScribeReviewWorkspace() {
                     key={source.id}
                     sx={{ py: 1.5, borderBottom: 1, borderColor: "divider" }}
                   >
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary">
                       {source.metadata.provider === "openrouter"
                         ? "Recorded transcript"
                         : "Imported source"}{" "}

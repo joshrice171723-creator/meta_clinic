@@ -241,76 +241,6 @@ export function TimecardReviewPage() {
           current calculated versions.
         </Typography>
       </Box>
-      {canReview && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Stack spacing={2}>
-            <Typography variant="h3">Calculate a timecard</Typography>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField
-                select
-                label="Location"
-                value={siteId}
-                onChange={(event) => setSiteId(event.target.value)}
-                sx={{ minWidth: 220 }}
-              >
-                {clinic.sites.map((site) => (
-                  <MenuItem key={site.id} value={String(site.id)}>
-                    {site.name || site.code}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="Employee"
-                value={employmentId}
-                onChange={(event) => setEmploymentId(event.target.value)}
-                sx={{ minWidth: 240 }}
-              >
-                {employees.map((employee) => (
-                  <MenuItem key={employee.id} value={String(employee.id)}>
-                    {employee.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label="Week starting"
-                type="date"
-                value={periodStart}
-                onChange={(event) => setPeriodStart(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-              />
-              <Button
-                variant="contained"
-                disabled={busy || !employmentId || !periodStart}
-                onClick={() => void calculate()}
-              >
-                Calculate
-              </Button>
-            </Stack>
-            {!employees.length && (
-              <Alert
-                severity="info"
-                action={
-                  clinic.capabilities.workforce_admin === true ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => navigate("/clinic/workforce/employees")}
-                    >
-                      Manage employees
-                    </Button>
-                  ) : undefined
-                }
-              >
-                No active employees are eligible at this location.{" "}
-                {clinic.capabilities.workforce_admin === true
-                  ? "Activate or link an employee and assign this location."
-                  : "Ask a workforce administrator to activate or link an employee and assign this location."}
-              </Alert>
-            )}
-          </Stack>
-        </Paper>
-      )}
       {error && (
         <Alert
           severity={settingsPath ? "warning" : "error"}
@@ -353,6 +283,21 @@ export function TimecardReviewPage() {
           </Typography>
           {loading && (
             <Typography role="status">Loading timecard attention…</Typography>
+          )}
+          {canReview && (
+            <TextField
+              select
+              label="Location"
+              value={siteId}
+              onChange={(event) => setSiteId(event.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              {clinic.sites.map((site) => (
+                <MenuItem key={site.id} value={String(site.id)}>
+                  {site.name || site.code}
+                </MenuItem>
+              ))}
+            </TextField>
           )}
           <TextField
             select
@@ -487,6 +432,63 @@ export function TimecardReviewPage() {
             ? "No calculated timecards are available for this location."
             : "No latest timecards match this attention view."}
         </Alert>
+      )}
+      {canReview && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Typography variant="h3">Calculate a timecard</Typography>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+              <TextField
+                select
+                label="Employee"
+                value={employmentId}
+                onChange={(event) => setEmploymentId(event.target.value)}
+                sx={{ minWidth: 240 }}
+              >
+                {employees.map((employee) => (
+                  <MenuItem key={employee.id} value={String(employee.id)}>
+                    {employee.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="Week starting"
+                type="date"
+                value={periodStart}
+                onChange={(event) => setPeriodStart(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <Button
+                variant="contained"
+                disabled={busy || !employmentId || !periodStart}
+                onClick={() => void calculate()}
+              >
+                Calculate
+              </Button>
+            </Stack>
+            {!employees.length && (
+              <Alert
+                severity="info"
+                action={
+                  clinic.capabilities.workforce_admin === true ? (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => navigate("/clinic/workforce/employees")}
+                    >
+                      Manage employees
+                    </Button>
+                  ) : undefined
+                }
+              >
+                No active employees are eligible at this location.{" "}
+                {clinic.capabilities.workforce_admin === true
+                  ? "Activate or link an employee and assign this location."
+                  : "Ask a workforce administrator to activate or link an employee and assign this location."}
+              </Alert>
+            )}
+          </Stack>
+        </Paper>
       )}
       {canReview && currentSource && correctionCard && (
         <AdjustmentDialog

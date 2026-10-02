@@ -70,22 +70,36 @@ export function EmployeeActivationPage() {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
+    <Container
+      component="main"
+      id="main"
+      maxWidth="sm"
+      sx={{ py: { xs: 4, md: 8 } }}
+    >
       <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 4 } }}>
-        <Stack component="form" spacing={2.5} onSubmit={submit}>
+        <Stack
+          component="form"
+          spacing={2.5}
+          onSubmit={submit}
+          aria-labelledby="employee-activation-heading"
+        >
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary">
-              CLINIC ACCOUNT
+              CLINIC TEAM ACCOUNT
             </Typography>
-            <Typography variant="h1">
+            <Typography
+              component="h1"
+              id="employee-activation-heading"
+              variant="h1"
+            >
               {openedFromInvitation
                 ? "Create your password"
-                : "Activate your clinic account"}
+                : "Activate your clinic team account"}
             </Typography>
             <Typography color="text.secondary">
               {openedFromInvitation
-                ? "Choose a password to finish setting up your Meta Clinic account."
-                : "Enter your invitation code, then choose a password for your clinic account."}
+                ? "Choose a password to finish setting up your Meta Clinic team account."
+                : "Enter your invitation code, then choose a password for your clinic team account."}
             </Typography>
           </Stack>
           {error && <Alert severity="error">{error}</Alert>}

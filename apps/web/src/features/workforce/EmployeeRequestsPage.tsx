@@ -237,6 +237,65 @@ export function EmployeeRequestsPage() {
       </div>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Typography variant="h2" sx={{ mb: 2 }}>
+          Request history
+        </Typography>
+        <Stack spacing={1}>
+          {data.requests.map((request) => (
+            <Paper variant="outlined" sx={{ p: 1.5 }} key={request.id}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                sx={{ justifyContent: "space-between" }}
+              >
+                <div>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    {request.type.replaceAll("_", " ")}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {request.reason} · {request.status}
+                  </Typography>
+                </div>
+                <Stack direction="row" spacing={1}>
+                  {request.can_target_decide && (
+                    <>
+                      <Button
+                        color="inherit"
+                        disabled={busy}
+                        onClick={() => answerSwap(request, "target_decline")}
+                      >
+                        Decline
+                      </Button>
+                      <Button
+                        variant="contained"
+                        disabled={busy}
+                        onClick={() => answerSwap(request, "target_accept")}
+                      >
+                        Accept swap
+                      </Button>
+                    </>
+                  )}
+                  {request.can_cancel && (
+                    <Button
+                      color="inherit"
+                      disabled={busy}
+                      onClick={() => cancel(request)}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
+            </Paper>
+          ))}
+          {data.requests.length === 0 && (
+            <Typography color="text.secondary">
+              No requests have been submitted.
+            </Typography>
+          )}
+        </Stack>
+      </Paper>
       {data.sites.length === 0 ? (
         <Alert severity="info">
           No eligible workforce locations are available.
@@ -476,65 +535,6 @@ export function EmployeeRequestsPage() {
           </Stack>
         </Paper>
       )}
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
-        <Typography variant="h2" sx={{ mb: 2 }}>
-          Request history
-        </Typography>
-        <Stack spacing={1}>
-          {data.requests.map((request) => (
-            <Paper variant="outlined" sx={{ p: 1.5 }} key={request.id}>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{ justifyContent: "space-between" }}
-              >
-                <div>
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {request.type.replaceAll("_", " ")}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    {request.reason} · {request.status}
-                  </Typography>
-                </div>
-                <Stack direction="row" spacing={1}>
-                  {request.can_target_decide && (
-                    <>
-                      <Button
-                        color="inherit"
-                        disabled={busy}
-                        onClick={() => answerSwap(request, "target_decline")}
-                      >
-                        Decline
-                      </Button>
-                      <Button
-                        variant="contained"
-                        disabled={busy}
-                        onClick={() => answerSwap(request, "target_accept")}
-                      >
-                        Accept swap
-                      </Button>
-                    </>
-                  )}
-                  {request.can_cancel && (
-                    <Button
-                      color="inherit"
-                      disabled={busy}
-                      onClick={() => cancel(request)}
-                    >
-                      Cancel
-                    </Button>
-                  )}
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-          {data.requests.length === 0 && (
-            <Typography color="text.secondary">
-              No requests have been submitted.
-            </Typography>
-          )}
-        </Stack>
-      </Paper>
     </Stack>
   );
 }

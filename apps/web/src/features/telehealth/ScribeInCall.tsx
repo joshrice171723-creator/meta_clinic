@@ -922,8 +922,8 @@ export function ScribeInCall({
           >
             <Typography
               id="telehealth-scribe-heading"
+              component="h2"
               variant="subtitle1"
-              sx={{ fontWeight: 700 }}
             >
               In-call Scribe
             </Typography>
@@ -1104,7 +1104,7 @@ export function ScribeInCall({
             sx={{ alignItems: { sm: "center" } }}
           >
             <Box sx={{ flex: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              <Typography component="h3" variant="subtitle2">
                 Recording permission
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -1257,7 +1257,7 @@ export function ScribeInCall({
                 sx={{ alignItems: { sm: "center" } }}
               >
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  <Typography component="h3" variant="subtitle2">
                     Call capture
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -1269,7 +1269,7 @@ export function ScribeInCall({
                   </Typography>
                 </Box>
                 <Typography
-                  variant="caption"
+                  variant="body2"
                   color="text.secondary"
                   sx={{ fontVariantNumeric: "tabular-nums" }}
                 >
@@ -1385,7 +1385,7 @@ export function ScribeInCall({
               >
                 Save context
               </Button>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="body2" color="text.secondary">
                 Unsaved context is preserved if a save cannot be confirmed.
               </Typography>
             </Stack>
@@ -1393,7 +1393,7 @@ export function ScribeInCall({
             <Divider />
             <Stack spacing={1.25}>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                <Typography component="h3" variant="subtitle2">
                   Draft and review
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -1460,7 +1460,7 @@ export function ScribeInCall({
                   Open draft review
                 </Button>
               </Stack>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="body2" color="text.secondary">
                 {hasDraft
                   ? "A draft is available. Generated content remains unapproved until every required section is reviewed."
                   : hasSources || hasProcessableRecordings
@@ -1474,9 +1474,12 @@ export function ScribeInCall({
         {reviewOpen && (
           <Box sx={{ borderTop: 1, borderColor: "divider", pt: 2 }}>
             <Stack
-              direction="row"
+              direction={{ xs: "column", sm: "row" }}
               spacing={1}
-              sx={{ alignItems: "center", justifyContent: "space-between" }}
+              sx={{
+                alignItems: { sm: "center" },
+                justifyContent: "space-between",
+              }}
             >
               <Box>
                 <Typography component="h3" variant="subtitle1">

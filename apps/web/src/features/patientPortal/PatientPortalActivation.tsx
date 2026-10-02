@@ -102,7 +102,12 @@ export function PatientPortalActivation() {
           >
             Meta Clinic · Patient portal
           </Typography>
-          <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
+          <Typography
+            id="patient-portal-activation-heading"
+            component="h1"
+            variant="h4"
+            sx={{ fontWeight: 700 }}
+          >
             {purpose === "recovery"
               ? "Reset your portal password"
               : "Activate your portal access"}
@@ -118,6 +123,7 @@ export function PatientPortalActivation() {
               spacing={1}
               useFlexGap
               sx={{ flexWrap: "wrap" }}
+              role="group"
               aria-label="Patient portal account lifecycle"
             >
               <Chip
@@ -158,7 +164,12 @@ export function PatientPortalActivation() {
             </Alert>
           )}
           {token && (
-            <Stack component="form" spacing={2} onSubmit={submit}>
+            <Stack
+              component="form"
+              aria-labelledby="patient-portal-activation-heading"
+              spacing={2}
+              onSubmit={submit}
+            >
               {error && <Alert severity="error">{error}</Alert>}
               <TextField
                 autoComplete="new-password"

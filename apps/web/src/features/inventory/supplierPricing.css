@@ -380,3 +380,11 @@
     width: 100%;
   }
 }
+
+.supplier-setup-heading {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: var(--clinic-heading-weight, 650);
+  line-height: var(--clinic-section-line-height, 1.25);
+}

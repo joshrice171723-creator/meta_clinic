@@ -33,6 +33,17 @@ import { workflowStatusLabel } from "./workflowStatus";
 import { patientReferenceLabel } from "./patientReference";
 import { SeriesManagement } from "./SeriesManagement";
 
+const DAY_GEOMETRY = {
+  tickMinutes: 30,
+  rowHeight: 72,
+  headerHeight: 56,
+  timeWidth: 64,
+  cardWidth: 240,
+  cardGap: 8,
+  initialCardHeight: 112,
+};
+const DAY_PIXELS_PER_MINUTE = DAY_GEOMETRY.rowHeight / DAY_GEOMETRY.tickMinutes;
+
 export type CalendarBooking = {
   site_id: number;
   clinician_id?: number;
@@ -183,7 +194,10 @@ function minuteOfDay(value: string, timezone: string) {
     Number(parts.find((p) => p.type === "minute")?.value)
   );
 }
-export function appointmentTracks(appointments: CalendarAppointment[]) {
+export function appointmentTracks(
+  appointments: CalendarAppointment[],
+  displayMinutes?: (appointment: CalendarAppointment) => number,
+) {
   const result = new Map<number, { track: number; tracks: number }>();
   let active: { end: number; track: number }[] = [];
   let cluster: { id: number; track: number }[] = [];
@@ -205,7 +219,10 @@ export function appointmentTracks(appointments: CalendarAppointment[]) {
     let track = 0;
     while (active.some((item) => item.track === track)) track += 1;
     active.push({
-      end: Math.max(Date.parse(appointment.ends_at), start + 30 * 60000),
+      end: Math.max(
+        Date.parse(appointment.ends_at),
+        start + (displayMinutes?.(appointment) ?? 30) * 60000,
+      ),
       track,
     });
     cluster.push({ id: appointment.id, track });
@@ -481,6 +498,35 @@ export function ClinicSchedule({
     return () => window.removeEventListener("popstate", restoreFromUrl);
   }, [context.current_site?.id, context.sites, today]);
   const selectedDay = data?.days.find((item) => item.date === day);
+  const eventButtons = useRef(new Map<number, HTMLButtonElement>());
+  const [eventHeights, setEventHeights] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (view !== "day") return;
+    const measureCards = () => {
+      const next: Record<number, number> = {};
+      for (const [id, button] of eventButtons.current) {
+        const height = Math.ceil(button.getBoundingClientRect().height);
+        if (height > 0) next[id] = height;
+      }
+      setEventHeights((current) =>
+        Object.keys(current).length === Object.keys(next).length &&
+        Object.entries(next).every(
+          ([id, height]) => current[Number(id)] === height,
+        )
+          ? current
+          : next,
+      );
+    };
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(measureCards);
+    for (const button of eventButtons.current.values())
+      observer?.observe(button);
+    measureCards();
+    return () => observer?.disconnect();
+  }, [group, selectedDay, view]);
+
   const time = (value: string) =>
     new Date(value).toLocaleTimeString("en-US", {
       timeZone: timezone,
@@ -488,6 +534,18 @@ export function ClinicSchedule({
       minute: "2-digit",
     });
   const actionLabel = "Book appointment";
+  const exportActionLabel = `Export ${view} calendar (read-only)`;
+  const selectedCheckInAvailable = Boolean(
+    selected &&
+    !selected.encounter_id &&
+    ["scheduled", "confirmed"].includes(selected.status) &&
+    context.capabilities.encounters,
+  );
+  const selectedEncounterAvailable = Boolean(
+    selected?.encounter_id &&
+    context.capabilities.patients &&
+    context.capabilities.encounters,
+  );
   function openDay(date: string) {
     setDay(date);
     setView("day");
@@ -678,22 +736,23 @@ export function ClinicSchedule({
       Math.min(
         8 * 60,
         ...intervals.map((s) => minuteOfDay(s.starts_at, timezone)),
-      ) / 30,
-    ) * 30;
+      ) / DAY_GEOMETRY.tickMinutes,
+    ) * DAY_GEOMETRY.tickMinutes;
   const endMinute = Math.min(
     1440,
     Math.ceil(
       Math.max(
         18 * 60,
         ...intervals.map((s) => minuteOfDay(s.ends_at, timezone) || 1440),
-      ) / 30,
-    ) * 30,
+      ) / DAY_GEOMETRY.tickMinutes,
+    ) * DAY_GEOMETRY.tickMinutes,
   );
   const ticks = Array.from(
-    { length: (endMinute - startMinute) / 30 },
-    (_, index) => startMinute + index * 30,
+    { length: (endMinute - startMinute) / DAY_GEOMETRY.tickMinutes },
+    (_, index) => startMinute + index * DAY_GEOMETRY.tickMinutes,
   );
   const tracks = new Map<number, { track: number; tracks: number }>();
+  const laneWidths = new Map<number, number>();
   for (const lane of lanes) {
     const appointments =
       selectedDay?.appointments.filter(
@@ -702,8 +761,24 @@ export function ClinicSchedule({
           ((group === "clinician" ? a.booked_clinician_id : a.room_id) ?? 0) ===
             lane.id,
       ) ?? [];
-    for (const [id, position] of appointmentTracks(appointments))
-      tracks.set(id, position);
+    // Reserve the rendered card footprint for presentation only. Recorded
+    // times, conflict flags, capacity and every mutation retain their source.
+    const positions = appointmentTracks(
+      appointments,
+      (appointment) =>
+        ((eventHeights[appointment.id] ?? DAY_GEOMETRY.initialCardHeight) +
+          DAY_GEOMETRY.cardGap) /
+        DAY_PIXELS_PER_MINUTE,
+    );
+    for (const [id, position] of positions) tracks.set(id, position);
+    const count = Math.max(
+      1,
+      ...Array.from(positions.values(), (position) => position.tracks),
+    );
+    laneWidths.set(
+      lane.id,
+      count * DAY_GEOMETRY.cardWidth + (count + 1) * DAY_GEOMETRY.cardGap,
+    );
   }
   return (
     <Stack spacing={1}>
@@ -869,9 +944,9 @@ export function ClinicSchedule({
           variant="outlined"
           onClick={exportCalendar}
           disabled={!data}
-          aria-label={`Export ${view === "day" ? "day" : "month"} schedule as a read-only calendar file`}
+          aria-label={`${exportActionLabel} for ${view === "day" ? dateLabel(day) : month}`}
         >
-          Export {view === "day" ? "day" : "month"} · read-only
+          {exportActionLabel}
         </Button>
       </Stack>
       {data && (
@@ -1096,8 +1171,7 @@ export function ClinicSchedule({
                   width: "100%",
                   minWidth: 0,
                   overflow: "hidden",
-                  borderRadius: 2,
-                  boxShadow: "0 16px 36px rgba(32, 53, 47, 0.06)",
+                  borderRadius: 1,
                 }}
               >
                 <Box
@@ -1113,7 +1187,8 @@ export function ClinicSchedule({
                   <Typography variant="caption" color="text.secondary">
                     {selectedDay?.appointments.length ?? 0} appointments ·
                     Select an open time to book. Capacity counts clinician time,
-                    not additional room capacity.
+                    not additional room capacity. Time bars show booked
+                    duration; cards expand to keep details readable.
                   </Typography>
                 </Box>
                 <Box
@@ -1131,9 +1206,15 @@ export function ClinicSchedule({
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: `88px repeat(${lanes.length}, minmax(250px, 1fr))`,
-                      gridTemplateRows: `80px repeat(${ticks.length}, 104px)`,
-                      minWidth: 88 + lanes.length * 250,
+                      gridTemplateColumns: `${DAY_GEOMETRY.timeWidth}px ${lanes.map((lane) => `minmax(${laneWidths.get(lane.id)}px, 1fr)`).join(" ")}`,
+                      gridTemplateRows: `minmax(${DAY_GEOMETRY.headerHeight}px, auto) repeat(${ticks.length}, ${DAY_GEOMETRY.rowHeight}px)`,
+                      minWidth:
+                        DAY_GEOMETRY.timeWidth +
+                        lanes.reduce(
+                          (total, lane) =>
+                            total + (laneWidths.get(lane.id) ?? 0),
+                          0,
+                        ),
                     }}
                   >
                     <Box
@@ -1154,7 +1235,7 @@ export function ClinicSchedule({
                           minWidth: 0,
                           gridColumn: index + 2,
                           gridRow: 1,
-                          px: 2,
+                          px: 1,
                           py: 1,
                           bgcolor: "background.paper",
                           borderBottom: 1,
@@ -1244,6 +1325,7 @@ export function ClinicSchedule({
                                   display: "block",
                                   width: "100%",
                                   height: "100%",
+                                  minHeight: 44,
                                   "&:hover": { bgcolor: "action.hover" },
                                   "&.Mui-focusVisible": {
                                     outline: "2px solid",
@@ -1287,50 +1369,77 @@ export function ClinicSchedule({
                           appointment.starts_at,
                           timezone,
                         );
-                        const duration = Math.max(
-                          30,
-                          (new Date(appointment.ends_at).getTime() -
-                            new Date(appointment.starts_at).getTime()) /
-                            60000,
-                        );
+                        const duration =
+                          (Date.parse(appointment.ends_at) -
+                            Date.parse(appointment.starts_at)) /
+                          60000;
+                        const position = tracks.get(appointment.id) ?? {
+                          track: 0,
+                          tracks: 1,
+                        };
                         return (
                           <ButtonBase
                             key={appointment.id}
+                            ref={(button: HTMLButtonElement | null) => {
+                              if (button)
+                                eventButtons.current.set(
+                                  appointment.id,
+                                  button,
+                                );
+                              else eventButtons.current.delete(appointment.id);
+                            }}
                             onClick={() => {
                               setSelected(appointment);
                               setMutationError("");
                             }}
                             sx={{
                               gridColumn: column + 2,
-                              gridRow: `${Math.floor((start - startMinute) / 30) + 2} / span ${Math.ceil(duration / 30)}`,
-                              width: `calc((100% - 8px) / ${tracks.get(appointment.id)?.tracks ?? 1})`,
-                              marginLeft: `calc(4px + (100% - 8px) * ${tracks.get(appointment.id)?.track ?? 0} / ${tracks.get(appointment.id)?.tracks ?? 1})`,
+                              gridRow:
+                                Math.floor(
+                                  (start - startMinute) /
+                                    DAY_GEOMETRY.tickMinutes,
+                                ) + 2,
+                              width: `calc((100% - ${(position.tracks + 1) * DAY_GEOMETRY.cardGap}px) / ${position.tracks})`,
+                              marginLeft: `calc(${DAY_GEOMETRY.cardGap}px + (100% - ${DAY_GEOMETRY.cardGap}px) * ${position.track} / ${position.tracks})`,
                               alignSelf: "start",
-                              transform: `translateY(${((start % 30) / 30) * 104}px)`,
+                              transform: `translateY(${((start - startMinute) % DAY_GEOMETRY.tickMinutes) * DAY_PIXELS_PER_MINUTE}px)`,
+                              position: "relative",
+                              boxSizing: "border-box",
                               textAlign: "left",
                               justifyContent: "flex-start",
                               display: "block",
-                              mt: 0.5,
-                              mb: 0.5,
-                              mr: 0.5,
-                              p: 1.5,
+                              p: 1,
+                              pl: 1.5,
                               bgcolor: "action.hover",
                               border: 1,
-                              borderLeft: 4,
                               borderColor: "divider",
-                              borderLeftColor: appointment.conflict
-                                ? "error.main"
-                                : "primary.main",
                               borderRadius: 1,
                               zIndex: 1,
-                              minHeight: 88,
-                              boxShadow: "0 2px 5px rgba(32, 53, 47, 0.04)",
+                              minHeight: Math.max(
+                                44,
+                                duration * DAY_PIXELS_PER_MINUTE,
+                              ),
                               "&.Mui-focusVisible": { outline: "2px solid" },
                             }}
                           >
+                            <Box
+                              component="span"
+                              aria-hidden="true"
+                              sx={{
+                                position: "absolute",
+                                top: -1,
+                                left: -1,
+                                width: 4,
+                                height: duration * DAY_PIXELS_PER_MINUTE,
+                                bgcolor: appointment.conflict
+                                  ? "error.main"
+                                  : "primary.main",
+                                pointerEvents: "none",
+                              }}
+                            />
                             <Typography
                               variant="body1"
-                              sx={{ fontWeight: 700 }}
+                              sx={{ fontWeight: 700, overflowWrap: "anywhere" }}
                             >
                               {appointment.patient?.display_name ??
                                 "Patient name unavailable"}
@@ -1342,10 +1451,16 @@ export function ClinicSchedule({
                               {time(appointment.starts_at)}–
                               {time(appointment.ends_at)} ·{" "}
                               {workflowStatusLabel(appointment.calendar_status)}
+                              {" · "}
+                              {duration} min
                             </Typography>
                             <Typography
                               variant="body2"
-                              sx={{ display: "block", color: "text.secondary" }}
+                              sx={{
+                                display: "block",
+                                color: "text.secondary",
+                                overflowWrap: "anywhere",
+                              }}
                             >
                               {appointment.visit_type_name ??
                                 "Visit type not set"}{" "}
@@ -1355,26 +1470,34 @@ export function ClinicSchedule({
                               {group === "clinician" &&
                                 ` · ${appointment.room_name ?? "No room"}`}
                             </Typography>
-                            {appointment.conflict && (
-                              <Chip
-                                size="small"
-                                color="error"
-                                label="Conflict"
-                              />
-                            )}
-                            {appointment.overbooked && (
-                              <Chip size="small" label="Overbooked" />
-                            )}
-                            {appointment.walk_in && (
-                              <Chip
-                                size="small"
-                                color="warning"
-                                label="Walk-in"
-                              />
-                            )}
-                            {appointment.series_id && (
-                              <Chip size="small" label="Repeats weekly" />
-                            )}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 0.5,
+                              }}
+                            >
+                              {appointment.conflict && (
+                                <Chip
+                                  size="small"
+                                  color="error"
+                                  label="Conflict"
+                                />
+                              )}
+                              {appointment.overbooked && (
+                                <Chip size="small" label="Overbooked" />
+                              )}
+                              {appointment.walk_in && (
+                                <Chip
+                                  size="small"
+                                  color="warning"
+                                  label="Walk-in"
+                                />
+                              )}
+                              {appointment.series_id && (
+                                <Chip size="small" label="Repeats weekly" />
+                              )}
+                            </Box>
                           </ButtonBase>
                         );
                       })}
@@ -1479,31 +1602,73 @@ export function ClinicSchedule({
                   </Button>
                 )}
                 {selected.encounter_id ? (
-                  <Alert severity="info">
+                  <Alert
+                    id="schedule-appointment-action-guidance"
+                    severity="info"
+                  >
                     This visit has already started. Appointment cancellation is
                     unavailable. Review the encounter to record the visit
                     outcome.
                   </Alert>
-                ) : (
-                  <Typography variant="body2">
+                ) : ["scheduled", "confirmed"].includes(selected.status) ? (
+                  <Typography
+                    id="schedule-appointment-action-guidance"
+                    variant="body2"
+                  >
                     Check in only after the patient arrives. This opens their
                     encounter and places the visit on the Tracking Board.
                   </Typography>
+                ) : (
+                  <Typography
+                    id="schedule-appointment-action-guidance"
+                    variant="body2"
+                    color="text.secondary"
+                  >
+                    Check-in and cancellation are unavailable for this
+                    appointment's recorded status. Review scheduling options at
+                    Front Desk.
+                  </Typography>
                 )}
+                {!selected.encounter_id &&
+                  ["scheduled", "confirmed"].includes(selected.status) &&
+                  !context.capabilities.encounters && (
+                    <Typography variant="body2" color="text.secondary">
+                      Check-in is unavailable with your current access.
+                    </Typography>
+                  )}
               </>
             )}
             {mutationError && <Alert severity="error">{mutationError}</Alert>}
+            {busy && (
+              <Typography
+                id="schedule-appointment-busy"
+                variant="body2"
+                role="status"
+              >
+                A scheduling action is still in progress.
+              </Typography>
+            )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
           <Button disabled={busy} onClick={() => setSelected(undefined)}>
             Close
           </Button>
-          <Button href="/clinic/front-desk">Open front desk</Button>
+          <Button
+            href="/clinic/front-desk"
+            variant={
+              !selected?.encounter_id && !selectedCheckInAvailable
+                ? "contained"
+                : "text"
+            }
+          >
+            Open front desk
+          </Button>
           {selected?.encounter_id &&
             context.capabilities.patients &&
             context.capabilities.encounters && (
               <Button
+                variant="contained"
                 href={`/clinic/patients/${selected.patient_id}/encounters/${selected.encounter_id}`}
               >
                 Open encounter
@@ -1512,6 +1677,11 @@ export function ClinicSchedule({
           {selected && context.capabilities.appointments_status_transition && (
             <Button
               color="error"
+              aria-describedby={
+                busy
+                  ? "schedule-appointment-busy"
+                  : "schedule-appointment-action-guidance"
+              }
               disabled={
                 busy ||
                 Boolean(selected.encounter_id) ||
@@ -1554,7 +1724,11 @@ export function ClinicSchedule({
               </Button>
             )}
           {selected?.encounter_id && (
-            <Button href="/clinic" data-clinic-view="tracking">
+            <Button
+              href="/clinic"
+              data-clinic-view="tracking"
+              variant={selectedEncounterAvailable ? "text" : "contained"}
+            >
               Open Tracking Board
             </Button>
           )}

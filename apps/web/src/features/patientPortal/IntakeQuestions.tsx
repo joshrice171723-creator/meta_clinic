@@ -548,6 +548,7 @@ export function IntakeQuestions({
                             {entries.length > 1 && (
                               <Button
                                 disabled={disabled}
+                                aria-label={`Remove ${field.label} ${index + 1}`}
                                 onClick={() =>
                                   set(field.id, {
                                     state: "answered",
@@ -564,6 +565,7 @@ export function IntakeQuestions({
                         ))}
                       <Button
                         disabled={disabled || answerValue(answer).length >= 599}
+                        aria-label={`Add another ${field.label}`}
                         onClick={() =>
                           set(field.id, {
                             state: "answered",

@@ -15,7 +15,10 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 vi.mock("../src/features/clinic/Workspace", () => ({
-  useClinic: () => ({ capabilities: { telehealth_configure: true } }),
+  useClinic: () => ({
+    capabilities: { telehealth_configure: true },
+    practice: { id: 1, name: "Synthetic clinic" },
+  }),
 }));
 vi.mock("../src/features/clinic/clinicNavigation", () => ({
   useClinicNavigation: () => ({ registerBlocker: () => () => undefined }),

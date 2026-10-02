@@ -242,124 +242,6 @@ export function PayrollExportPage() {
       )}
       {data && (
         <>
-          {canConfigure && (
-            <Stack
-              component="section"
-              spacing={2}
-              aria-label="Payroll file settings"
-            >
-              <Typography variant="h6">File settings</Typography>
-              <Typography color="text.secondary">
-                Custom CSV. Column headings and employee payroll IDs are saved
-                for this location. Enable payroll exports in{" "}
-                {clinic.capabilities.workforce_settings === true ? (
-                  <Link
-                    component="button"
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        `/clinic/workforce/settings?site_id=${encodeURIComponent(siteId)}&focus=payroll_export_enabled`,
-                      )
-                    }
-                  >
-                    Location rules
-                  </Link>
-                ) : (
-                  "Location rules"
-                )}{" "}
-                before generating a file.
-              </Typography>
-              <TextField
-                label="Configuration name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={busy}
-                slotProps={{ htmlInput: { maxLength: 100 } }}
-                sx={{ maxWidth: 440 }}
-              />
-              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2 }}>
-                {columns.map((column, index) => (
-                  <TextField
-                    key={column.field}
-                    label={`${column.field.replaceAll("_", " ")} column`}
-                    value={column.header}
-                    onChange={(event) =>
-                      setColumns((current) =>
-                        current.map((item, position) =>
-                          position === index
-                            ? { ...item, header: event.target.value }
-                            : item,
-                        ),
-                      )
-                    }
-                    disabled={busy}
-                    slotProps={{ htmlInput: { maxLength: 80 } }}
-                  />
-                ))}
-              </Stack>
-              <TableContainer>
-                <Table size="small" aria-label="Employee payroll identifiers">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Employee</TableCell>
-                      <TableCell>Payroll ID</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.employees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>{employee.name}</TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            label={`Payroll ID for ${employee.name}`}
-                            value={identifiers[employee.id] || ""}
-                            onChange={(event) =>
-                              setIdentifiers((current) => ({
-                                ...current,
-                                [employee.id]: event.target.value,
-                              }))
-                            }
-                            disabled={busy}
-                            slotProps={{ htmlInput: { maxLength: 100 } }}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              {!data.employees.length && (
-                <Alert
-                  severity="info"
-                  action={
-                    canManageEmployees ? (
-                      <Button
-                        color="inherit"
-                        size="small"
-                        onClick={() => navigate("/clinic/workforce/employees")}
-                      >
-                        Manage employees
-                      </Button>
-                    ) : undefined
-                  }
-                >
-                  No employees are assigned to this location.{" "}
-                  {canManageEmployees
-                    ? "Activate or link employees and assign this location before mapping payroll IDs."
-                    : "Ask a workforce administrator to assign employees to this location."}
-                </Alert>
-              )}
-              <Button
-                variant="outlined"
-                onClick={() => void saveConfiguration()}
-                disabled={busy || !name.trim()}
-                sx={{ alignSelf: "start" }}
-              >
-                Save file settings
-              </Button>
-            </Stack>
-          )}
           {canExport && (
             <Stack
               component="section"
@@ -537,6 +419,124 @@ export function PayrollExportPage() {
                   No payroll files have been created for this location.
                 </Typography>
               )}
+            </Stack>
+          )}
+          {canConfigure && (
+            <Stack
+              component="section"
+              spacing={2}
+              aria-label="Payroll file settings"
+            >
+              <Typography variant="h6">File settings</Typography>
+              <Typography color="text.secondary">
+                Custom CSV. Column headings and employee payroll IDs are saved
+                for this location. Enable payroll exports in{" "}
+                {clinic.capabilities.workforce_settings === true ? (
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/clinic/workforce/settings?site_id=${encodeURIComponent(siteId)}&focus=payroll_export_enabled`,
+                      )
+                    }
+                  >
+                    Location rules
+                  </Link>
+                ) : (
+                  "Location rules"
+                )}{" "}
+                before generating a file.
+              </Typography>
+              <TextField
+                label="Configuration name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={busy}
+                slotProps={{ htmlInput: { maxLength: 100 } }}
+                sx={{ maxWidth: 440 }}
+              />
+              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 2 }}>
+                {columns.map((column, index) => (
+                  <TextField
+                    key={column.field}
+                    label={`${column.field.replaceAll("_", " ")} column`}
+                    value={column.header}
+                    onChange={(event) =>
+                      setColumns((current) =>
+                        current.map((item, position) =>
+                          position === index
+                            ? { ...item, header: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    disabled={busy}
+                    slotProps={{ htmlInput: { maxLength: 80 } }}
+                  />
+                ))}
+              </Stack>
+              <TableContainer>
+                <Table size="small" aria-label="Employee payroll identifiers">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Employee</TableCell>
+                      <TableCell>Payroll ID</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.employees.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell>{employee.name}</TableCell>
+                        <TableCell>
+                          <TextField
+                            size="small"
+                            label={`Payroll ID for ${employee.name}`}
+                            value={identifiers[employee.id] || ""}
+                            onChange={(event) =>
+                              setIdentifiers((current) => ({
+                                ...current,
+                                [employee.id]: event.target.value,
+                              }))
+                            }
+                            disabled={busy}
+                            slotProps={{ htmlInput: { maxLength: 100 } }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {!data.employees.length && (
+                <Alert
+                  severity="info"
+                  action={
+                    canManageEmployees ? (
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => navigate("/clinic/workforce/employees")}
+                      >
+                        Manage employees
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  No employees are assigned to this location.{" "}
+                  {canManageEmployees
+                    ? "Activate or link employees and assign this location before mapping payroll IDs."
+                    : "Ask a workforce administrator to assign employees to this location."}
+                </Alert>
+              )}
+              <Button
+                variant="outlined"
+                onClick={() => void saveConfiguration()}
+                disabled={busy || !name.trim()}
+                sx={{ alignSelf: "start" }}
+              >
+                Save file settings
+              </Button>
             </Stack>
           )}
         </>

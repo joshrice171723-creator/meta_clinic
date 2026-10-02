@@ -257,6 +257,14 @@ export function InvoiceCheckoutControls({
           <Typography variant="subtitle2">Hosted online payment</Typography>
           <Chip size="small" variant="outlined" label="Test mode" />
         </Stack>
+        {invoiceId !== undefined && (
+          <Typography variant="body2" color="text.secondary">
+            Invoice #{invoiceId}
+          </Typography>
+        )}
+        <Typography variant="body2" color="text.secondary">
+          Online payment amount: {payment.currency} {payment.amount}
+        </Typography>
         {payment.state === "unavailable" && (
           <Typography variant="body2" color="text.secondary">
             {unavailableMessage(payment.reason)}
@@ -338,6 +346,14 @@ export function InvoiceCheckoutControls({
             : "Review online payment"}
         </DialogTitle>
         <DialogContent dividers>
+          {invoiceId !== undefined && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Invoice #{invoiceId}
+            </Typography>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Online payment amount: {payment.currency} {payment.amount}
+          </Typography>
           <Typography>
             {confirmation === "cancel"
               ? "This ends the active hosted checkout for this invoice. No payment will be collected, and the status will be refreshed before another method is used."

@@ -206,9 +206,19 @@ export function PatientWaitlistOffers() {
           </Stack>
         )}
         {resource.data?.entries.map((entry) => (
-          <Stack key={entry.id} spacing={1}>
+          <Stack
+            key={entry.id}
+            role="group"
+            aria-labelledby={`waitlist-offer-${entry.id}-heading`}
+            spacing={1}
+          >
             <Stack direction="row" spacing={1}>
-              <Typography sx={{ flex: 1 }}>
+              <Typography
+                id={`waitlist-offer-${entry.id}-heading`}
+                component="h3"
+                variant="body1"
+                sx={{ flex: 1 }}
+              >
                 {entry.visit_type_name} · {entry.clinician_name} ·{" "}
                 {entry.site_name}
               </Typography>

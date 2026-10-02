@@ -489,6 +489,19 @@ export function GuidedCheckout({
                 Work from persisted encounter, billing, receipt, and follow-up
                 status. Each step remains open until the server reports it done.
               </Typography>
+              {ledgerPatientMatches &&
+                encounterMatches &&
+                completionMatches && (
+                  <Typography
+                    color="text.secondary"
+                    variant="body2"
+                    sx={{ mt: 1 }}
+                  >
+                    {ledger.patient.display_name} · Encounter #
+                    {encounterRecord?.id}
+                    {invoice && ` · Invoice #${invoice.id}`}
+                  </Typography>
+                )}
             </Box>
             <Chip
               color={completeCount === steps.length ? "success" : "default"}
@@ -519,7 +532,7 @@ export function GuidedCheckout({
                 <StepLabel
                   error={!step.complete}
                   optional={
-                    <Typography color="text.secondary" variant="caption">
+                    <Typography color="text.secondary" variant="body2">
                       {step.complete ? "Recorded" : "Needs attention"}
                     </Typography>
                   }
@@ -543,7 +556,7 @@ export function GuidedCheckout({
                           ) : undefined
                         }
                         sx={{ alignSelf: "flex-start" }}
-                        variant="text"
+                        variant={step.complete ? "text" : "outlined"}
                       >
                         {step.action.label}
                       </Button>

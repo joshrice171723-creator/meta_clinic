@@ -425,7 +425,7 @@ export function TelehealthSettings() {
             </Button>
           </Stack>
           {(dirty || !data.provider_account_ref) && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               Save the account reference and policy draft before checking the
               connection or publishing.
             </Typography>
@@ -803,15 +803,20 @@ export function TelehealthSettings() {
           spacing={2}
           sx={{ justifyContent: "space-between", alignItems: { md: "center" } }}
         >
-          <Typography variant="body2" role="status">
-            {pending
-              ? "Saving or checking settings…"
-              : dirty
-                ? "Unsaved changes"
-                : data.active_policy
-                  ? `Published policy version ${data.active_policy.version}`
-                  : "No published policy"}
-          </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" sx={{ overflowWrap: "anywhere" }}>
+              Clinic: {clinic.practice.name}
+            </Typography>
+            <Typography variant="body2" role="status">
+              {pending
+                ? "Saving or checking settings…"
+                : dirty
+                  ? "Unsaved changes"
+                  : data.active_policy
+                    ? `Published policy version ${data.active_policy.version}`
+                    : "No published policy"}
+            </Typography>
+          </Box>
           <Stack
             direction="row"
             spacing={1}

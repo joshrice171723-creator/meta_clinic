@@ -1159,7 +1159,7 @@ function CatalogCreateScreen({
           </Field>
           {category === "medication" ? (
             <div className="inventory-info">
-              <strong>Use FDA package data</strong>
+              <strong>Use FDA package data (optional)</strong>
               <p>
                 Search by a medication name or the NDC printed on the package.
                 Choose the exact package to prefill its verified label data,
@@ -1347,6 +1347,17 @@ function CatalogCreateScreen({
             onSubmit={submit}
             autoComplete="off"
           >
+            <Typography
+              component="h3"
+              variant="body1"
+              sx={{
+                gridColumn: "1 / -1",
+                fontWeight: "var(--clinic-heading-weight, 650)",
+                lineHeight: "var(--clinic-section-line-height, 1.25)",
+              }}
+            >
+              Product identity
+            </Typography>
             <Field label="Product name">
               <input
                 value={name}
@@ -1415,6 +1426,17 @@ function CatalogCreateScreen({
                 />
               </Field>
             )}
+            <Typography
+              component="h3"
+              variant="body1"
+              sx={{
+                gridColumn: "1 / -1",
+                fontWeight: "var(--clinic-heading-weight, 650)",
+                lineHeight: "var(--clinic-section-line-height, 1.25)",
+              }}
+            >
+              Package and stock units
+            </Typography>
             <Field label="Package description">
               <input
                 value={packageDescription}
@@ -1425,7 +1447,10 @@ function CatalogCreateScreen({
                 autoComplete="off"
               />
             </Field>
-            <Field label="Stock unit">
+            <Field
+              label="Stock unit"
+              hint="Unit used to track on-hand and available stock."
+            >
               <select
                 value={stockUnit}
                 onChange={(event) => {
@@ -1455,7 +1480,7 @@ function CatalogCreateScreen({
             </Field>
             <Field
               label="Units per package"
-              hint="Use 1 when each purchased package is one stock unit."
+              hint="Stock units in one purchased package. Use 1 when each package is one stock unit."
             >
               <input
                 type="number"
@@ -2717,7 +2742,11 @@ export function InventoryApp({ path }: { path: string }) {
         if (screen === "controlled") query.set("view", "queue");
         if (needsPurchaseOrderFacility) query.set("view", "plan");
         const routeQuery = new URLSearchParams(window.location.search);
-        if (screen === "supplier_pricing" && !read.supplier_id && routeQuery.get("supplier_id"))
+        if (
+          screen === "supplier_pricing" &&
+          !read.supplier_id &&
+          routeQuery.get("supplier_id")
+        )
           query.set("supplier_id", routeQuery.get("supplier_id")!);
         if (
           screen === "receiving" &&
@@ -3071,16 +3100,6 @@ export function InventoryApp({ path }: { path: string }) {
             </div>
             <div className="inventory-header-actions">
               <Chip
-                label={"Persisted clinic data"}
-                size="small"
-                variant="outlined"
-                sx={{
-                  borderColor: "var(--inventory-border)",
-                  color: "var(--inventory-muted)",
-                  fontWeight: 600,
-                }}
-              />
-              <Chip
                 label={
                   data.configuration?.status === "configured"
                     ? "Configured"
@@ -3138,19 +3157,22 @@ export function InventoryApp({ path }: { path: string }) {
                                 : link.screen === "recalls"
                                   ? data.capabilities["recall.read"] === true
                                   : link.screen === "controlled"
-                                    ? data.capabilities["controlled.read"] === true
+                                    ? data.capabilities["controlled.read"] ===
+                                      true
                                     : true),
                         )
                         .map((link) => (
-                          <a
+                          <Button
                             key={link.screen}
+                            variant="text"
                             href={link.href}
+                            title={link.label}
                             aria-current={
                               screen === link.screen ? "page" : undefined
                             }
                           >
                             {link.short}
-                          </a>
+                          </Button>
                         ))}
                     </div>
                   </div>
@@ -3377,58 +3399,47 @@ export function CatalogScreen({
         !inventoryFirstRunComplete(data.first_run) && (
           <InventoryFirstRunWizard data={data} />
         )}
-      <div className="inventory-catalog-topline">
-        <div>
-          <h2>Catalog</h2>
-          <p className="inventory-lead">
-            Products, stock positions, and traceability in one view.
-          </p>
-        </div>
-        <div className="inventory-catalog-actions">
-          {capability(data, "inventory.catalog") && (
-            <Button
-              variant="outlined"
-              href="/clinic/inventory/catalog/new"
-              sx={{
-                minHeight: 44,
-                borderColor: "var(--inventory-control)",
-                color: "var(--inventory-blue)",
-                textTransform: "none",
-                fontWeight: 700,
-              }}
-            >
-              Add catalog item
-            </Button>
-          )}
-          {capability(data, "inventory.receive") && (
-            <Button
-              variant="contained"
-              startIcon={<MoveToInboxOutlinedIcon />}
-              href="/clinic/inventory/receiving"
-              sx={{
-                minHeight: 44,
-                backgroundColor: "var(--inventory-blue)",
-                textTransform: "none",
-                fontWeight: 700,
-                boxShadow: "none",
-                "&:hover": { backgroundColor: "var(--inventory-blue)" },
-              }}
-            >
-              Receive stock
-            </Button>
-          )}
-        </div>
-      </div>
-      <p className="inventory-flow-note">
-        Quantities are shown in base units unless a package unit is named.
-      </p>
-      <Card title="Catalog and lot traceability">
-        <div className="inventory-card-heading">
+      <Card className="inventory-catalog">
+        <div className="inventory-catalog-topline">
           <div>
-            <p className="inventory-lead">
-              Search the records you need, then open lots or replenishment from
-              the row.
+            <h2>Catalog and lot traceability</h2>
+            <p className="inventory-flow-note">
+              Quantities are shown in base units unless a package unit is named.
             </p>
+          </div>
+          <div className="inventory-catalog-actions">
+            {capability(data, "inventory.catalog") && (
+              <Button
+                variant="outlined"
+                href="/clinic/inventory/catalog/new"
+                sx={{
+                  minHeight: 44,
+                  borderColor: "var(--inventory-control)",
+                  color: "var(--inventory-blue)",
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Add catalog item
+              </Button>
+            )}
+            {capability(data, "inventory.receive") && (
+              <Button
+                variant="contained"
+                startIcon={<MoveToInboxOutlinedIcon />}
+                href="/clinic/inventory/receiving"
+                sx={{
+                  minHeight: 44,
+                  backgroundColor: "var(--inventory-blue)",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  boxShadow: "none",
+                  "&:hover": { backgroundColor: "var(--inventory-blue)" },
+                }}
+              >
+                Receive stock
+              </Button>
+            )}
           </div>
         </div>
         <form
@@ -3669,8 +3680,10 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
     ? `?product_id=${encodeURIComponent(firstRun.product_id)}&wizard=1`
     : "?wizard=1";
   const offerParams = new URLSearchParams({ wizard: "offer" });
-  if (firstRun.supplier_id) offerParams.set("supplier_id", firstRun.supplier_id);
-  if (firstRun.product_name) offerParams.set("product_name", firstRun.product_name);
+  if (firstRun.supplier_id)
+    offerParams.set("supplier_id", firstRun.supplier_id);
+  if (firstRun.product_name)
+    offerParams.set("product_name", firstRun.product_name);
   const purchaseOrderQuery = firstRun.purchase_order_id
     ? `?purchase_order_id=${encodeURIComponent(firstRun.purchase_order_id)}&wizard=1`
     : "?wizard=1";
@@ -3680,9 +3693,11 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
   const receivingHref = firstRun.shipment_id
     ? `/clinic/inventory/receiving${shipmentQuery}`
     : `/clinic/inventory/shipments/new${purchaseOrderQuery}`;
-  const purchaseOrderReady = ["sent", "partially_received", "complete"].includes(
-    firstRun.purchase_order_status ?? "",
-  );
+  const purchaseOrderReady = [
+    "sent",
+    "partially_received",
+    "complete",
+  ].includes(firstRun.purchase_order_status ?? "");
   const steps = [
     {
       title: "Add a supplier",
@@ -3702,7 +3717,7 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
     {
       title: "Record the supplier offer",
       detail: "Save the supplier SKU, package, price, and currency.",
-       href: `/clinic/inventory/suppliers?${offerParams}`,
+      href: `/clinic/inventory/suppliers?${offerParams}`,
       requiresSupplierSetup: true,
       action: "Record offer",
       complete: firstRun.offer,
@@ -3750,7 +3765,8 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
                 ? "Complete"
                 : index === nextStepIndex
                   ? "Next"
-                  : "Not started"}: {step.title}
+                  : "Not started"}
+              : {step.title}
             </strong>{" "}
             — {step.detail}{" "}
             {!step.complete &&
@@ -4437,7 +4453,7 @@ function PurchaseCartWorkspace({
   return (
     <div className="inventory-two-col purchase-cart-layout">
       <Card
-        title={directEntry ? "Create purchase order" : "Plan replenishment"}
+        title={directEntry ? "Choose items for purchase" : "Plan replenishment"}
       >
         {pinnedProduct && (
           <Alert severity="info">
@@ -4617,7 +4633,7 @@ function PurchaseCartWorkspace({
                   }
                   onClick={() => addItem(product)}
                 >
-                  {alreadyInCart ? "In draft" : "Add"}
+                  {alreadyInCart ? "In cart" : "Add to cart"}
                 </Button>
               </div>
             );
@@ -4655,7 +4671,7 @@ function PurchaseCartWorkspace({
           </nav>
         )}
       </Card>
-      <Card title="Draft purchase cart" className="purchase-cart-panel">
+      <Card title="Review purchase cart" className="purchase-cart-panel">
         <PermissionNote allowed={canProcure} permission="procurement.create" />
         <div className="inventory-form-grid compact purchase-cart-details">
           <TextField
@@ -4802,7 +4818,9 @@ function PurchaseCartWorkspace({
           }
           onClick={() => void checkout()}
         >
-          {cartAction === "checkout" ? "Checking out…" : "Check out"}
+          {cartAction === "checkout"
+            ? "Creating purchase orders…"
+            : "Create purchase orders"}
         </Button>
       </Card>
     </div>
@@ -5365,17 +5383,22 @@ function PurchaseOrderDetails({
 }) {
   const [deliveryBlocked, setDeliveryBlocked] = useState(false);
   const [financeBlocked, setFinanceBlocked] = useState(false);
-  const [carrierBlocks, setCarrierBlocks] = useState<Record<string, boolean>>({});
+  const [carrierBlocks, setCarrierBlocks] = useState<Record<string, boolean>>(
+    {},
+  );
   const carrierBlocked = Object.values(carrierBlocks).some(Boolean);
-  const setCarrierBlocked = useCallback((shipmentId: string, blocked: boolean) => {
-    setCarrierBlocks((current) => {
-      if (Boolean(current[shipmentId]) === blocked) return current;
-      const next = { ...current };
-      if (blocked) next[shipmentId] = true;
-      else delete next[shipmentId];
-      return next;
-    });
-  }, []);
+  const setCarrierBlocked = useCallback(
+    (shipmentId: string, blocked: boolean) => {
+      setCarrierBlocks((current) => {
+        if (Boolean(current[shipmentId]) === blocked) return current;
+        const next = { ...current };
+        if (blocked) next[shipmentId] = true;
+        else delete next[shipmentId];
+        return next;
+      });
+    },
+    [],
+  );
   useEffect(() => {
     onBlockedChange(deliveryBlocked || financeBlocked || carrierBlocked);
     return () => onBlockedChange(false);
@@ -5518,7 +5541,7 @@ function PurchaseOrderDetails({
     busy || !capability(data, permission) || !actionReason.trim();
   return (
     <div className="inventory-stack">
-      <Card title="Purchase batches">
+      <Card title="Review purchase batches">
         <p className="inventory-card-description">
           Each batch comes from one checkout. A separate purchase order is kept
           for each supplier.
@@ -5626,7 +5649,7 @@ function PurchaseOrderDetails({
           </div>
         </div>
       </Card>
-      <Card title="Order lines">
+      <Card title="Review order lines">
         <div className="inventory-table-wrap">
           <table>
             <thead>
@@ -5826,7 +5849,12 @@ function PurchaseOrderDetails({
                     key={`${data.practice.id}:${data.current_user_id}:${shipment.id}`}
                     shipmentId={shipment.id}
                     canPrepare={capability(data, "inventory.receive")}
-                    externalBusy={preparationBusy || financeBlocked || deliveryBlocked || (carrierBlocked && !carrierBlocks[shipment.id])}
+                    externalBusy={
+                      preparationBusy ||
+                      financeBlocked ||
+                      deliveryBlocked ||
+                      (carrierBlocked && !carrierBlocks[shipment.id])
+                    }
                     onBlockedChange={setCarrierBlocked}
                   />
                   {events.length > 0 ? (
@@ -5988,7 +6016,7 @@ function ReceivingWorkspace({
   const selected = data.shipments[0];
   return (
     <div className="inventory-stack" aria-busy={loading}>
-      <Card title="Delivery queue">
+      <Card title="Find a delivery">
         <form
           className="inventory-toolbar"
           onSubmit={(event) => {
@@ -6036,7 +6064,7 @@ function ReceivingWorkspace({
         <p role="status">
           {loading
             ? "Loading deliveries…"
-            : `${data.delivery_options.length} shown · ${page.filtered_count} matching of ${page.total_count} deliveries.`}
+            : `${data.delivery_options.length} shown · ${page.filtered_count} matching · ${page.total_count} total deliveries.`}
         </p>
         {error && (
           <Alert severity="error">
@@ -6054,7 +6082,7 @@ function ReceivingWorkspace({
             select
             fullWidth
             size="small"
-            label="Select delivery"
+            label="Delivery to review"
             value={selected?.id ?? ""}
             disabled={disabled}
             onChange={(event) =>
@@ -6501,7 +6529,7 @@ export function ReceivingScreen({
         </div>
         <div className="inventory-panel-heading">
           <div>
-            <h2>Shipment {shipment.supplier_reference}</h2>
+            <h2>Review shipment {shipment.supplier_reference}</h2>
             <p className="inventory-lead">
               {order.number} · {shipment.status.replaceAll("_", " ")}
               {shipment.delivered_at
@@ -6594,7 +6622,7 @@ export function ReceivingScreen({
             onChange={(event) => setPackages(event.target.value)}
             helperText={
               countsValid
-                ? `${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit} will enter inventory`
+                ? `Stock-unit equivalent: ${number(decimalMultiply(packages, line.units_per_package))} ${baseUnit}`
                 : "Enter whole package counts."
             }
           />
@@ -6795,7 +6823,7 @@ export function ReceivingScreen({
           </p>
         )}
       </Card>
-      <Card title="Receipt reconciliation">
+      <Card title="Receipt and PO quantities">
         <div className="inventory-stack compact">
           <DataPoint
             label="PO ordered"

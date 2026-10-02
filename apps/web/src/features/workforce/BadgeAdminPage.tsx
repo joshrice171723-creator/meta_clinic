@@ -294,6 +294,49 @@ export function BadgeAdminPage() {
           <Stack spacing={2}>
             <Typography variant="h2">Employee badges</Typography>
             {badgeError && <Alert severity="error">{badgeError}</Alert>}
+            {badges.map((badge) => (
+              <Stack
+                key={badge.id}
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: { sm: "center" },
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    {badge.employee_name}
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
+                    <Chip
+                      size="small"
+                      label={badge.status}
+                      color={badge.status === "issued" ? "success" : "default"}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Issued {new Date(badge.issued_at).toLocaleDateString()}
+                      {badge.pin_required ? " · PIN required" : ""}
+                    </Typography>
+                  </Stack>
+                </Box>
+                {badge.status === "issued" && (
+                  <Button
+                    color="warning"
+                    disabled={busy}
+                    onClick={() => void revokeBadge(badge.id)}
+                  >
+                    Revoke lost badge
+                  </Button>
+                )}
+              </Stack>
+            ))}
+            {!badgeError && !badges.length && (
+              <Typography color="text.secondary">
+                No badges have been issued for this location.
+              </Typography>
+            )}
+            <Divider />
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={2}
@@ -342,49 +385,6 @@ export function BadgeAdminPage() {
                 Issue or replace badge
               </Button>
             </Stack>
-            <Divider />
-            {badges.map((badge) => (
-              <Stack
-                key={badge.id}
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                sx={{
-                  justifyContent: "space-between",
-                  alignItems: { sm: "center" },
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {badge.employee_name}
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Chip
-                      size="small"
-                      label={badge.status}
-                      color={badge.status === "issued" ? "success" : "default"}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      Issued {new Date(badge.issued_at).toLocaleDateString()}
-                      {badge.pin_required ? " · PIN required" : ""}
-                    </Typography>
-                  </Stack>
-                </Box>
-                {badge.status === "issued" && (
-                  <Button
-                    color="warning"
-                    disabled={busy}
-                    onClick={() => void revokeBadge(badge.id)}
-                  >
-                    Revoke lost badge
-                  </Button>
-                )}
-              </Stack>
-            ))}
-            {!badgeError && !badges.length && (
-              <Typography color="text.secondary">
-                No badges have been issued for this location.
-              </Typography>
-            )}
           </Stack>
         </Paper>
       )}
@@ -398,28 +398,6 @@ export function BadgeAdminPage() {
               The one-time enrollment code creates a secure, clock-only session.
               It does not sign the device into the clinic workspace.
             </Typography>
-            <Button
-              variant="outlined"
-              disabled={busy || !siteId}
-              onClick={() => void createEnrollment()}
-              sx={{ alignSelf: "start" }}
-            >
-              Create enrollment code
-            </Button>
-            {enrollmentToken && (
-              <Alert severity="warning">
-                <Typography sx={{ fontWeight: 700 }}>
-                  Enter this code on the kiosk now
-                </Typography>
-                <TextField
-                  fullWidth
-                  label="One-time enrollment code"
-                  value={enrollmentToken}
-                  slotProps={{ htmlInput: { readOnly: true } }}
-                  sx={{ mt: 1 }}
-                />
-              </Alert>
-            )}
             {kiosks.map((kiosk) => (
               <Stack
                 key={kiosk.id}
@@ -449,6 +427,28 @@ export function BadgeAdminPage() {
                 )}
               </Stack>
             ))}
+            <Button
+              variant="outlined"
+              disabled={busy || !siteId}
+              onClick={() => void createEnrollment()}
+              sx={{ alignSelf: "start" }}
+            >
+              Create enrollment code
+            </Button>
+            {enrollmentToken && (
+              <Alert severity="warning">
+                <Typography sx={{ fontWeight: 700 }}>
+                  Enter this code on the kiosk now
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="One-time enrollment code"
+                  value={enrollmentToken}
+                  slotProps={{ htmlInput: { readOnly: true } }}
+                  sx={{ mt: 1 }}
+                />
+              </Alert>
+            )}
           </Stack>
         </Paper>
       )}

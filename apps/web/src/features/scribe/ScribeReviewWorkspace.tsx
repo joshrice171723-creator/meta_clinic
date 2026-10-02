@@ -855,7 +855,7 @@ export function ScribeReviewWorkspace({
       sx={{
         minWidth: 0,
         height: "100%",
-        backgroundColor: "#faf9f9",
+        backgroundColor: "background.default",
         overflowY: "auto",
         p: { xs: 1, sm: 1.5 },
       }}
@@ -875,7 +875,9 @@ export function ScribeReviewWorkspace({
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1}
+          useFlexGap
           sx={{
+            flexWrap: "wrap",
             alignItems: { xs: "stretch", sm: "center" },
             justifyContent: "space-between",
             px: { xs: 1.5, sm: 2 },
@@ -890,9 +892,7 @@ export function ScribeReviewWorkspace({
             useFlexGap
             sx={{ alignItems: "center", flexWrap: "wrap" }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              SOAP note
-            </Typography>
+            <Typography variant="subtitle2">SOAP note</Typography>
             <Chip
               size="small"
               label={`Revision ${draft.revision_number ?? draft.version}`}
@@ -906,7 +906,7 @@ export function ScribeReviewWorkspace({
               />
             )}
             <Typography
-              variant="caption"
+              variant="body2"
               color={hasUnsavedEdits ? "warning.main" : "text.secondary"}
               aria-live="polite"
             >
@@ -1149,7 +1149,7 @@ export function ScribeReviewWorkspace({
                       </Button>
                     )}
                     <Typography
-                      variant="caption"
+                      variant="body2"
                       color={reasons.length ? "warning.main" : "text.secondary"}
                     >
                       {reasons.length
@@ -1230,7 +1230,7 @@ export function ScribeReviewWorkspace({
                 id="scribe-approval-heading"
                 component="h2"
                 variant="subtitle1"
-                sx={{ fontWeight: 700 }}
+                sx={{ fontWeight: 650 }}
               >
                 Approval and export
               </Typography>
@@ -1253,7 +1253,7 @@ export function ScribeReviewWorkspace({
               </Typography>
               <Typography
                 id="scribe-export-help"
-                variant="caption"
+                variant="body2"
                 color="text.secondary"
               >
                 Saving to chart writes an unsigned note only after explicit
@@ -1261,7 +1261,7 @@ export function ScribeReviewWorkspace({
                 open the chart note to check its current signature status.
               </Typography>
               {approved && (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   Approved by {approvingAccount(draft)} ·{" "}
                   {recordTime(draft.approved_at)}
                 </Typography>
@@ -1290,7 +1290,7 @@ export function ScribeReviewWorkspace({
                 disabled={approvalBlocked || approved || pendingAction !== null}
                 onClick={() => onApprove?.(draft.id)}
                 aria-describedby="scribe-approval-help"
-                sx={{ whiteSpace: "nowrap" }}
+                sx={{ whiteSpace: "normal" }}
               >
                 {approved ? "Draft approved" : "Approve current draft"}
               </Button>
@@ -1300,7 +1300,7 @@ export function ScribeReviewWorkspace({
                 disabled={exportBlocked || pendingAction !== null}
                 onClick={() => onExport?.(draft.id)}
                 aria-describedby="scribe-export-help"
-                sx={{ whiteSpace: "nowrap" }}
+                sx={{ whiteSpace: "normal" }}
               >
                 {reviewSummary.chartWritten
                   ? "Saved to chart"

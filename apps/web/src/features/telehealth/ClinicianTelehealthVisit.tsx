@@ -608,23 +608,23 @@ export function ClinicianTelehealthVisit({
   })();
 
   return (
-    <Stack spacing={2} sx={{ minWidth: 0 }}>
+    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
       <Stack
         direction={{ xs: "column", md: "row" }}
-        spacing={2}
+        spacing={1.5}
         sx={{
           justifyContent: "space-between",
           alignItems: { md: "flex-start" },
         }}
       >
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="h4" component="h1">
             Video visit
           </Typography>
           <Typography variant="h6">
             {visit.appointment.patient.display_name}
           </Typography>
-          <Typography color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             {appointmentLabel(visit)} ·{" "}
             {visit.clinician?.display_name || "Clinician not recorded"}
           </Typography>
@@ -729,7 +729,7 @@ export function ClinicianTelehealthVisit({
       <Paper
         variant="outlined"
         sx={{
-          p: { xs: 2, sm: 2.5 },
+          p: { xs: 1.5, sm: 2 },
           borderLeft: 4,
           borderLeftColor:
             callActive && session.callState === "joined"
@@ -739,11 +739,11 @@ export function ClinicianTelehealthVisit({
       >
         <Stack
           direction={{ xs: "column", sm: "row" }}
-          spacing={2}
+          spacing={1.5}
           sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
         >
           <Box>
-            <Typography variant="overline" color="text.secondary">
+            <Typography variant="subtitle2" color="text.secondary">
               Next step
             </Typography>
             <Typography variant="h6">{nextStep.title}</Typography>
@@ -757,7 +757,7 @@ export function ClinicianTelehealthVisit({
         </Stack>
       </Paper>
       <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }}>
-        <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 700 }}>
+        <Typography component="h2" variant="h6" sx={{ mb: 1 }}>
           Visit readiness
         </Typography>
         <Stack

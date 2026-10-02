@@ -173,7 +173,7 @@ function SectionPanel({
   children: ReactNode;
 }) {
   return (
-    <Box hidden={!active} aria-labelledby={labelledBy}>
+    <Box role="region" hidden={!active} aria-labelledby={labelledBy}>
       {children}
     </Box>
   );

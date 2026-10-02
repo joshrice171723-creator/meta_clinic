@@ -403,6 +403,43 @@ export function ScheduleBuilderPage() {
         </Paper>
       ) : (
         <>
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Employee</TableCell>
+                  <TableCell>Shift</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell align="right">Break</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(draft.shifts ?? []).map((shift) => (
+                  <TableRow key={shift.id}>
+                    <TableCell>{shift.employee_name}</TableCell>
+                    <TableCell>
+                      {displayInterval(
+                        shift.starts_at,
+                        shift.ends_at,
+                        shift.timezone,
+                      )}
+                    </TableCell>
+                    <TableCell>{shift.role_name || "Not specified"}</TableCell>
+                    <TableCell align="right">
+                      {shift.break_minutes} min
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {(draft.shifts ?? []).length === 0 && (
+              <Box sx={{ p: 3 }}>
+                <Typography color="text.secondary">
+                  No shifts are saved in this draft.
+                </Typography>
+              </Box>
+            )}
+          </TableContainer>
           <Paper
             component="form"
             variant="outlined"
@@ -477,43 +514,6 @@ export function ScheduleBuilderPage() {
               Save shift
             </Button>
           </Paper>
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Employee</TableCell>
-                  <TableCell>Shift</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell align="right">Break</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(draft.shifts ?? []).map((shift) => (
-                  <TableRow key={shift.id}>
-                    <TableCell>{shift.employee_name}</TableCell>
-                    <TableCell>
-                      {displayInterval(
-                        shift.starts_at,
-                        shift.ends_at,
-                        shift.timezone,
-                      )}
-                    </TableCell>
-                    <TableCell>{shift.role_name || "Not specified"}</TableCell>
-                    <TableCell align="right">
-                      {shift.break_minutes} min
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {(draft.shifts ?? []).length === 0 && (
-              <Box sx={{ p: 3 }}>
-                <Typography color="text.secondary">
-                  No shifts are saved in this draft.
-                </Typography>
-              </Box>
-            )}
-          </TableContainer>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h2" sx={{ mb: 1 }}>
               Reuse this week

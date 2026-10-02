@@ -65,8 +65,17 @@ export function PatientPortalRecovery() {
           borderRadius: 3,
         }}
       >
-        <Stack component="form" spacing={2} onSubmit={submit}>
-          <Typography component="h1" variant="h4">
+        <Stack
+          component="form"
+          aria-labelledby="patient-portal-recovery-heading"
+          spacing={2}
+          onSubmit={submit}
+        >
+          <Typography
+            id="patient-portal-recovery-heading"
+            component="h1"
+            variant="h4"
+          >
             Reset your password
           </Typography>
           <Typography color="text.secondary">

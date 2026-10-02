@@ -212,7 +212,7 @@ export function BillingCollectionWorklist({
             >
               <TableHead>
                 <TableRow>
-                  <TableCell>Invoice</TableCell>
+                  <TableCell>Invoice / collection</TableCell>
                   <TableCell>Patient</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Last updated</TableCell>
@@ -226,6 +226,12 @@ export function BillingCollectionWorklist({
                   <TableRow key={item.id} hover>
                     <TableCell component="th" scope="row">
                       Invoice #{item.invoice_id}
+                      <Typography variant="body2" color="text.secondary">
+                        Collection #{item.id}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Processor: {item.processor} · Mode: {item.mode}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       {item.patient?.display_name ?? "Identity unavailable"}
@@ -381,14 +387,19 @@ export function BillingPayments({
                       </TableCell>
                       <TableCell>
                         {receipt ? (
-                          <Button
-                            startIcon={<PrintOutlinedIcon />}
-                            href={`/api/clinic/payment_events/${payment.id}/receipt?receipt_id=${receipt.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Print receipt
-                          </Button>
+                          <>
+                            <Button
+                              startIcon={<PrintOutlinedIcon />}
+                              href={`/api/clinic/payment_events/${payment.id}/receipt?receipt_id=${receipt.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Print receipt
+                            </Button>
+                            <Typography variant="body2" color="text.secondary">
+                              Payment receipt #{receipt.id}
+                            </Typography>
+                          </>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
                             Not issued
@@ -433,7 +444,9 @@ export function BillingPayments({
                   <Typography variant="h4" component="p">
                     {billingMoney(selected.amount, selected.currency)}
                   </Typography>
-                  <Typography variant="body2">{selected.method}</Typography>
+                  <Typography variant="body2">
+                    Method: {selected.method}
+                  </Typography>
                 </Box>
                 <Typography>
                   Refunded {billingMoney(selected.refunded, selected.currency)}{" "}
@@ -441,7 +454,7 @@ export function BillingPayments({
                   {billingMoney(selected.net_amount, selected.currency)}
                 </Typography>
                 <Box>
-                  <Typography sx={{ fontWeight: 700 }}>
+                  <Typography component="h3" variant="h2">
                     Applied to invoices
                   </Typography>
                   {selected.allocations.length ? (
@@ -461,7 +474,9 @@ export function BillingPayments({
                   )}
                 </Box>
                 <Box>
-                  <Typography sx={{ fontWeight: 700 }}>Receipts</Typography>
+                  <Typography component="h3" variant="h2">
+                    Receipts
+                  </Typography>
                   {selected.receipts.length ? (
                     selected.receipts.map((receipt) => (
                       <Stack
@@ -476,10 +491,22 @@ export function BillingPayments({
                       >
                         <Typography variant="body2">
                           {receipt.kind.endsWith("refund")
-                            ? "Refund"
-                            : "Payment"}{" "}
+                            ? "Refund receipt"
+                            : "Payment receipt"}{" "}
                           #{receipt.id} ·{" "}
                           {billingMoney(receipt.amount, selected.currency)}
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ display: "block" }}
+                          >
+                            Issued{" "}
+                            {paymentDate(
+                              receipt.issued_at,
+                              data.practice.timezone,
+                            )}
+                          </Typography>
                         </Typography>
                         <Button
                           startIcon={<PrintOutlinedIcon />}

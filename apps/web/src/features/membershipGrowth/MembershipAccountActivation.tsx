@@ -98,7 +98,12 @@ export function MembershipAccountActivation() {
           >
             Meta Clinic · Membership account
           </Typography>
-          <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
+          <Typography
+            component="h1"
+            id="membership-activation-heading"
+            variant="h4"
+            sx={{ fontWeight: 700 }}
+          >
             Create your password
           </Typography>
           <Typography color="text.secondary">
@@ -108,6 +113,7 @@ export function MembershipAccountActivation() {
           </Typography>
           {token && (
             <Stack
+              component="section"
               direction="row"
               spacing={1}
               useFlexGap
@@ -140,7 +146,12 @@ export function MembershipAccountActivation() {
             </Alert>
           )}
           {token && (
-            <Stack component="form" spacing={2} onSubmit={submit}>
+            <Stack
+              component="form"
+              spacing={2}
+              onSubmit={submit}
+              aria-labelledby="membership-activation-heading"
+            >
               {error && <Alert severity="error">{error}</Alert>}
               <TextField
                 autoComplete="new-password"

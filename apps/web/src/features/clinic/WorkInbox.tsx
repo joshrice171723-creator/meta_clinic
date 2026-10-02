@@ -1388,7 +1388,7 @@ function InboxRow({
           gridColumn: "1",
           justifySelf: { xs: "start", md: "start" },
           mt: { xs: 0.5, md: 1 },
-          minHeight: 40,
+          minHeight: 44,
           whiteSpace: "nowrap",
         }}
         href={item.href}

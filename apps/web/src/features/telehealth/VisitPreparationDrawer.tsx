@@ -13,6 +13,19 @@ function value(value: string | null | undefined) {
   return value?.trim() || "Not available";
 }
 
+function dateTime(value: string, timeZone: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return "Time unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
+  }).format(date);
+}
+
 export function VisitPreparationDrawer({
   visitId,
   open,
@@ -34,7 +47,7 @@ export function VisitPreparationDrawer({
       onClose={onClose}
       slotProps={{ paper: { sx: { width: { xs: "100%", sm: 440 }, p: 2 } } }}
     >
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         <Box>
           <Typography variant="h5">Visit preparation</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -56,11 +69,16 @@ export function VisitPreparationDrawer({
         )}
         {visit && (
           <>
-            <Divider />
-            <div>
+            <Box>
               <Typography variant="subtitle2">Patient</Typography>
               <Typography>{visit.appointment.patient.display_name}</Typography>
-            </div>
+              <Typography variant="body2" color="text.secondary">
+                {dateTime(
+                  visit.appointment.starts_at,
+                  visit.appointment.timezone,
+                )}
+              </Typography>
+            </Box>
             <div>
               <Typography variant="subtitle2">Readiness</Typography>
               <Typography>
@@ -84,6 +102,14 @@ export function VisitPreparationDrawer({
                   : "No device result is recorded."}
               </Typography>
             </div>
+            <Button
+              variant="contained"
+              href={`/clinic/telehealth/${visit.public_id}`}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Review visit
+            </Button>
+            <Divider />
             {canReadPreparation ? (
               <>
                 <div>
@@ -125,12 +151,6 @@ export function VisitPreparationDrawer({
               useFlexGap
               sx={{ flexWrap: "wrap" }}
             >
-              <Button
-                variant="contained"
-                href={`/clinic/telehealth/${visit.public_id}`}
-              >
-                Review visit
-              </Button>
               <Button
                 href={`/clinic/schedule?appointment_id=${visit.appointment.id}`}
               >

@@ -487,8 +487,16 @@ export function ReviewOfSystems({
                     disabled={disabled}
                     focusRipple
                     aria-label={`${finding.label}: ${currentLabel}. Activate to mark ${nextLabel}.`}
+                    sx={{ flexDirection: "column", alignItems: "flex-start" }}
                   >
                     <span className="ros-finding-mark">{finding.label}</span>
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      {currentLabel}
+                    </Typography>
                   </ButtonBase>
                 );
               })}

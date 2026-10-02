@@ -741,22 +741,31 @@ export function NurseEncounterWorkspaceContent({
       component="section"
       tabIndex={-1}
       variant="outlined"
-      sx={{ p: { xs: 2, md: 2.5 } }}
+      sx={{ p: { xs: 1.5, md: 2 } }}
     >
-      <Stack spacing={2.5}>
-        <Box>
-          <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
-            Rooming & intake
-          </Typography>
-          <Typography color="text.secondary">
-            {patient.display_name} · Encounter #{encounter.id} · Room{" "}
-            {roomStatusLabel}
-          </Typography>
+      <Stack spacing={1.5}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1}
+          sx={{
+            alignItems: { md: "center" },
+            justifyContent: "space-between",
+          }}
+        >
+          <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+            <Typography component="h2" variant="h5" sx={{ fontWeight: 700 }}>
+              Rooming & intake
+            </Typography>
+            <Typography color="text.secondary">
+              {patient.display_name} · Encounter #{encounter.id} · Room{" "}
+              {roomStatusLabel}
+            </Typography>
+          </Box>
           <Stack
             direction="row"
             spacing={1}
             useFlexGap
-            sx={{ mt: 1, flexWrap: "wrap" }}
+            sx={{ flexWrap: "wrap" }}
             aria-label="Encounter status summary"
             role="status"
             aria-live="polite"
@@ -772,11 +781,21 @@ export function NurseEncounterWorkspaceContent({
               size="small"
               variant="outlined"
             />
+            {workspace.questionnaire_form && (
+              <Chip
+                label={intakeGroupProgressLabel(
+                  confirmedChunkIndexes.length,
+                  intakeChunks.length,
+                )}
+                size="small"
+                variant="outlined"
+              />
+            )}
           </Stack>
-        </Box>
+        </Stack>
         <Stack
           direction="row"
-          spacing={1}
+          spacing={0.5}
           useFlexGap
           aria-label="Encounter preparation"
           sx={{ flexWrap: "wrap" }}
@@ -797,17 +816,18 @@ export function NurseEncounterWorkspaceContent({
               aria-pressed={activeWorkspace === value}
               onClick={() => setActiveWorkspace(value)}
               aria-controls={`preparation-panel-${value}`}
+              sx={{ minHeight: 44, px: 1.5 }}
             >
               {label}
             </Button>
           ))}
         </Stack>
-        {activeWorkspace === "handoff" && !readyEvidence && (
+        {!readyEvidence && (
           <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
-            <Typography variant="subtitle2" component="div">
-              Needs attention before clinician handoff
-            </Typography>
             <Typography variant="body2">
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                Needs attention before clinician handoff:{" "}
+              </Box>
               {handoffAttention.join(" · ")}.
             </Typography>
           </Alert>
@@ -1083,9 +1103,6 @@ export function NurseEncounterWorkspaceContent({
                 hidden={activeWorkspace !== "intake"}
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
-                <Typography color="text.secondary">
-                  {intakeGroupProgressLabel(confirmedChunkIndexes.length, intakeChunks.length)}
-                </Typography>
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;
                   const locked = intakeChunks
@@ -1251,7 +1268,9 @@ export function NurseEncounterWorkspaceContent({
                                 form.questionnaire?.question_follow_up ?? {}
                               }
                               writable={workspace.capabilities.intake_write}
-                              onManageTasks={() => setActiveWorkspace("followup")}
+                              onManageTasks={() =>
+                                setActiveWorkspace("followup")
+                              }
                               disabled={busy || intakeConflict}
                               onChange={(question_follow_up) =>
                                 setForm((current) => ({

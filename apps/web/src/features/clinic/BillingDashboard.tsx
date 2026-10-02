@@ -591,7 +591,7 @@ export function BillingDashboard() {
   ];
 
   return (
-    <div className="billing-page">
+    <div className="billing-page billing-dashboard">
       <header className="billing-header">
         <div>
           <h1>Billing</h1>
@@ -607,10 +607,7 @@ export function BillingDashboard() {
           >
             Stripe setup
           </Button>
-          <Button
-            variant="outlined"
-            onClick={() => setActiveTab("payments")}
-          >
+          <Button variant="outlined" onClick={() => setActiveTab("payments")}>
             View payments & receipts
           </Button>
           {context.capabilities.billing_catalog_manage === true && (
@@ -643,129 +640,6 @@ export function BillingDashboard() {
           {checkoutReturnError}
         </Alert>
       )}
-      <section className="billing-overview" aria-label="Financial summary">
-        <div className="billing-overview-heading">
-          <div>
-            <strong>
-              {periodLabel(data.period.start, data.practice.timezone)}
-            </strong>
-            <span>Collections this month · balances as of today</span>
-          </div>
-          <div className="billing-header-actions">
-            {data.metrics.currencies.length > 1 && (
-              <TextField
-                select
-                label="Summary currency"
-                size="small"
-                value={primaryCurrency?.currency ?? ""}
-                onChange={(event) => setCurrency(event.target.value)}
-              >
-                {data.metrics.currencies.map((item) => (
-                  <MenuItem value={item.currency} key={item.currency}>
-                    {item.currency}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-            <Button size="small" startIcon={<RefreshIcon />} onClick={refresh}>
-              Refresh
-            </Button>
-          </div>
-        </div>
-        <div className="billing-metrics" aria-label="Revenue cycle summary">
-          <Metric
-            label="Collected after refunds"
-            value={
-              primaryCurrency
-                ? money(
-                    primaryCurrency.monthly_net_collected,
-                    primaryCurrency.currency,
-                  )
-                : "—"
-            }
-            detail="Payments less verified refunds; excludes Stripe and Meta Clinic fees"
-            tone="positive"
-          />
-          <Metric
-            label="Payments received"
-            value={
-              primaryCurrency
-                ? money(
-                    primaryCurrency.monthly_received,
-                    primaryCurrency.currency,
-                  )
-                : "—"
-            }
-            detail={
-              primaryCurrency
-                ? `${money(primaryCurrency.monthly_refunded, primaryCurrency.currency)} refunded this month`
-                : "No recorded payments"
-            }
-          />
-          <Metric
-            label="Outstanding"
-            value={
-              primaryCurrency
-                ? money(primaryCurrency.outstanding, primaryCurrency.currency)
-                : "—"
-            }
-            detail={`${primaryOpenInvoiceCount} open invoices · credits deducted`}
-            tone="attention"
-          />
-          <Metric
-            label="Charges this month"
-            value={
-              primaryCurrency
-                ? money(
-                    primaryCurrency.monthly_invoiced,
-                    primaryCurrency.currency,
-                  )
-                : "—"
-            }
-            detail="Posted invoices created this month"
-          />
-        </div>
-        <div className="billing-attention-strip">
-          <strong>Follow up</strong>
-          {queueItems.map((item) => (
-            <Button
-              key={item.filter}
-              size="small"
-              onClick={() => {
-                setFilter(item.filter);
-                setInvoicePage(1);
-                setActiveTab("invoices");
-              }}
-            >
-              {item.count}{" "}
-              {item.filter === "draft" ? "drafts to review" : "open invoices"}
-            </Button>
-          ))}
-          <Button
-            className="billing-outlook-link"
-            endIcon={<ArrowForwardIcon />}
-            onClick={() => setActiveTab("outlook")}
-          >
-            Look ahead at income
-          </Button>
-        </div>
-      </section>
-      <BillingCollectionWorklist
-        data={data}
-        onOpenInvoice={(invoiceId) => {
-          const invoiceQuery = String(invoiceId);
-          setSearchText(invoiceQuery);
-          setQuery(invoiceQuery);
-          setFilter("all");
-          setSort("recent");
-          setInvoicePage(1);
-          setSelectedInvoiceId(invoiceId);
-          setActiveTab("invoices");
-        }}
-      />
-      <BillingSupportRequestQueue
-        canManage={context.capabilities.billing_write === true}
-      />
       {checkoutQueue.available && (
         <section className="clinic-card billing-ledger-card">
           <div className="billing-section-heading billing-ledger-heading">
@@ -1219,7 +1093,10 @@ export function BillingDashboard() {
                   <div>
                     <span>Credits and write-offs</span>
                     <strong>
-                      {money(selectedInvoice.credited, selectedInvoice.currency)}
+                      {money(
+                        selectedInvoice.credited,
+                        selectedInvoice.currency,
+                      )}
                     </strong>
                   </div>
                   <div>
@@ -1232,9 +1109,9 @@ export function BillingDashboard() {
                 {pendingCashState.pending && (
                   <Alert severity="warning">
                     Cash payment for invoice #
-                    {pendingCashState.invoiceId ?? selectedInvoice.id} is pending
-                    confirmation. Review the original payment before recording
-                    another.
+                    {pendingCashState.invoiceId ?? selectedInvoice.id} is
+                    pending confirmation. Review the original payment before
+                    recording another.
                   </Alert>
                 )}
                 {selectedDetail && (
@@ -1505,6 +1382,129 @@ export function BillingDashboard() {
           />
         </div>
       )}
+      <section className="billing-overview" aria-label="Financial summary">
+        <div className="billing-overview-heading">
+          <div>
+            <strong>
+              {periodLabel(data.period.start, data.practice.timezone)}
+            </strong>
+            <span>Collections this month · balances as of today</span>
+          </div>
+          <div className="billing-header-actions">
+            {data.metrics.currencies.length > 1 && (
+              <TextField
+                select
+                label="Summary currency"
+                size="small"
+                value={primaryCurrency?.currency ?? ""}
+                onChange={(event) => setCurrency(event.target.value)}
+              >
+                {data.metrics.currencies.map((item) => (
+                  <MenuItem value={item.currency} key={item.currency}>
+                    {item.currency}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <Button size="small" startIcon={<RefreshIcon />} onClick={refresh}>
+              Refresh
+            </Button>
+          </div>
+        </div>
+        <div className="billing-metrics" aria-label="Revenue cycle summary">
+          <Metric
+            label="Collected after refunds"
+            value={
+              primaryCurrency
+                ? money(
+                    primaryCurrency.monthly_net_collected,
+                    primaryCurrency.currency,
+                  )
+                : "—"
+            }
+            detail="Payments less verified refunds; excludes Stripe and Meta Clinic fees"
+            tone="positive"
+          />
+          <Metric
+            label="Payments received"
+            value={
+              primaryCurrency
+                ? money(
+                    primaryCurrency.monthly_received,
+                    primaryCurrency.currency,
+                  )
+                : "—"
+            }
+            detail={
+              primaryCurrency
+                ? `${money(primaryCurrency.monthly_refunded, primaryCurrency.currency)} refunded this month`
+                : "No recorded payments"
+            }
+          />
+          <Metric
+            label="Outstanding"
+            value={
+              primaryCurrency
+                ? money(primaryCurrency.outstanding, primaryCurrency.currency)
+                : "—"
+            }
+            detail={`${primaryOpenInvoiceCount} open invoices · credits deducted`}
+            tone="attention"
+          />
+          <Metric
+            label="Charges this month"
+            value={
+              primaryCurrency
+                ? money(
+                    primaryCurrency.monthly_invoiced,
+                    primaryCurrency.currency,
+                  )
+                : "—"
+            }
+            detail="Posted invoices created this month"
+          />
+        </div>
+        <div className="billing-attention-strip">
+          <strong>Follow up</strong>
+          {queueItems.map((item) => (
+            <Button
+              key={item.filter}
+              size="small"
+              onClick={() => {
+                setFilter(item.filter);
+                setInvoicePage(1);
+                setActiveTab("invoices");
+              }}
+            >
+              {item.count}{" "}
+              {item.filter === "draft" ? "drafts to review" : "open invoices"}
+            </Button>
+          ))}
+          <Button
+            className="billing-outlook-link"
+            endIcon={<ArrowForwardIcon />}
+            onClick={() => setActiveTab("outlook")}
+          >
+            Look ahead at income
+          </Button>
+        </div>
+      </section>
+      <BillingCollectionWorklist
+        data={data}
+        onOpenInvoice={(invoiceId) => {
+          const invoiceQuery = String(invoiceId);
+          setSearchText(invoiceQuery);
+          setQuery(invoiceQuery);
+          setFilter("all");
+          setSort("recent");
+          setInvoicePage(1);
+          setSelectedInvoiceId(invoiceId);
+          setActiveTab("invoices");
+        }}
+      />
+      <BillingSupportRequestQueue
+        canManage={context.capabilities.billing_write === true}
+      />
     </div>
   );
 }

@@ -109,58 +109,82 @@ export function Patients({ id }: { id?: string }) {
     );
   return (
     <>
-      <p className="eyebrow">PATIENTS</p>
       <Stack
-        direction={{ xs: "column", sm: "row" }}
+        direction={{ xs: "column", md: "row" }}
         spacing={1}
-        sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+        sx={{
+          alignItems: { md: "center" },
+          justifyContent: "space-between",
+          mb: 2,
+        }}
       >
-        <h1>Patient directory</h1>
-        {clinic.capabilities.patients_write && (
-          <Button component="a" href="/clinic/patients/new" variant="contained">
-            Register patient
+        <Typography component="h1" variant="h4">
+          Patient directory
+        </Typography>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+          <Button component="a" href="/clinic" sx={{ minHeight: 44 }}>
+            Return to tracking board
           </Button>
-        )}
+          {clinic.capabilities.patients_write && (
+            <Button
+              component="a"
+              href="/clinic/patients/new"
+              variant="contained"
+              sx={{ minHeight: 44 }}
+            >
+              Register patient
+            </Button>
+          )}
+        </Stack>
       </Stack>
-      <a className="text-link" href="/clinic">
-        Return to tracking board →
-      </a>
-      <Card title="Patient directory">
-        <TextField
-          select
-          label="Primary location"
-          size="small"
-          value={selectedSite?.id ?? ""}
-          onChange={(event) =>
-            window.location.assign(
-              event.target.value
-                ? `/clinic/patients?site_id=${event.target.value}`
-                : "/clinic/patients",
-            )
-          }
-          sx={{ mb: 2, minWidth: 240 }}
-        >
-          <MenuItem value="">All clinic patients</MenuItem>
-          {clinic.sites.map((site) => (
-            <MenuItem key={site.id} value={site.id}>
-              {site.name || site.code}
-            </MenuItem>
-          ))}
-        </TextField>
+      <Card title="Find and browse patients">
         {clinic.capabilities.patient_identity_read === true && (
           <>
             <PatientLookup />
-            <Divider sx={{ my: 3 }} />
-            <Typography component="h2" variant="h6" sx={{ mb: 0.5 }}>
+            <Divider sx={{ my: 2 }} />
+          </>
+        )}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          sx={{
+            alignItems: { sm: "center" },
+            justifyContent: "space-between",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography component="h2" variant="h6">
               {selectedSite ? `${selectedSite.name} patients` : "All patients"}
             </Typography>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
+            <Typography color="text.secondary" variant="body2">
               {selectedSite
                 ? `Browse patients assigned to ${selectedSite.name}.`
                 : "Browse patients registered at this clinic."}
             </Typography>
-          </>
-        )}
+          </Box>
+          <TextField
+            select
+            label="Primary location"
+            size="small"
+            value={selectedSite?.id ?? ""}
+            onChange={(event) =>
+              window.location.assign(
+                event.target.value
+                  ? `/clinic/patients?site_id=${event.target.value}`
+                  : "/clinic/patients",
+              )
+            }
+            sx={{ width: { xs: "100%", sm: 240 }, flexShrink: 0 }}
+          >
+            <MenuItem value="">All clinic patients</MenuItem>
+            {clinic.sites.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                {site.name || site.code}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
         {data.patients?.length === 0 ? (
           <p>
             {selectedSite
@@ -814,10 +838,51 @@ function PatientRecord({
   const reference = patientReferenceLabel(patient.reference);
   return (
     <>
-      <a href="/clinic/patients">← Patients</a>
-      <h1>{patient.display_name}</h1>
-      {reference && <p>Reference: {reference}</p>}
-      <ActiveEncounterAction patientId={patient.id} />
+      <Stack spacing={1} sx={{ mb: 2 }}>
+        <Button
+          component="a"
+          href="/clinic/patients"
+          sx={{ alignSelf: "flex-start", minHeight: 44 }}
+        >
+          Patients
+        </Button>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              md: "minmax(0, 1fr) minmax(18rem, 24rem)",
+            },
+            gap: 2,
+            alignItems: "start",
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" color="text.secondary">
+              Patient record
+            </Typography>
+            <Typography
+              component="h1"
+              variant="h4"
+              sx={{ mb: 1, overflowWrap: "anywhere" }}
+            >
+              {patient.display_name}
+            </Typography>
+            <Stack spacing={0.25}>
+              <Typography variant="body2">
+                Clinic reference: {reference ?? "Not recorded"}
+              </Typography>
+              <Typography variant="body2">
+                Date of birth:{" "}
+                {patient.demographics?.date_of_birth ||
+                  patient.date_of_birth ||
+                  "Not recorded"}
+              </Typography>
+            </Stack>
+          </Box>
+          <ActiveEncounterAction patientId={patient.id} />
+        </Box>
+      </Stack>
       {canInvitePortal && (
         <PatientPortalInvitation
           patient={patient}
@@ -992,9 +1057,17 @@ function PatientRecord({
         patient={patient}
         onCoordinationSaved={onRegistrationSaved}
       />
+      <Typography component="h2" variant="h6" sx={{ mt: 2, mb: 1 }}>
+        History and source records
+      </Typography>
       <Accordion>
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography component="h2" variant="subtitle1">
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          id="patient-activity-heading"
+          aria-controls="patient-activity-content"
+          sx={{ minHeight: 44 }}
+        >
+          <Typography component="span" variant="subtitle1">
             Patient activity
           </Typography>
         </AccordionSummary>
@@ -1123,6 +1196,7 @@ function PatientPortalInvitation({
   const currentEmail = patient.contacts?.find(
     (contact) => contact.contact_type === "email" && !contact.effective_until,
   )?.contact_value;
+  const [expanded, setExpanded] = useState(false);
   const [invitation, setInvitation] = useState<PortalInvitation | null>(null);
   const [currentAccess, setCurrentAccess] = useState(portalAccess);
   useEffect(() => setCurrentAccess(portalAccess), [portalAccess]);
@@ -1176,80 +1250,104 @@ function PatientPortalInvitation({
   };
 
   return (
-    <Card title="Patient portal access">
-      <Stack spacing={1.5}>
-        {currentAccess?.status === "active" ? (
-          <Alert severity="success">
-            Portal access is linked to this patient record.
-            {currentAccess.activated_at &&
-              ` Activated ${new Date(currentAccess.activated_at).toLocaleString()}.`}
-          </Alert>
-        ) : currentAccess?.status === "invited" ? (
-          <Alert severity={currentAccess.invitation_open ? "info" : "warning"}>
-            {currentAccess.invitation_open
-              ? "A portal invitation is pending for this patient record."
-              : "The previous portal invitation expired. Create a new link if access is still needed."}
-          </Alert>
-        ) : currentAccess?.status === "revoked" ? (
-          <Alert severity="warning">
-            Previous portal access was revoked for this patient record.
-          </Alert>
-        ) : (
-          <Alert severity="info">
-            No portal account is linked to this patient record.
-          </Alert>
-        )}
-        <Typography color="text.secondary">
-          Create a one-time link for the current patient email. It activates new
-          access or securely resets an existing password, and expires after 30
-          minutes.
+    <Accordion
+      expanded={expanded || busy || Boolean(error)}
+      onChange={(_event, nextExpanded) => {
+        if (!busy && !error) setExpanded(nextExpanded);
+      }}
+      slotProps={{
+        heading: { component: "h2" },
+        transition: { unmountOnExit: false },
+      }}
+      sx={{ mb: 2 }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        id="patient-portal-access-heading"
+        aria-controls="patient-portal-access-content"
+        sx={{ minHeight: 44 }}
+      >
+        <Typography component="span" variant="subtitle1">
+          Patient portal access
         </Typography>
-        {currentEmail ? (
-          <Typography>
-            Current email: <strong>{currentEmail}</strong>
-          </Typography>
-        ) : (
-          <Alert severity="warning">
-            Record a current patient email in registration before creating
-            portal access.
-          </Alert>
-        )}
-        {error && <Alert severity="error">{error}</Alert>}
-        {invitation && (
-          <>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Stack spacing={1.5}>
+          {currentAccess?.status === "active" ? (
             <Alert severity="success">
-              {invitation.purpose === "recovery" ? "Recovery" : "Activation"}{" "}
-              link created for {invitation.email_address}. It expires at{" "}
-              {new Date(invitation.expires_at).toLocaleString()}.
+              Portal access is linked to this patient record.
+              {currentAccess.activated_at &&
+                ` Activated ${new Date(currentAccess.activated_at).toLocaleString()}.`}
             </Alert>
-            <TextField
-              aria-label={`Patient portal ${invitation.purpose} link`}
-              fullWidth
-              slotProps={{ htmlInput: { readOnly: true } }}
-              value={activationUrl}
-            />
-            <Button onClick={() => void copyInvitation()} variant="outlined">
-              {copied ? "Link copied" : `Copy ${invitation.purpose} link`}
-            </Button>
-            <Typography color="text.secondary" variant="body2">
-              Share this link only through a clinic-approved secure channel.
-              Meta Clinic has not sent it automatically.
+          ) : currentAccess?.status === "invited" ? (
+            <Alert
+              severity={currentAccess.invitation_open ? "info" : "warning"}
+            >
+              {currentAccess.invitation_open
+                ? "A portal invitation is pending for this patient record."
+                : "The previous portal invitation expired. Create a new link if access is still needed."}
+            </Alert>
+          ) : currentAccess?.status === "revoked" ? (
+            <Alert severity="warning">
+              Previous portal access was revoked for this patient record.
+            </Alert>
+          ) : (
+            <Alert severity="info">
+              No portal account is linked to this patient record.
+            </Alert>
+          )}
+          <Typography color="text.secondary">
+            Create a one-time link for the current patient email. It activates
+            new access or securely resets an existing password, and expires
+            after 30 minutes.
+          </Typography>
+          {currentEmail ? (
+            <Typography>
+              Current email: <strong>{currentEmail}</strong>
             </Typography>
-          </>
-        )}
-        <Button
-          disabled={busy || !currentEmail}
-          onClick={() => void createInvitation()}
-          variant="contained"
-        >
-          {busy
-            ? "Creating…"
-            : invitation
-              ? "Replace one-time link"
-              : "Create one-time link"}
-        </Button>
-      </Stack>
-    </Card>
+          ) : (
+            <Alert severity="warning">
+              Record a current patient email in registration before creating
+              portal access.
+            </Alert>
+          )}
+          {error && <Alert severity="error">{error}</Alert>}
+          {invitation && (
+            <>
+              <Alert severity="success">
+                {invitation.purpose === "recovery" ? "Recovery" : "Activation"}{" "}
+                link created for {invitation.email_address}. It expires at{" "}
+                {new Date(invitation.expires_at).toLocaleString()}.
+              </Alert>
+              <TextField
+                aria-label={`Patient portal ${invitation.purpose} link`}
+                fullWidth
+                slotProps={{ htmlInput: { readOnly: true } }}
+                value={activationUrl}
+              />
+              <Button onClick={() => void copyInvitation()} variant="outlined">
+                {copied ? "Link copied" : `Copy ${invitation.purpose} link`}
+              </Button>
+              <Typography color="text.secondary" variant="body2">
+                Share this link only through a clinic-approved secure channel.
+                Meta Clinic has not sent it automatically.
+              </Typography>
+            </>
+          )}
+          <Button
+            disabled={busy || !currentEmail}
+            onClick={() => void createInvitation()}
+            variant="contained"
+          >
+            {busy
+              ? "Creating…"
+              : invitation
+                ? "Replace one-time link"
+                : "Create one-time link"}
+          </Button>
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 

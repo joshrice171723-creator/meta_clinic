@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -57,7 +58,7 @@ export function DeviceCheck({
     (results.camera === "passed" || (allowAudioOnly && audioOnly));
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={1.5}>
       <div>
         <Typography variant="h5">Check your camera and sound</Typography>
         <Typography color="text.secondary">
@@ -65,6 +66,40 @@ export function DeviceCheck({
           guarantee connection quality during the visit.
         </Typography>
       </div>
+      {(check.error || error) && (
+        <Alert severity="error">{check.error || error}</Alert>
+      )}
+      {!ready && check.running && (
+        <Alert severity="info">
+          Confirm the microphone, speaker, and{" "}
+          {allowAudioOnly ? "camera or audio-only choice" : "camera"} before
+          continuing.
+        </Alert>
+      )}
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ flexWrap: "wrap" }}
+        role="group"
+        aria-label="Device check results"
+      >
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`Camera: ${results.camera.replaceAll("_", " ")}`}
+        />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`Microphone: ${results.microphone.replaceAll("_", " ")}`}
+        />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`Speaker: ${results.speaker.replaceAll("_", " ")}`}
+        />
+      </Stack>
       <Box
         sx={{
           minHeight: 220,
@@ -223,16 +258,6 @@ export function DeviceCheck({
           }
           label="Continue with audio only"
         />
-      )}
-      {(check.error || error) && (
-        <Alert severity="error">{check.error || error}</Alert>
-      )}
-      {!ready && check.running && (
-        <Alert severity="info">
-          Confirm the microphone, speaker, and{" "}
-          {allowAudioOnly ? "camera or audio-only choice" : "camera"} before
-          continuing.
-        </Alert>
       )}
       <Stack
         direction="row"

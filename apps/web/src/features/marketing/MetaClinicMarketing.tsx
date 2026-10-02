@@ -57,38 +57,132 @@ const workflow = [
 ];
 
 const priorityClinics = [
-  { name: "Weight loss", href: "/meta-clinic/weight-loss", detail: "Connect program intake, remote visits, clinician review, membership administration, and follow-up." },
-  { name: "Behavioral health", href: "/meta-clinic/behavioral-health", detail: "Coordinate recurring sessions, documentation, patient communication, and the next agreed step." },
-  { name: "Cash-pay care", href: "/meta-clinic/primary-care/cash-pay", detail: "Make service terms, booking, the visit, payment questions, and follow-through easier to follow." },
+  {
+    name: "Weight loss",
+    href: "/meta-clinic/weight-loss",
+    detail:
+      "Connect program intake, remote visits, clinician review, membership administration, and follow-up.",
+  },
+  {
+    name: "Behavioral health",
+    href: "/meta-clinic/behavioral-health",
+    detail:
+      "Coordinate recurring sessions, documentation, patient communication, and the next agreed step.",
+  },
+  {
+    name: "Cash-pay care",
+    href: "/meta-clinic/primary-care/cash-pay",
+    detail:
+      "Make service terms, booking, the visit, payment questions, and follow-through easier to follow.",
+  },
 ];
 
 const productTour = [
-  { name: "Clinic dashboard", detail: "Start with today's work and the items that need an owner.", href: "/meta-clinic/platform/tasks" },
-  { name: "Schedule", detail: "Trace a booking into the people and resources required for the visit.", href: "/meta-clinic/platform/scheduling" },
-  { name: "Patient chart", detail: "Inspect the visit context and the documentation the care team reviews.", href: "/meta-clinic/platform/clinical-documentation" },
-  { name: "Intake", detail: "See what a patient submits and what staff still need to check.", href: "/meta-clinic/platform/patient-intake" },
-  { name: "Inventory", detail: "Follow a supply question into the relevant clinic workflow.", href: "/meta-clinic/platform/inventory" },
-  { name: "Billing", detail: "Review how a charge, invoice, or payment question reaches the right team.", href: "/meta-clinic/platform/billing" },
+  {
+    name: "Clinic dashboard",
+    detail: "Start with today's work and the items that need an owner.",
+    href: "/meta-clinic/platform/tasks",
+  },
+  {
+    name: "Schedule",
+    detail:
+      "Trace a booking into the people and resources required for the visit.",
+    href: "/meta-clinic/platform/scheduling",
+  },
+  {
+    name: "Patient chart",
+    detail:
+      "Inspect the visit context and the documentation the care team reviews.",
+    href: "/meta-clinic/platform/clinical-documentation",
+  },
+  {
+    name: "Intake",
+    detail: "See what a patient submits and what staff still need to check.",
+    href: "/meta-clinic/platform/patient-intake",
+  },
+  {
+    name: "Inventory",
+    detail: "Follow a supply question into the relevant clinic workflow.",
+    href: "/meta-clinic/platform/inventory",
+  },
+  {
+    name: "Billing",
+    detail:
+      "Review how a charge, invoice, or payment question reaches the right team.",
+    href: "/meta-clinic/platform/billing",
+  },
 ];
 
 const benefits = [
-  { title: "A connected patient journey", detail: "See how access, intake, scheduling, the visit, and follow-up pass between patients and staff.", href: "/meta-clinic/platform" },
-  { title: "A clearer clinic day", detail: "Give front desk, clinical, and operations teams context for the work each role owns.", href: "/meta-clinic/platform/workflows" },
-  { title: "Assistance with human review", detail: "Evaluate AI-assisted work with its source information, reviewer, and limits made explicit.", href: "/meta-clinic/ai" },
-  { title: "Fit for your care model", detail: "Start with a specialty workflow and review what is available for your clinic's setting.", href: "/meta-clinic/site-map" },
+  {
+    title: "A connected patient journey",
+    detail:
+      "See how access, intake, scheduling, the visit, and follow-up pass between patients and staff.",
+    href: "/meta-clinic/platform",
+  },
+  {
+    title: "A clearer clinic day",
+    detail:
+      "Give front desk, clinical, and operations teams context for the work each role owns.",
+    href: "/meta-clinic/platform/workflows",
+  },
+  {
+    title: "Assistance with human review",
+    detail:
+      "Evaluate AI-assisted work with its source information, reviewer, and limits made explicit.",
+    href: "/meta-clinic/ai",
+  },
+  {
+    title: "Fit for your care model",
+    detail:
+      "Start with a specialty workflow and review what is available for your clinic's setting.",
+    href: "/meta-clinic/site-map",
+  },
 ];
 
 const buyerQuestions = [
-  { title: "Security and data", detail: "Request current, scoped evidence for access, privacy, and the agreements that apply.", href: "/meta-clinic/security" },
-  { title: "Integrations and migration", detail: "Confirm each data flow, existing system handoff, and current vendor connection before planning a change.", href: "/meta-clinic/integrations" },
-  { title: "Implementation and support", detail: "Use a walkthrough to define roles, setup work, training needs, and the help path for your team.", href: "/meta-clinic/book-demo" },
-  { title: "Pricing and scope", detail: "Discuss the clinic model and proposed capabilities before reviewing a written commercial offer.", href: "/meta-clinic/pricing" },
+  {
+    title: "Security and data",
+    detail:
+      "Request current, scoped evidence for access, privacy, and the agreements that apply.",
+    href: "/meta-clinic/security",
+  },
+  {
+    title: "Integrations and migration",
+    detail:
+      "Confirm each data flow, existing system handoff, and current vendor connection before planning a change.",
+    href: "/meta-clinic/integrations",
+  },
+  {
+    title: "Implementation and support",
+    detail:
+      "Use a walkthrough to define roles, setup work, training needs, and the help path for your team.",
+    href: "/meta-clinic/book-demo",
+  },
+  {
+    title: "Pricing and scope",
+    detail:
+      "Discuss the clinic model and proposed capabilities before reviewing a written commercial offer.",
+    href: "/meta-clinic/pricing",
+  },
 ];
 
 const homeQuestions = [
-  { question: "Can we see a workflow for our specialty?", answer: "Start with a specialty page and use the synthetic demo to inspect the current interface. A live walkthrough can focus on your own roles and exception cases." },
-  { question: "Does the software make clinical decisions?", answer: "Clinical assessment, treatment, prescribing, and approval remain with appropriately authorized people. Assisted outputs require review in the applicable workflow." },
-  { question: "Are every feature and integration available today?", answer: "No page alone establishes availability. Confirm the exact product behavior, configuration, external connection, and agreement scope during evaluation." },
+  {
+    question: "Can we see a workflow for our specialty?",
+    answer:
+      "Start with a specialty page and use the synthetic demo to inspect the current interface. A live walkthrough can focus on your own roles and exception cases.",
+  },
+  {
+    question: "Does the software make clinical decisions?",
+    answer:
+      "Clinical assessment, treatment, prescribing, and approval remain with appropriately authorized people. Assisted outputs require review in the applicable workflow.",
+  },
+  {
+    question: "Are every feature and integration available today?",
+    answer:
+      "No page alone establishes availability. Confirm the exact product behavior, configuration, external connection, and agreement scope during evaluation.",
+  },
 ];
 
 const clinicGroups: {
@@ -241,13 +335,16 @@ export function MetaClinicMarketing({
         </a>
         <nav className="meta-marketing__nav" aria-label="Main navigation">
           <a href="/meta-clinic/platform">Platform</a>
-          <details className="meta-marketing__nav-menu"><summary>Specialties</summary><div>
-            <a href="/meta-clinic#clinic-types">Explore clinic types</a>
-            <a href="/meta-clinic/weight-loss">Weight loss</a>
-            <a href="/meta-clinic/behavioral-health">Behavioral health</a>
-            <a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a>
-            <a href="/meta-clinic/infusion">Infusion</a>
-          </div></details>
+          <details className="meta-marketing__nav-menu">
+            <summary>Specialties</summary>
+            <div>
+              <a href="/meta-clinic#clinic-types">Explore clinic types</a>
+              <a href="/meta-clinic/weight-loss">Weight loss</a>
+              <a href="/meta-clinic/behavioral-health">Behavioral health</a>
+              <a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a>
+              <a href="/meta-clinic/infusion">Infusion</a>
+            </div>
+          </details>
           <Button
             className="meta-marketing__nav-button"
             aria-controls={
@@ -263,7 +360,9 @@ export function MetaClinicMarketing({
           <a href="/meta-clinic/security">Security</a>
           <a href="/meta-clinic/pricing">Pricing</a>
           <a href="/meta-clinic/resources">Resources</a>
-          <a className="meta-marketing__mobile-sign-in" href="/login">Sign in</a>
+          <a className="meta-marketing__mobile-sign-in" href="/login">
+            Sign in
+          </a>
         </nav>
         <Button
           className="meta-marketing__sign-in"
@@ -286,6 +385,9 @@ export function MetaClinicMarketing({
         open={Boolean(menuAnchor)}
         anchorEl={menuAnchor}
         onClose={() => setMenuAnchor(null)}
+        slotProps={{
+          paper: { role: "dialog", "aria-label": "Features" },
+        }}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
@@ -384,18 +486,24 @@ export function MetaClinicMarketing({
                   className="meta-marketing__note-line"
                   aria-hidden="true"
                 />
-                The guided demo uses synthetic records. Confirm current feature scope in a walkthrough.
+                The guided demo uses synthetic records. Confirm current feature
+                scope in a walkthrough.
               </div>
             </div>
 
             <figure className="meta-marketing__hero-capture">
-              <a href="/meta-clinic/demo" aria-label="Open the guided demo after viewing the clinic schedule">
+              <a
+                href="/meta-clinic/demo"
+                aria-label="Open the guided demo after viewing the clinic schedule"
+              >
                 <img
                   src="/marketing/scheduling-month.png"
                   alt="Meta Clinic month schedule showing remote and in-person synthetic appointments"
                 />
               </a>
-              <figcaption>Clinic schedule from the synthetic Meta Clinic demo</figcaption>
+              <figcaption>
+                Clinic schedule from the synthetic Meta Clinic demo
+              </figcaption>
             </figure>
           </section>
 
@@ -408,31 +516,56 @@ export function MetaClinicMarketing({
             <span>Connected care work</span>
           </div>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-tour-title">
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-tour-title"
+          >
             <p className="meta-marketing__eyebrow">Explore the product</p>
             <h2 id="meta-tour-title">See the work behind a clinic day.</h2>
-            <p className="meta-marketing__growth-intro">Open the guided synthetic demo or explore the areas your team needs to evaluate. Each view should be checked against your clinic's process in a walkthrough.</p>
+            <p className="meta-marketing__growth-intro">
+              Open the guided synthetic demo or explore the areas your team
+              needs to evaluate. Each view should be checked against your
+              clinic's process in a walkthrough.
+            </p>
             <div className="meta-marketing__growth-grid meta-marketing__growth-grid--three">
               {productTour.map((screen) => (
                 <article key={screen.name}>
                   <h3>{screen.name}</h3>
                   <p>{screen.detail}</p>
-                  <a href={screen.href}>Explore {screen.name.toLowerCase()}<ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                  <a href={screen.href}>
+                    Explore {screen.name.toLowerCase()}
+                    <ArrowForwardRoundedIcon aria-hidden="true" />
+                  </a>
                 </article>
               ))}
             </div>
-            <Button href="/meta-clinic/demo" endIcon={<ArrowForwardRoundedIcon />}>Open the guided demo</Button>
+            <Button
+              href="/meta-clinic/demo"
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              Open the guided demo
+            </Button>
           </section>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-priority-title">
-            <p className="meta-marketing__eyebrow">Start with your care model</p>
-            <h2 id="meta-priority-title">Explore the clinic workflows built around your day.</h2>
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-priority-title"
+          >
+            <p className="meta-marketing__eyebrow">
+              Start with your care model
+            </p>
+            <h2 id="meta-priority-title">
+              Explore the clinic workflows built around your day.
+            </h2>
             <div className="meta-marketing__growth-grid meta-marketing__growth-grid--three">
               {priorityClinics.map((clinic) => (
                 <article key={clinic.href}>
                   <h3>{clinic.name}</h3>
                   <p>{clinic.detail}</p>
-                  <a href={clinic.href}>Explore {clinic.name}<ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                  <a href={clinic.href}>
+                    Explore {clinic.name}
+                    <ArrowForwardRoundedIcon aria-hidden="true" />
+                  </a>
                 </article>
               ))}
             </div>
@@ -524,15 +657,23 @@ export function MetaClinicMarketing({
             </p>
           </section>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-benefits-title">
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-benefits-title"
+          >
             <p className="meta-marketing__eyebrow">Why the workflow matters</p>
-            <h2 id="meta-benefits-title">Give each part of the clinic day a clear next step.</h2>
+            <h2 id="meta-benefits-title">
+              Give each part of the clinic day a clear next step.
+            </h2>
             <div className="meta-marketing__growth-grid">
               {benefits.map((benefit) => (
                 <article key={benefit.title}>
                   <h3>{benefit.title}</h3>
                   <p>{benefit.detail}</p>
-                  <a href={benefit.href}>Explore this area<ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                  <a href={benefit.href}>
+                    Explore this area
+                    <ArrowForwardRoundedIcon aria-hidden="true" />
+                  </a>
                 </article>
               ))}
             </div>
@@ -621,22 +762,46 @@ export function MetaClinicMarketing({
             </div>
           </section>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-comparison-title">
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-comparison-title"
+          >
             <p className="meta-marketing__eyebrow">A workflow to evaluate</p>
-            <h2 id="meta-comparison-title">Follow one patient journey across the handoffs.</h2>
+            <h2 id="meta-comparison-title">
+              Follow one patient journey across the handoffs.
+            </h2>
             <div className="meta-marketing__comparison">
               <article>
                 <h3>When work is spread across tools</h3>
-                <p>Staff may need to check separate places for the booking, submitted intake, visit context, payment question, and open follow-up.</p>
-                <p>The evaluation question is where information gets repeated, delayed, or lost between owners.</p>
+                <p>
+                  Staff may need to check separate places for the booking,
+                  submitted intake, visit context, payment question, and open
+                  follow-up.
+                </p>
+                <p>
+                  The evaluation question is where information gets repeated,
+                  delayed, or lost between owners.
+                </p>
               </article>
               <article>
                 <h3>What to inspect in Meta Clinic</h3>
-                <p>Use one synthetic journey to inspect scheduling, staff review, the visit, payment context, and the next recorded task in sequence.</p>
-                <p>Confirm each available screen and handoff against your clinic’s actual process before planning a change.</p>
+                <p>
+                  Use one synthetic journey to inspect scheduling, staff review,
+                  the visit, payment context, and the next recorded task in
+                  sequence.
+                </p>
+                <p>
+                  Confirm each available screen and handoff against your
+                  clinic’s actual process before planning a change.
+                </p>
               </article>
             </div>
-            <Button href="/meta-clinic/demo" endIcon={<ArrowForwardRoundedIcon />}>Open the guided demo</Button>
+            <Button
+              href="/meta-clinic/demo"
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              Open the guided demo
+            </Button>
           </section>
 
           <section
@@ -666,40 +831,70 @@ export function MetaClinicMarketing({
             </div>
           </section>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-proof-title">
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-proof-title"
+          >
             <p className="meta-marketing__eyebrow">Evaluate with evidence</p>
-            <h2 id="meta-proof-title">See the current product and ask what is available.</h2>
+            <h2 id="meta-proof-title">
+              See the current product and ask what is available.
+            </h2>
             <div className="meta-marketing__comparison">
               <article>
                 <h3>Walk through the interface</h3>
-                <p>The guided demo uses synthetic records so your team can inspect screens and handoffs without patient data.</p>
-                <a href="/meta-clinic/demo">Explore the guided demo <ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                <p>
+                  The guided demo uses synthetic records so your team can
+                  inspect screens and handoffs without patient data.
+                </p>
+                <a href="/meta-clinic/demo">
+                  Explore the guided demo{" "}
+                  <ArrowForwardRoundedIcon aria-hidden="true" />
+                </a>
               </article>
               <article>
                 <h3>Review the people and scope</h3>
-                <p>Learn about the team, then confirm feature availability, setup, and support for your care model in a live conversation.</p>
-                <a href="/meta-clinic/about">About Meta Clinic <ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                <p>
+                  Learn about the team, then confirm feature availability,
+                  setup, and support for your care model in a live conversation.
+                </p>
+                <a href="/meta-clinic/about">
+                  About Meta Clinic{" "}
+                  <ArrowForwardRoundedIcon aria-hidden="true" />
+                </a>
               </article>
             </div>
           </section>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-evaluation-title">
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-evaluation-title"
+          >
             <p className="meta-marketing__eyebrow">For the buying team</p>
-            <h2 id="meta-evaluation-title">Bring the hard questions into the walkthrough.</h2>
+            <h2 id="meta-evaluation-title">
+              Bring the hard questions into the walkthrough.
+            </h2>
             <div className="meta-marketing__growth-grid">
               {buyerQuestions.map((item) => (
                 <article key={item.title}>
                   <h3>{item.title}</h3>
                   <p>{item.detail}</p>
-                  <a href={item.href}>Review this topic<ArrowForwardRoundedIcon aria-hidden="true" /></a>
+                  <a href={item.href}>
+                    Review this topic
+                    <ArrowForwardRoundedIcon aria-hidden="true" />
+                  </a>
                 </article>
               ))}
             </div>
           </section>
 
-          <section className="meta-marketing__growth-section meta-marketing__section" aria-labelledby="meta-questions-title">
+          <section
+            className="meta-marketing__growth-section meta-marketing__section"
+            aria-labelledby="meta-questions-title"
+          >
             <p className="meta-marketing__eyebrow">Common questions</p>
-            <h2 id="meta-questions-title">Know what to verify before choosing software.</h2>
+            <h2 id="meta-questions-title">
+              Know what to verify before choosing software.
+            </h2>
             <div className="meta-marketing__home-faq">
               {homeQuestions.map((item) => (
                 <article key={item.question}>
@@ -710,13 +905,31 @@ export function MetaClinicMarketing({
             </div>
           </section>
 
-          <section className="meta-marketing__growth-close meta-marketing__section" aria-labelledby="meta-close-title">
+          <section
+            className="meta-marketing__growth-close meta-marketing__section"
+            aria-labelledby="meta-close-title"
+          >
             <p className="meta-marketing__eyebrow">Next step</p>
             <h2 id="meta-close-title">See the workflow for your clinic.</h2>
-            <p>Explore the synthetic demo, then bring one patient journey and your team’s questions to a focused walkthrough.</p>
+            <p>
+              Explore the synthetic demo, then bring one patient journey and
+              your team’s questions to a focused walkthrough.
+            </p>
             <div className="meta-marketing__actions">
-              <Button className="meta-marketing__button-primary" href="/meta-clinic/demo" variant="contained">Explore the demo</Button>
-              <Button className="meta-marketing__button-secondary" href="/meta-clinic/book-demo" variant="outlined">Book a demo</Button>
+              <Button
+                className="meta-marketing__button-primary"
+                href="/meta-clinic/demo"
+                variant="contained"
+              >
+                Explore the demo
+              </Button>
+              <Button
+                className="meta-marketing__button-secondary"
+                href="/meta-clinic/book-demo"
+                variant="outlined"
+              >
+                Book a demo
+              </Button>
             </div>
           </section>
         </main>
@@ -724,13 +937,38 @@ export function MetaClinicMarketing({
 
       <footer className="meta-marketing__footer">
         <div className="meta-marketing__footer-intro">
-          <a className="meta-marketing__brand" href="/meta-clinic">Meta Clinic</a>
+          <a className="meta-marketing__brand" href="/meta-clinic">
+            Meta Clinic
+          </a>
           <p>Connected software for independent clinics.</p>
         </div>
-        <nav aria-label="Product links"><strong>Product</strong><a href="/meta-clinic/platform">Platform</a><a href="/meta-clinic/ai">AI</a><a href="/meta-clinic/demo">Demo</a><a href="/meta-clinic/pricing">Pricing</a></nav>
-        <nav aria-label="Specialty links"><strong>Specialties</strong><a href="/meta-clinic/weight-loss">Weight loss</a><a href="/meta-clinic/behavioral-health">Behavioral health</a><a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a><a href="/meta-clinic/infusion">Infusion</a></nav>
-        <nav aria-label="Resource links"><strong>Explore</strong><a href="/meta-clinic/resources">Resources</a><a href="/meta-clinic/sandbox">Sandbox</a><a href="/meta-clinic/site-map">Site map</a></nav>
-        <nav aria-label="Company links"><strong>Company</strong><a href="/meta-clinic/about">About</a><a href="/meta-clinic/security">Security</a><a href="/meta-clinic/contact">Contact</a><a href="/login">Sign in</a></nav>
+        <nav aria-label="Product links">
+          <strong>Product</strong>
+          <a href="/meta-clinic/platform">Platform</a>
+          <a href="/meta-clinic/ai">AI</a>
+          <a href="/meta-clinic/demo">Demo</a>
+          <a href="/meta-clinic/pricing">Pricing</a>
+        </nav>
+        <nav aria-label="Specialty links">
+          <strong>Specialties</strong>
+          <a href="/meta-clinic/weight-loss">Weight loss</a>
+          <a href="/meta-clinic/behavioral-health">Behavioral health</a>
+          <a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a>
+          <a href="/meta-clinic/infusion">Infusion</a>
+        </nav>
+        <nav aria-label="Resource links">
+          <strong>Explore</strong>
+          <a href="/meta-clinic/resources">Resources</a>
+          <a href="/meta-clinic/sandbox">Sandbox</a>
+          <a href="/meta-clinic/site-map">Site map</a>
+        </nav>
+        <nav aria-label="Company links">
+          <strong>Company</strong>
+          <a href="/meta-clinic/about">About</a>
+          <a href="/meta-clinic/security">Security</a>
+          <a href="/meta-clinic/contact">Contact</a>
+          <a href="/login">Sign in</a>
+        </nav>
       </footer>
     </div>
   );

@@ -246,26 +246,26 @@ export function TelehealthQueue() {
     [visits],
   );
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={1.5}>
       <Stack
         direction={{ xs: "column", md: "row" }}
-        spacing={2}
+        spacing={1.5}
         sx={{
           alignItems: { md: "flex-start" },
           justifyContent: "space-between",
         }}
       >
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="h4" component="h1">
             Virtual waiting room
           </Typography>
-          <Typography color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             See who is preparing, waiting, or connected, then open the next
             visit.
           </Typography>
           {response && (
             <Typography
-              variant="caption"
+              variant="body2"
               color={error ? "warning.main" : "text.secondary"}
             >
               Updated {dateTime(response.as_of, clinic.practice.timezone)}
@@ -344,7 +344,7 @@ export function TelehealthQueue() {
           />
         </Stack>
       )}
-      <Paper variant="outlined" sx={{ p: 2 }}>
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}

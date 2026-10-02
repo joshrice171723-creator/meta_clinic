@@ -188,7 +188,7 @@ export function ScribeSessionRail({
         minHeight: 0,
         borderRight: 1,
         borderColor: "divider",
-        backgroundColor: "#fff",
+        backgroundColor: "background.paper",
       }}
     >
       <Tabs
@@ -197,15 +197,20 @@ export function ScribeSessionRail({
         variant="fullWidth"
         aria-label="Session period"
         sx={{
-          minHeight: 36,
+          minHeight: 44,
           px: 1.25,
           "& .MuiTab-root": {
-            minHeight: 36,
+            minHeight: 44,
+            minWidth: 0,
             p: 0,
-            fontSize: 11,
+            fontSize: 14,
+            lineHeight: 1.45,
             textTransform: "none",
           },
-          "& .MuiTabs-indicator": { height: 2, backgroundColor: "#262222" },
+          "& .MuiTabs-indicator": {
+            height: 2,
+            backgroundColor: "primary.main",
+          },
         }}
       >
         <Tab value="worklist" label={`Work (${worklist.returned_count})`} />
@@ -224,7 +229,7 @@ export function ScribeSessionRail({
             mx: 1.25,
             mt: 1.25,
             mb: 0.5,
-            "& .MuiInputBase-root": { height: 36, fontSize: 12 },
+            "& .MuiInputBase-root": { height: 44, fontSize: 16 },
           }}
           slotProps={{
             htmlInput: { "aria-label": "Search scribe sessions" },
@@ -243,13 +248,12 @@ export function ScribeSessionRail({
           <>
             <Typography
               color="text.secondary"
-              variant="caption"
+              variant="body2"
               sx={{
                 display: "block",
                 px: 0.5,
                 pt: 1.25,
                 pb: 0.75,
-                fontSize: 10,
               }}
             >
               Recent completed visits · up to{" "}
@@ -259,8 +263,8 @@ export function ScribeSessionRail({
             {worklist.returned_count > 0 && (
               <Typography
                 color="text.secondary"
-                variant="caption"
-                sx={{ display: "block", px: 0.5, pb: 0.75, fontSize: 10 }}
+                variant="body2"
+                sx={{ display: "block", px: 0.5, pb: 0.75 }}
               >
                 {workCountSummary(worklist)}
               </Typography>
@@ -268,8 +272,8 @@ export function ScribeSessionRail({
             {!worklist.unsigned_notes_available && (
               <Typography
                 color="text.secondary"
-                variant="caption"
-                sx={{ display: "block", px: 0.5, pb: 0.75, fontSize: 10 }}
+                variant="body2"
+                sx={{ display: "block", px: 0.5, pb: 0.75 }}
               >
                 Unsigned note status requires chart-note access.
               </Typography>
@@ -277,8 +281,8 @@ export function ScribeSessionRail({
             {worklist.truncated && (
               <Typography
                 color="warning.main"
-                variant="caption"
-                sx={{ display: "block", px: 0.5, pb: 0.75, fontSize: 10 }}
+                variant="body2"
+                sx={{ display: "block", px: 0.5, pb: 0.75 }}
               >
                 More documentation work may be available.
               </Typography>
@@ -287,7 +291,7 @@ export function ScribeSessionRail({
               <Typography
                 color="text.secondary"
                 variant="body2"
-                sx={{ px: 0.5, py: 2, fontSize: 12 }}
+                sx={{ px: 0.5, py: 2 }}
               >
                 No unfinished documentation in the recent worklist.
               </Typography>
@@ -311,10 +315,13 @@ export function ScribeSessionRail({
                       secondary={workDetail(item)}
                       slotProps={{
                         primary: {
-                          noWrap: true,
-                          sx: { fontSize: 11, fontWeight: 700 },
+                          variant: "body1",
+                          sx: { fontWeight: 650, overflowWrap: "anywhere" },
                         },
-                        secondary: { sx: { fontSize: 9.5, lineHeight: 1.35 } },
+                        secondary: {
+                          variant: "body2",
+                          sx: { overflowWrap: "anywhere" },
+                        },
                       }}
                     />
                   </ListItemButton>
@@ -326,7 +333,7 @@ export function ScribeSessionRail({
           <Typography
             color="text.secondary"
             variant="body2"
-            sx={{ px: 0.5, py: 2, fontSize: 12 }}
+            sx={{ px: 0.5, py: 2 }}
           >
             {search.trim()
               ? "No sessions match this search."
@@ -346,15 +353,14 @@ export function ScribeSessionRail({
                   {showDay && (
                     <Typography
                       component="h3"
-                      variant="caption"
+                      variant="body2"
                       color="text.secondary"
                       sx={{
                         display: "block",
                         px: 0.5,
                         pt: 1.25,
                         pb: 0.5,
-                        fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 650,
                       }}
                     >
                       {day}
@@ -370,8 +376,10 @@ export function ScribeSessionRail({
                       mb: 0.25,
                       px: 0.75,
                       py: 0.5,
-                      "&.Mui-selected": { backgroundColor: "#eef0ff" },
-                      "&.Mui-selected:hover": { backgroundColor: "#e7eaff" },
+                      "&.Mui-selected": { backgroundColor: "action.selected" },
+                      "&.Mui-selected:hover": {
+                        backgroundColor: "action.hover",
+                      },
                     }}
                   >
                     <ListItemAvatar sx={{ minWidth: 32 }}>
@@ -379,11 +387,12 @@ export function ScribeSessionRail({
                         sx={{
                           width: 22,
                           height: 22,
-                          bgcolor: "#fff",
-                          color: "#6b6a72",
-                          border: "1px solid #d8d8dd",
-                          fontSize: 10,
-                          fontWeight: 700,
+                          bgcolor: "background.paper",
+                          color: "text.secondary",
+                          border: 1,
+                          borderColor: "divider",
+                          fontSize: 14,
+                          fontWeight: 650,
                         }}
                       >
                         {name.trim().charAt(0).toUpperCase() || "P"}
@@ -394,16 +403,15 @@ export function ScribeSessionRail({
                       secondary={sessionTime(summary.created_at)}
                       slotProps={{
                         primary: {
-                          noWrap: true,
+                          variant: "body1",
                           sx: {
-                            fontSize: 11,
-                            lineHeight: 1.3,
-                            fontWeight: selectedId === summary.id ? 700 : 600,
+                            overflowWrap: "anywhere",
+                            fontWeight: selectedId === summary.id ? 650 : 600,
                           },
                         },
                         secondary: {
-                          noWrap: true,
-                          sx: { fontSize: 9.5, lineHeight: 1.3 },
+                          variant: "body2",
+                          sx: { overflowWrap: "anywhere" },
                         },
                       }}
                     />
@@ -418,7 +426,7 @@ export function ScribeSessionRail({
             size="small"
             disabled={disabled || loadingMore}
             onClick={onLoadMore}
-            sx={{ mt: 1, fontSize: 11 }}
+            sx={{ mt: 1 }}
           >
             {loadingMore ? "Loading…" : "Load more"}
           </Button>
@@ -433,7 +441,6 @@ export function ScribeSessionRail({
           mx: 1.25,
           mb: 1,
           color: "text.secondary",
-          fontSize: 11,
           textTransform: "none",
         }}
       >

@@ -1,5 +1,9 @@
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useRef, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Autocomplete,
   Box,
@@ -144,22 +148,29 @@ export function WaitlistWorkspace() {
     { enabled: site !== "" && capabilities.facilities_write === true },
   );
   const currentPolicy =
-    policy.data?.policy.site_id === Number(site) ? policy.data.policy : undefined;
+    policy.data?.policy.site_id === Number(site)
+      ? policy.data.policy
+      : undefined;
   const [categoryChoice, setCategoryChoice] = useState<{
     site: string;
     revision: number;
     key: string;
   } | null>(null);
   const categoryKey =
-    currentPolicy && categoryChoice &&
+    currentPolicy &&
+    categoryChoice &&
     categoryChoice.site === site &&
     categoryChoice.revision === currentPolicy.revision &&
-    currentPolicy.block_categories.some((entry) => entry.key === categoryChoice.key)
+    currentPolicy.block_categories.some(
+      (entry) => entry.key === categoryChoice.key,
+    )
       ? categoryChoice.key
       : "";
   const categoryRequired = (currentPolicy?.block_categories.length ?? 0) > 0;
   const blockPolicyReady =
-    currentPolicy !== undefined && !policy.error && (!categoryRequired || categoryKey !== "");
+    currentPolicy !== undefined &&
+    !policy.error &&
+    (!categoryRequired || categoryKey !== "");
   const [clinician, setClinician] = useState("");
   const [visitType, setVisitType] = useState("");
   const [earliest, setEarliest] = useState("");
@@ -311,7 +322,8 @@ export function WaitlistWorkspace() {
     if (
       kind === "block" &&
       (!blockPolicyReady || !blockStart || !blockEnd || !capacityReason.trim())
-    ) return;
+    )
+      return;
     const minutes = (value: string) => {
       const [hours, minute] = value.split(":").map(Number);
       return hours * 60 + minute;
@@ -442,97 +454,6 @@ export function WaitlistWorkspace() {
               {queue.data.total} entries.
             </Alert>
           )}
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              <Typography variant="h6" component="h2">
-                Site and clinician
-              </Typography>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                {selector("Site", site, setSite, queue.data.sites)}
-                {selector(
-                  "Clinician",
-                  clinician,
-                  setClinician,
-                  queue.data.clinicians,
-                )}
-              </Stack>
-              {canBook && (
-                <>
-                  <Typography variant="h6" component="h2">
-                    Add a patient to the waitlist
-                  </Typography>
-                  <Autocomplete
-                    options={patients}
-                    value={patient}
-                    onChange={(_, value) => setPatient(value)}
-                    onInputChange={(_, value) => setPatientQuery(value)}
-                    getOptionLabel={(item) =>
-                      `${item.display_name} · ${item.reference}`
-                    }
-                    isOptionEqualToValue={(a, b) => a.id === b.id}
-                    disabled={disabled}
-                    renderInput={(params) => (
-                      <TextField {...params} label="Find patient" />
-                    )}
-                  />
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                    {selector(
-                      "Visit type",
-                      visitType,
-                      setVisitType,
-                      queue.data.visit_types,
-                    )}
-                    <TextField
-                      label="Duration (minutes)"
-                      type="number"
-                      value={duration}
-                      disabled={disabled}
-                      onChange={(event) => setDuration(event.target.value)}
-                      slotProps={{ htmlInput: { min: 5, max: 240 } }}
-                    />
-                    <TextField
-                      label="Earliest time"
-                      type="datetime-local"
-                      value={earliest}
-                      disabled={disabled}
-                      onChange={(event) => setEarliest(event.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                    />
-                    <TextField
-                      label="Latest end"
-                      type="datetime-local"
-                      value={latest}
-                      disabled={disabled}
-                      onChange={(event) => setLatest(event.target.value)}
-                      slotProps={{ inputLabel: { shrink: true } }}
-                    />
-                  </Stack>
-                  <TextField
-                    label="Scheduling reason or preferences"
-                    value={reason}
-                    disabled={disabled}
-                    onChange={(event) => setReason(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: 500 } }}
-                  />
-                  <Button
-                    variant="contained"
-                    disabled={
-                      disabled ||
-                      !patient ||
-                      !site ||
-                      !clinician ||
-                      !visitType ||
-                      !earliest ||
-                      !latest
-                    }
-                    onClick={createEntry}
-                  >
-                    Add to waitlist
-                  </Button>
-                </>
-              )}
-            </Stack>
-          </Paper>
           <Typography variant="h6" component="h2">
             Waiting patients
           </Typography>
@@ -753,6 +674,116 @@ export function WaitlistWorkspace() {
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={2}>
               <Typography variant="h6" component="h2">
+                Site and clinician
+              </Typography>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                {selector("Site", site, setSite, queue.data.sites)}
+                {selector(
+                  "Clinician",
+                  clinician,
+                  setClinician,
+                  queue.data.clinicians,
+                )}
+              </Stack>
+            </Stack>
+          </Paper>
+          {canBook && (
+            <Accordion
+              disableGutters
+              elevation={0}
+              variant="outlined"
+              slotProps={{
+                heading: { component: "h2" },
+                transition: { unmountOnExit: false },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                id="waitlist-add-header"
+                aria-controls="waitlist-add-content"
+                sx={{ minHeight: 44 }}
+              >
+                <Typography component="span" variant="h6">
+                  Add a patient to the waitlist
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 2, pt: 0 }}>
+                <Stack spacing={2}>
+                  <Autocomplete
+                    options={patients}
+                    value={patient}
+                    onChange={(_, value) => setPatient(value)}
+                    onInputChange={(_, value) => setPatientQuery(value)}
+                    getOptionLabel={(item) =>
+                      `${item.display_name} · ${item.reference}`
+                    }
+                    isOptionEqualToValue={(a, b) => a.id === b.id}
+                    disabled={disabled}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Find patient" />
+                    )}
+                  />
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    {selector(
+                      "Visit type",
+                      visitType,
+                      setVisitType,
+                      queue.data.visit_types,
+                    )}
+                    <TextField
+                      label="Duration (minutes)"
+                      type="number"
+                      value={duration}
+                      disabled={disabled}
+                      onChange={(event) => setDuration(event.target.value)}
+                      slotProps={{ htmlInput: { min: 5, max: 240 } }}
+                    />
+                    <TextField
+                      label="Earliest time"
+                      type="datetime-local"
+                      value={earliest}
+                      disabled={disabled}
+                      onChange={(event) => setEarliest(event.target.value)}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                    <TextField
+                      label="Latest end"
+                      type="datetime-local"
+                      value={latest}
+                      disabled={disabled}
+                      onChange={(event) => setLatest(event.target.value)}
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                  </Stack>
+                  <TextField
+                    label="Scheduling reason or preferences"
+                    value={reason}
+                    disabled={disabled}
+                    onChange={(event) => setReason(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 500 } }}
+                  />
+                  <Button
+                    variant="contained"
+                    disabled={
+                      disabled ||
+                      !patient ||
+                      !site ||
+                      !clinician ||
+                      !visitType ||
+                      !earliest ||
+                      !latest
+                    }
+                    onClick={createEntry}
+                  >
+                    Add to waitlist
+                  </Button>
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          )}
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" component="h2">
                 Provider capacity
               </Typography>
               {capacity.error && (
@@ -894,29 +925,66 @@ export function WaitlistWorkspace() {
                         stay scheduled and must be reviewed separately after
                         saving.
                       </Alert>
-                      {!site && <Typography>Select a site to load its block categories.</Typography>}
+                      {!site && (
+                        <Typography>
+                          Select a site to load its block categories.
+                        </Typography>
+                      )}
                       {site && policy.error && (
-                        <Alert severity="error" action={<Button disabled={disabled} onClick={policy.refresh}>Retry policy</Button>}>
-                          Block category policy unavailable: {policy.error} New blocks require a successful policy read. Weekly hours remain available.
+                        <Alert
+                          severity="error"
+                          action={
+                            <Button
+                              disabled={disabled}
+                              onClick={policy.refresh}
+                            >
+                              Retry policy
+                            </Button>
+                          }
+                        >
+                          Block category policy unavailable: {policy.error} New
+                          blocks require a successful policy read. Weekly hours
+                          remain available.
                         </Alert>
                       )}
-                      {site && !currentPolicy && !policy.error && <Typography role="status">Loading block category policy…</Typography>}
+                      {site && !currentPolicy && !policy.error && (
+                        <Typography role="status">
+                          Loading block category policy…
+                        </Typography>
+                      )}
                       {currentPolicy && !policy.error && (
                         <>
-                          <Typography variant="body2" color="text.secondary">Location policy revision {currentPolicy.revision}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Location policy revision {currentPolicy.revision}
+                          </Typography>
                           {categoryRequired ? (
                             <TextField
                               select
                               label="Block reason category"
                               value={categoryKey}
                               disabled={disabled}
-                              onChange={(event) => setCategoryChoice({ site, revision: currentPolicy.revision, key: event.target.value })}
+                              onChange={(event) =>
+                                setCategoryChoice({
+                                  site,
+                                  revision: currentPolicy.revision,
+                                  key: event.target.value,
+                                })
+                              }
                               helperText="Choose a configured category explicitly. A site or policy revision change clears the choice."
                             >
                               <MenuItem value="">Choose category</MenuItem>
-                              {currentPolicy.block_categories.map((entry) => <MenuItem key={entry.key} value={entry.key}>{entry.label}</MenuItem>)}
+                              {currentPolicy.block_categories.map((entry) => (
+                                <MenuItem key={entry.key} value={entry.key}>
+                                  {entry.label}
+                                </MenuItem>
+                              ))}
                             </TextField>
-                          ) : <Typography variant="body2">No structured block categories configured. The free-text reason remains required.</Typography>}
+                          ) : (
+                            <Typography variant="body2">
+                              No structured block categories configured. The
+                              free-text reason remains required.
+                            </Typography>
+                          )}
                         </>
                       )}
                       <TextField

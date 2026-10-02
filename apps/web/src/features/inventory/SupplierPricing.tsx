@@ -1,5 +1,11 @@
 import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { api, ApiError } from "../../api/client";
 import {
   Button,
@@ -1355,6 +1361,7 @@ export function SupplierPricingScreen({
                   {manualOfferError}
                 </p>
               )}
+              <h3 className="supplier-setup-heading">Clinic catalog item</h3>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField
                   label="Search active catalog items"
@@ -1403,6 +1410,7 @@ export function SupplierPricingScreen({
                   {catalogProduct.stock_unit}.
                 </p>
               )}
+              <h3 className="supplier-setup-heading">Supplier package</h3>
               <TextField
                 label="Supplier SKU"
                 value={offerSku}
@@ -1419,6 +1427,11 @@ export function SupplierPricingScreen({
               />
               <TextField
                 label="Units per supplier package"
+                helperText={
+                  catalogProduct
+                    ? `Stock units (${catalogProduct.stock_unit}) in one supplier package.`
+                    : "Select a catalog item to verify the stock unit."
+                }
                 value={offerPackageQuantity}
                 onChange={(event) =>
                   setOfferPackageQuantity(event.target.value)
@@ -1426,6 +1439,9 @@ export function SupplierPricingScreen({
                 required
                 inputMode="decimal"
               />
+              <h3 className="supplier-setup-heading">
+                Dated quote and currency
+              </h3>
               <TextField
                 label="Quoted package price"
                 value={offerPrice}
@@ -1478,6 +1494,7 @@ export function SupplierPricingScreen({
                   fullWidth
                 />
               </Stack>
+              <h3 className="supplier-setup-heading">Ordering eligibility</h3>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <TextField
                   select

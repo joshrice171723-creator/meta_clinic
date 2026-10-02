@@ -1173,3 +1173,44 @@
     border-top: 0;
   }
 }
+
+/* Keep checkout and ledger work compact within the billing dashboard. */
+.clinic-theme .billing-dashboard {
+  gap: 16px;
+}
+.clinic-theme .billing-dashboard > .billing-ledger-card,
+.clinic-theme .billing-dashboard .billing-panel > .billing-ledger-card {
+  padding: 16px;
+  border-radius: 8px;
+}
+.clinic-theme .billing-dashboard .billing-ledger-toolbar {
+  gap: 12px;
+  margin-top: 16px;
+}
+.clinic-theme .billing-dashboard .billing-overview {
+  border-radius: 8px;
+}
+.clinic-theme .billing-dashboard .billing-overview-heading {
+  padding: 12px 16px;
+}
+.clinic-theme .billing-dashboard .billing-overview .billing-metrics {
+  padding: 16px 0;
+}
+.clinic-theme .billing-dashboard .billing-overview .billing-metric {
+  padding-inline: 16px;
+  gap: 8px;
+}
+.clinic-theme .billing-dashboard .billing-overview .billing-metric strong {
+  font-size: clamp(22px, 1.6vw, 24px);
+  line-height: 1.25;
+}
+.clinic-theme .billing-dashboard .billing-overview-heading span,
+.clinic-theme .billing-dashboard .billing-overview .billing-metric > span,
+.clinic-theme .billing-dashboard .billing-overview .billing-metric small,
+.clinic-theme .billing-dashboard .billing-attention-strip > strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.clinic-theme .billing-dashboard .billing-attention-strip {
+  padding: 8px 16px;
+}

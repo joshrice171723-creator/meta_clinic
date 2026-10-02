@@ -122,12 +122,12 @@ export function TelehealthDock() {
         useFlexGap
         sx={{
           alignItems: "center",
-          flexWrap: { xs: "wrap", sm: "nowrap" },
+          flexWrap: "wrap",
           p: 1,
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="subtitle2" noWrap>
+        <Box sx={{ flex: "1 1 100%", minWidth: 0 }}>
+          <Typography variant="subtitle2" sx={{ overflowWrap: "anywhere" }}>
             {session.active.patientName}
           </Typography>
           <Chip
@@ -215,6 +215,7 @@ export function TelehealthDock() {
         </Tooltip>
         <Button
           size="small"
+          variant="outlined"
           onClick={() => navigate(session.active!.returnPath)}
           sx={{ width: { xs: "100%", sm: "auto" } }}
         >

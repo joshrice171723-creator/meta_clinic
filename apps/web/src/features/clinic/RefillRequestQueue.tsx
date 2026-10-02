@@ -1,5 +1,9 @@
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Autocomplete,
   Box,
@@ -51,6 +55,7 @@ export function RefillRequestQueue() {
     capabilities.patients === true &&
     capabilities.medication_requests_write === true;
   const canDecide = canManage && clinicianProfileId !== null;
+  const [createFormOpen, setCreateFormOpen] = useState(false);
   const [requestPage, setRequestPage] = useState(1);
   const [deliveryFilter, setDeliveryFilter] = useState<"all" | "failed">("all");
   const requests = useResource<{
@@ -447,120 +452,6 @@ export function RefillRequestQueue() {
             matching requests.
           </Typography>
         </>
-      )}
-
-      {canManage && (
-        <Paper
-          component="section"
-          variant="outlined"
-          sx={{ p: { xs: 2, md: 3 } }}
-        >
-          <Stack spacing={2}>
-            <Box>
-              <Typography component="h2" variant="h5">
-                Open a request for a patient
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5 }}
-              >
-                Staff can open the request even when the patient has no portal
-                account. The saved decision will show whether portal delivery
-                succeeded or needs staff follow-up.
-              </Typography>
-            </Box>
-            <Autocomplete
-              options={patientOptions}
-              value={selectedPatient}
-              inputValue={patientQuery}
-              loading={patientLoading}
-              filterOptions={(options) => options}
-              getOptionLabel={(patient) =>
-                `${patient.display_name} · ${patientReferenceLabel(patient.reference) || patient.reference}`
-              }
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              onChange={(_, patient) => setSelectedPatient(patient)}
-              onInputChange={(_, value) => setPatientQuery(value)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  required
-                  label="Patient"
-                  helperText="Enter at least two characters of the patient name or clinic reference."
-                />
-              )}
-            />
-            <TextField
-              required
-              fullWidth
-              label="Medication name"
-              value={medicationName}
-              onChange={(event) => setMedicationName(event.target.value)}
-              slotProps={{ htmlInput: { maxLength: 240 } }}
-            />
-            <Autocomplete
-              options={priorPrescriptions}
-              value={priorPrescription}
-              onChange={(_event, value) => {
-                setPriorPrescription(value);
-                if (value) {
-                  setMedicationName(value.medication_name);
-                  setPharmacyDestination(
-                    [value.pharmacy_name, value.pharmacy_location]
-                      .filter(Boolean)
-                      .join(" · "),
-                  );
-                }
-              }}
-              getOptionLabel={(order) =>
-                `${order.medication_name} · version ${order.version_number} · ${order.status}`
-              }
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Prior prescription (optional)"
-                  helperText="Selecting one links this refill to the prior prescription series and copies its destination for review."
-                />
-              )}
-            />
-            <TextField
-              required
-              fullWidth
-              label="Pharmacy destination"
-              value={pharmacyDestination}
-              onChange={(event) => setPharmacyDestination(event.target.value)}
-              slotProps={{ htmlInput: { maxLength: 500 } }}
-            />
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              label="Request note (optional)"
-              value={requestNote}
-              onChange={(event) => setRequestNote(event.target.value)}
-              slotProps={{ htmlInput: { maxLength: 2_000 } }}
-            />
-            <Button
-              variant="contained"
-              sx={{ alignSelf: "flex-start" }}
-              disabled={
-                busyKey !== null ||
-                !selectedPatient ||
-                !medicationName.trim() ||
-                !pharmacyDestination.trim()
-              }
-              onClick={() => void createRequest()}
-              startIcon={
-                busyKey === "create" ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : undefined
-              }
-            >
-              Open refill request
-            </Button>
-          </Stack>
-        </Paper>
       )}
 
       <Paper
@@ -961,6 +852,137 @@ export function RefillRequestQueue() {
           })}
         </Stack>
       </Paper>
+      {canManage && (
+        <Accordion
+          disableGutters
+          elevation={0}
+          variant="outlined"
+          expanded={createFormOpen}
+          onChange={(_, expanded) => {
+            if (!expanded && (busyKey === "create" || error !== "")) return;
+            setCreateFormOpen(expanded);
+          }}
+          slotProps={{
+            heading: { component: "h2" },
+            transition: { unmountOnExit: false },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            id="refill-create-header"
+            aria-controls="refill-create-content"
+            sx={{ px: { xs: 2, md: 3 }, minHeight: 44 }}
+          >
+            <Typography component="span" variant="h5">
+              Open a request for a patient
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: { xs: 2, md: 3 }, pt: 0 }}>
+            <Stack spacing={2}>
+              <Box>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
+                  Staff can open the request even when the patient has no portal
+                  account. The saved decision will show whether portal delivery
+                  succeeded or needs staff follow-up.
+                </Typography>
+              </Box>
+              <Autocomplete
+                options={patientOptions}
+                value={selectedPatient}
+                inputValue={patientQuery}
+                loading={patientLoading}
+                filterOptions={(options) => options}
+                getOptionLabel={(patient) =>
+                  `${patient.display_name} · ${patientReferenceLabel(patient.reference) || patient.reference}`
+                }
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                onChange={(_, patient) => setSelectedPatient(patient)}
+                onInputChange={(_, value) => setPatientQuery(value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    required
+                    label="Patient"
+                    helperText="Enter at least two characters of the patient name or clinic reference."
+                  />
+                )}
+              />
+              <TextField
+                required
+                fullWidth
+                label="Medication name"
+                value={medicationName}
+                onChange={(event) => setMedicationName(event.target.value)}
+                slotProps={{ htmlInput: { maxLength: 240 } }}
+              />
+              <Autocomplete
+                options={priorPrescriptions}
+                value={priorPrescription}
+                onChange={(_event, value) => {
+                  setPriorPrescription(value);
+                  if (value) {
+                    setMedicationName(value.medication_name);
+                    setPharmacyDestination(
+                      [value.pharmacy_name, value.pharmacy_location]
+                        .filter(Boolean)
+                        .join(" · "),
+                    );
+                  }
+                }}
+                getOptionLabel={(order) =>
+                  `${order.medication_name} · version ${order.version_number} · ${order.status}`
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Prior prescription (optional)"
+                    helperText="Selecting one links this refill to the prior prescription series and copies its destination for review."
+                  />
+                )}
+              />
+              <TextField
+                required
+                fullWidth
+                label="Pharmacy destination"
+                value={pharmacyDestination}
+                onChange={(event) => setPharmacyDestination(event.target.value)}
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+              />
+              <TextField
+                fullWidth
+                multiline
+                minRows={2}
+                label="Request note (optional)"
+                value={requestNote}
+                onChange={(event) => setRequestNote(event.target.value)}
+                slotProps={{ htmlInput: { maxLength: 2_000 } }}
+              />
+              <Button
+                variant="contained"
+                sx={{ alignSelf: "flex-start" }}
+                disabled={
+                  busyKey !== null ||
+                  !selectedPatient ||
+                  !medicationName.trim() ||
+                  !pharmacyDestination.trim()
+                }
+                onClick={() => void createRequest()}
+                startIcon={
+                  busyKey === "create" ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : undefined
+                }
+              >
+                Open refill request
+              </Button>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+      )}
     </Stack>
   );
 }

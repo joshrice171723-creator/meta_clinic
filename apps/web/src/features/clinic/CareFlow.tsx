@@ -864,13 +864,13 @@ function BookingFormEditor({
   const resumedAttempt = boundBooking.attempt?.body.appointment;
   const resumedAttemptDiffersFromSlot = Boolean(
     initialSlot?.starts_at &&
-      resumedAttempt &&
-      (Date.parse(initialSlot.starts_at) !==
-        Date.parse(resumedAttempt.starts_at) ||
-        (initialSlot.ends_at &&
-          Date.parse(initialSlot.ends_at) !==
-            Date.parse(resumedAttempt.ends_at)) ||
-        initialSlot.site_id !== Number(resumedAttempt.site_id)),
+    resumedAttempt &&
+    (Date.parse(initialSlot.starts_at) !==
+      Date.parse(resumedAttempt.starts_at) ||
+      (initialSlot.ends_at &&
+        Date.parse(initialSlot.ends_at) !==
+          Date.parse(resumedAttempt.ends_at)) ||
+      initialSlot.site_id !== Number(resumedAttempt.site_id)),
   );
   const effectiveDraft = boundBooking.draft;
   // The draft hook retains its recovered snapshot after clearing. Dismiss its
@@ -881,14 +881,14 @@ function BookingFormEditor({
     workingDraft.updatedAt,
   );
   const recoveredDraftDiffersFromSlot = Boolean(
-      draftRecoveryMessage &&
-      initialDraft &&
-      initialSlot?.starts_at &&
-      (Date.parse(initialDraft.draft.startsAt) !==
-        Date.parse(initialSlot.starts_at) ||
-        (initialSlot.ends_at &&
-          Date.parse(initialDraft.draft.endsAt) !==
-            Date.parse(initialSlot.ends_at))),
+    draftRecoveryMessage &&
+    initialDraft &&
+    initialSlot?.starts_at &&
+    (Date.parse(initialDraft.draft.startsAt) !==
+      Date.parse(initialSlot.starts_at) ||
+      (initialSlot.ends_at &&
+        Date.parse(initialDraft.draft.endsAt) !==
+          Date.parse(initialSlot.ends_at))),
   );
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
   const [patientId, setPatientId] = useState(effectiveDraft.patientId);
@@ -914,20 +914,26 @@ function BookingFormEditor({
   const [overbookReason, setOverbookReason] = useState(
     restoredDraft.walkInRequested || restoredDraft.walkInReason
       ? ""
-      : restoredDraft.overbookReason ?? "",
+      : (restoredDraft.overbookReason ?? ""),
   );
   const [overbookRequested, setOverbookRequested] = useState(
     !Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason) &&
-      Boolean(restoredDraft.overbookRequested || restoredDraft.overbookReason || initialSlot?.overbook),
+      Boolean(
+        restoredDraft.overbookRequested ||
+        restoredDraft.overbookReason ||
+        initialSlot?.overbook,
+      ),
   );
-  const [walkInReason, setWalkInReason] = useState(restoredDraft.walkInReason ?? "");
+  const [walkInReason, setWalkInReason] = useState(
+    restoredDraft.walkInReason ?? "",
+  );
   const [walkInRequested, setWalkInRequested] = useState(
     Boolean(restoredDraft.walkInRequested || restoredDraft.walkInReason),
   );
   const [repeat, setRepeat] = useState<"none" | "weekly">(
     restoredDraft.walkInRequested || restoredDraft.walkInReason
       ? "none"
-      : restoredDraft.repeat ?? "none",
+      : (restoredDraft.repeat ?? "none"),
   );
   const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(
     restoredDraft.repeatIntervalWeeks ?? 1,
@@ -935,23 +941,28 @@ function BookingFormEditor({
   const [repeatCount, setRepeatCount] = useState(
     restoredDraft.repeatCount ?? 2,
   );
-  const [seriesResolutions, setSeriesResolutions] = useState<SeriesResolution[]>(
-    restoredDraft.seriesResolutions ?? [],
+  const [seriesResolutions, setSeriesResolutions] = useState<
+    SeriesResolution[]
+  >(restoredDraft.seriesResolutions ?? []);
+  const [seriesPreview, setSeriesPreview] = useState<SeriesPreviewRow[] | null>(
+    null,
   );
-  const [seriesPreview, setSeriesPreview] = useState<SeriesPreviewRow[] | null>(null);
-  const [seriesPreviewPayload, setSeriesPreviewPayload] = useState<string | null>(null);
+  const [seriesPreviewPayload, setSeriesPreviewPayload] = useState<
+    string | null
+  >(null);
   const [seriesAttempt, setSeriesAttempt] = useState<SeriesAttempt | null>(
     initialPatientId &&
-      initialDraft?.seriesAttempt?.body.series.patient_id !== String(initialPatientId)
+      initialDraft?.seriesAttempt?.body.series.patient_id !==
+        String(initialPatientId)
       ? null
       : (initialDraft?.seriesAttempt ?? null),
   );
   const [seriesOutcomeUnconfirmed, setSeriesOutcomeUnconfirmed] = useState(
     Boolean(
       initialDraft?.seriesAttempt &&
-        (!initialPatientId ||
-          initialDraft.seriesAttempt.body.series.patient_id ===
-            String(initialPatientId)),
+      (!initialPatientId ||
+        initialDraft.seriesAttempt.body.series.patient_id ===
+          String(initialPatientId)),
     ),
   );
   const [visitModality, setVisitModality] = useState<VisitModality>(
@@ -1250,14 +1261,22 @@ function BookingFormEditor({
   ]);
   useEffect(() => {
     if (
-      (!dirty && !outcomeUnconfirmed && !holdOutcomeUnconfirmed && !seriesOutcomeUnconfirmed) ||
+      (!dirty &&
+        !outcomeUnconfirmed &&
+        !holdOutcomeUnconfirmed &&
+        !seriesOutcomeUnconfirmed) ||
       typeof window === "undefined"
     )
       return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, seriesOutcomeUnconfirmed]);
+  }, [
+    dirty,
+    outcomeUnconfirmed,
+    holdOutcomeUnconfirmed,
+    seriesOutcomeUnconfirmed,
+  ]);
   useEffect(
     () =>
       registerBlocker(
@@ -1269,7 +1288,13 @@ function BookingFormEditor({
                 "This appointment draft has unsaved changes. Leave scheduling and discard them?"
             : null,
       ),
-    [dirty, outcomeUnconfirmed, holdOutcomeUnconfirmed, seriesOutcomeUnconfirmed, registerBlocker],
+    [
+      dirty,
+      outcomeUnconfirmed,
+      holdOutcomeUnconfirmed,
+      seriesOutcomeUnconfirmed,
+      registerBlocker,
+    ],
   );
   useEffect(() => {
     setAssignmentNotice("");
@@ -1373,7 +1398,8 @@ function BookingFormEditor({
   const scheduledResourceAppointments =
     scheduledResources.data?.appointments.filter((appointment) => {
       if (!roomId && !clinicianId) return false;
-      if (!["scheduled", "confirmed"].includes(appointment.status)) return false;
+      if (!["scheduled", "confirmed"].includes(appointment.status))
+        return false;
       return (
         appointment.room_id === Number(roomId) ||
         appointment.booked_clinician_id === Number(clinicianId)
@@ -1689,7 +1715,9 @@ function BookingFormEditor({
         room_id: visitModality === "video" ? "" : roomId,
         booked_clinician_id: clinicianId,
         visit_type_id: visitTypeId,
-        ...(serviceOfferingId ? { service_offering_id: serviceOfferingId } : {}),
+        ...(serviceOfferingId
+          ? { service_offering_id: serviceOfferingId }
+          : {}),
         starts_at: new Date(startsAt).toISOString(),
         ends_at: new Date(endsAt).toISOString(),
         visit_modality: visitModality,
@@ -1702,7 +1730,8 @@ function BookingFormEditor({
       },
     },
   });
-  const seriesPreviewKey = () => JSON.stringify(seriesBody("preview").body.series);
+  const seriesPreviewKey = () =>
+    JSON.stringify(seriesBody("preview").body.series);
   const seriesPreviewIsCurrent =
     Boolean(seriesPreview) && seriesPreviewPayload === seriesPreviewKey();
   const previewSeries = async () => {
@@ -1712,8 +1741,17 @@ function BookingFormEditor({
       );
       return;
     }
-    if (!patientId || !siteId || !clinicianId || !visitTypeId || intervalError || offeringIssue) {
-      setSubmitError("Complete the patient, site, clinician, visit type, and valid time before previewing visits.");
+    if (
+      !patientId ||
+      !siteId ||
+      !clinicianId ||
+      !visitTypeId ||
+      intervalError ||
+      offeringIssue
+    ) {
+      setSubmitError(
+        "Complete the patient, site, clinician, visit type, and valid time before previewing visits.",
+      );
       return;
     }
     if (!schedulingPolicy.data?.policy.recurrence_enabled) {
@@ -1741,16 +1779,25 @@ function BookingFormEditor({
     } catch (error) {
       setSeriesPreview(null);
       setSeriesPreviewPayload(null);
-      setSubmitError(error instanceof Error ? error.message : "Unable to preview recurring visits.");
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to preview recurring visits.",
+      );
     } finally {
       setBusy(false);
     }
   };
-  const updateSeriesResolution = (sequence: number, changes: Partial<SeriesResolution>) => {
+  const updateSeriesResolution = (
+    sequence: number,
+    changes: Partial<SeriesResolution>,
+  ) => {
     setSeriesResolutions((current) => {
       const previous = current.find((row) => row.sequence === sequence);
-      return [...current.filter((row) => row.sequence !== sequence),
-        { sequence, ...previous, ...changes }].sort((left, right) => left.sequence - right.sequence);
+      return [
+        ...current.filter((row) => row.sequence !== sequence),
+        { sequence, ...previous, ...changes },
+      ].sort((left, right) => left.sequence - right.sequence);
     });
   };
   const scheduleSeries = async () => {
@@ -1761,10 +1808,15 @@ function BookingFormEditor({
       );
       return;
     }
-    if (!seriesAttempt &&
-        (!seriesPreview || seriesPreview.some((row) => row.conflict) ||
-          seriesPreviewPayload !== seriesPreviewKey())) {
-      setSubmitError("Preview and resolve every occurrence before scheduling the series.");
+    if (
+      !seriesAttempt &&
+      (!seriesPreview ||
+        seriesPreview.some((row) => row.conflict) ||
+        seriesPreviewPayload !== seriesPreviewKey())
+    ) {
+      setSubmitError(
+        "Preview and resolve every occurrence before scheduling the series.",
+      );
       return;
     }
     const attempt = seriesAttempt ?? seriesBody(crypto.randomUUID());
@@ -1779,7 +1831,9 @@ function BookingFormEditor({
     if (autosaveTimer.current) window.clearTimeout(autosaveTimer.current);
     if (!(await workingDraft.save(pending))) {
       inFlight.current = false;
-      setSubmitError("The working copy could not be saved. Retry before scheduling this series.");
+      setSubmitError(
+        "The working copy could not be saved. Retry before scheduling this series.",
+      );
       return;
     }
     lastWorkingDraft.current = pending;
@@ -1788,15 +1842,30 @@ function BookingFormEditor({
     setSubmitError("");
     try {
       const result = await api<{
-        series: { id: number; site_id: number; patient_id: number; occurrences: unknown[] };
-      }>("/api/clinic/appointment_series", { method: "POST", body: attempt.body });
-      if (result.series.patient_id !== Number(attempt.body.series.patient_id) ||
-          result.series.site_id !== Number(attempt.body.series.site_id) ||
-          result.series.occurrences.length !== attempt.body.series.occurrence_count)
-        throw new Error("The saved series did not match this request. Retry the exact request to reconcile it.");
+        series: {
+          id: number;
+          site_id: number;
+          patient_id: number;
+          occurrences: unknown[];
+        };
+      }>("/api/clinic/appointment_series", {
+        method: "POST",
+        body: attempt.body,
+      });
+      if (
+        result.series.patient_id !== Number(attempt.body.series.patient_id) ||
+        result.series.site_id !== Number(attempt.body.series.site_id) ||
+        result.series.occurrences.length !==
+          attempt.body.series.occurrence_count
+      )
+        throw new Error(
+          "The saved series did not match this request. Retry the exact request to reconcile it.",
+        );
       if (!(await workingDraft.clear())) {
         setSeriesOutcomeUnconfirmed(true);
-        setSubmitError("The series was saved, but its working copy could not be cleared. Retry the same request to reconcile it.");
+        setSubmitError(
+          "The series was saved, but its working copy could not be cleared. Retry the same request to reconcile it.",
+        );
         return;
       }
       setSeriesAttempt(null);
@@ -1805,18 +1874,28 @@ function BookingFormEditor({
       onHoldChanged?.();
       onClose?.();
     } catch (error) {
-      const unknown = pending.seriesOutcomeUnconfirmed ||
-        !(error instanceof ApiError) || error.status === 408 ||
-        error.status >= 500 || error.code === "outcome_unconfirmed";
-      const snapshot = { ...pending, seriesAttempt: unknown ? attempt : null,
-        seriesOutcomeUnconfirmed: unknown };
+      const unknown =
+        pending.seriesOutcomeUnconfirmed ||
+        !(error instanceof ApiError) ||
+        error.status === 408 ||
+        error.status >= 500 ||
+        error.code === "outcome_unconfirmed";
+      const snapshot = {
+        ...pending,
+        seriesAttempt: unknown ? attempt : null,
+        seriesOutcomeUnconfirmed: unknown,
+      };
       lastWorkingDraft.current = snapshot;
       await workingDraft.save(snapshot);
       setSeriesAttempt(unknown ? attempt : null);
       setSeriesOutcomeUnconfirmed(unknown);
-      setSubmitError(unknown
-        ? "The series outcome is unknown. Retry the same request before editing or leaving."
-        : error instanceof Error ? error.message : "Unable to schedule this series.");
+      setSubmitError(
+        unknown
+          ? "The series outcome is unknown. Retry the same request before editing or leaving."
+          : error instanceof Error
+            ? error.message
+            : "Unable to schedule this series.",
+      );
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -1898,15 +1977,16 @@ function BookingFormEditor({
               : draftRecoveryMessage}
           </Alert>
         )}
-        {!recoveryDismissed && resumedAttemptDiffersFromSlot && resumedAttempt && (
-          <Alert severity="warning">
-            This form is resuming a saved request for {clinicDateTime(
-              resumedAttempt.starts_at,
-              bookingTimezone,
-            )}, not the slot you selected. Retry the exact saved request to
-            reconcile it, then select the new slot again.
-          </Alert>
-        )}
+        {!recoveryDismissed &&
+          resumedAttemptDiffersFromSlot &&
+          resumedAttempt && (
+            <Alert severity="warning">
+              This form is resuming a saved request for{" "}
+              {clinicDateTime(resumedAttempt.starts_at, bookingTimezone)}, not
+              the slot you selected. Retry the exact saved request to reconcile
+              it, then select the new slot again.
+            </Alert>
+          )}
         {!recoveryDismissed && initialHoldDeferred && hasWorkingDraft && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             A saved appointment draft is open. Resolve its pending request or
@@ -2029,23 +2109,43 @@ function BookingFormEditor({
                 "First available cannot use a service offering. Add a clinician or choose visit-type booking.",
               );
             if (!bookingAttempt && overbookRequested) {
-              if (!schedulingPolicy.data?.policy.overbook_enabled ||
-                  !schedulingPolicy.data.can_overbook)
-                return setSubmitError("Overbooking is unavailable to this account at this site.");
-              if (!schedulingPolicy.data.policy.eligible_visit_type_ids.includes(Number(visitTypeId)))
-                return setSubmitError("Choose a visit type eligible for overbooking.");
+              if (
+                !schedulingPolicy.data?.policy.overbook_enabled ||
+                !schedulingPolicy.data.can_overbook
+              )
+                return setSubmitError(
+                  "Overbooking is unavailable to this account at this site.",
+                );
+              if (
+                !schedulingPolicy.data.policy.eligible_visit_type_ids.includes(
+                  Number(visitTypeId),
+                )
+              )
+                return setSubmitError(
+                  "Choose a visit type eligible for overbooking.",
+                );
               if (!overbookReason.trim())
-                return setSubmitError("Enter a reason for this clinician exception.");
+                return setSubmitError(
+                  "Enter a reason for this clinician exception.",
+                );
             }
             if (!bookingAttempt && walkInRequested) {
               if (!schedulingPolicy.data?.can_capacity_override)
-                return setSubmitError("Walk-in capacity exceptions are unavailable to this account at this site.");
+                return setSubmitError(
+                  "Walk-in capacity exceptions are unavailable to this account at this site.",
+                );
               if (firstAvailable || visitModality !== "in_person")
-                return setSubmitError("Choose a clinician and in-person visit format for a walk-in appointment.");
+                return setSubmitError(
+                  "Choose a clinician and in-person visit format for a walk-in appointment.",
+                );
               if (heldSlot)
-                return setSubmitError("A walk-in cannot use a held appointment slot.");
+                return setSubmitError(
+                  "A walk-in cannot use a held appointment slot.",
+                );
               if (!walkInReason.trim())
-                return setSubmitError("Enter a reason for this walk-in capacity exception.");
+                return setSubmitError(
+                  "Enter a reason for this walk-in capacity exception.",
+                );
             }
             inFlight.current = true;
             if (autosaveTimer.current) {
@@ -2068,19 +2168,25 @@ function BookingFormEditor({
                     ...(serviceOfferingId
                       ? {
                           service_offering_id: serviceOfferingId,
-                          expected_resource_revision: resourceAvailability.data?.revision,
+                          expected_resource_revision:
+                            resourceAvailability.data?.revision,
                         }
                       : {}),
                     ...(heldSlot ? { schedule_hold_id: heldSlot.id } : {}),
                     reason,
-                    ...(overbookRequested ? {
-                      overbook_reason: overbookReason.trim(),
-                      expected_policy_revision: schedulingPolicy.data?.policy.revision,
-                    } : {}),
-                    ...(walkInRequested ? {
-                      walk_in: true,
-                      capacity_override_reason: walkInReason.trim(),
-                    } : {}),
+                    ...(overbookRequested
+                      ? {
+                          overbook_reason: overbookReason.trim(),
+                          expected_policy_revision:
+                            schedulingPolicy.data?.policy.revision,
+                        }
+                      : {}),
+                    ...(walkInRequested
+                      ? {
+                          walk_in: true,
+                          capacity_override_reason: walkInReason.trim(),
+                        }
+                      : {}),
                     visit_modality: visitModality,
                     request_key: crypto.randomUUID(),
                   },
@@ -2111,7 +2217,8 @@ function BookingFormEditor({
               );
               const requested = attempt.body.appointment;
               if (
-                result.appointment.patient_id !== Number(requested.patient_id) ||
+                result.appointment.patient_id !==
+                  Number(requested.patient_id) ||
                 result.appointment.site_id !== Number(requested.site_id) ||
                 Date.parse(result.appointment.starts_at) !==
                   Date.parse(requested.starts_at) ||
@@ -2276,7 +2383,8 @@ function BookingFormEditor({
                 value={endsAt}
                 error={Boolean(intervalError)}
                 helperText={
-                  intervalError || "Use YYYY-MM-DDTHH:mm in your device’s time zone."
+                  intervalError ||
+                  "Use YYYY-MM-DDTHH:mm in your device’s time zone."
                 }
                 onChange={(event) => setEndsAt(event.target.value)}
                 placeholder="YYYY-MM-DDTHH:mm"
@@ -2549,7 +2657,9 @@ function BookingFormEditor({
                     {offeringIssue}
                   </Alert>
                 )}
-                <SchedulingResourceAvailability resource={resourceAvailability} />
+                <SchedulingResourceAvailability
+                  resource={resourceAvailability}
+                />
               </Box>
               <TextField
                 fullWidth
@@ -2563,24 +2673,31 @@ function BookingFormEditor({
                 helperText="Optional scheduler-facing reason. It is saved with the appointment."
                 sx={{ gridColumn: { md: "1 / -1" } }}
               />
-              {schedulingPolicy.data?.policy.overbook_enabled && schedulingPolicy.data.can_overbook && (
-                <FormControlLabel sx={{ gridColumn: { md: "1 / -1" } }}
-                  control={<Checkbox checked={overbookRequested}
-                    disabled={busy || Boolean(bookingAttempt)}
-                    onChange={(event) => {
-                      const requested = event.target.checked;
-                      setOverbookRequested(requested);
-                      if (!event.target.checked) setOverbookReason("");
-                      if (event.target.checked) {
-                        setWalkInRequested(false);
-                        setWalkInReason("");
-                        setRepeat("none");
-                        setSeriesPreview(null);
-                        setSeriesPreviewPayload(null);
-                      }
-                    }} />}
-                  label="Request a clinician overbook exception" />
-              )}
+              {schedulingPolicy.data?.policy.overbook_enabled &&
+                schedulingPolicy.data.can_overbook && (
+                  <FormControlLabel
+                    sx={{ gridColumn: { md: "1 / -1" } }}
+                    control={
+                      <Checkbox
+                        checked={overbookRequested}
+                        disabled={busy || Boolean(bookingAttempt)}
+                        onChange={(event) => {
+                          const requested = event.target.checked;
+                          setOverbookRequested(requested);
+                          if (!event.target.checked) setOverbookReason("");
+                          if (event.target.checked) {
+                            setWalkInRequested(false);
+                            setWalkInReason("");
+                            setRepeat("none");
+                            setSeriesPreview(null);
+                            setSeriesPreviewPayload(null);
+                          }
+                        }}
+                      />
+                    }
+                    label="Request a clinician overbook exception"
+                  />
+                )}
               {overbookRequested && (
                 <Stack spacing={1} sx={{ gridColumn: { md: "1 / -1" } }}>
                   <Alert severity="warning">
@@ -2606,7 +2723,15 @@ function BookingFormEditor({
                     control={
                       <Checkbox
                         checked={walkInRequested}
-                        disabled={busy || Boolean(bookingAttempt) || Boolean(seriesAttempt) || Boolean(holdAttempt) || Boolean(heldSlot) || firstAvailable || visitModality === "video"}
+                        disabled={
+                          busy ||
+                          Boolean(bookingAttempt) ||
+                          Boolean(seriesAttempt) ||
+                          Boolean(holdAttempt) ||
+                          Boolean(heldSlot) ||
+                          firstAvailable ||
+                          visitModality === "video"
+                        }
                         onChange={(event) => {
                           const requested = event.target.checked;
                           setWalkInRequested(requested);
@@ -2620,7 +2745,15 @@ function BookingFormEditor({
                             const start = businessNow();
                             start.setSeconds(0, 0);
                             setStartsAt(localDateTimeValue(start));
-                            setEndsAt(localDateTimeValue(new Date(start.getTime() + (selectedOffering?.duration_minutes ?? 30) * 60_000)));
+                            setEndsAt(
+                              localDateTimeValue(
+                                new Date(
+                                  start.getTime() +
+                                    (selectedOffering?.duration_minutes ?? 30) *
+                                      60_000,
+                                ),
+                              ),
+                            );
                           }
                         }}
                       />
@@ -2630,14 +2763,19 @@ function BookingFormEditor({
                   {walkInRequested && (
                     <>
                       <Alert severity="warning">
-                        This walk-in may bypass the clinician's weekly capacity template. Site hours, clinician assignment, blocked time, patient and room conflicts, and active holds are still checked.
+                        This walk-in may bypass the clinician's weekly capacity
+                        template. Site hours, clinician assignment, blocked
+                        time, patient and room conflicts, and active holds are
+                        still checked.
                       </Alert>
                       <TextField
                         fullWidth
                         required
                         label="Walk-in reason"
                         value={walkInReason}
-                        onChange={(event) => setWalkInReason(event.target.value)}
+                        onChange={(event) =>
+                          setWalkInReason(event.target.value)
+                        }
                         disabled={busy || outcomeUnconfirmed}
                         slotProps={{ htmlInput: { maxLength: 500 } }}
                         helperText="Saved with the appointment and the authorizing staff member."
@@ -2647,40 +2785,56 @@ function BookingFormEditor({
                 </Stack>
               )}
               <Stack spacing={1.5} sx={{ gridColumn: { md: "1 / -1" } }}>
-              <TextField
-                select
-                label="Repeat"
-                value={repeat}
-                onChange={(event) => {
-                  setRepeat(event.target.value as "none" | "weekly");
-                  if (event.target.value === "weekly") {
-                    setOverbookRequested(false);
-                    setOverbookReason("");
-                    setWalkInRequested(false);
-                    setWalkInReason("");
+                <TextField
+                  select
+                  label="Repeat"
+                  value={repeat}
+                  onChange={(event) => {
+                    setRepeat(event.target.value as "none" | "weekly");
+                    if (event.target.value === "weekly") {
+                      setOverbookRequested(false);
+                      setOverbookReason("");
+                      setWalkInRequested(false);
+                      setWalkInReason("");
+                    }
+                    setSeriesPreview(null);
+                    setSeriesPreviewPayload(null);
+                  }}
+                  disabled={
+                    walkInRequested ||
+                    busy ||
+                    Boolean(bookingAttempt) ||
+                    Boolean(seriesAttempt)
                   }
-                  setSeriesPreview(null);
-                  setSeriesPreviewPayload(null);
-                }}
-                disabled={walkInRequested || busy || Boolean(bookingAttempt) || Boolean(seriesAttempt)}
-              >
-                <MenuItem value="none">Does not repeat</MenuItem>
-                <MenuItem value="weekly" disabled={!schedulingPolicy.data?.policy.recurrence_enabled}>
-                  Weekly
-                </MenuItem>
+                >
+                  <MenuItem value="none">Does not repeat</MenuItem>
+                  <MenuItem
+                    value="weekly"
+                    disabled={!schedulingPolicy.data?.policy.recurrence_enabled}
+                  >
+                    Weekly
+                  </MenuItem>
                 </TextField>
                 {repeat === "weekly" && (
                   <>
                     {!schedulingPolicy.data?.policy.recurrence_enabled && (
-                      <Alert severity="warning">Recurring visits are off for this site. Ask an authorized clinic setup staff member to enable them.</Alert>
+                      <Alert severity="warning">
+                        Recurring visits are off for this site. Ask an
+                        authorized clinic setup staff member to enable them.
+                      </Alert>
                     )}
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1.5}
+                    >
                       <TextField
                         type="number"
                         label="Every (weeks)"
                         sx={{ flex: 1, minWidth: 140 }}
                         value={repeatIntervalWeeks}
-                        onChange={(event) => setRepeatIntervalWeeks(Number(event.target.value))}
+                        onChange={(event) =>
+                          setRepeatIntervalWeeks(Number(event.target.value))
+                        }
                         slotProps={{ htmlInput: { min: 1, max: 4, step: 1 } }}
                         disabled={busy || Boolean(seriesAttempt)}
                       />
@@ -2689,7 +2843,9 @@ function BookingFormEditor({
                         label="Number of visits"
                         sx={{ flex: 1, minWidth: 140 }}
                         value={repeatCount}
-                        onChange={(event) => setRepeatCount(Number(event.target.value))}
+                        onChange={(event) =>
+                          setRepeatCount(Number(event.target.value))
+                        }
                         slotProps={{ htmlInput: { min: 2, max: 12, step: 1 } }}
                         disabled={busy || Boolean(seriesAttempt)}
                       />
@@ -2697,36 +2853,81 @@ function BookingFormEditor({
                         type="button"
                         variant="outlined"
                         onClick={() => void previewSeries()}
-                        disabled={busy || Boolean(seriesAttempt) || !schedulingPolicy.data?.policy.recurrence_enabled}
+                        disabled={
+                          busy ||
+                          Boolean(seriesAttempt) ||
+                          !schedulingPolicy.data?.policy.recurrence_enabled
+                        }
                       >
                         Preview visits
                       </Button>
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
-                      Each visit is booked separately. Review every date before scheduling; conflicts require a new time or a skip reason.
+                      Each visit is booked separately. Review every date before
+                      scheduling; conflicts require a new time or a skip reason.
                     </Typography>
                     {seriesPreview && (
                       <Stack spacing={1}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {seriesPreview.filter((row) => row.state === "booked").length} to book ·{" "}
-                          {seriesPreview.filter((row) => row.state === "skipped").length} skipped
+                          {
+                            seriesPreview.filter(
+                              (row) => row.state === "booked",
+                            ).length
+                          }{" "}
+                          to book ·{" "}
+                          {
+                            seriesPreview.filter(
+                              (row) => row.state === "skipped",
+                            ).length
+                          }{" "}
+                          skipped
                         </Typography>
                         {seriesPreview.map((row) => {
-                          const resolution = seriesResolutions.find((item) => item.sequence === row.sequence);
+                          const resolution = seriesResolutions.find(
+                            (item) => item.sequence === row.sequence,
+                          );
                           return (
-                            <Paper key={row.sequence} variant="outlined" sx={{ p: 1.5 }}>
+                            <Paper
+                              key={row.sequence}
+                              variant="outlined"
+                              sx={{ p: 1.5 }}
+                            >
                               <Stack spacing={1}>
-                                <Typography variant="body2" sx={{ fontWeight: 650 }}>
-                                  Visit {row.sequence} · {row.original_date} · {row.state === "skipped" ? "Skipped" : row.starts_at ? clinicDateTime(row.starts_at, timezone) : "Time needs review"}
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontWeight: 650 }}
+                                >
+                                  Visit {row.sequence} · {row.original_date} ·{" "}
+                                  {row.state === "skipped"
+                                    ? "Skipped"
+                                    : row.starts_at
+                                      ? clinicDateTime(row.starts_at, timezone)
+                                      : "Time needs review"}
                                 </Typography>
-                                {row.conflict && <Alert severity="warning">{row.conflict}</Alert>}
+                                {row.conflict && (
+                                  <Alert severity="warning">
+                                    {row.conflict}
+                                  </Alert>
+                                )}
                                 <TextField
                                   type="datetime-local"
                                   label="Change this visit start"
-                                  value={resolution?.starts_at ? localDateTimeValue(new Date(resolution.starts_at)) : ""}
-                                  onChange={(event) => updateSeriesResolution(row.sequence, {
-                                    starts_at: event.target.value ? new Date(event.target.value).toISOString() : "",
-                                  })}
+                                  value={
+                                    resolution?.starts_at
+                                      ? localDateTimeValue(
+                                          new Date(resolution.starts_at),
+                                        )
+                                      : ""
+                                  }
+                                  onChange={(event) =>
+                                    updateSeriesResolution(row.sequence, {
+                                      starts_at: event.target.value
+                                        ? new Date(
+                                            event.target.value,
+                                          ).toISOString()
+                                        : "",
+                                    })
+                                  }
                                   disabled={busy || Boolean(seriesAttempt)}
                                   slotProps={{ inputLabel: { shrink: true } }}
                                   helperText={`Uses this device's timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Leave blank to keep the weekly time.`}
@@ -2735,28 +2936,52 @@ function BookingFormEditor({
                                   select
                                   label="Room for this visit"
                                   value={resolution?.room_id ?? ""}
-                                  onChange={(event) => updateSeriesResolution(row.sequence, {
-                                    room_id: event.target.value ? Number(event.target.value) : undefined,
-                                  })}
-                                  disabled={busy || Boolean(seriesAttempt) || visitModality === "video"}
+                                  onChange={(event) =>
+                                    updateSeriesResolution(row.sequence, {
+                                      room_id: event.target.value
+                                        ? Number(event.target.value)
+                                        : undefined,
+                                    })
+                                  }
+                                  disabled={
+                                    busy ||
+                                    Boolean(seriesAttempt) ||
+                                    visitModality === "video"
+                                  }
                                 >
                                   <MenuItem value="">Use series room</MenuItem>
-                                  {availableRooms.map((room) => <MenuItem key={room.id} value={room.id}>
-                                    {room.code}
-                                  </MenuItem>)}
+                                  {availableRooms.map((room) => (
+                                    <MenuItem key={room.id} value={room.id}>
+                                      {room.code}
+                                    </MenuItem>
+                                  ))}
                                 </TextField>
                                 <TextField
                                   label="Reason for changing this visit"
                                   value={resolution?.change_reason ?? ""}
-                                  onChange={(event) => updateSeriesResolution(row.sequence, { change_reason: event.target.value })}
-                                  disabled={busy || Boolean(seriesAttempt) ||
-                                    !(resolution?.starts_at || resolution?.room_id)}
+                                  onChange={(event) =>
+                                    updateSeriesResolution(row.sequence, {
+                                      change_reason: event.target.value,
+                                    })
+                                  }
+                                  disabled={
+                                    busy ||
+                                    Boolean(seriesAttempt) ||
+                                    !(
+                                      resolution?.starts_at ||
+                                      resolution?.room_id
+                                    )
+                                  }
                                   slotProps={{ htmlInput: { maxLength: 500 } }}
                                 />
                                 <TextField
                                   label="Skip this visit (reason required)"
                                   value={resolution?.skip_reason ?? ""}
-                                  onChange={(event) => updateSeriesResolution(row.sequence, { skip_reason: event.target.value })}
+                                  onChange={(event) =>
+                                    updateSeriesResolution(row.sequence, {
+                                      skip_reason: event.target.value,
+                                    })
+                                  }
                                   disabled={busy || Boolean(seriesAttempt)}
                                   slotProps={{ htmlInput: { maxLength: 500 } }}
                                 />
@@ -2765,12 +2990,18 @@ function BookingFormEditor({
                           );
                         })}
                         {seriesPreviewPayload !== seriesPreviewKey() && (
-                          <Alert severity="info">Visit choices changed. Preview again before scheduling.</Alert>
+                          <Alert severity="info">
+                            Visit choices changed. Preview again before
+                            scheduling.
+                          </Alert>
                         )}
                       </Stack>
                     )}
                     {seriesOutcomeUnconfirmed && (
-                      <Alert severity="warning">The series result is uncertain. Retry the exact request below.</Alert>
+                      <Alert severity="warning">
+                        The series result is uncertain. Retry the exact request
+                        below.
+                      </Alert>
                     )}
                   </>
                 )}
@@ -2822,8 +3053,7 @@ function BookingFormEditor({
                         variant="body2"
                         sx={{ mt: 0.5 }}
                       >
-                        Scheduling checks whether the appointment times
-                        overlap.
+                        Scheduling checks whether the appointment times overlap.
                       </Typography>
                     </Alert>
                   )}
@@ -2999,15 +3229,21 @@ function BookingFormEditor({
                 )}
                 <Button
                   type={repeat === "weekly" ? "button" : "submit"}
-                  onClick={repeat === "weekly" ? () => void scheduleSeries() : undefined}
+                  onClick={
+                    repeat === "weekly"
+                      ? () => void scheduleSeries()
+                      : undefined
+                  }
                   variant="contained"
                   disabled={
                     busy ||
                     (!outcomeUnconfirmed &&
                       !seriesOutcomeUnconfirmed &&
                       Boolean(submitError)) ||
-                    (repeat === "weekly" && !seriesAttempt &&
-                      (!seriesPreview || seriesPreview.some((row) => Boolean(row.conflict)) ||
+                    (repeat === "weekly" &&
+                      !seriesAttempt &&
+                      (!seriesPreview ||
+                        seriesPreview.some((row) => Boolean(row.conflict)) ||
                         seriesPreviewPayload !== seriesPreviewKey())) ||
                     (Boolean(holdAttempt) && !bookingAttempt) ||
                     (holdOutcomeUnconfirmed && !bookingAttempt) ||
@@ -3025,8 +3261,13 @@ function BookingFormEditor({
                     ? "Scheduling…"
                     : outcomeUnconfirmed || seriesOutcomeUnconfirmed
                       ? "Retry same request"
-                      : repeat === "weekly" ? "Schedule series" :
-                        walkInRequested ? "Schedule walk-in" : overbookRequested ? "Schedule overbooked appointment" : "Schedule appointment"}
+                      : repeat === "weekly"
+                        ? "Schedule series"
+                        : walkInRequested
+                          ? "Schedule walk-in"
+                          : overbookRequested
+                            ? "Schedule overbooked appointment"
+                            : "Schedule appointment"}
                 </Button>
               </Stack>
             </Stack>
@@ -3163,7 +3404,12 @@ export function ScheduleView({
                             {appointment.service_offering_snapshot.name}
                           </Typography>
                         )}
-                        <BookedSchedulingResources snapshot={appointment.service_offering_snapshot?.resource_compatibility} />
+                        <BookedSchedulingResources
+                          snapshot={
+                            appointment.service_offering_snapshot
+                              ?.resource_compatibility
+                          }
+                        />
                       </TableCell>
                       <TableCell>
                         {context.capabilities.patients ? (
@@ -3603,7 +3849,9 @@ export function SoapNoteForm({
     useState<CorrectionTarget | null>(null);
   const [incomingNote, setIncomingNote] = useState<EncounterNote | null>(null);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
-  const [historyRevisionId, setHistoryRevisionId] = useState<number | null>(null);
+  const [historyRevisionId, setHistoryRevisionId] = useState<number | null>(
+    null,
+  );
   const historyRevision = currentNote?.revisions.find(
     (revision) => revision.id === historyRevisionId,
   );
@@ -3860,10 +4108,13 @@ export function SoapNoteForm({
     if (!snapshot) return;
     cancelPendingDraftSave();
     setWorkingCopyPending(true);
-    draftSaveTimer.current = window.setTimeout(() => {
-      draftSaveTimer.current = null;
-      void persistWorkingSnapshot(snapshot);
-    }, dirty ? 650 : 0);
+    draftSaveTimer.current = window.setTimeout(
+      () => {
+        draftSaveTimer.current = null;
+        void persistWorkingSnapshot(snapshot);
+      },
+      dirty ? 650 : 0,
+    );
     return cancelPendingDraftSave;
   }, [
     appliedTemplate,
@@ -3878,7 +4129,8 @@ export function SoapNoteForm({
   ]);
 
   useEffect(() => {
-    if ((!dirty && !workingCopyPending) || typeof window === "undefined") return;
+    if ((!dirty && !workingCopyPending) || typeof window === "undefined")
+      return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
@@ -4274,7 +4526,8 @@ export function SoapNoteForm({
   };
 
   const startCorrection = () => {
-    if (!currentNote || !savedBody || !currentNote.current_revision || !signed) return;
+    if (!currentNote || !savedBody || !currentNote.current_revision || !signed)
+      return;
     if (!correctionReason.trim() || !correctionConfirmed) return;
     setSections(savedBody.sections);
     setPatientInstructions(savedBody.patient_instructions ?? "");
@@ -4396,6 +4649,161 @@ export function SoapNoteForm({
           save is blocked until you review both versions.
         </Alert>
       )}
+      <Paper
+        component="section"
+        variant="outlined"
+        className="soap-save-panel"
+        aria-label="SOAP save and recovery"
+      >
+        {!canWrite && !signed && (
+          <Alert severity="info">
+            You have read access but cannot change this note.
+          </Alert>
+        )}
+        {error && <ErrorMessage message={error} />}
+        {workingDraft.status === "loading" && canWrite && (
+          <Typography variant="caption" role="status" color="text.secondary">
+            Recovering protected working note…
+          </Typography>
+        )}
+        <Box role="status" aria-live="polite" aria-atomic="true">
+          {saveState === "saving"
+            ? "Saving unsigned draft…"
+            : saveState === "reconciling"
+              ? "Checking the saved note and encounter…"
+              : notice}
+        </Box>
+        {workingDraft.status === "saving" && (
+          <Typography variant="caption" role="status" color="text.secondary">
+            Saving protected working note…
+          </Typography>
+        )}
+        {workingCopyPending && !dirty && (
+          <Alert severity="warning">
+            The latest working-note changes are not confirmed for refresh
+            recovery. Keep this chart open until they are saved; leaving now may
+            restore the earlier working copy.
+          </Alert>
+        )}
+        {currentNote?.current_revision?.created_at && !signed && (
+          <Typography variant="body2" color="text.secondary">
+            Draft last saved{" "}
+            {new Date(currentNote.current_revision.created_at).toLocaleString()}
+            {dirty ? " · Current edits are not in a saved chart revision" : ""}
+          </Typography>
+        )}
+        {workingDraft.status === "saved" && dirty && (
+          <Typography variant="caption" role="status" color="text.secondary">
+            Last recovery save completed. Recovery copies do not create chart
+            revisions; save the note explicitly to record one.
+          </Typography>
+        )}
+        {(workingDraft.status === "error" ||
+          workingDraft.status === "conflict") && (
+          <Alert
+            severity="warning"
+            action={
+              workingDraft.status === "error" ? (
+                <Button
+                  color="inherit"
+                  onClick={() => void retryWorkingDraft()}
+                >
+                  Retry saving current note
+                </Button>
+              ) : saveAttemptRef.current ? undefined : (
+                <Button
+                  color="inherit"
+                  onClick={() => setReplaceWorkingCopy(true)}
+                >
+                  Load saved copy
+                </Button>
+              )
+            }
+          >
+            {workingDraft.error ||
+              "The protected working note could not be saved."}
+            {workingDraft.status === "conflict" && saveAttemptRef.current
+              ? " Check the submitted save before replacing this copy."
+              : null}
+          </Alert>
+        )}
+        {canWrite && (!signed || correctionTarget) && saveRequirement && (
+          <Typography
+            id="soap-save-requirement"
+            variant="body2"
+            color="text.secondary"
+          >
+            {saveRequirement}
+          </Typography>
+        )}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          useFlexGap
+          sx={{ scrollMarginTop: 16, flexWrap: "wrap" }}
+        >
+          {(!signed || correctionTarget) && (
+            <Button
+              variant="contained"
+              onClick={() => void save()}
+              aria-describedby={
+                saveRequirement ? "soap-save-requirement" : undefined
+              }
+              disabled={
+                busy ||
+                !workingDraft.ready ||
+                !canWrite ||
+                (!dirty && !correctionTarget) ||
+                !noteSaveAllowsMutation(saveState) ||
+                Boolean(incomingNote) ||
+                !appliedTemplate ||
+                !hasSoapContent(sections)
+              }
+            >
+              {busy
+                ? "Saving…"
+                : correctionTarget
+                  ? "Save unsigned correction"
+                  : currentNote
+                    ? "Save new revision"
+                    : "Save draft"}
+            </Button>
+          )}
+          {signed && !correctionTarget && canWrite && (
+            <Button
+              variant="contained"
+              onClick={() => setCorrectionDialogOpen(true)}
+              disabled={busy || !noteSaveAllowsMutation(saveState)}
+            >
+              Start correction
+            </Button>
+          )}
+          {requestKey && (
+            <Button
+              variant="outlined"
+              onClick={() => void checkSaveStatus()}
+              disabled={busy}
+            >
+              {busy && saveState !== "saving"
+                ? "Checking save status…"
+                : "Check save status"}
+            </Button>
+          )}
+          {requestKey && !busy && (
+            <Button variant="text" onClick={() => setResetConfirmation(true)}>
+              Reset save attempt
+            </Button>
+          )}
+          {requestKey && saveState === "not_found" && !busy && (
+            <Button
+              variant="outlined"
+              onClick={() => void retryExactNoteSave()}
+            >
+              Retry exact save
+            </Button>
+          )}
+        </Stack>
+      </Paper>
       {currentNote?.revisions.length ? (
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -4406,6 +4814,7 @@ export function SoapNoteForm({
               <Chip
                 key={revision.id}
                 size="small"
+                sx={{ minHeight: 44 }}
                 variant={
                   revision.id === currentNote.current_revision?.id
                     ? "filled"
@@ -4421,7 +4830,7 @@ export function SoapNoteForm({
       ) : null}
       <Stack spacing={1} className="soap-sections">
         {!currentNote && !signed && (
-          <Paper variant="outlined" sx={{ p: 2 }}>
+          <Paper className="soap-template-panel" variant="outlined">
             <Stack spacing={1.25}>
               <Box>
                 <Typography component="h3" variant="subtitle1">
@@ -4540,7 +4949,7 @@ export function SoapNoteForm({
                   }))
                 }
                 multiline
-                minRows={key === "objective" ? 10 : 4}
+                minRows={4}
                 slotProps={{ htmlInput: { maxLength: 50_000 } }}
                 disabled={editorDisabled}
                 helperText={
@@ -4575,145 +4984,11 @@ export function SoapNoteForm({
           helperText="Optional. Record the actual documented session duration; this does not infer billing time, a treatment, or a clinical finding."
         />
       </Stack>
-      {!canWrite && !signed && (
-        <Alert severity="info">
-          You have read access but cannot change this note.
-        </Alert>
-      )}
-      {error && <ErrorMessage message={error} />}
-      {workingDraft.status === "loading" && canWrite && (
-        <Typography variant="caption" role="status" color="text.secondary">
-          Recovering protected working note…
-        </Typography>
-      )}
-      <Box role="status" aria-live="polite" aria-atomic="true">
-        {saveState === "saving"
-          ? "Saving unsigned draft…"
-          : saveState === "reconciling"
-            ? "Checking the saved note and encounter…"
-            : notice}
-      </Box>
-      {workingDraft.status === "saving" && (
-        <Typography variant="caption" role="status" color="text.secondary">
-          Saving protected working note…
-        </Typography>
-      )}
-      {workingCopyPending && !dirty && (
-        <Alert severity="warning">
-          The latest working-note changes are not confirmed for refresh recovery.
-          Keep this chart open until they are saved; leaving now may restore the
-          earlier working copy.
-        </Alert>
-      )}
-      {currentNote?.current_revision?.created_at && !signed && (
-        <Typography variant="body2" color="text.secondary">
-          Draft last saved {new Date(currentNote.current_revision.created_at).toLocaleString()}
-          {dirty ? " · Current edits are not in a saved chart revision" : ""}
-        </Typography>
-      )}
-      {workingDraft.status === "saved" && dirty && (
-        <Typography variant="caption" role="status" color="text.secondary">
-          Last recovery save completed. Recovery copies do not create chart
-          revisions; save the note explicitly to record one.
-        </Typography>
-      )}
-      {(workingDraft.status === "error" ||
-        workingDraft.status === "conflict") && (
-        <Alert
-          severity="warning"
-          action={
-            workingDraft.status === "error" ? (
-              <Button color="inherit" onClick={() => void retryWorkingDraft()}>
-                Retry saving current note
-              </Button>
-            ) : saveAttemptRef.current ? undefined : (
-              <Button
-                color="inherit"
-                onClick={() => setReplaceWorkingCopy(true)}
-              >
-                Load saved copy
-              </Button>
-            )
-          }
-        >
-          {workingDraft.error ||
-            "The protected working note could not be saved."}
-          {workingDraft.status === "conflict" && saveAttemptRef.current
-            ? " Check the submitted save before replacing this copy."
-            : null}
-        </Alert>
-      )}
-      {canWrite && (!signed || correctionTarget) && saveRequirement && (
-        <Typography
-          id="soap-save-requirement"
-          variant="body2"
-          color="text.secondary"
-        >
-          {saveRequirement}
-        </Typography>
-      )}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
         sx={{ scrollMarginTop: 16 }}
       >
-        {(!signed || correctionTarget) && (
-          <Button
-            variant="contained"
-            onClick={() => void save()}
-            aria-describedby={
-              saveRequirement ? "soap-save-requirement" : undefined
-            }
-            disabled={
-              busy ||
-              !workingDraft.ready ||
-              !canWrite ||
-              (!dirty && !correctionTarget) ||
-              !noteSaveAllowsMutation(saveState) ||
-              Boolean(incomingNote) ||
-              !appliedTemplate ||
-              !hasSoapContent(sections)
-            }
-          >
-            {busy
-              ? "Saving…"
-              : correctionTarget
-                ? "Save unsigned correction"
-                : currentNote
-                  ? "Save new revision"
-                  : "Save draft"}
-          </Button>
-        )}
-        {signed && !correctionTarget && canWrite && (
-          <Button
-            variant="contained"
-            onClick={() => setCorrectionDialogOpen(true)}
-            disabled={busy || !noteSaveAllowsMutation(saveState)}
-          >
-            Start correction
-          </Button>
-        )}
-        {requestKey && (
-          <Button
-            variant="outlined"
-            onClick={() => void checkSaveStatus()}
-            disabled={busy}
-          >
-            {busy && saveState !== "saving"
-              ? "Checking save status…"
-              : "Check save status"}
-          </Button>
-        )}
-        {requestKey && !busy && (
-          <Button variant="text" onClick={() => setResetConfirmation(true)}>
-            Reset save attempt
-          </Button>
-        )}
-        {requestKey && saveState === "not_found" && !busy && (
-          <Button variant="outlined" onClick={() => void retryExactNoteSave()}>
-            Retry exact save
-          </Button>
-        )}
         {currentNote && patientId && canSign && (
           <EncounterNoteSigning
             note={currentNote}
@@ -4839,7 +5114,8 @@ export function SoapNoteForm({
               </>
             ) : (
               <Typography>
-                Revision content is unavailable. Reload the chart to retrieve it.
+                Revision content is unavailable. Reload the chart to retrieve
+                it.
               </Typography>
             )}
           </Stack>
@@ -4925,9 +5201,9 @@ export function SoapNoteForm({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info">
-              This keeps signed revision {currentNote?.current_revision?.revision_no}{" "}
-              intact and creates a separate unsigned correction for review and
-              signature.
+              This keeps signed revision{" "}
+              {currentNote?.current_revision?.revision_no} intact and creates a
+              separate unsigned correction for review and signature.
             </Alert>
             <Typography color="text.secondary">
               {patientName || `Patient #${patientId ?? "unavailable"}`} ·

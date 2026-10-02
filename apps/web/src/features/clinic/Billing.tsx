@@ -381,7 +381,7 @@ export function Billing() {
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <Box>
-        <Typography variant="h1">Patient balances</Typography>
+        <Typography variant="h1">Patient ledger</Typography>
         <Typography color="text.secondary" sx={{ maxWidth: "72ch", mt: 1 }}>
           Review the recorded invoice, allocation, credit, and refund history
           for one patient. Authorized billing staff can also start a draft
@@ -734,9 +734,9 @@ function LedgerDetails({
                 <TableRow>
                   <TableCell>Invoice</TableCell>
                   <TableCell>State</TableCell>
-                  <TableCell>Recorded</TableCell>
+                  <TableCell>Created</TableCell>
                   <TableCell align="right">Total</TableCell>
-                  <TableCell align="right">Settled</TableCell>
+                  <TableCell align="right">Payments allocated</TableCell>
                   <TableCell align="right">Balance</TableCell>
                 </TableRow>
               </TableHead>
@@ -753,7 +753,7 @@ function LedgerDetails({
                     >
                       <TableCell component="th" scope="row">
                         <Typography color="primary" sx={{ fontWeight: 700 }}>
-                          #{invoice.id}
+                          Invoice #{invoice.id}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -791,11 +791,7 @@ function LedgerDetails({
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box>
-              <Typography
-                component="h2"
-                variant="subtitle1"
-                sx={{ fontWeight: 700 }}
-              >
+              <Typography component="h2" variant="h2">
                 Invoice #{selectedInvoice.id} details
               </Typography>
               <Typography color="text.secondary" variant="body2">
@@ -1064,6 +1060,16 @@ function CheckoutSettlement({
                 Posting locks the recorded lines and makes the balance eligible
                 for collection.
               </Typography>
+              {selectedDraft && invoice && !postingPending && (
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{ mt: 1 }}
+                >
+                  Invoice #{invoice.id} · Total{" "}
+                  {money(invoice.total_amount, invoice.currency)}
+                </Typography>
+              )}
             </Box>
             {error && (
               <Alert severity={postingPending ? "warning" : "error"}>
@@ -1123,6 +1129,13 @@ function CheckoutSettlement({
       {notice && <Alert severity="success">{notice}</Alert>}
       {invoice?.status === "posted" && collectionInvoice && !postingPending && (
         <Paper component="section" variant="outlined" sx={{ p: 2.5 }}>
+          <Typography component="h2" variant="h2">
+            Collect online payment
+          </Typography>
+          <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+            Invoice #{invoice.id} · Remaining balance{" "}
+            {money(invoice.balance_amount, invoice.currency)}
+          </Typography>
           <InvoiceCheckoutControls
             key={invoice.id}
             onlinePayment={invoice.online_payment}
@@ -1652,11 +1665,14 @@ function ChargeAdjustmentDialog({
   const canWriteOff = !isZero(writeOffAvailable);
   const canVoid = limits.void_eligible;
   const retryPending = attempt !== null;
-  const adjustmentLimit = action === "write_off" ? writeOffAvailable : creditAvailable;
+  const adjustmentLimit =
+    action === "write_off" ? writeOffAvailable : creditAvailable;
   const amountValidationError =
-    !retryPending && action !== "void" &&
+    !retryPending &&
+    action !== "void" &&
     (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
-      isZero(amount) || !decimalNotGreaterThan(amount, adjustmentLimit))
+      isZero(amount) ||
+      !decimalNotGreaterThan(amount, adjustmentLimit))
       ? `Enter a positive ${action === "write_off" ? "write-off" : "credit"} up to ${money(adjustmentLimit, invoice.currency)} with up to six decimal places.`
       : "";
 
@@ -1700,9 +1716,13 @@ function ChargeAdjustmentDialog({
       (action === "credit" || action === "write_off") &&
       (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(amount) ||
         isZero(amount) ||
-        !decimalNotGreaterThan(amount, action === "write_off" ? writeOffAvailable : creditAvailable))
+        !decimalNotGreaterThan(
+          amount,
+          action === "write_off" ? writeOffAvailable : creditAvailable,
+        ))
     ) {
-      const available = action === "write_off" ? writeOffAvailable : creditAvailable;
+      const available =
+        action === "write_off" ? writeOffAvailable : creditAvailable;
       setError(
         `Enter a positive ${action === "write_off" ? "write-off" : "credit"} up to ${money(available, invoice.currency)} with up to six decimal places.`,
       );
@@ -1794,7 +1814,7 @@ function ChargeAdjustmentDialog({
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography color="text.secondary">
-              Invoice #{invoice.id} ·{" "}
+              Invoice #{invoice.id} · Total{" "}
               {money(invoice.total_amount, invoice.currency)}
             </Typography>
             {retryPending ? (
@@ -1860,7 +1880,9 @@ function ChargeAdjustmentDialog({
                 autoFocus={!retryPending}
                 disabled={retryPending}
                 inputMode="decimal"
-                label={action === "write_off" ? "Write-off amount" : "Credit amount"}
+                label={
+                  action === "write_off" ? "Write-off amount" : "Credit amount"
+                }
                 error={amount !== "" && Boolean(amountValidationError)}
                 helperText={amount !== "" ? amountValidationError : undefined}
                 onChange={(event) => setAmount(event.target.value)}
@@ -1891,7 +1913,11 @@ function ChargeAdjustmentDialog({
             {retryPending ? "Close" : "Cancel"}
           </Button>
           <Button
-            disabled={busy || Boolean(amountValidationError) || (action === "void" && cashPaymentPending)}
+            disabled={
+              busy ||
+              Boolean(amountValidationError) ||
+              (action === "void" && cashPaymentPending)
+            }
             onClick={() => void submit()}
             variant="contained"
           >
@@ -1929,11 +1955,11 @@ function InvoiceDetail({
         }}
       >
         <Box>
-          <Typography component="h2" variant="h2">
+          <Typography component="h3" variant="h2">
             Invoice #{invoice.id}
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            Recorded {date(invoice.created_at, true)}
+            Created {date(invoice.created_at, true)}
           </Typography>
         </Box>
         <Chip
@@ -2004,12 +2030,14 @@ function InvoiceDetail({
         <Stack divider={<Divider flexItem />} spacing={1.5}>
           <LedgerAmount
             label="Payments allocated"
+            entryLabel="Payment allocation"
             value={invoice.allocated_amount}
             currency={invoice.currency}
             entries={invoice.allocations}
           />
           <LedgerAmount
             label="Credits and write-offs"
+            entryLabel="Charge adjustment"
             value={invoice.credit_amount}
             currency={invoice.currency}
             entries={invoice.credits}
@@ -2032,15 +2060,18 @@ function InvoiceDetail({
 
 function LedgerAmount({
   label,
+  entryLabel,
   value,
   currency,
   entries,
 }: {
   label: string;
+  entryLabel: "Payment allocation" | "Charge adjustment";
   value: string;
   currency: string;
   entries: {
     id: number;
+    payment_event_id?: number;
     amount: string;
     created_at: string;
     adjustment_type?: "credit" | "write_off";
@@ -2065,8 +2096,18 @@ function LedgerAmount({
         entries.map((entry) => (
           <Box key={entry.id}>
             <Typography color="text.secondary" variant="body2">
-              {entry.adjustment_type === "write_off" ? "Write-off · " : entry.adjustment_type === "credit" ? "Credit · " : ""}
+              {entryLabel} #{entry.id}
+              {entry.payment_event_id !== undefined &&
+                ` · Payment event #${entry.payment_event_id}`}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              {entry.adjustment_type === "write_off"
+                ? "Write-off · "
+                : entry.adjustment_type === "credit"
+                  ? "Credit · "
+                  : ""}
               {money(entry.amount, currency)} ·{" "}
+              {entry.issued_at ? "Issued" : "Recorded"}{" "}
               {date(entry.issued_at ?? entry.created_at, true)}
             </Typography>
             {entry.reason && (
@@ -2355,6 +2396,9 @@ function PaymentHistory({
             }
             sx={{ m: 2.5 }}
           >
+            <Typography component="h3" variant="h2">
+              Unconfirmed cash refund
+            </Typography>
             A cash refund has an unconfirmed outcome for payment #
             {refundAttempt.paymentId}. Reopen that patient ledger before
             recording another refund.
@@ -2394,12 +2438,20 @@ function PaymentHistory({
                   sx={{ justifyContent: "space-between" }}
                 >
                   <Box>
+                    <Typography component="h3" variant="h2">
+                      Payment #{payment.id}
+                    </Typography>
                     <Typography sx={{ fontWeight: 700 }}>
                       {money(payment.amount, payment.currency)}
                     </Typography>
                     <Typography color="text.secondary" variant="body2">
                       Recorded {date(payment.created_at, true)}
                     </Typography>
+                    {payment.cash_payment && (
+                      <Typography color="text.secondary" variant="body2">
+                        Cash payment
+                      </Typography>
+                    )}
                   </Box>
                   <Typography color="text.secondary" variant="body2">
                     {payment.allocations.length} allocation
@@ -2407,6 +2459,17 @@ function PaymentHistory({
                     {` · Unapplied ${money(payment.unapplied_amount, payment.currency)}`}
                   </Typography>
                 </Stack>
+                {payment.allocations.length > 0 && (
+                  <Stack spacing={0.5} sx={{ mt: 1 }}>
+                    {payment.allocations.map((allocation) => (
+                      <Typography key={allocation.id} variant="body2">
+                        Allocation #{allocation.id} · Invoice #
+                        {allocation.invoice_id} ·{" "}
+                        {money(allocation.amount, payment.currency)}
+                      </Typography>
+                    ))}
+                  </Stack>
+                )}
                 {!isZero(payment.unapplied_amount) && (
                   <Typography
                     color="warning.main"
@@ -2613,6 +2676,9 @@ function PaymentHistory({
                 )}
                 {payment.refunds.length > 0 && (
                   <Alert severity="info" sx={{ mt: 1.5 }}>
+                    <Typography component="h4" variant="h2">
+                      Refunds
+                    </Typography>
                     Refund history is shown separately from invoice balances.
                     {payment.refunds.map((refund) => (
                       <Typography

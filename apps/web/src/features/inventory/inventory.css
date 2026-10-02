@@ -1019,8 +1019,8 @@ code {
 
 /* Inventory operations pass: denser hierarchy, clearer actions, and mobile-safe records. */
 .inventory-app {
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: inherit;
+  line-height: var(--clinic-body-line-height, 1.5);
 }
 .inventory-layout {
   min-height: 0;
@@ -1028,23 +1028,26 @@ code {
   box-shadow: none;
 }
 .inventory-header {
-  padding: 24px 32px 20px;
+  padding: 16px 24px;
 }
 .inventory-header h1 {
-  font-size: 28px;
+  font-size: var(--clinic-title-size, 28px);
+  font-weight: var(--clinic-heading-weight, 650);
+  line-height: var(--clinic-title-line-height, 1.15);
   letter-spacing: -0.025em;
 }
 .inventory-header-description {
   max-width: 65ch;
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--inventory-muted);
   font-size: 14px;
+  line-height: 1.45;
 }
 .inventory-header-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 14px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .inventory-header-meta {
@@ -1058,26 +1061,42 @@ code {
   font-size: 12px;
 }
 .inventory-content {
-  padding: 18px 32px 36px;
+  padding: 12px 24px 28px;
 }
 .inventory-subnav {
   gap: 2px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 .inventory-subnav a {
-  min-height: 40px;
-  padding: 10px 12px;
-  font-size: 13px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+.inventory-card.inventory-catalog {
+  padding: 16px;
 }
 .inventory-catalog-topline {
   display: flex;
-  align-items: end;
+  align-items: start;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px;
 }
-.inventory-catalog-topline h2 {
+.inventory-catalog .inventory-catalog-topline h2 {
   margin: 0;
   font-size: 20px;
+  font-weight: var(--clinic-heading-weight, 650);
+  line-height: var(--clinic-section-line-height, 1.25);
+}
+.inventory-catalog-topline .inventory-flow-note {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.inventory-catalog .inventory-toolbar {
+  margin-top: 16px;
 }
 .inventory-catalog-actions {
   display: flex;
@@ -1359,12 +1378,14 @@ code {
   align-items: center;
   min-height: 32px;
   color: var(--inventory-muted);
-  font-size: 12px;
-  white-space: nowrap;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: normal;
 }
 .inventory-subnav {
   align-items: stretch;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
   padding-bottom: 8px;
 }
 .inventory-subnav-group {
@@ -1375,8 +1396,9 @@ code {
 }
 .inventory-subnav-group > span {
   color: var(--inventory-muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1384,6 +1406,7 @@ code {
 .inventory-subnav-group > div {
   display: flex;
   align-items: stretch;
+  flex-wrap: wrap;
   gap: 2px;
 }
 .inventory-subnav a[aria-current="page"] {
@@ -1484,15 +1507,15 @@ code {
   }
   .inventory-subnav {
     align-items: stretch;
-    gap: 12px;
-    margin-bottom: 18px;
+    gap: 8px;
+    margin-bottom: 16px;
     padding-bottom: 8px;
   }
   .inventory-subnav-group > span {
     padding-left: 5px;
   }
   .inventory-subnav-group > div {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
   .inventory-summary {
     grid-template-columns: 1fr;

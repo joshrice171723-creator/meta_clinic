@@ -47,7 +47,10 @@ export function ConnectionRecovery({
       severity={reconnecting ? "warning" : "error"}
       role={reconnecting ? "status" : "alert"}
       aria-live={reconnecting ? "polite" : "assertive"}
-      sx={{ borderRadius: compact ? 0 : 1 }}
+      sx={{
+        borderRadius: compact ? 0 : 1,
+        "& .MuiAlert-message": { minWidth: 0, width: "100%" },
+      }}
     >
       <AlertTitle>
         {retrying
@@ -98,7 +101,11 @@ export function ConnectionRecovery({
               {contact.label}
             </Button>
           ) : (
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ overflowWrap: "anywhere" }}
+            >
               {contact.phone
                 ? `${contact.label}: ${contact.phone}`
                 : `${contact.label} details are unavailable.`}

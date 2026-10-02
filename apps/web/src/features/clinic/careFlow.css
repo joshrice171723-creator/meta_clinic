@@ -243,6 +243,23 @@
 .clinic-theme .soap-template-panel {
   padding: 10px;
 }
+.clinic-theme .soap-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.clinic-theme .soap-save-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--clinic-surface);
+}
+.clinic-theme .soap-save-panel .MuiButton-root {
+  min-height: 44px;
+}
 .clinic-theme .soap-sections textarea {
   font-family: inherit;
   line-height: 1.5;

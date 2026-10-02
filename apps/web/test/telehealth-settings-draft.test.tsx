@@ -80,7 +80,10 @@ vi.mock("../src/features/clinic/clinicNavigation", () => ({
 vi.mock("../src/features/telehealth/api", () => api);
 
 vi.mock("../src/features/clinic/Workspace", () => ({
-  useClinic: () => ({ capabilities: { telehealth_configure: true } }),
+  useClinic: () => ({
+    capabilities: { telehealth_configure: true },
+    practice: { id: 1, name: "Synthetic clinic" },
+  }),
 }));
 import { TelehealthSettings } from "../src/features/telehealth/TelehealthSettings";
 

@@ -207,8 +207,8 @@ export function VisitWrapUp({
         </Stack>
       </AccordionSummary>
       <AccordionDetails id="visit-wrap-up-content">
-        <Stack spacing={2}>
-          <Typography color="text.secondary">
+        <Stack spacing={1.5}>
+          <Typography variant="body2" color="text.secondary">
             Review the note, record the visit outcome, and confirm what the
             patient should do next.
           </Typography>
@@ -316,6 +316,16 @@ export function VisitWrapUp({
                   </Button>
                 </Stack>
               </Stack>
+            </Alert>
+          )}
+          {!finalized && Boolean(options?.blockers.length) && (
+            <Alert severity="info">
+              <Typography variant="subtitle2">Before finalizing</Typography>
+              <Box component="ul" sx={{ pl: 2.5, my: 0.5 }}>
+                {options?.blockers.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </Box>
             </Alert>
           )}
           <Box
@@ -474,16 +484,6 @@ export function VisitWrapUp({
             onChange={(event) => edit({ follow_up_plan: event.target.value })}
             helperText="State the agreed next step. Saving this text does not book an appointment or send a message."
           />
-          {!finalized && Boolean(options?.blockers.length) && (
-            <Alert severity="info">
-              <Typography variant="subtitle2">Before finalizing</Typography>
-              <Box component="ul" sx={{ pl: 2.5, my: 0.5 }}>
-                {options?.blockers.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </Box>
-            </Alert>
-          )}
           {!finalized && (
             <Stack
               direction="row"
