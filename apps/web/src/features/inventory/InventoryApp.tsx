@@ -3758,35 +3758,35 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
         {remainingSteps === 1 ? "" : "s"} remaining
       </summary>
       <section aria-labelledby="inventory-first-run-title">
-      <h2 id="inventory-first-run-title">First inventory run</h2>
-      <p className="inventory-lead">
-        Follow the saved workflow from supplier setup through stock stored in a
-        bin. Each step opens the existing inventory action for that record.
-      </p>
-      <ol>
-        {steps.map((step, index) => (
-          <li key={step.title}>
-            <strong>
-              {step.complete
-                ? "Complete"
-                : index === nextStepIndex
-                  ? "Next"
-                  : "Not started"}
-              : {step.title}
-            </strong>{" "}
-            — {step.detail}{" "}
-            {!step.complete &&
-              (step.requiresSupplierSetup && !canSetUpSuppliers ? (
-                <PermissionNote
-                  allowed={false}
-                  permission="Supplier setup access"
-                />
-              ) : (
-                <a href={step.href}>Continue to {step.title} →</a>
-              ))}
-          </li>
-        ))}
-      </ol>
+        <h2 id="inventory-first-run-title">First inventory run</h2>
+        <p className="inventory-lead">
+          Follow the saved workflow from supplier setup through stock stored in
+          a bin. Each step opens the existing inventory action for that record.
+        </p>
+        <ol>
+          {steps.map((step, index) => (
+            <li key={step.title}>
+              <strong>
+                {step.complete
+                  ? "Complete"
+                  : index === nextStepIndex
+                    ? "Next"
+                    : "Not started"}
+                : {step.title}
+              </strong>{" "}
+              — {step.detail}{" "}
+              {!step.complete &&
+                (step.requiresSupplierSetup && !canSetUpSuppliers ? (
+                  <PermissionNote
+                    allowed={false}
+                    permission="Supplier setup access"
+                  />
+                ) : (
+                  <a href={step.href}>Continue to {step.title} →</a>
+                ))}
+            </li>
+          ))}
+        </ol>
       </section>
     </details>
   );
@@ -5967,7 +5967,9 @@ function PurchaseOrderDetails({
                             financeBlocked ||
                             carrierBlocked ||
                             !shipmentEventDrafts[shipment.id] ||
-                            !window.confirm("Discard this unsaved shipment status draft?")
+                            !window.confirm(
+                              "Discard this unsaved shipment status draft?",
+                            )
                           )
                             return;
                           setShipmentEventDrafts((current) => {

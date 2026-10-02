@@ -313,15 +313,16 @@ function MessageCard({
               <Typography sx={{ fontWeight: 650, overflowWrap: "anywhere" }}>
                 {message.sender}
               </Typography>
-              {message.senderEmail && message.senderEmail !== message.sender && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ overflowWrap: "anywhere" }}
-                >
-                  {message.senderEmail}
-                </Typography>
-              )}
+              {message.senderEmail &&
+                message.senderEmail !== message.sender && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ overflowWrap: "anywhere" }}
+                  >
+                    {message.senderEmail}
+                  </Typography>
+                )}
               <Typography variant="body2" color="text.secondary">
                 {message.createdAt}
               </Typography>

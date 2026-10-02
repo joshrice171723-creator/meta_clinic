@@ -349,7 +349,8 @@ export function TelehealthQueue() {
           />
           <Chip
             label={visitCount(
-              readinessSummary.preparation_needed + readinessSummary.consent_needed,
+              readinessSummary.preparation_needed +
+                readinessSummary.consent_needed,
               "visit needs preparation",
               "visits need preparation",
             )}

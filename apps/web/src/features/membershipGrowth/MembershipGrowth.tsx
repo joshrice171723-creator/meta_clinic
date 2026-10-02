@@ -86,8 +86,10 @@ type ProspectAction =
 
 const actionNotices: Record<ProspectAction, string> = {
   log_no_answer: "No answer logged. Follow-up is due tomorrow.",
-  log_callback_requested: "Callback requested logged. Follow-up is due tomorrow.",
-  log_not_interested: "Not interested logged. This lead is closed without payment.",
+  log_callback_requested:
+    "Callback requested logged. Follow-up is due tomorrow.",
+  log_not_interested:
+    "Not interested logged. This lead is closed without payment.",
   contacted: "Clinic outreach marked complete.",
   begin_call:
     "Signup call started. Confirm the membership, contact details, recurring terms, and cancellation policy before taking payment.",
@@ -289,7 +291,13 @@ export function MembershipGrowth() {
   }
 
   async function performAction(action: ProspectAction) {
-    if (!selected || actionBusy || actionError || !resource.data?.capabilities.review) return;
+    if (
+      !selected ||
+      actionBusy ||
+      actionError ||
+      !resource.data?.capabilities.review
+    )
+      return;
     const prospectId = selected.id;
     setActionBusy(true);
     setActionError("");
@@ -303,7 +311,9 @@ export function MembershipGrowth() {
         },
       );
       if (result.prospect.id !== prospectId) {
-        throw new Error("The response did not match this lead. Reload the lead before another action.");
+        throw new Error(
+          "The response did not match this lead. Reload the lead before another action.",
+        );
       }
       setSelected(result.prospect);
       setRecurringAuthorization(false);
@@ -330,14 +340,19 @@ export function MembershipGrowth() {
       const result = await api<MembershipProspectMutationResponse>(
         `/api/clinic/membership_prospects/${prospectId}`,
       );
-      if (result.prospect.id !== prospectId) throw new Error("The response did not match this lead.");
+      if (result.prospect.id !== prospectId)
+        throw new Error("The response did not match this lead.");
       setSelected(result.prospect);
       setRecurringAuthorization(false);
       setActionNotice("");
       setActionError("");
       resource.refresh();
     } catch (reason) {
-      setActionError(reason instanceof Error ? reason.message : "The lead could not be reloaded.");
+      setActionError(
+        reason instanceof Error
+          ? reason.message
+          : "The lead could not be reloaded.",
+      );
     } finally {
       setActionBusy(false);
     }
@@ -823,10 +838,19 @@ export function MembershipGrowth() {
           {selected && (
             <Stack spacing={1.5} sx={{ pt: 0.5 }}>
               {actionError && (
-                <Alert severity="error" action={
-                  <Button disabled={actionBusy} onClick={() => void reloadLead()}>Reload lead</Button>
-                }>
-                  {actionError} Confirm the current record before another action; an unconfirmed request may have saved.
+                <Alert
+                  severity="error"
+                  action={
+                    <Button
+                      disabled={actionBusy}
+                      onClick={() => void reloadLead()}
+                    >
+                      Reload lead
+                    </Button>
+                  }
+                >
+                  {actionError} Confirm the current record before another
+                  action; an unconfirmed request may have saved.
                 </Alert>
               )}
               {actionNotice && <Alert severity="success">{actionNotice}</Alert>}
@@ -861,21 +885,30 @@ export function MembershipGrowth() {
                     {selected.phone_number || "No phone number provided"}
                   </Typography>
                   <Typography color="text.secondary">
-                    Preferred channel: {selected.preferred_contact_method || "Not recorded"}
+                    Preferred channel:{" "}
+                    {selected.preferred_contact_method || "Not recorded"}
                   </Typography>
                   <Typography color="text.secondary">
-                    Best contact time: {selected.preferred_contact_time || "Not recorded"}
+                    Best contact time:{" "}
+                    {selected.preferred_contact_time || "Not recorded"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Outreach consent: {selected.outreach_consent ? "Recorded" : "Not recorded"}
+                    Outreach consent:{" "}
+                    {selected.outreach_consent ? "Recorded" : "Not recorded"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Recorded attempts: {selected.follow_up_attempt_count}
-                    {selected.follow_up_attempted_at ? ` · Latest ${dateTime(selected.follow_up_attempted_at)}` : ""}
+                    {selected.follow_up_attempted_at
+                      ? ` · Latest ${dateTime(selected.follow_up_attempted_at)}`
+                      : ""}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Latest recorded outcome: {selected.follow_up_outcome?.replaceAll("_", " ") || "Not recorded"}
-                    {selected.follow_up_due_at ? ` · Next follow-up ${dateTime(selected.follow_up_due_at)}` : ""}
+                    Latest recorded outcome:{" "}
+                    {selected.follow_up_outcome?.replaceAll("_", " ") ||
+                      "Not recorded"}
+                    {selected.follow_up_due_at
+                      ? ` · Next follow-up ${dateTime(selected.follow_up_due_at)}`
+                      : ""}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Path:{" "}
@@ -900,31 +933,55 @@ export function MembershipGrowth() {
                   </Typography>
                 </Box>
               </Box>
-              {resource.data?.capabilities.review && selected.outreach_consent &&
+              {resource.data?.capabilities.review &&
+                selected.outreach_consent &&
                 selected.relationship_stage === "prospective_patient" &&
                 (selected.intent_type === "outreach"
                   ? ["new", "contacted", "qualified"].includes(selected.status)
-                  : ["new", "checkout_pending", "checkout_expired", "payment_failed"].includes(selected.status) &&
+                  : [
+                      "new",
+                      "checkout_pending",
+                      "checkout_expired",
+                      "payment_failed",
+                    ].includes(selected.status) &&
                     ["open", "waiting"].includes(selected.follow_up_state)) && (
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography component="h2" variant="h6">Log outreach outcome</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Record an attempt you already made. No answer and callback requested set follow-up for tomorrow; not interested closes the lead.
-                  </Typography>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ flexWrap: "wrap" }}>
-                    {([
-                      ["log_no_answer", "No answer"],
-                      ["log_callback_requested", "Callback requested"],
-                      ["log_not_interested", "Not interested"],
-                    ] as const).map(([action, label]) => (
-                      <Button key={action} variant="outlined" disabled={actionBusy || Boolean(actionError)}
-                        onClick={() => setOutreachLog({ action, label })}>
-                        {label}
-                      </Button>
-                    ))}
-                  </Stack>
-                </Paper>
-              )}
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Typography component="h2" variant="h6">
+                      Log outreach outcome
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      Record an attempt you already made. No answer and callback
+                      requested set follow-up for tomorrow; not interested
+                      closes the lead.
+                    </Typography>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1}
+                      sx={{ flexWrap: "wrap" }}
+                    >
+                      {(
+                        [
+                          ["log_no_answer", "No answer"],
+                          ["log_callback_requested", "Callback requested"],
+                          ["log_not_interested", "Not interested"],
+                        ] as const
+                      ).map(([action, label]) => (
+                        <Button
+                          key={action}
+                          variant="outlined"
+                          disabled={actionBusy || Boolean(actionError)}
+                          onClick={() => setOutreachLog({ action, label })}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </Paper>
+                )}
               {selected.intent_type === "purchase" &&
                 selected.follow_up_state !== "not_required" && (
                   <Paper
@@ -1168,13 +1225,20 @@ export function MembershipGrowth() {
           )}
         </DialogActions>
       </Dialog>
-      <Dialog open={Boolean(outreachLog && selected)} onClose={() => setOutreachLog(null)}
-        fullWidth maxWidth="sm" aria-labelledby="growth-log-title">
-        <DialogTitle id="growth-log-title">Confirm outreach outcome</DialogTitle>
+      <Dialog
+        open={Boolean(outreachLog && selected)}
+        onClose={() => setOutreachLog(null)}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="growth-log-title"
+      >
+        <DialogTitle id="growth-log-title">
+          Confirm outreach outcome
+        </DialogTitle>
         <DialogContent>
           <Typography>
-            Log “{outreachLog?.label}” for {selected?.display_name} (lead {selected?.id})
-            from an attempt you already made?
+            Log “{outreachLog?.label}” for {selected?.display_name} (lead{" "}
+            {selected?.id}) from an attempt you already made?
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
             This records one follow-up attempt. No call or message is sent.
@@ -1182,12 +1246,18 @@ export function MembershipGrowth() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOutreachLog(null)}>Cancel</Button>
-          <Button variant="contained" disabled={actionBusy || Boolean(actionError)} onClick={() => {
-            if (!outreachLog) return;
-            const action = outreachLog.action;
-            setOutreachLog(null);
-            void performAction(action);
-          }}>Log outcome</Button>
+          <Button
+            variant="contained"
+            disabled={actionBusy || Boolean(actionError)}
+            onClick={() => {
+              if (!outreachLog) return;
+              const action = outreachLog.action;
+              setOutreachLog(null);
+              void performAction(action);
+            }}
+          >
+            Log outcome
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

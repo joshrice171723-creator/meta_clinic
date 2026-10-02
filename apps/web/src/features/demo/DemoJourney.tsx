@@ -153,7 +153,7 @@ function frameUrl(run: DemoRun) {
       ? "/patient-portal"
       : run.sandbox && run.account?.key === "inventory"
         ? "/clinic/inventory"
-      : run.steps.find((step) => step.id === run.lesson_key)?.href;
+        : run.steps.find((step) => step.id === run.lesson_key)?.href;
   if (!href) return null;
   const target = new URL(href, window.location.origin);
   if (
