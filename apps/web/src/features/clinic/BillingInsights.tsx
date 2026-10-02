@@ -297,11 +297,12 @@ function monthLabel(value: string) {
 }
 
 function paymentDate(value: string, timeZone: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  const formatted = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone,
   }).format(new Date(value));
+  return `${formatted} (${timeZone})`;
 }
 
 export function BillingPayments({

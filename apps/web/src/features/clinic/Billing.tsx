@@ -65,11 +65,13 @@ function money(value: string, currency: string) {
   return `${currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction.padEnd(2, "0").slice(0, 2)}`;
 }
 
-function date(value: string, includeTime = false) {
-  return new Intl.DateTimeFormat(undefined, {
+function date(value: string, timeZone: string, includeTime = false) {
+  const formatted = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
+    timeZone,
     ...(includeTime ? { timeStyle: "short" } : {}),
   }).format(new Date(value));
+  return includeTime ? `${formatted} (${timeZone})` : formatted;
 }
 
 function isZero(value: string) {
@@ -160,8 +162,10 @@ function PatientDirectory({
   onSelect: (patientId: number) => void;
 }) {
   const [query, setQuery] = useState("");
+  const hasQuery = query.trim().length > 0;
   const patients = useResource<{ patients?: Patient[] }>(
     `/api/clinic/patients/lookup${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+    { enabled: hasQuery },
   );
   const matches = useMemo(
     () =>
@@ -201,7 +205,11 @@ function PatientDirectory({
         />
       </Box>
       <Divider />
-      {!patients.data ? (
+      {!hasQuery ? (
+        <Typography color="text.secondary" sx={{ p: 2.5 }}>
+          Enter a clinic reference or recorded name to find a patient.
+        </Typography>
+      ) : !patients.data ? (
         <Box sx={{ display: "grid", placeItems: "center", minHeight: 120 }}>
           {patients.error ? (
             <Alert severity="error">{patients.error}</Alert>
@@ -767,7 +775,9 @@ function LedgerDetails({
                           variant="outlined"
                         />
                       </TableCell>
-                      <TableCell>{date(invoice.created_at)}</TableCell>
+                      <TableCell>
+                        {date(invoice.created_at, clinic.practice.timezone)}
+                      </TableCell>
                       <TableCell align="right">
                         {money(invoice.total_amount, invoice.currency)}
                       </TableCell>
@@ -1945,6 +1955,7 @@ function InvoiceDetail({
 }: {
   invoice: BillingPatientLedger["invoices"][number];
 }) {
+  const { practice } = useClinic();
   return (
     <Paper component="section" variant="outlined">
       <Box
@@ -1962,7 +1973,7 @@ function InvoiceDetail({
             Invoice #{invoice.id}
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            Created {date(invoice.created_at, true)}
+            Created {date(invoice.created_at, practice.timezone, true)}
           </Typography>
         </Box>
         <Chip
@@ -1977,7 +1988,7 @@ function InvoiceDetail({
             ? `Void reason: ${invoice.void_reason}`
             : "This invoice was voided."}
           {invoice.voided_at
-            ? ` Recorded ${date(invoice.voided_at, true)}.`
+            ? ` Recorded ${date(invoice.voided_at, practice.timezone, true)}.`
             : ""}
           {invoice.voided_by ? ` Voided by ${invoice.voided_by}.` : ""}
         </Alert>
@@ -2083,6 +2094,7 @@ function LedgerAmount({
     issued_by?: string | null;
   }[];
 }) {
+  const { practice } = useClinic();
   return (
     <Box>
       <Typography color="text.secondary" variant="body2">
@@ -2111,7 +2123,11 @@ function LedgerAmount({
                   : ""}
               {money(entry.amount, currency)} ·{" "}
               {entry.issued_at ? "Issued" : "Recorded"}{" "}
-              {date(entry.issued_at ?? entry.created_at, true)}
+              {date(
+                entry.issued_at ?? entry.created_at,
+                practice.timezone,
+                true,
+              )}
             </Typography>
             {entry.reason && (
               <Typography color="text.secondary" variant="body2">
@@ -2448,7 +2464,8 @@ function PaymentHistory({
                       {money(payment.amount, payment.currency)}
                     </Typography>
                     <Typography color="text.secondary" variant="body2">
-                      Recorded {date(payment.created_at, true)}
+                      Recorded{" "}
+                      {date(payment.created_at, clinic.practice.timezone, true)}
                     </Typography>
                     {payment.cash_payment && (
                       <Typography color="text.secondary" variant="body2">
@@ -2692,7 +2709,12 @@ function PaymentHistory({
                       >
                         Refund #{refund.id} ·{" "}
                         {money(refund.amount, payment.currency)} on{" "}
-                        {date(refund.created_at, true)} · {refund.reason}
+                        {date(
+                          refund.created_at,
+                          clinic.practice.timezone,
+                          true,
+                        )}{" "}
+                        · {refund.reason}
                       </Typography>
                     ))}
                   </Alert>
