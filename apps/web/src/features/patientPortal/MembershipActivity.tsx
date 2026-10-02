@@ -35,13 +35,17 @@ export function MembershipActivity({
   const fixture = subscription.processor === "development_fixture";
   const headingId = `membership-activity-${subscription.id}`;
   return (
-    <Accordion variant="outlined" disableGutters>
+    <Accordion
+      variant="outlined"
+      disableGutters
+      slotProps={{ heading: { component: "h5" } }}
+    >
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
         id={`${headingId}-header`}
         aria-controls={`${headingId}-content`}
       >
-        <Typography component="h5" variant="subtitle1">
+        <Typography component="span" variant="subtitle1">
           Membership activity ({subscription.events.length})
         </Typography>
       </AccordionSummary>

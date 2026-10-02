@@ -401,6 +401,129 @@ export function MembershipGrowth() {
             <Paper
               component="section"
               variant="outlined"
+              sx={{ overflow: "hidden" }}
+            >
+              <Box sx={{ p: { xs: 2, md: 3 }, pb: 1 }}>
+                <Typography component="h2" variant="h5">
+                  Membership pipeline
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                  Account created → account activated → payment. Unpaid signups
+                  stay here for follow-up. Verified payment moves them to the
+                  patient flow with their existing account, receipt record, and
+                  front-desk onboarding task. No second account invitation is
+                  needed.
+                </Typography>
+              </Box>
+              <Tabs
+                value={filter}
+                onChange={(_, value: PipelineFilter) => setFilter(value)}
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                aria-label="Membership pipeline stages"
+              >
+                <Tab
+                  value="all"
+                  label={`All (${resource.data.prospects.length})`}
+                />
+                {relationshipFilters.map((stage) => (
+                  <Tab
+                    key={stage}
+                    value={stage}
+                    label={`${relationshipLabels[stage]} (${counts[stage]})`}
+                  />
+                ))}
+              </Tabs>
+              {prospects.length === 0 ? (
+                <Typography color="text.secondary" sx={{ p: 3 }}>
+                  No records are in this stage.
+                </Typography>
+              ) : (
+                <TableContainer>
+                  <Table
+                    sx={{ minWidth: 860 }}
+                    aria-label="Membership pipeline"
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Person</TableCell>
+                        <TableCell>Path</TableCell>
+                        <TableCell>Membership</TableCell>
+                        <TableCell>Enrollment stage</TableCell>
+                        <TableCell>Submitted</TableCell>
+                        <TableCell align="right">Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {prospects.map((prospect) => (
+                        <TableRow key={prospect.id} hover>
+                          <TableCell>
+                            <Typography sx={{ fontWeight: 650 }}>
+                              {prospect.display_name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {prospect.email_address ||
+                                "No email address provided"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {prospect.intent_type === "purchase"
+                              ? "Purchase now"
+                              : "Contact first"}
+                          </TableCell>
+                          <TableCell>
+                            {prospect.selected_terms.package_name}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={
+                                prospect.relationship_stage === "patient"
+                                  ? "Patient"
+                                  : "Prospective patient"
+                              }
+                              color={statusColor(prospect.status)}
+                              variant={
+                                prospect.relationship_stage === "patient"
+                                  ? "filled"
+                                  : "outlined"
+                              }
+                            />
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mt: 0.5 }}
+                            >
+                              {enrollmentLabel(prospect)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>{dateTime(prospect.created_at)}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                setSelected(prospect);
+                                setActionError("");
+                                setActionNotice("");
+                                setRecurringAuthorization(false);
+                              }}
+                            >
+                              Review
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Paper>
+            {resource.data.capabilities.review && <ServiceInquiries />}
+
+            <Paper
+              component="section"
+              variant="outlined"
               sx={{ p: { xs: 2, md: 3 } }}
             >
               <Stack spacing={2.5}>
@@ -577,129 +700,6 @@ export function MembershipGrowth() {
                 </Box>
               </Stack>
             </Paper>
-
-            <Paper
-              component="section"
-              variant="outlined"
-              sx={{ overflow: "hidden" }}
-            >
-              <Box sx={{ p: { xs: 2, md: 3 }, pb: 1 }}>
-                <Typography component="h2" variant="h5">
-                  Membership pipeline
-                </Typography>
-                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                  Account created → account activated → payment. Unpaid signups
-                  stay here for follow-up. Verified payment moves them to the
-                  patient flow with their existing account, receipt record, and
-                  front-desk onboarding task. No second account invitation is
-                  needed.
-                </Typography>
-              </Box>
-              <Tabs
-                value={filter}
-                onChange={(_, value: PipelineFilter) => setFilter(value)}
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="Membership pipeline stages"
-              >
-                <Tab
-                  value="all"
-                  label={`All (${resource.data.prospects.length})`}
-                />
-                {relationshipFilters.map((stage) => (
-                  <Tab
-                    key={stage}
-                    value={stage}
-                    label={`${relationshipLabels[stage]} (${counts[stage]})`}
-                  />
-                ))}
-              </Tabs>
-              {prospects.length === 0 ? (
-                <Typography color="text.secondary" sx={{ p: 3 }}>
-                  No records are in this stage.
-                </Typography>
-              ) : (
-                <TableContainer>
-                  <Table
-                    sx={{ minWidth: 860 }}
-                    aria-label="Membership pipeline"
-                  >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Person</TableCell>
-                        <TableCell>Path</TableCell>
-                        <TableCell>Membership</TableCell>
-                        <TableCell>Enrollment stage</TableCell>
-                        <TableCell>Submitted</TableCell>
-                        <TableCell align="right">Action</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {prospects.map((prospect) => (
-                        <TableRow key={prospect.id} hover>
-                          <TableCell>
-                            <Typography sx={{ fontWeight: 650 }}>
-                              {prospect.display_name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {prospect.email_address ||
-                                "No email address provided"}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            {prospect.intent_type === "purchase"
-                              ? "Purchase now"
-                              : "Contact first"}
-                          </TableCell>
-                          <TableCell>
-                            {prospect.selected_terms.package_name}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={
-                                prospect.relationship_stage === "patient"
-                                  ? "Patient"
-                                  : "Prospective patient"
-                              }
-                              color={statusColor(prospect.status)}
-                              variant={
-                                prospect.relationship_stage === "patient"
-                                  ? "filled"
-                                  : "outlined"
-                              }
-                            />
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mt: 0.5 }}
-                            >
-                              {enrollmentLabel(prospect)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{dateTime(prospect.created_at)}</TableCell>
-                          <TableCell align="right">
-                            <Button
-                              variant="outlined"
-                              onClick={() => {
-                                setSelected(prospect);
-                                setActionError("");
-                                setActionNotice("");
-                                setRecurringAuthorization(false);
-                              }}
-                            >
-                              Review
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Paper>
-            {resource.data.capabilities.review && <ServiceInquiries />}
           </>
         )}
       </Stack>

@@ -545,6 +545,104 @@ function MedicationAdministrationPanel({
             {patient.display_name} · Visit #{encounter.id}
           </Typography>
         </Box>
+        {data.administrations.length > 0 && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2">
+                Recorded medication outcomes
+              </Typography>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                {data.administrations.map((administration) => (
+                  <Paper
+                    key={administration.id}
+                    variant="outlined"
+                    sx={{ p: 1.5 }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: "center", flexWrap: "wrap" }}
+                    >
+                      <Typography sx={{ fontWeight: 700 }} variant="body2">
+                        {administration.product.name}
+                      </Typography>
+                      <Chip
+                        color={
+                          administration.status === "completed"
+                            ? "success"
+                            : "warning"
+                        }
+                        label={
+                          administration.status === "completed"
+                            ? "Given"
+                            : "Not given"
+                        }
+                        size="small"
+                      />
+                    </Stack>
+                    <Typography color="text.secondary" variant="body2">
+                      {administration.status === "completed"
+                        ? [
+                            administration.dose_text,
+                            administration.route_text,
+                            administration.administration_site_text,
+                            administration.quantity &&
+                              `${administration.quantity} ${administration.stock_unit} from stock`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : administration.status_reason}
+                    </Typography>
+                    <Typography color="text.secondary" variant="caption">
+                      {recordedDateTime(
+                        administration.administered_at,
+                        timezone,
+                      )}{" "}
+                      · order revision{" "}
+                      {administration.medication_request_revision_id ??
+                        "legacy record"}{" "}
+                      · pre-check {humanize(administration.precheck_status)} ·
+                      verification{" "}
+                      {humanize(administration.verification_status)}
+                    </Typography>
+                    {administration.movements.length > 0 && (
+                      <Typography
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                        variant="caption"
+                      >
+                        {administration.movements
+                          .map(
+                            (movement) =>
+                              `Lot ${movement.lot_number} at ${movement.location_name}: ${movement.quantity} ${movement.stock_unit}`,
+                          )
+                          .join("; ")}
+                      </Typography>
+                    )}
+                    {(administration.response_text ||
+                      administration.education_text) && (
+                      <Typography
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                        variant="caption"
+                      >
+                        {[
+                          administration.response_text &&
+                            `Response: ${administration.response_text}`,
+                          administration.education_text &&
+                            `Education: ${administration.education_text}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </Typography>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+          </>
+        )}
         {!encounter.site_id ? (
           <Alert severity="warning">
             This visit has no assigned site. Review the visit location before
@@ -938,104 +1036,6 @@ function MedicationAdministrationPanel({
             >
               Review medication outcome
             </Button>
-          </>
-        )}
-        {data.administrations.length > 0 && (
-          <>
-            <Divider />
-            <Box>
-              <Typography variant="subtitle2">
-                Recorded medication outcomes
-              </Typography>
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                {data.administrations.map((administration) => (
-                  <Paper
-                    key={administration.id}
-                    variant="outlined"
-                    sx={{ p: 1.5 }}
-                  >
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ alignItems: "center", flexWrap: "wrap" }}
-                    >
-                      <Typography sx={{ fontWeight: 700 }} variant="body2">
-                        {administration.product.name}
-                      </Typography>
-                      <Chip
-                        color={
-                          administration.status === "completed"
-                            ? "success"
-                            : "warning"
-                        }
-                        label={
-                          administration.status === "completed"
-                            ? "Given"
-                            : "Not given"
-                        }
-                        size="small"
-                      />
-                    </Stack>
-                    <Typography color="text.secondary" variant="body2">
-                      {administration.status === "completed"
-                        ? [
-                            administration.dose_text,
-                            administration.route_text,
-                            administration.administration_site_text,
-                            administration.quantity &&
-                              `${administration.quantity} ${administration.stock_unit} from stock`,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")
-                        : administration.status_reason}
-                    </Typography>
-                    <Typography color="text.secondary" variant="caption">
-                      {recordedDateTime(
-                        administration.administered_at,
-                        timezone,
-                      )}{" "}
-                      · order revision{" "}
-                      {administration.medication_request_revision_id ??
-                        "legacy record"}{" "}
-                      · pre-check {humanize(administration.precheck_status)} ·
-                      verification{" "}
-                      {humanize(administration.verification_status)}
-                    </Typography>
-                    {administration.movements.length > 0 && (
-                      <Typography
-                        color="text.secondary"
-                        sx={{ display: "block" }}
-                        variant="caption"
-                      >
-                        {administration.movements
-                          .map(
-                            (movement) =>
-                              `Lot ${movement.lot_number} at ${movement.location_name}: ${movement.quantity} ${movement.stock_unit}`,
-                          )
-                          .join("; ")}
-                      </Typography>
-                    )}
-                    {(administration.response_text ||
-                      administration.education_text) && (
-                      <Typography
-                        color="text.secondary"
-                        sx={{ display: "block" }}
-                        variant="caption"
-                      >
-                        {[
-                          administration.response_text &&
-                            `Response: ${administration.response_text}`,
-                          administration.education_text &&
-                            `Education: ${administration.education_text}`,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </Typography>
-                    )}
-                  </Paper>
-                ))}
-              </Stack>
-            </Box>
           </>
         )}
       </Stack>

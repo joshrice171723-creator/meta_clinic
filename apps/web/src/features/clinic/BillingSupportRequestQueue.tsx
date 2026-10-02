@@ -90,12 +90,12 @@ export function BillingSupportRequestQueue({
     >
       <Stack spacing={2}>
         <Box>
-          <Typography component="h2" variant="h5">
+          <Typography component="h2" variant="h2">
             Patient billing support
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Requests are patient-initiated and require a staff response outside
-            this queue when follow-up is needed.
+            Review patient-initiated requests and record their review state.
+            Contact the patient outside this queue when follow-up is needed.
           </Typography>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
@@ -129,7 +129,7 @@ export function BillingSupportRequestQueue({
           >
             <Stack spacing={1.25}>
               <Box>
-                <Typography sx={{ fontWeight: 700 }}>
+                <Typography component="h3" variant="h2">
                   {request.patient.display_name}
                   {patientReferenceLabel(request.patient.reference) &&
                     ` · ${patientReferenceLabel(request.patient.reference)}`}
@@ -142,33 +142,30 @@ export function BillingSupportRequestQueue({
                   }).format(new Date(request.requested_at))}
                 </Typography>
               </Box>
+              <Typography component="h4" variant="body2">
+                Patient request
+              </Typography>
               <Typography sx={{ whiteSpace: "pre-wrap" }}>
                 {request.content}
               </Typography>
               {canManage && (
                 <>
-                  <TextField
-                    label="Internal review note (optional)"
-                    value={notes[request.id] ?? ""}
-                    onChange={(event) =>
-                      setNotes((current) => ({
-                        ...current,
-                        [request.id]: event.target.value,
-                      }))
-                    }
-                    disabled={busyId === request.id}
-                    slotProps={{ htmlInput: { maxLength: 1000 } }}
-                    fullWidth
-                  />
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                     <Button
+                      variant={
+                        request.status === "pending" ? "contained" : "outlined"
+                      }
                       disabled={busyId !== null}
                       onClick={() => void transition(request, "in_review")}
                     >
                       Mark reviewing
                     </Button>
                     <Button
-                      variant="contained"
+                      variant={
+                        request.status === "in_review"
+                          ? "contained"
+                          : "outlined"
+                      }
                       disabled={busyId !== null}
                       onClick={() => void transition(request, "resolved")}
                     >
@@ -182,6 +179,20 @@ export function BillingSupportRequestQueue({
                       Decline
                     </Button>
                   </Stack>
+                  <TextField
+                    label="Internal review note (optional)"
+                    helperText="Optional staff note for this request. Patient follow-up happens outside this queue."
+                    value={notes[request.id] ?? ""}
+                    onChange={(event) =>
+                      setNotes((current) => ({
+                        ...current,
+                        [request.id]: event.target.value,
+                      }))
+                    }
+                    disabled={busyId === request.id}
+                    slotProps={{ htmlInput: { maxLength: 1000 } }}
+                    fullWidth
+                  />
                 </>
               )}
             </Stack>

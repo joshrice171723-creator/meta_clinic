@@ -191,10 +191,19 @@ export function BillingServiceCatalog() {
           <Typography variant="overline" color="text.secondary">
             BILLING / SERVICES
           </Typography>
-          <Typography variant="h1">Clinic services</Typography>
+          <Typography variant="h1">One-off service catalog</Typography>
           <Typography color="text.secondary">
-            Maintain the standard charges staff can select during checkout.
+            Maintain standard charges for individual invoice lines. Membership
+            programs, services, tiers and published versions have a separate
+            catalog.
           </Typography>
+          <Button
+            href="/clinic/subscriptions"
+            variant="outlined"
+            sx={{ mt: 1.5 }}
+          >
+            Open membership catalog
+          </Button>
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
@@ -267,6 +276,10 @@ export function BillingServiceCatalog() {
                     <Typography sx={{ fontWeight: 600 }}>
                       {service.name}
                     </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Service #{service.id} · Catalog version{" "}
+                      {service.lock_version}
+                    </Typography>
                     {service.description && (
                       <Typography variant="body2" color="text.secondary">
                         {service.description}
@@ -301,6 +314,11 @@ export function BillingServiceCatalog() {
             </TableBody>
           </Table>
         </TableContainer>
+        <Typography variant="body2" color="text.secondary">
+          Invoice lines selected from this catalog use the selected service
+          version. Catalog edits do not rewrite recorded invoice descriptions or
+          charges.
+        </Typography>
         {result && (
           <Pager
             page={result.pagination.page}
@@ -330,7 +348,7 @@ export function BillingServiceCatalog() {
             <Stack spacing={2} sx={{ pt: 0.5 }}>
               {dialog !== "new" && dialog && (
                 <Typography variant="body2" color="text.secondary">
-                  Current version {dialog.lock_version}
+                  Service #{dialog.id} · Catalog version {dialog.lock_version}
                 </Typography>
               )}
               <TextField

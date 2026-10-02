@@ -506,6 +506,15 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
           </DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Changes here save this service offering. Publish and retire are
+                separate actions in the list.
+              </Typography>
+              {dialog && dialog !== "new" && (
+                <Typography variant="body2" color="text.secondary">
+                  Saved status: {dialog.status}
+                </Typography>
+              )}
               {feedback && (
                 <Alert
                   severity={feedback.tone}
@@ -810,7 +819,11 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
               variant="contained"
               disabled={controlsDisabled || !form.name.trim()}
             >
-              {busy ? "Saving…" : "Save draft"}
+              {busy
+                ? "Saving…"
+                : dialog !== "new" && dialog?.status === "published"
+                  ? "Save offering changes"
+                  : "Save draft"}
             </Button>
           </DialogActions>
         </Box>

@@ -43,13 +43,19 @@ describe("PatientLabReports patient scope", () => {
   it("captures and preserves source-supplied terminology, UCUM, and interpretation fields", () => {
     expect(patientLabReportsSource).toContain('label="Test code system"');
     expect(patientLabReportsSource).toContain('label="Test code version"');
-    expect(patientLabReportsSource).toContain('label="UCUM unit code"');
+    expect(patientLabReportsSource).toContain('label="Supplied unit code"');
+    expect(patientLabReportsSource).toContain(
+      "a UCUM code is validated only against a configured expected dimension.",
+    );
     expect(patientLabReportsSource).toContain('label="Source interpretation"');
     expect(patientLabReportsSource).toContain(
       "code_system: row.code_system?.trim() || null",
     );
     expect(patientLabReportsSource).toContain(
-      "unit_code: row.unit_code?.trim() || null",
+      "supplied_unit_code: (row.supplied_unit_code ?? row.unit_code)?.trim() || null",
+    );
+    expect(patientLabReportsSource).toContain(
+      "result(index, { supplied_unit_code: event.target.value || null, unit_code: null })",
     );
     expect(patientLabReportsSource).toContain(
       "interpretation: row.interpretation?.trim() || null",

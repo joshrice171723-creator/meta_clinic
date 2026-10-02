@@ -162,7 +162,10 @@
 .clinic-theme .tracking-table-container {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  max-height: max(12rem, calc(100dvh - 29rem));
+  overflow: auto;
+  scroll-behavior: auto;
+  scroll-padding-block: 64px 12px;
   border-color: var(--clinic-border);
   background: var(--clinic-surface);
   border-radius: 8px;
@@ -197,6 +200,22 @@
   min-height: 52px;
   padding-top: 4px;
   padding-bottom: 4px;
+}
+.clinic-theme .tracking-table-container .tracking-patient-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--clinic-surface);
+}
+.clinic-theme
+  .tracking-table-container
+  .MuiTableCell-head.tracking-patient-cell {
+  z-index: 3;
+  background: var(--clinic-soft);
+}
+.clinic-theme .tracking-table-container :focus {
+  scroll-margin-block: 12px;
+  scroll-margin-inline: 12px;
 }
 .clinic-theme .tracking-table-container .MuiTableSortLabel-root {
   min-height: 44px;
@@ -531,6 +550,11 @@
   overflow-wrap: anywhere;
   white-space: normal;
 }
+.clinic-theme .tracking-patient-visit-context {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
 .clinic-theme .tracking-membership-mark.MuiChip-root {
   width: 25px;
   height: 25px;
@@ -650,6 +674,7 @@
 }
 @media (max-width: 760px) {
   .clinic-theme .tracking-table-container {
+    max-height: none;
     overflow: visible;
     border: 0;
     background: transparent;
@@ -687,6 +712,10 @@
     min-height: 0;
     white-space: normal;
     overflow: visible;
+  }
+  .clinic-theme .tracking-table .tracking-patient-cell {
+    position: static;
+    z-index: auto;
   }
   .clinic-theme .tracking-table .MuiTableCell-root::before {
     content: attr(data-label);

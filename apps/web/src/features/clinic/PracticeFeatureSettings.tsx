@@ -264,7 +264,13 @@ function isScopeRemovalImpact(value: unknown): value is ServiceDisableImpact {
   const row = value as Record<string, unknown>;
   return (
     typeof row.status === "string" &&
-    ["available", "partial", "restricted", "not_mapped", "unavailable"].includes(row.status) &&
+    [
+      "available",
+      "partial",
+      "restricted",
+      "not_mapped",
+      "unavailable",
+    ].includes(row.status) &&
     typeof row.change_kind === "string" &&
     ["gated", "intent_only", "unmapped"].includes(row.change_kind) &&
     typeof row.effect === "string" &&
@@ -276,16 +282,26 @@ function isScopeRemovalImpact(value: unknown): value is ServiceDisableImpact {
     row.metrics.every((value: unknown) => {
       if (value === null || typeof value !== "object") return false;
       const metric = value as Record<string, unknown>;
-      const validCount = typeof metric.count === "number" &&
-        Number.isFinite(metric.count) && metric.count >= 0;
+      const validCount =
+        typeof metric.count === "number" &&
+        Number.isFinite(metric.count) &&
+        metric.count >= 0;
       return (
         typeof metric.key === "string" &&
         typeof metric.label === "string" &&
         typeof metric.note === "string" &&
         typeof metric.required === "boolean" &&
         typeof metric.status === "string" &&
-        ["available", "restricted", "unknown", "unavailable", "not_applicable"].includes(metric.status) &&
-        (metric.status === "available" ? validCount : metric.count === null || validCount)
+        [
+          "available",
+          "restricted",
+          "unknown",
+          "unavailable",
+          "not_applicable",
+        ].includes(metric.status) &&
+        (metric.status === "available"
+          ? validCount
+          : metric.count === null || validCount)
       );
     })
   );
@@ -391,8 +407,9 @@ function FeatureHistory({
     <Stack spacing={1}>
       <Typography variant="h3">Saved profile choices</Typography>
       <Typography variant="body2" color="text.secondary">
-        Load an earlier version into this form, review it, then use Save clinic
-        profile. Current permissions and protected-profile rules still apply.
+        Load an earlier version into this form, review it, then use Save{" "}
+        {siteId ? "location" : "clinic"} profile. Current permissions and
+        protected-profile rules still apply.
       </Typography>
       {!history.data && (
         <LoadState error={history.error} onRetry={history.refresh} />
@@ -527,7 +544,9 @@ export function PracticeFeatureSettings({
 
   const disabling =
     (features.finalized === true &&
-      features.service_scope.some((service) => !serviceScope.includes(service))) ||
+      features.service_scope.some(
+        (service) => !serviceScope.includes(service),
+      )) ||
     (features.assessment_configured === true &&
       features.assessment_scope.some(
         (assessment) => !assessmentScope.includes(assessment),
@@ -576,22 +595,35 @@ export function PracticeFeatureSettings({
         !Array.isArray(impact.limitations) ||
         !impact.limitations.every((limit) => typeof limit === "string") ||
         typeof impact.preservation !== "string" ||
-        !impact.services.every((row) => isScopeRemovalImpact(row) && typeof row.service === "string") ||
-        !impact.assessments.every((row) => isScopeRemovalImpact(row) && typeof row.assessment === "string") ||
-        (impact.review_complete && [...impact.services, ...impact.assessments].some(
-          (row) => row.metrics.length === 0 || row.metrics.some(
-            (metric) => metric.required &&
-              !["available", "not_applicable"].includes(metric.status),
-          ),
-        )) ||
-        (features.finalized && features.service_scope.some(
-          (service) => !serviceScope.includes(service) &&
-            !impact.services.some((row) => row.service === service),
-        )) ||
-        (features.assessment_configured && features.assessment_scope.some(
-          (assessment) => !assessmentScope.includes(assessment) &&
-            !impact.assessments.some((row) => row.assessment === assessment),
-        ))
+        !impact.services.every(
+          (row) => isScopeRemovalImpact(row) && typeof row.service === "string",
+        ) ||
+        !impact.assessments.every(
+          (row) =>
+            isScopeRemovalImpact(row) && typeof row.assessment === "string",
+        ) ||
+        (impact.review_complete &&
+          [...impact.services, ...impact.assessments].some(
+            (row) =>
+              row.metrics.length === 0 ||
+              row.metrics.some(
+                (metric) =>
+                  metric.required &&
+                  !["available", "not_applicable"].includes(metric.status),
+              ),
+          )) ||
+        (features.finalized &&
+          features.service_scope.some(
+            (service) =>
+              !serviceScope.includes(service) &&
+              !impact.services.some((row) => row.service === service),
+          )) ||
+        (features.assessment_configured &&
+          features.assessment_scope.some(
+            (assessment) =>
+              !assessmentScope.includes(assessment) &&
+              !impact.assessments.some((row) => row.assessment === assessment),
+          ))
       )
         throw new Error(
           "The impact response is incomplete. Restore the removed selections or refresh the review; this scope removal cannot be saved.",
@@ -667,8 +699,7 @@ export function PracticeFeatureSettings({
   };
   const save = async (finalize = false, retry = false) => {
     if (uncertain && !retry) return;
-    if (!retry && disabling && currentPreview?.review_complete !== true)
-      return;
+    if (!retry && disabling && currentPreview?.review_complete !== true) return;
     setSaving(true);
     setFeedback(null);
     const writeSignature = JSON.stringify([
@@ -757,6 +788,81 @@ export function PracticeFeatureSettings({
       <Stack spacing={3}>
         <Stack spacing={1}>
           <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { sm: "center" },
+            }}
+          >
+            <div>
+              <Typography variant="h2">
+                {siteId ? "Location specialty" : "Clinic type"} and service
+                scope
+              </Typography>
+            </div>
+            <Chip
+              size="small"
+              color={features.configured ? "success" : "warning"}
+              label={
+                features.configured
+                  ? `${siteId ? "Location" : "Clinic"} profile revision ${features.revision}`
+                  : "Setup not saved"
+              }
+            />
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            This panel saves the {siteId ? "location" : "clinic"} profile.
+            Service offerings are configured separately.
+          </Typography>
+          <Typography color="text.secondary">
+            An Implementation Specialist (FDE) starts with the Meta Clinic base
+            and tailors this profile with the clinic team before handoff.
+          </Typography>
+          {siteId && !features.site_specialty_configured && (
+            <Alert severity="warning">
+              This location currently inherits its clinic profile. Choose and
+              save a location specialty before assigning patients here.
+            </Alert>
+          )}
+          <Alert severity="info">
+            This records intended service scope. It does not grant clinical
+            authority, verify credentials, or prove that a selected workflow is
+            ready for patient care.
+          </Alert>
+          {!canWrite && (
+            <Alert severity="warning">
+              This profile is read-only for your role. A clinic administrator or
+              Implementation Specialist can revise it.
+            </Alert>
+          )}
+          {feedback && <Alert severity={feedback.tone}>{feedback.text}</Alert>}
+          {features.finalized && (
+            <Alert severity="info">
+              Setup finalized {features.finalized_at}. {features.change_handoff}
+            </Alert>
+          )}
+          {clinicType === "weight_loss" && (
+            <Alert severity="info">
+              {features.starter_profile?.id
+                ? "Applied weight-management starter, revision " +
+                  features.starter_profile.version
+                : "Preview: applying Weight loss creates an initial visit and a follow-up visit with distinct intake forms and goal/weight context."}{" "}
+              Membership offers remain drafts until you supply and publish their
+              terms. No medication, laboratory panel, price or follow-up
+              interval is selected for you.
+            </Alert>
+          )}
+          {features.starter_profile?.visits &&
+            Object.values(features.starter_profile.visits).map((visit) => (
+              <Typography key={visit.visit_type_id} variant="body2">
+                {visit.name} · {visit.form_id} · visit type{" "}
+                {visit.visit_type_id}
+              </Typography>
+            ))}
+        </Stack>
+        <Stack spacing={1}>
+          <Stack
             direction="row"
             spacing={1}
             sx={{ justifyContent: "space-between", alignItems: "baseline" }}
@@ -806,79 +912,6 @@ export function PracticeFeatureSettings({
               </li>
             ))}
           </Stack>
-        </Stack>
-        <Stack spacing={1}>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            sx={{
-              justifyContent: "space-between",
-              alignItems: { sm: "center" },
-            }}
-          >
-            <div>
-              <Typography variant="overline" color="text.secondary">
-                IMPLEMENTATION PROFILE
-              </Typography>
-              <Typography variant="h2">
-                Clinic type and service scope
-              </Typography>
-            </div>
-            <Chip
-              size="small"
-              color={features.configured ? "success" : "warning"}
-              label={
-                features.configured
-                  ? `${siteId ? "Location" : "Clinic"} profile revision ${features.revision}`
-                  : "Setup not saved"
-              }
-            />
-          </Stack>
-          <Typography color="text.secondary">
-            An Implementation Specialist (FDE) starts with the Meta Clinic base
-            and tailors this profile with the clinic team before handoff.
-          </Typography>
-          {siteId && !features.site_specialty_configured && (
-            <Alert severity="warning">
-              This location currently inherits its clinic profile. Choose and
-              save a location specialty before assigning patients here.
-            </Alert>
-          )}
-          <Alert severity="info">
-            This records intended service scope. It does not grant clinical
-            authority, verify credentials, or prove that a selected workflow is
-            ready for patient care.
-          </Alert>
-          {!canWrite && (
-            <Alert severity="warning">
-              This profile is read-only for your role. A clinic administrator or
-              Implementation Specialist can revise it.
-            </Alert>
-          )}
-          {feedback && <Alert severity={feedback.tone}>{feedback.text}</Alert>}
-          {features.finalized && (
-            <Alert severity="info">
-              Setup finalized {features.finalized_at}. {features.change_handoff}
-            </Alert>
-          )}
-          {clinicType === "weight_loss" && (
-            <Alert severity="info">
-              {features.starter_profile?.id
-                ? "Applied weight-management starter, revision " +
-                  features.starter_profile.version
-                : "Preview: applying Weight loss creates an initial visit and a follow-up visit with distinct intake forms and goal/weight context."}{" "}
-              Membership offers remain drafts until you supply and publish their
-              terms. No medication, laboratory panel, price or follow-up
-              interval is selected for you.
-            </Alert>
-          )}
-          {features.starter_profile?.visits &&
-            Object.values(features.starter_profile.visits).map((visit) => (
-              <Typography key={visit.visit_type_id} variant="body2">
-                {visit.name} · {visit.form_id} · visit type{" "}
-                {visit.visit_type_id}
-              </Typography>
-            ))}
         </Stack>
 
         <FormControl
@@ -1111,7 +1144,8 @@ export function PracticeFeatureSettings({
         {disabling && (
           <Stack spacing={1}>
             <Alert severity="warning">
-              Review the consequences before removing service or assessment scope.
+              Review the consequences before removing service or assessment
+              scope.
               {siteId === null &&
                 " Locations with their own saved profiles keep those settings."}
             </Alert>
@@ -1155,7 +1189,11 @@ export function PracticeFeatureSettings({
                     {new Date(currentPreview.generated_at).toLocaleString()}
                   </Typography>
                   <Alert
-                    severity={currentPreview.review_complete === true ? "info" : "warning"}
+                    severity={
+                      currentPreview.review_complete === true
+                        ? "info"
+                        : "warning"
+                    }
                   >
                     {currentPreview.review_complete === true
                       ? "Required source-backed references were evaluated for this profile change. This does not establish clinical or operational acceptance."
@@ -1165,7 +1203,9 @@ export function PracticeFeatureSettings({
                     <ScopeRemovalImpact
                       key={`service:${impact.service}`}
                       label={
-                        services.find((service) => service.code === impact.service)?.label ?? impact.service
+                        services.find(
+                          (service) => service.code === impact.service,
+                        )?.label ?? impact.service
                       }
                       impact={impact}
                     />
@@ -1174,7 +1214,9 @@ export function PracticeFeatureSettings({
                     <ScopeRemovalImpact
                       key={`assessment:${impact.assessment}`}
                       label={
-                        assessments.find((assessment) => assessment.code === impact.assessment)?.label ?? impact.assessment
+                        assessments.find(
+                          (assessment) => assessment.code === impact.assessment,
+                        )?.label ?? impact.assessment
                       }
                       impact={impact}
                     />
@@ -1242,7 +1284,9 @@ export function PracticeFeatureSettings({
             }
             onClick={() => void save()}
           >
-            {saving ? "Saving profile…" : "Save clinic profile"}
+            {saving
+              ? "Saving profile…"
+              : `Save ${siteId ? "location" : "clinic"} profile`}
           </Button>
         </Stack>
         {canWrite && !editingLocked && features.revision > 1 && (

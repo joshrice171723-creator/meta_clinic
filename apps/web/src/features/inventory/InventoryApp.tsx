@@ -2103,7 +2103,7 @@ function InventoryLocationsScreen({
       <a className="inventory-back-link" href={returnTo}>
         ← Back
       </a>
-      <Card title="Inventory storage locations">
+      <Card title="Review storage locations">
         <p className="inventory-lead">
           Organize stock destinations under a facility and parent location.
           Legacy area labels remain receipt history; use child locations for new
@@ -2192,7 +2192,7 @@ function InventoryLocationsScreen({
                         }
                         onClick={() => editLocation(record)}
                       >
-                        Edit
+                        Edit location
                       </Button>
                       <Button
                         type="button"
@@ -7092,7 +7092,7 @@ function LotsScreen({
           />
         ))}
       </div>
-      <Card title="Lot balances">
+      <Card title="Stock by lot and location">
         {data.balances.length === 0 && (
           <p role="status">
             No stock positions match this view. Change the filters or receive
@@ -7105,10 +7105,10 @@ function LotsScreen({
               <tr>
                 <th>Product / lot</th>
                 <th>Location</th>
-                <th>On hand</th>
-                <th>Available</th>
+                <th>On hand (stock units)</th>
+                <th>Available (stock units)</th>
                 <th>Status</th>
-                <th>Trace</th>
+                <th>Lot history</th>
               </tr>
             </thead>
             <tbody>
@@ -7166,7 +7166,7 @@ function LotsScreen({
                       <a
                         href={`/clinic/inventory/activity?lot_id=${balance.lot_id}`}
                       >
-                        View ledger
+                        View lot ledger
                       </a>
                     </td>
                   </tr>
@@ -7268,10 +7268,10 @@ function LotsScreen({
                 required
                 label={
                   action === "count"
-                    ? "Counted units"
+                    ? `Counted units (${selectedProduct.base_unit})`
                     : action === "adjust"
                       ? `Signed adjustment (${selectedProduct.base_unit})`
-                      : `Quantity (${selectedProduct.base_unit})`
+                      : `Transfer quantity (${selectedProduct.base_unit})`
                 }
                 helperText={
                   action === "adjust"
@@ -7515,7 +7515,7 @@ function InventoryExceptionsScreen({
 
   return (
     <div className="inventory-stack" aria-busy={loading}>
-      <Card title="Inventory exception queue">
+      <Card title="Review inventory exceptions">
         <p className="inventory-lead">
           Review each active hazard in its source context. Queue totals are
           record counts; quantities are not combined across products or units.
@@ -7662,7 +7662,9 @@ function InventoryExceptionsScreen({
                         disabled={readBlocked || busy || loading}
                         onClick={() => selectException(entry)}
                       >
-                        {entry.state === "reviewed" ? "Update" : "Review"}
+                        {entry.state === "reviewed"
+                          ? "Update review"
+                          : "Review exception"}
                       </Button>
                     </td>
                   </tr>
@@ -7893,7 +7895,7 @@ export function ActivityScreen({
   };
   return (
     <div className="inventory-stack" aria-busy={loading}>
-      <Card title="Activity ledger">
+      <Card title="Review stock movements">
         {page.lot_number && (
           <p>
             Lot {page.lot_number}.{" "}
@@ -7911,7 +7913,7 @@ export function ActivityScreen({
               slotProps={{ htmlInput: { maxLength: 100 } }}
             />
             <Button
-              sx={{ minHeight: 40, textTransform: "none" }}
+              sx={{ minHeight: 44, textTransform: "none" }}
               type="submit"
               variant="outlined"
               disabled={loading}
@@ -7923,7 +7925,7 @@ export function ActivityScreen({
             <p className="inventory-results-count" role="status">
               {loading
                 ? "Loading movements…"
-                : `${rows.length} shown · ${page.filtered_count} matching of ${page.total_count} recorded movements.`}
+                : `${rows.length} shown · ${page.filtered_count} matching · ${page.total_count} total recorded movements.`}
               {normalizedFilter && ` Search: ${normalizedFilter}.`}
             </p>
             {normalizedFilter && (
@@ -7938,7 +7940,7 @@ export function ActivityScreen({
                   void onRead({ q: "" });
                 }}
                 sx={{
-                  minHeight: 40,
+                  minHeight: 44,
                   borderColor: "var(--inventory-control)",
                   color: "var(--inventory-blue)",
                   textTransform: "none",
@@ -7965,7 +7967,7 @@ export function ActivityScreen({
                   <th>Occurred</th>
                   <th>Type</th>
                   <th>Lot / location</th>
-                  <th>Quantity</th>
+                  <th>Quantity (stock units)</th>
                   <th>Reason / source</th>
                   <th>Recorded by</th>
                   <th>Action</th>
@@ -8119,7 +8121,7 @@ export function ActivityScreen({
         )}
         <div className="inventory-form-actions">
           <Button
-            sx={{ minHeight: 40, textTransform: "none" }}
+            sx={{ minHeight: 44, textTransform: "none" }}
             variant="outlined"
             disabled={loading || !page.before_cursor}
             onClick={() => void onRead({ q: page.query })}
@@ -8127,7 +8129,7 @@ export function ActivityScreen({
             Newest movements
           </Button>
           <Button
-            sx={{ minHeight: 40, textTransform: "none" }}
+            sx={{ minHeight: 44, textTransform: "none" }}
             variant="outlined"
             disabled={loading || !page.next_cursor}
             onClick={() =>
@@ -8338,7 +8340,7 @@ function RecallScreen({
   };
   return (
     <div className="inventory-stack" aria-busy={loading}>
-      <Card title="Recall case queue">
+      <Card title="Review recall cases">
         <form
           className="inventory-toolbar"
           onSubmit={(event) => {
@@ -8532,7 +8534,7 @@ function RecallScreen({
                 value={String(selectedRecall.lot_count)}
               />
               <DataPoint
-                label="Required action"
+                label="Required disposition"
                 value={selectedRecall.required_disposition.replaceAll("_", " ")}
               />
             </div>
@@ -8662,8 +8664,10 @@ function RecallScreen({
             </Card>
             <Card title="Record stock disposition">
               <p>
-                Use an exact held position. Case totals above come from the full
-                case; this page is not used to calculate completion.
+                Only positions held for this case with stock on hand are
+                eligible. The quantity cannot exceed the selected position’s
+                stock on hand. Case totals above come from the full case; this
+                page is not used to calculate completion.
               </p>
               <form
                 onSubmit={(event) => event.preventDefault()}
@@ -8671,7 +8675,7 @@ function RecallScreen({
               >
                 <TextField
                   size="small"
-                  label="Batch"
+                  label="Selected stock position"
                   value={
                     selectedPosition
                       ? `${selectedPosition.lot_number} · ${selectedPosition.location_path}`
@@ -8682,7 +8686,7 @@ function RecallScreen({
                 <TextField
                   size="small"
                   type="number"
-                  label={`Quantity (${selectedRecall.stock_unit})`}
+                  label={`Disposition quantity (${selectedRecall.stock_unit})`}
                   value={quantity}
                   disabled={formLocked || !selectedPosition}
                   slotProps={{
@@ -9003,8 +9007,9 @@ function RecallScreen({
           />
           <TextField
             size="small"
-            label="Required disposition"
+            label="Required disposition (fixed)"
             value="Return to supplier"
+            helperText="Cases created here require return to supplier; this disposition cannot be changed."
             disabled
           />
         </form>

@@ -309,7 +309,9 @@ describe("inventory integration", () => {
         />,
       );
     const html = render();
-    expect(html).toContain("1 shown · 65 matching of 240 recorded movements.");
+    expect(html).toContain(
+      "1 shown · 65 matching · 240 total recorded movements.",
+    );
     expect(html).toContain("0.125 mL");
     expect(html).toContain("OLD-LOT");
     expect(html).toContain("Newest movements");

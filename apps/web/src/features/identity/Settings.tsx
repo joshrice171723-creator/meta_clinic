@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Switch from "@mui/material/Switch";
 import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
 import { useClinic } from "../clinic/Workspace";
 import { ReminderSettings } from "../clinic/ReminderSettings";
 import type { User, UserSettings } from "../../api/contracts";
@@ -94,14 +95,13 @@ export function AppearanceSettings({
 
   return (
     <div className="clinic-settings">
-      <p className="eyebrow">YOUR ACCOUNT</p>
-      <h1>Settings</h1>
+      <h1>My preferences</h1>
       <p className="clinic-lead">
-        Personal preferences for your clinic workspace.
+        Appearance preferences for your signed-in account.
       </p>
       <Card title="Signed-in account">
         <p className="settings-account">{user.email_address}</p>
-        <p>These settings belong to you, not everyone at your clinic.</p>
+        <p>Appearance changes apply to your signed-in account.</p>
       </Card>
       <Card title="Appearance">
         <p>
@@ -289,7 +289,7 @@ export function Settings({ user }: { user: User }) {
   if (!appearance.settings)
     return (
       <div className="clinic-settings">
-        <h1>Settings</h1>
+        <h1>My preferences</h1>
         <LoadState error={appearance.error} />
         {appearance.error && (
           <a className="text-link" href="/clinic/settings">
@@ -300,22 +300,34 @@ export function Settings({ user }: { user: User }) {
     );
   return (
     <>
-      {clinic.capabilities.telehealth_configure && (
-        <Button
-          href="/clinic/settings/telehealth"
-          variant="outlined"
-          sx={{ mb: 2 }}
-        >
-          Telehealth settings
-        </Button>
-      )}
       <AppearanceSettings
         user={user}
         settings={appearance.settings}
         accept={appearance.accept}
         systemDark={appearance.systemDark}
       />
-      {clinic.capabilities.roles && <ReminderSettings />}
+      {(clinic.capabilities.telehealth_configure ||
+        clinic.capabilities.roles) && (
+        <Box
+          component="section"
+          className="clinic-settings"
+          aria-labelledby="clinic-settings-heading"
+          sx={{ mt: 4 }}
+        >
+          <h2 id="clinic-settings-heading">Clinic settings</h2>
+          <p className="clinic-lead">Settings for {clinic.practice.name}.</p>
+          {clinic.capabilities.telehealth_configure && (
+            <Button
+              href="/clinic/settings/telehealth"
+              variant="outlined"
+              sx={{ mb: 2 }}
+            >
+              Telehealth settings
+            </Button>
+          )}
+          {clinic.capabilities.roles && <ReminderSettings />}
+        </Box>
+      )}
     </>
   );
 }

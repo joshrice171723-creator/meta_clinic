@@ -136,7 +136,12 @@ export function AfterVisitInstructions({
           <Stack divider={<Divider flexItem />}>
             {response.items.map((item) => (
               <Box key={item.encounter_id} sx={{ py: 1.5 }}>
-                <Typography sx={{ fontWeight: 700 }}>
+                <Typography
+                  id={`visit-instructions-${item.encounter_id}-heading`}
+                  component="h3"
+                  variant="body1"
+                  sx={{ fontWeight: 700 }}
+                >
                   Visit {dateLabel(item.visit_at, timezone)}
                 </Typography>
                 <Typography
@@ -158,6 +163,7 @@ export function AfterVisitInstructions({
                 </Typography>
                 <Button
                   size="small"
+                  aria-describedby={`visit-instructions-${item.encounter_id}-heading`}
                   sx={{ mt: 1 }}
                   onClick={() =>
                     setHandout({ patientId, encounterId: item.encounter_id })

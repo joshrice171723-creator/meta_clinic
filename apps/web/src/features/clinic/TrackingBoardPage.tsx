@@ -670,6 +670,7 @@ function TrackingBoardRow({
         column === "patient" ? (
           <TableCell
             key={column}
+            className="tracking-patient-cell"
             component="th"
             scope="row"
             data-label={columnLabels[column]}
@@ -1657,6 +1658,17 @@ export function TrackingBoardView({
         component={Paper}
         variant="outlined"
         className="tracking-table-container"
+        role="region"
+        aria-label="Scrollable tracking board"
+        onFocusCapture={(event) => {
+          const target = event.target;
+          if (
+            target instanceof HTMLElement &&
+            event.currentTarget.contains(target)
+          ) {
+            target.scrollIntoView({ block: "nearest", inline: "end" });
+          }
+        }}
       >
         <Table
           stickyHeader
@@ -1678,6 +1690,9 @@ export function TrackingBoardView({
               {columns.map((column) => (
                 <TableCell
                   key={column}
+                  className={
+                    column === "patient" ? "tracking-patient-cell" : undefined
+                  }
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => {
                     if (draggedColumn) moveColumn(draggedColumn, column);

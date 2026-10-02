@@ -43,9 +43,6 @@ export function PublicMembershipDirectory() {
         {resource.data && (
           <Stack spacing={3} sx={{ maxWidth: 960, mx: "auto" }}>
             <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
-              <Button href="/login" variant="text">
-                I already have an account
-              </Button>
               <Typography component="h1" variant="h2">
                 Find your clinic
               </Typography>
@@ -54,6 +51,9 @@ export function PublicMembershipDirectory() {
                 clinic to see its membership plans and decide whether to
                 purchase or ask the clinic to contact you first.
               </Typography>
+              <Button href="/login" variant="text">
+                I already have an account
+              </Button>
             </Stack>
 
             {resource.data.storefronts.length === 0 ? (
@@ -96,7 +96,11 @@ export function PublicMembershipDirectory() {
                       </Typography>
                     </CardContent>
                     <CardActions sx={{ px: 2, pb: 2 }}>
-                      <Button href={storefront.public_path} variant="contained">
+                      <Button
+                        href={storefront.public_path}
+                        variant="contained"
+                        aria-label={`View memberships at ${storefront.name}`}
+                      >
                         View memberships
                       </Button>
                     </CardActions>

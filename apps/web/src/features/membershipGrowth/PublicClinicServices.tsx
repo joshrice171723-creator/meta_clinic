@@ -100,6 +100,7 @@ export function PublicClinicServices({ slug }: { slug: string }) {
     <ThemeProvider theme={publicPageTheme(resource.data?.practice.accent)}>
       <Box
         component="main"
+        aria-labelledby="public-clinic-name public-clinic-services-heading"
         sx={{
           minHeight: "100vh",
           bgcolor: "background.default",
@@ -124,10 +125,14 @@ export function PublicClinicServices({ slug }: { slug: string }) {
                 }}
               />
             )}
-            <Typography component="h1" variant="h2">
+            <Typography id="public-clinic-name" component="h1" variant="h2">
               {resource.data.practice.name}
             </Typography>
-            <Typography component="h2" variant="h4">
+            <Typography
+              id="public-clinic-services-heading"
+              component="h2"
+              variant="h4"
+            >
               Services
             </Typography>
             {resource.data.practice.headline && (

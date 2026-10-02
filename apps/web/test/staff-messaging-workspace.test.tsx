@@ -20,13 +20,13 @@ describe("staff messaging workspace", () => {
   it("renders an accountable inbox and conversation composer", () => {
     const html = renderToStaticMarkup(<StaffMessagingWorkspace />);
 
-    expect(html).toContain("Keep the handoff visible.");
+    expect(html).toContain("Staff messages");
     expect(html).toContain("Front desk · clinical team");
     expect(html).toContain("Acknowledgement requested.");
     expect(html).toContain("Acknowledge");
     expect(html).toContain("Write a staff message");
     expect(html).toContain(
-      "The server will apply membership, scope, and idempotency checks.",
+      "This draft is for the selected conversation. Send it when it is ready.",
     );
     expect(html).toContain('aria-label="Staff conversations"');
   });

@@ -257,13 +257,15 @@ function MessageCard({
       component="article"
       variant="outlined"
       sx={{
-        p: { xs: 1.75, sm: 2.25 },
+        p: { xs: 1.5, sm: 2 },
         borderColor:
           message.acknowledgementRequired && !message.acknowledged
-            ? "#d89d57"
+            ? "warning.main"
             : "divider",
         bgcolor:
-          message.messageClass === "urgent" ? "#fffaf2" : "background.paper",
+          message.messageClass === "urgent"
+            ? "action.hover"
+            : "background.paper",
       }}
     >
       <Stack spacing={1.25}>
@@ -278,15 +280,21 @@ function MessageCard({
             sx={{ alignItems: "center", minWidth: 0 }}
           >
             <Avatar
-              sx={{ width: 34, height: 34, bgcolor: "#1b5e57", fontSize: 14 }}
+              sx={{
+                width: 34,
+                height: 34,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                fontSize: 14,
+              }}
             >
               {message.sender.slice(0, 1)}
             </Avatar>
             <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
+              <Typography sx={{ fontWeight: 650, overflowWrap: "anywhere" }}>
                 {message.sender}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="body2" color="text.secondary">
                 {message.createdAt}
               </Typography>
             </Box>
@@ -298,7 +306,7 @@ function MessageCard({
             variant={message.messageClass === "routine" ? "outlined" : "filled"}
           />
         </Stack>
-        <Typography sx={{ lineHeight: 1.65, overflowWrap: "anywhere" }}>
+        <Typography sx={{ lineHeight: 1.5, overflowWrap: "anywhere" }}>
           {message.body}
         </Typography>
         {message.reminderId && (
@@ -351,7 +359,8 @@ function MessageCard({
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1}
-            sx={{ alignItems: { sm: "center" } }}
+            useFlexGap
+            sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}
           >
             <Typography variant="body2" color="text.secondary">
               Request: {request.state.replaceAll("_", " ")}
@@ -582,11 +591,11 @@ export function StaffMessagingWorkspace({
       sx={{
         maxWidth: 1440,
         mx: "auto",
-        p: { xs: 2, sm: 3, lg: 4 },
+        p: { xs: 1.5, sm: 2 },
         minWidth: 0,
       }}
     >
-      <Stack spacing={2.5}>
+      <Stack spacing={1.5}>
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}
@@ -595,25 +604,18 @@ export function StaffMessagingWorkspace({
             justifyContent: "space-between",
           }}
         >
-          <Box>
-            <Typography
-              component="p"
-              variant="overline"
-              sx={{ color: "#1b5e57", letterSpacing: "0.16em" }}
-            >
-              STAFF OPERATIONS
-            </Typography>
+          <Box sx={{ minWidth: 0 }}>
             <Typography
               id="staff-messaging-heading"
               component="h1"
-              variant="h3"
-              sx={{ fontWeight: 750, letterSpacing: "-0.03em" }}
+              variant="h4"
             >
-              Keep the handoff visible.
+              Staff messages
             </Typography>
             <Typography
+              variant="body2"
               color="text.secondary"
-              sx={{ mt: 0.75, maxWidth: "62ch" }}
+              sx={{ mt: 0.5, maxWidth: "62ch" }}
             >
               A focused inbox for accountable team communication,
               acknowledgement, and next actions.
@@ -633,7 +635,7 @@ export function StaffMessagingWorkspace({
               xs: "1fr",
               md: "minmax(280px, 0.38fr) minmax(0, 1fr)",
             },
-            gap: 2,
+            gap: 1.5,
             alignItems: "start",
           }}
         >
@@ -643,17 +645,13 @@ export function StaffMessagingWorkspace({
             variant="outlined"
             sx={{ minWidth: 0, overflow: "hidden" }}
           >
-            <Box sx={{ p: 2.25, bgcolor: "#f7faf9" }}>
+            <Box sx={{ p: 1.5, bgcolor: "background.paper" }}>
               <Stack
                 direction="row"
                 spacing={1}
                 sx={{ alignItems: "center", justifyContent: "space-between" }}
               >
-                <Typography
-                  component="h2"
-                  variant="h6"
-                  sx={{ fontWeight: 750 }}
-                >
+                <Typography component="h2" variant="h6">
                   Inbox
                 </Typography>
                 <Tooltip
@@ -731,8 +729,8 @@ export function StaffMessagingWorkspace({
                   onClick={() => onSelectConversation?.(conversation.id)}
                   sx={{
                     display: "block",
-                    px: 2.25,
-                    py: 1.75,
+                    px: 1.5,
+                    py: 1.25,
                     borderBottom: "1px solid",
                     borderColor: "divider",
                   }}
@@ -748,7 +746,7 @@ export function StaffMessagingWorkspace({
                     >
                       <Typography
                         sx={{
-                          fontWeight: conversation.unread ? 750 : 650,
+                          fontWeight: conversation.unread ? 650 : 600,
                           overflowWrap: "anywhere",
                         }}
                       >
@@ -756,18 +754,24 @@ export function StaffMessagingWorkspace({
                       </Typography>
                       <ConversationBadge conversation={conversation} />
                     </Stack>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ overflowWrap: "anywhere" }}
+                    >
                       {conversation.participants.join(" · ")}
                     </Typography>
                     <Stack
                       direction="row"
                       spacing={0.75}
+                      useFlexGap
                       sx={{
+                        flexWrap: "wrap",
                         alignItems: "center",
                         justifyContent: "space-between",
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary">
                         {conversation.lastMessageAt}
                       </Typography>
                       {conversation.unresolved && (
@@ -813,7 +817,7 @@ export function StaffMessagingWorkspace({
             variant="outlined"
             sx={{ minWidth: 0, overflow: "hidden" }}
           >
-            <Box sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: "#fbfcfb" }}>
+            <Box sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "background.paper" }}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1.25}
@@ -827,7 +831,7 @@ export function StaffMessagingWorkspace({
                     id="conversation-heading"
                     component="h2"
                     variant="h5"
-                    sx={{ fontWeight: 750, overflowWrap: "anywhere" }}
+                    sx={{ overflowWrap: "anywhere" }}
                   >
                     {selectedConversation.title}
                   </Typography>
@@ -843,6 +847,7 @@ export function StaffMessagingWorkspace({
                 <Stack
                   direction="row"
                   spacing={0.75}
+                  useFlexGap
                   sx={{ flexWrap: "wrap", alignItems: "center" }}
                 >
                   {selectedConversation.urgent && (
@@ -860,7 +865,7 @@ export function StaffMessagingWorkspace({
               </Stack>
             </Box>
             <Divider />
-            <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
+            <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
               {(selectedConversation.messagePage || 1) > 1 && (
                 <Button
                   variant="outlined"
@@ -934,19 +939,21 @@ export function StaffMessagingWorkspace({
                     slotProps={{ htmlInput: { maxLength: 10000 } }}
                     helperText={
                       state.canSend
-                        ? "The server will apply membership, scope, and idempotency checks."
+                        ? "This draft is for the selected conversation. Send it when it is ready."
                         : "You do not have permission to send in this conversation."
                     }
                   />
                   <Stack
-                    direction="row"
+                    direction={{ xs: "column", sm: "row" }}
                     spacing={1}
+                    useFlexGap
                     sx={{
-                      alignItems: "center",
+                      flexWrap: "wrap",
+                      alignItems: { sm: "center" },
                       justifyContent: "space-between",
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary">
                       No attachment has been selected.
                     </Typography>
                     <Button

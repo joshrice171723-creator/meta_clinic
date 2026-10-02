@@ -139,7 +139,9 @@ export function PatientBillingSupport() {
               spacing={1}
               sx={{ alignItems: "center", justifyContent: "space-between" }}
             >
-              <Typography variant="subtitle2">Your recent requests</Typography>
+              <Typography variant="subtitle2" component="h3">
+                Your recent requests
+              </Typography>
               <Button size="small" onClick={requests.refresh}>
                 Refresh status
               </Button>
