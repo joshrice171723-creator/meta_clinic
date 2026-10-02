@@ -537,6 +537,11 @@
   min-width: 0;
   overflow: visible;
 }
+.clinic-theme .tracking-patient-compact-context,
+.clinic-theme .tracking-patient-info.MuiIconButton-root,
+.clinic-theme .tracking-intake-exception-details.MuiButton-root {
+  display: none;
+}
 .clinic-theme .tracking-patient strong {
   display: block;
   overflow: visible;
@@ -673,11 +678,135 @@
   max-width: 1080px;
 }
 @media (min-width: 761px) {
+  .clinic-theme .tracking-board-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
+  .clinic-theme .tracking-board-header h1 {
+    font-size: 1.5rem;
+  }
+  .clinic-theme .tracking-board-date {
+    font-size: 0.875rem;
+  }
+  .clinic-theme .tracking-stage-filters {
+    margin-bottom: 6px;
+  }
+  .clinic-theme .tracking-stage-filters button {
+    min-height: 36px;
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+  .clinic-theme .tracking-stage-filters strong {
+    font-size: 14px;
+  }
+  .clinic-theme .tracking-tools {
+    margin-bottom: 6px;
+  }
+  .clinic-theme .tracking-table-container {
+    max-height: max(12rem, calc(100dvh - 22rem));
+  }
+  .clinic-theme .tracking-table-container .MuiTableCell-body {
+    padding: 6px 8px;
+  }
+  .clinic-theme .tracking-table-container .MuiTableCell-head {
+    padding-inline: 8px;
+  }
   .clinic-theme .tracking-table-container .tracking-patient-cell {
-    min-width: 360px;
+    min-width: 280px;
+    padding: 6px 8px;
   }
   .clinic-theme .tracking-patient-details {
-    min-width: 304px;
+    min-width: 0;
+  }
+  .clinic-theme .tracking-patient {
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .clinic-theme .tracking-membership-mark {
+    margin-top: 2px;
+  }
+  .clinic-theme .tracking-patient-compact-context {
+    display: block;
+    white-space: normal;
+  }
+  .clinic-theme .tracking-patient-info.MuiIconButton-root {
+    display: inline-flex;
+    flex: 0 0 44px;
+    padding: 4px;
+    margin-left: auto;
+  }
+  .clinic-theme .tracking-patient-visit-context,
+  .clinic-theme .tracking-patient-references,
+  .clinic-theme .tracking-intake-stale-owner,
+  .clinic-theme .tracking-intake-exception-message {
+    display: none;
+  }
+  .clinic-theme .tracking-intake-ownership {
+    gap: 4px;
+    white-space: normal;
+  }
+  .clinic-theme .tracking-intake-ownership > .MuiButton-root {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 2px;
+  }
+  .clinic-theme .tracking-intake-exception-details.MuiButton-root {
+    display: inline-flex;
+    text-decoration: underline;
+  }
+  .clinic-theme .tracking-intake-ownership > .MuiTypography-root {
+    white-space: normal;
+  }
+  .clinic-theme .tracking-flow-stage,
+  .clinic-theme .tracking-wait {
+    white-space: normal;
+  }
+  .clinic-theme .tracking-provider-value {
+    min-height: 32px;
+  }
+  .clinic-theme .tracking-vitals {
+    gap: 2px;
+  }
+  .clinic-theme .tracking-care-indicators {
+    min-width: 0;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+  .clinic-theme .tracking-vital {
+    grid-template-columns: 14px 24px minmax(0, 1fr);
+    gap: 2px;
+    padding: 1px 2px;
+  }
+  .clinic-theme .tracking-vital-value {
+    font-size: 13px;
+  }
+  .clinic-theme .tracking-column-heading {
+    padding-right: 32px;
+  }
+  .clinic-theme .tracking-column-move {
+    right: 2px;
+  }
+  .clinic-theme .tracking-table-container .MuiTableCell-head {
+    font-size: 13px;
+  }
+  .clinic-theme .tracking-table-container .MuiTableSortLabel-root {
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+    line-height: 1.2;
+  }
+  .clinic-theme
+    .MuiTableSortLabel-root:not(.Mui-active)
+    .MuiTableSortLabel-icon {
+    display: none;
+  }
+}
+@media (min-width: 761px) and (pointer: coarse),
+  (min-width: 761px) and (max-width: 1024px) {
+  .clinic-theme .tracking-stage-filters button,
+  .clinic-theme .tracking-intake-ownership > .MuiButton-root,
+  .clinic-theme .tracking-provider-value {
+    min-height: 44px;
   }
 }
 @media (max-width: 760px) {

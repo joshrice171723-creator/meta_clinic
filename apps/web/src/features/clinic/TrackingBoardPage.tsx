@@ -15,6 +15,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -33,6 +34,7 @@ import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
 import NoteAltIcon from "@mui/icons-material/NoteAlt";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import { useClinic } from "./Workspace";
 import { useClinicRealtimeTopic } from "./ClinicRealtime";
@@ -538,17 +540,17 @@ function storedTrackingBoardColumns(): ColumnKey[] {
     return initialColumns;
   }
 }
-const minimumPatientColumnWidth = 360;
+const minimumPatientColumnWidth = 280;
 const initialColumnWidths: Record<ColumnKey, number> = {
   patient: minimumPatientColumnWidth,
   stage: 175,
-  wait: 130,
-  location: 120,
-  provider: 140,
-  reason: 160,
-  care: 180,
-  triage: 204,
-  action: 120,
+  wait: 96,
+  location: 96,
+  provider: 184,
+  reason: 116,
+  care: 156,
+  triage: 144,
+  action: 96,
 };
 const columnLabels: Record<ColumnKey, string> = {
   patient: "Patient",
@@ -560,6 +562,10 @@ const columnLabels: Record<ColumnKey, string> = {
   care: "Care",
   triage: "Vitals",
   action: "Action",
+};
+const intakeExceptionLabels: Record<string, string> = {
+  stale_intake_ownership: "Lease expired",
+  missing_checkout: "Checkout required",
 };
 function TrackingBoardRow({
   visit,
@@ -607,6 +613,8 @@ function TrackingBoardRow({
 }) {
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [waitingDetailsOpen, setWaitingDetailsOpen] = useState(false);
+  const [patientDetailsOpen, setPatientDetailsOpen] = useState(false);
+  const [intakeDetailsOpen, setIntakeDetailsOpen] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [assignmentPending, setAssignmentPending] = useState(false);
   const [assignmentReloadRequired, setAssignmentReloadRequired] =
@@ -706,6 +714,13 @@ function TrackingBoardRow({
                 <strong>{tableLabel.identity}</strong>
                 <Typography
                   variant="caption"
+                  className="tracking-patient-compact-context"
+                  color="text.secondary"
+                >
+                  {tableLabel.demographics} · {stage.label}
+                </Typography>
+                <Typography
+                  variant="caption"
                   className="tracking-patient-visit-context"
                   color="text.secondary"
                 >
@@ -715,7 +730,7 @@ function TrackingBoardRow({
                 {tableLabel.demographics && (
                   <Typography
                     variant="caption"
-                    className="tracking-patient-demographics"
+                    className="tracking-patient-demographics tracking-patient-references"
                     color="text.secondary"
                   >
                     {tableLabel.demographics}
@@ -725,7 +740,42 @@ function TrackingBoardRow({
                   </Typography>
                 )}
               </div>
+              <IconButton
+                className="tracking-patient-info"
+                size="small"
+                aria-label={`Patient and visit details for ${tableLabel.identity}, visit ${visit.id}`}
+                onClick={() => setPatientDetailsOpen(true)}
+              >
+                <InfoOutlinedIcon fontSize="small" />
+              </IconButton>
             </div>
+            <Dialog
+              open={patientDetailsOpen}
+              onClose={() => setPatientDetailsOpen(false)}
+              aria-labelledby={`tracking-patient-title-${visit.id}`}
+              maxWidth="sm"
+              fullWidth
+            >
+              <DialogTitle id={`tracking-patient-title-${visit.id}`}>
+                {tableLabel.identity}
+              </DialogTitle>
+              <DialogContent>
+                <Typography>{tableLabel.demographics}</Typography>
+                <Typography>
+                  {visit.visitType} · {stage.label}
+                </Typography>
+                <Typography>Owner: {visit.owner ?? "Unassigned"}</Typography>
+                <Typography>
+                  Patient reference: {visit.patientReference ?? "Not recorded"}
+                </Typography>
+                <Typography>Visit reference: {visit.id}</Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setPatientDetailsOpen(false)}>
+                  Close
+                </Button>
+              </DialogActions>
+            </Dialog>
           </TableCell>
         ) : column === "care" ? (
           <TableCell key={column} data-label={columnLabels[column]}>
@@ -889,7 +939,19 @@ function TrackingBoardRow({
                 operations.canClaimIntake) && (
                 <Box className="tracking-intake-ownership">
                   {operations.intakeOwnership && (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      className={
+                        operations.intakeOwnership.state === "stale" &&
+                        operations.exceptions.some(
+                          (exception) =>
+                            exception.code === "stale_intake_ownership",
+                        )
+                          ? "tracking-intake-stale-owner"
+                          : undefined
+                      }
+                    >
                       Intake: {operations.intakeOwnership.ownerName}
                       {operations.intakeOwnership.state === "stale"
                         ? " · lease expired"
@@ -897,13 +959,30 @@ function TrackingBoardRow({
                     </Typography>
                   )}
                   {operations.exceptions.map((exception) => (
-                    <Typography
-                      key={exception.code}
-                      variant="caption"
-                      color="error"
-                    >
-                      {exception.message}
-                    </Typography>
+                    <Fragment key={exception.code}>
+                      {intakeExceptionLabels[exception.code] && (
+                        <Button
+                          size="small"
+                          color="error"
+                          className="tracking-intake-exception-details"
+                          aria-label={`${intakeExceptionLabels[exception.code]}: intake details for ${tableLabel.identity}, visit ${visit.id}`}
+                          onClick={() => setIntakeDetailsOpen(true)}
+                        >
+                          {intakeExceptionLabels[exception.code]}
+                        </Button>
+                      )}
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        className={
+                          intakeExceptionLabels[exception.code]
+                            ? "tracking-intake-exception-message"
+                            : undefined
+                        }
+                      >
+                        {exception.message}
+                      </Typography>
+                    </Fragment>
                   ))}
                   {operations.intakeOwnership?.canRelease &&
                     onReleaseIntake && (
@@ -968,6 +1047,34 @@ function TrackingBoardRow({
                 </Box>
               )}
             </TableCell>
+            <Dialog
+              open={intakeDetailsOpen}
+              onClose={() => setIntakeDetailsOpen(false)}
+              aria-labelledby={`tracking-intake-title-${visit.id}`}
+              maxWidth="sm"
+              fullWidth
+            >
+              <DialogTitle id={`tracking-intake-title-${visit.id}`}>
+                Intake details · {tableLabel.identity}
+              </DialogTitle>
+              <DialogContent>
+                {operations.intakeOwnership && (
+                  <Typography>
+                    Intake owner: {operations.intakeOwnership.ownerName}
+                  </Typography>
+                )}
+                {operations.exceptions.map((exception) => (
+                  <Typography key={exception.code} color="error">
+                    {exception.message}
+                  </Typography>
+                ))}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setIntakeDetailsOpen(false)}>
+                  Close
+                </Button>
+              </DialogActions>
+            </Dialog>
             {providerEditable && (
               <Dialog
                 className="tracking-provider-dialog"
@@ -1696,7 +1803,7 @@ export function TrackingBoardView({
           style={{
             width: "100%",
             minWidth: tableWidth,
-            tableLayout: "auto",
+            tableLayout: "fixed",
           }}
         >
           <colgroup>

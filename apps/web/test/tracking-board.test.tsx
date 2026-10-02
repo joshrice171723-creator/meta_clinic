@@ -485,7 +485,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:100%;min-width:1414px;table-layout:auto"',
+      'style="width:100%;min-width:1168px;table-layout:fixed"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
@@ -633,7 +633,8 @@ describe("board and Operations presentation boundaries", () => {
       />,
     );
     expect(html).not.toContain("Age not recorded");
-    expect(html.match(/Demographics not recorded/g)).toHaveLength(1);
+    // One label in each mutually exclusive desktop/mobile presentation.
+    expect(html.match(/Demographics not recorded/g)).toHaveLength(2);
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
   });
@@ -655,6 +656,65 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("37 yr · Female");
     expect(html).toContain("Patient reference: SYN-RECORDED-REFERENCE");
     expect(html).toContain("Visit reference: EX-001");
+    expect(html).toContain(
+      'aria-label="Patient and visit details for SYN_Rivera, Mara Aurora, visit EX-001"',
+    );
+  });
+  it("keeps an expired intake lease and its recovery action clear without repeating the desktop paragraph", () => {
+    const message =
+      "The intake ownership lease expired. Refresh and claim the work explicitly before continuing.";
+    const html = renderToStaticMarkup(
+      <TestTrackingBoard
+        visits={[
+          {
+            ...EXAMPLE_VISITS[0],
+            operations: {
+              intakeOwnership: {
+                participantId: "intake-1",
+                token: "token-1",
+                ownerName: "Example intake owner",
+                leaseExpiresAt: null,
+                state: "stale",
+                canClaim: true,
+                canRelease: false,
+              },
+              canClaimIntake: true,
+              exceptions: [{ code: "stale_intake_ownership", message }],
+            },
+          },
+        ]}
+        onClaimIntake={async () => undefined}
+      />,
+    );
+    expect(html).toContain(
+      'aria-label="Lease expired: intake details for Mara Rivera, visit EX-001"',
+    );
+    expect(html).toContain("tracking-intake-exception-message");
+    expect(html).toContain(message);
+    expect(html).toContain("Claim intake");
+    expect(html).not.toContain("Release intake");
+    const denied = renderToStaticMarkup(
+      <TestTrackingBoard
+        visits={[
+          {
+            ...EXAMPLE_VISITS[0],
+            operations: {
+              intakeOwnership: null,
+              canClaimIntake: false,
+              exceptions: [
+                {
+                  code: "unknown_exception",
+                  message: "Review is required before continuing.",
+                },
+              ],
+            },
+          },
+        ]}
+        onClaimIntake={async () => undefined}
+      />,
+    );
+    expect(denied).not.toContain("Claim intake");
+    expect(denied).toContain("Review is required before continuing.");
   });
   it("moves administrative counts to Operations without relabeling directory counts as visits", () => {
     const html = renderToStaticMarkup(<OperationsView clinic={clinic} />);
