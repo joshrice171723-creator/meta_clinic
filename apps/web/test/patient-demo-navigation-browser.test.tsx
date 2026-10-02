@@ -120,6 +120,7 @@ async function fixture() {
     viewport: { width: 1440, height: 900 },
   });
   const errors: string[] = [];
+  const requestPaths: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   let actor = "patient";
   let lesson: string | null = "sandbox";
@@ -165,6 +166,7 @@ async function fixture() {
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const wirePath = new URL(request.url()).pathname;
+    requestPaths.push(`${request.method()} ${wirePath}`);
     const path = wirePath.replace(/^\/api\/demo-workspace\//, "/api/");
     const reply = (value: unknown, status = 200) =>
       route.fulfill({
@@ -240,7 +242,22 @@ async function fixture() {
   });
   await page.goto(base + "/demo");
   const frame = page.frameLocator('iframe[name="clinic-demo-workspace"]');
-  await frame.getByLabel("Synthetic intake draft").waitFor({ timeout: 30_000 });
+  try {
+    await frame.getByLabel("Synthetic intake draft").waitFor({ timeout: 30_000 });
+  } catch (reason) {
+    console.error(JSON.stringify({
+      fixture: "patient-handshake-initialization",
+      requestPaths,
+      errors,
+      mainText: (await page.locator("body").innerText()).slice(0, 1500),
+      frames: await Promise.all(page.frames().map(async (item) => ({
+        name: item.name(), path: new URL(item.url()).pathname,
+        text: (await item.locator("body").innerText()).slice(0, 1500),
+      }))),
+    }));
+    await page.close();
+    throw reason;
+  }
   await frame
     .getByText("Welcome, Synthetic Patient", { exact: true })
     .waitFor();
