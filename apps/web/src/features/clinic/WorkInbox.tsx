@@ -259,7 +259,7 @@ type SourceState<T> = {
   error?: string;
 };
 
-type PatientFlowColumn = "new" | "active" | "scheduling" | "scheduled";
+type PatientFlowColumn = "new" | "active" | "scheduling";
 
 const patientFlowColumns: Array<{
   id: PatientFlowColumn;
@@ -280,11 +280,6 @@ const patientFlowColumns: Array<{
     id: "scheduling",
     title: "Ready to schedule",
     description: "Onboarding is ready for the clinic scheduling workflow.",
-  },
-  {
-    id: "scheduled",
-    title: "Scheduled",
-    description: "A recorded appointment completes this flow view.",
   },
 ];
 
@@ -2112,53 +2107,29 @@ function ScopedWorkInbox() {
       labFollowUps.data.pagination.total > labFollowUps.data.items.length),
   );
 
-  const flowItems = useMemo(() => {
-    const patientFlowItems = items.filter((item) => !item.patientFlowHidden);
-    const scheduled = (
-      assignment === "offboarded"
-        ? []
-        : scheduledVisits.data?.appointments || []
-    )
-      .filter(
-        (visit) =>
-          !visit.encounter_id &&
-          ["scheduled", "confirmed"].includes(visit.status),
-      )
-      .map<InboxItem>((visit) => ({
-        id: `scheduled-${visit.id}`,
-        type: "patient",
-        title: "Scheduled visit",
-        patient: visit.patient?.display_name ?? "Patient name unavailable",
-        patientReference: visit.patient?.reference,
-        detail: visit.reason || "Appointment recorded by the clinic",
-        status: "scheduled",
-        dueAt: visit.starts_at,
-        dateCaption: "Due",
-        overdue: false,
-        owner: "Clinic schedule",
-        nextAction: "Prepare for the scheduled appointment",
-        sourceLabel: "Clinic schedule",
-        href: `/clinic/schedule?patient_id=${encodeURIComponent(String(visit.patient_id))}`,
-        action: "Open schedule",
-        icon: "assignment",
-        priority: "routine",
-      }));
-    return [...patientFlowItems, ...scheduled].reduce<
-      Record<PatientFlowColumn, InboxItem[]>
-    >(
-      (columns, item) => {
-        const column =
-          item.status === "scheduled" ? "scheduled" : patientFlowColumn(item);
-        columns[column].push(item);
-        return columns;
-      },
-      { new: [], active: [], scheduling: [], scheduled: [] },
-    );
-  }, [assignment, items, scheduledVisits.data]);
-  const flowItemCount = patientFlowColumns.reduce(
+  const flowItems = useMemo(
+    () =>
+      items
+        .filter((item) => !item.patientFlowHidden)
+        .reduce<Record<PatientFlowColumn, InboxItem[]>>(
+          (columns, item) => {
+            columns[patientFlowColumn(item)].push(item);
+            return columns;
+          },
+          { new: [], active: [], scheduling: [] },
+        ),
+    [items],
+  );
+  const patientFlowItemCount = patientFlowColumns.reduce(
     (count, column) => count + flowItems[column.id].length,
     0,
   );
+  const scheduledAppointmentCount =
+    scheduledVisits.data?.appointments.filter(
+      (visit) =>
+        !visit.encounter_id &&
+        ["scheduled", "confirmed"].includes(visit.status),
+    ).length ?? 0;
 
   if (!hasAnyAccess) {
     return (
@@ -2207,8 +2178,8 @@ function ScopedWorkInbox() {
       </Box>
       {scheduledVisits.data?.has_more && (
         <Alert severity="info" role="status">
-          Showing the next 100 scheduled visits in Patient Flow. Use Schedule to
-          review additional upcoming visits.
+          The appointment summary covers the first 100 upcoming appointments.
+          Use Schedule to review individual appointments and additional dates.
         </Alert>
       )}
 
@@ -2370,7 +2341,7 @@ function ScopedWorkInbox() {
             <Typography variant="body2" color="text.secondary">
               {anyLoading
                 ? "Updating work queues…"
-                : `${items.length} ${items.length === 1 ? "item" : "items"} shown`}
+                : `${patientFlowItemCount} triage ${patientFlowItemCount === 1 ? "item" : "items"} shown`}
             </Typography>
             <FormControl
               size="small"
@@ -2408,7 +2379,9 @@ function ScopedWorkInbox() {
               <Typography>Loading work inbox…</Typography>
             </Stack>
           )}
-          {!anyLoading && flowItemCount === 0 && sourceErrors.length === 0 && (
+          {!anyLoading &&
+            patientFlowItemCount === 0 &&
+            sourceErrors.length === 0 && (
             <Box sx={{ py: 5, textAlign: "center" }}>
               <AssignmentOutlinedIcon
                 sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
@@ -2425,7 +2398,9 @@ function ScopedWorkInbox() {
               </Typography>
             </Box>
           )}
-          {!anyLoading && flowItemCount === 0 && sourceErrors.length > 0 && (
+          {!anyLoading &&
+            patientFlowItemCount === 0 &&
+            sourceErrors.length > 0 && (
             <Box sx={{ py: 5, textAlign: "center" }}>
               <Typography variant="h6">
                 No work is available from the loaded queues
@@ -2436,7 +2411,49 @@ function ScopedWorkInbox() {
               </Typography>
             </Box>
           )}
-          {flowItemCount > 0 && (
+          {canLoadScheduledVisits && (
+            <Paper
+              component="section"
+              variant="outlined"
+              aria-labelledby="patient-flow-scheduled-summary"
+              sx={{ p: 1.5, mb: 2, minWidth: 0 }}
+            >
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                sx={{
+                  alignItems: { sm: "center" },
+                  justifyContent: "space-between",
+                }}
+              >
+                <Box>
+                  <Typography
+                    id="patient-flow-scheduled-summary"
+                    component="h2"
+                    variant="subtitle1"
+                    sx={{ fontWeight: 750 }}
+                  >
+                    Upcoming appointments
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {scheduledVisits.loading && !scheduledVisits.data
+                      ? "Loading appointment summary."
+                      : scheduledVisits.error
+                        ? "Appointment summary unavailable. Refresh or open Schedule to review appointments."
+                        : `${scheduledAppointmentCount} scheduled or confirmed appointments without an encounter among the first 100 upcoming records. This summary is independent of Patient Flow assignment and work type filters.`}
+                  </Typography>
+                </Box>
+                <Button
+                  href="/clinic/schedule"
+                  variant="outlined"
+                  sx={{ flexShrink: 0 }}
+                >
+                  Open Schedule
+                </Button>
+              </Stack>
+            </Paper>
+          )}
+          {patientFlowItemCount > 0 && (
             <Box
               aria-label="Patient Flow board"
               sx={{
@@ -2444,9 +2461,10 @@ function ScopedWorkInbox() {
                 gridTemplateColumns: {
                   xs: "minmax(0, 1fr)",
                   md: "repeat(2, minmax(0, 1fr))",
-                  xl: "repeat(4, minmax(0, 1fr))",
+                  xl: "repeat(3, minmax(0, 1fr))",
                 },
                 gap: 2,
+                alignItems: "start",
               }}
             >
               {patientFlowColumns.map((column) => (
@@ -2455,10 +2473,21 @@ function ScopedWorkInbox() {
                   component="section"
                   variant="outlined"
                   aria-labelledby={`patient-flow-${column.id}`}
-                  sx={{ p: 1.5, minWidth: 0, bgcolor: "action.hover" }}
+                  sx={{
+                    p: 1.5,
+                    display: "flex",
+                    flexDirection: "column",
+                    minWidth: 0,
+                    minHeight: 0,
+                    height: {
+                      xs: "min(46dvh, 24rem)",
+                      md: "min(62dvh, 38rem)",
+                    },
+                    bgcolor: "action.hover",
+                  }}
                 >
-                  <Stack spacing={1.25}>
-                    <Box>
+                  <Stack spacing={1.25} sx={{ minHeight: 0, flex: 1 }}>
+                    <Box sx={{ flex: "0 0 auto" }}>
                       <Stack
                         direction="row"
                         sx={{
@@ -2484,29 +2513,48 @@ function ScopedWorkInbox() {
                         {column.description}
                       </Typography>
                     </Box>
-                    {flowItems[column.id].length === 0 ? (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ py: 2 }}
-                      >
-                        No patients in this stage.
-                      </Typography>
-                    ) : (
-                      <Stack spacing={1.25}>
-                        {flowItems[column.id].map((item) => (
-                          <PatientFlowCard
-                            key={item.id}
-                            item={item}
-                            work={work.data}
-                            onChanged={(message) => {
-                              setNotice(message ?? "");
-                              setRefreshRevision((value) => value + 1);
-                            }}
-                          />
-                        ))}
-                      </Stack>
-                    )}
+                    <Box
+                      role="region"
+                      aria-label={`${column.title} patient flow items`}
+                      tabIndex={0}
+                      sx={{
+                        flex: "1 1 auto",
+                        minHeight: 0,
+                        overflowY: "auto",
+                        overflowX: "hidden",
+                        overscrollBehaviorY: "auto",
+                        scrollbarGutter: "stable",
+                        "&:focus-visible": {
+                          outline: "2px solid",
+                          outlineColor: "primary.main",
+                          outlineOffset: -2,
+                        },
+                      }}
+                    >
+                      {flowItems[column.id].length === 0 ? (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ py: 2 }}
+                        >
+                          No patients in this stage.
+                        </Typography>
+                      ) : (
+                        <Stack spacing={1.25}>
+                          {flowItems[column.id].map((item) => (
+                            <PatientFlowCard
+                              key={item.id}
+                              item={item}
+                              work={work.data}
+                              onChanged={(message) => {
+                                setNotice(message ?? "");
+                                setRefreshRevision((value) => value + 1);
+                              }}
+                            />
+                          ))}
+                        </Stack>
+                      )}
+                    </Box>
                   </Stack>
                 </Paper>
               ))}
