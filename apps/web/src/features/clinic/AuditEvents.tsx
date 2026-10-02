@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Alert,
   Button,
@@ -35,6 +35,41 @@ function auditDateTime(value: string, timezone: string) {
     return "Not recorded";
   }
 }
+
+// Display labels never replace the immutable audit values used for filtering.
+function auditLabel(value: string) {
+  const words = value.replace(/[._-]+/g, " ").trim();
+  return words ? words[0].toUpperCase() + words.slice(1) : "Not recorded";
+}
+
+function auditAction(code: string) {
+  const parts = code.split(".");
+  const operation = parts.pop() ?? "";
+  const verbs: Record<string, string> = {
+    read: "View", show: "View", index: "List", create: "Create",
+    update: "Update", destroy: "Delete", export: "Export",
+    download: "Download", approve: "Approve", reject: "Reject",
+  };
+  return verbs[operation] && parts.length
+    ? `${verbs[operation]} ${parts.join(" ").replace(/[_-]+/g, " ")}`
+    : auditLabel(code);
+}
+
+function auditActor(reference: string) {
+  if (/^user:\d+$/.test(reference)) return `Account ${reference.slice(5)}`;
+  if (reference === "anonymous") return "Unauthenticated visitor";
+  if (reference.startsWith("system:")) return "System activity";
+  return "Recorded actor";
+}
+
+const outcomeHelp: Record<string, string> = {
+  attempted: "An attempt was recorded; completion is not implied.",
+  denied: "The request was denied.",
+  prepared: "Preparation was recorded; completion is not implied.",
+  committed: "The change was recorded.",
+  released: "A release was recorded; the action and details identify its context.",
+  failed: "The action reported a failure. Review its details before retrying elsewhere.",
+};
 
 type AuditEvent = {
   id: number;
@@ -76,6 +111,13 @@ function ScopedAuditEvents() {
   const [snapshotId, setSnapshotId] = useState<number>();
   const [action, setAction] = useState("");
   const [outcome, setOutcome] = useState("");
+  const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
+  const selectOutcome = (value: string) => {
+    setOutcome(value);
+    setPage(1);
+    setSnapshotId(undefined);
+    setExpandedEvent(null);
+  };
   const query = new URLSearchParams({ page: String(page), per_page: "25" });
   if (snapshotId !== undefined) query.set("snapshot_id", String(snapshotId));
   if (action) query.set("action_code", action);
@@ -102,7 +144,7 @@ function ScopedAuditEvents() {
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <TextField
           select
-          label="Audit action"
+          label="Action"
           value={action}
           onChange={(event) => {
             setAction(event.target.value);
@@ -117,18 +159,16 @@ function ScopedAuditEvents() {
             .filter(Boolean)
             .map((code) => (
               <MenuItem key={code} value={code}>
-                {code}
+                {auditAction(code)}
               </MenuItem>
             ))}
         </TextField>
         <TextField
           select
-          label="Audit outcome"
+          label="Outcome"
           value={outcome}
           onChange={(event) => {
-            setOutcome(event.target.value);
-            setPage(1);
-            setSnapshotId(undefined);
+            selectOutcome(event.target.value);
           }}
           size="small"
           sx={{ minWidth: 180 }}
@@ -138,7 +178,7 @@ function ScopedAuditEvents() {
             .filter(Boolean)
             .map((code) => (
               <MenuItem key={code} value={code}>
-                {code}
+                {auditLabel(code)}
               </MenuItem>
             ))}
         </TextField>
@@ -152,6 +192,24 @@ function ScopedAuditEvents() {
           Refresh audit
         </Button>
       </Stack>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+        <Button aria-pressed={outcome === ""} onClick={() => selectOutcome("")}>
+          All outcomes
+        </Button>
+        {(resource.data?.filters.outcomes ?? []).includes("denied") && (
+          <Button aria-pressed={outcome === "denied"} onClick={() => selectOutcome("denied")}>
+            Denied requests
+          </Button>
+        )}
+        {(resource.data?.filters.outcomes ?? []).includes("failed") && (
+          <Button aria-pressed={outcome === "failed"} onClick={() => selectOutcome("failed")}>
+            Failed actions
+          </Button>
+        )}
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {outcomeHelp[outcome] ?? "Outcomes describe the recorded event, not completion of an entire workflow. Open details for the original values."}
+      </Typography>
       {!resource.data ? (
         <LoadState error={resource.error} onRetry={resource.refresh} />
       ) : (
@@ -160,52 +218,70 @@ function ScopedAuditEvents() {
             <Table size="small" aria-label="Practice audit events">
               <TableHead>
                 <TableRow>
-                  <TableCell>
-                    Occurred (clinic time · {context.practice.timezone})
-                  </TableCell>
-                  <TableCell>Actor reference</TableCell>
+                  <TableCell>When</TableCell>
+                  <TableCell>Who</TableCell>
                   <TableCell>Action</TableCell>
                   <TableCell>Outcome</TableCell>
-                  <TableCell>Policy version</TableCell>
-                  <TableCell>Resource versions</TableCell>
+                  <TableCell>Details</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {resource.data.events.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={5}>
                       No recorded events match these filters.
                     </TableCell>
                   </TableRow>
                 )}
                 {resource.data.events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {auditDateTime(
-                        event.occurred_at,
-                        context.practice.timezone,
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {event.actor_reference}
-                    </TableCell>
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {event.action_code}
-                    </TableCell>
-                    <TableCell>{event.outcome}</TableCell>
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {event.policy_version}
-                    </TableCell>
-                    <TableCell sx={{ overflowWrap: "anywhere" }}>
-                      {event.resource_references.length
-                        ? event.resource_references.map((reference) => (
-                            <Typography key={reference} variant="body2">
-                              {reference}
+                  <Fragment key={event.id}>
+                    <TableRow>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {auditDateTime(event.occurred_at, context.practice.timezone)}
+                      </TableCell>
+                      <TableCell>{auditActor(event.actor_reference)}</TableCell>
+                      <TableCell>{auditAction(event.action_code)}</TableCell>
+                      <TableCell>{auditLabel(event.outcome)}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          aria-label={`${expandedEvent === event.id ? "Hide" : "Show"} audit event ${event.id} details`}
+                          aria-expanded={expandedEvent === event.id}
+                          aria-controls={expandedEvent === event.id ? `audit-details-${event.id}` : undefined}
+                          onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                        >
+                          {expandedEvent === event.id ? "Hide details" : "Details"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                    {expandedEvent === event.id && (
+                      <TableRow id={`audit-details-${event.id}`}>
+                        <TableCell colSpan={5}>
+                          <Stack spacing={0.5} sx={{ minWidth: 0, maxWidth: "100%", overflowX: "auto" }}>
+                            <Typography variant="body2">
+                              {outcomeHelp[event.outcome] ?? "Outcome meaning is not defined here; original values are retained below."}
                             </Typography>
-                          ))
-                        : "No resource version recorded"}
-                    </TableCell>
-                  </TableRow>
+                            <Typography variant="body2">Event: {event.id}</Typography>
+                            <Typography variant="body2">Actor: {event.actor_reference}</Typography>
+                            <Typography variant="body2">Action: {event.action_code}</Typography>
+                            <Typography variant="body2">Outcome: {event.outcome}</Typography>
+                            <Typography variant="body2">Recorded at: {event.occurred_at}</Typography>
+                            <Typography variant="body2">Authorization policy: {event.policy_version}</Typography>
+                            <Typography variant="body2">Original record references</Typography>
+                            <Stack sx={{ maxWidth: "100%", overflowX: "auto" }}>
+                              {event.resource_references.length
+                                ? event.resource_references.map((reference, index) => (
+                                    <Typography key={`${reference}-${index}`} variant="body2" sx={{ whiteSpace: "nowrap" }}>
+                                      {reference}
+                                    </Typography>
+                                  ))
+                                : <Typography variant="body2">No linked record version was recorded.</Typography>}
+                            </Stack>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
