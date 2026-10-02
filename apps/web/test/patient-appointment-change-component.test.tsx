@@ -8,6 +8,14 @@ const harness = vi.hoisted(() => ({
   cursor: 0,
   api: vi.fn(),
   refresh: vi.fn(),
+  blocker: null as null | (() => { blocked: boolean; message: string | null }),
+}));
+vi.mock("../src/features/demo/navigationBlockers", () => ({
+  useDemoNavigationBlocker: (
+    read: () => { blocked: boolean; message: string | null },
+  ) => {
+    harness.blocker = read;
+  },
 }));
 vi.mock("react", async (original) => {
   const react = await original<typeof import("react")>();
@@ -114,6 +122,7 @@ beforeEach(() => {
   harness.slots = [];
   harness.cursor = 0;
   harness.api.mockReset();
+  harness.blocker = null;
   onSaved.mockReset();
   onClose.mockReset();
 });
@@ -133,6 +142,7 @@ describe("appointment change dialog handlers with controlled hooks", () => {
           expect(onSaved).not.toHaveBeenCalled();
           expect(send().children).toBe("Retry same request");
           expect(close().disabled).toBe(true);
+          expect(harness.blocker?.().blocked).toBe(true);
           expect(render()[0]).not.toHaveProperty(
             "onClose",
             expect.any(Function),
@@ -154,6 +164,7 @@ describe("appointment change dialog handlers with controlled hooks", () => {
           harness.api.mock.calls[0][1].body.appointment_request,
         ).not.toHaveProperty("starts_at");
       expect(onSaved).toHaveBeenCalledTimes(1);
+      expect(harness.blocker?.().blocked).toBe(false);
     },
   );
   it.each(["reschedule", "cancel"] as const)(
@@ -170,6 +181,7 @@ describe("appointment change dialog handlers with controlled hooks", () => {
       const handler = send().onClick!;
       handler();
       handler();
+      expect(harness.blocker?.().blocked).toBe(true);
       expect(harness.api).toHaveBeenCalledTimes(1);
       complete({
         appointment_request: {
@@ -182,6 +194,7 @@ describe("appointment change dialog handlers with controlled hooks", () => {
       );
       expect(onSaved).not.toHaveBeenCalled();
       expect(close().disabled).toBe(true);
+      expect(harness.blocker?.().blocked).toBe(true);
     },
   );
 });

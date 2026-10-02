@@ -381,7 +381,7 @@ export function DemoJourney() {
         if (!response.active || !response.run.sandbox)
           throw new Error("The sandbox changed. Open it again.");
         if (current !== generation.current) return;
-        response = await api<DemoRunResponse>("/api/demo/view", {
+        response = await api<DemoRunResponse>("/api/demo/run/view", {
           method: "POST",
           body: {
             account,
@@ -438,7 +438,7 @@ export function DemoJourney() {
       );
       if (!allowed || current !== generation.current) return;
       setSwitching(true);
-      const response = await api<DemoRunResponse>("/api/demo/view", {
+      const response = await api<DemoRunResponse>("/api/demo/run/view", {
         method: "POST",
         body: {
           account,

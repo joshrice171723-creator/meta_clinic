@@ -54,6 +54,7 @@ vi.mock("@mui/material", () =>
       "DialogContent",
       "DialogTitle",
       "LinearProgress",
+      "MenuItem",
       "Paper",
       "Stack",
       "TextField",
@@ -188,7 +189,7 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
     expect(harness.request).toHaveBeenCalledTimes(1);
     expect(harness.request).toHaveBeenCalledWith("/api/demo/lesson", {
       method: "POST",
-      body: { lesson_key: "sandbox", restart: true },
+      body: { lesson_key: "sandbox", restart: true, account: "admin" },
       timeoutMs: 240_000,
     });
   });
@@ -211,6 +212,7 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
     const pending = startMockedReset();
     harness.request
       .mockResolvedValueOnce({ complete: true })
+      .mockResolvedValueOnce(payload)
       .mockResolvedValueOnce(payload);
     expect(resetDialog(render()).props.open).toBe(true);
     pending.resolve(payload);
@@ -220,7 +222,15 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
     expect(nodes(tree).some((node) => node.props.role === "status")).toBe(
       false,
     );
-    expect(harness.request).toHaveBeenCalledTimes(3);
+    expect(harness.request).toHaveBeenCalledTimes(4);
+    expect(harness.request).toHaveBeenNthCalledWith(4, "/api/demo/run/view", {
+      method: "POST",
+      body: {
+        account: "admin",
+        expected_run_id: payload.run.id,
+        expected_user_id: null,
+      },
+    });
   });
   it("waits for all stages after recovering a lost initial response", async () => {
     const replacement = {
@@ -239,6 +249,7 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
           finish = resolve;
         }),
       )
+      .mockResolvedValueOnce(replacement)
       .mockResolvedValueOnce(replacement);
     beginReset();
     await settle();
@@ -261,6 +272,14 @@ describe("GH34 reset progress (mocked component evidence, not live reset accepta
     expect(resetDialog(render()).props.open).toBe(false);
     expect(harness.states[0]).toEqual({ status: "ready", value: replacement });
     expect(harness.request).toHaveBeenNthCalledWith(5, "/api/demo/run");
+    expect(harness.request).toHaveBeenNthCalledWith(6, "/api/demo/run/view", {
+      method: "POST",
+      body: {
+        account: "admin",
+        expected_run_id: replacement.run.id,
+        expected_user_id: null,
+      },
+    });
   });
   it("keeps the original failure when recovery only finds the old run", async () => {
     harness.request
