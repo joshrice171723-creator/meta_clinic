@@ -2,10 +2,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Box, Button, Stack } from "@mui/material";
 import { api } from "../../api/client";
 import { isDemoFrame, notifyDemo } from "./frame";
+import type { NavigationConfirmation } from "./accountSwitch";
 
 type FrameRun = {
   active: boolean;
   run?: {
+    id?: string;
+    account?: { user_id: number | string } | null;
     mode: "clinic" | "patient";
     lesson_key?: string | null;
     sandbox?: boolean;
@@ -56,7 +59,10 @@ export function demoRouteAllowed(
   const target = new URL(href, origin);
   if (target.origin !== origin) return false;
   if (sandboxRun(run))
-    return run.run.mode === "clinic" && target.pathname.startsWith("/clinic");
+    return run.run.mode === "clinic"
+      ? /^\/clinic(?:\/|$)/.test(target.pathname)
+      : /^\/patient-portal(?:\/|$)/.test(target.pathname) ||
+          target.pathname === "/memberships/account";
   if (navigationTour(run))
     return (
       run.run.mode === "clinic" && navigationTourPaths.has(target.pathname)
@@ -79,6 +85,52 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [blockedLink, setBlockedLink] = useState(false);
+  useEffect(() => {
+    const confirm = (event: MessageEvent<unknown>) => {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== window.parent ||
+        !event.data ||
+        typeof event.data !== "object"
+      )
+        return;
+      const data = event.data as Record<string, unknown>;
+      if (
+        data.type !== "demo:confirm-navigation" ||
+        typeof data.requestId !== "string" ||
+        typeof data.generation !== "number"
+      )
+        return;
+      let allowed = false;
+      if (
+        run?.active &&
+        sandboxRun(run) &&
+        run.run?.id !== undefined &&
+        String(run.run.id) === data.runId &&
+        run.run?.account?.user_id === data.userId
+      ) {
+        const detail: NavigationConfirmation = {
+          handled: false,
+          allowed: false,
+        };
+        window.dispatchEvent(
+          new CustomEvent("demo:confirm-local-navigation", { detail }),
+        );
+        // Patient forms use the existing beforeunload protection instead of clinic navigation.
+        const unload = new Event("beforeunload", { cancelable: true });
+        allowed = detail.handled
+          ? detail.allowed
+          : window.dispatchEvent(unload) ||
+            window.confirm("Leave this workspace and discard unsaved changes?");
+      }
+      window.parent.postMessage(
+        { ...data, type: "demo:navigation-confirmed", allowed },
+        window.location.origin,
+      );
+    };
+    window.addEventListener("message", confirm);
+    return () => window.removeEventListener("message", confirm);
+  }, [run]);
   useEffect(() => {
     document.body.dataset.demoActive = "true";
     return () => {

@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 export type ClinicHomeView = "tracking" | "schedule";
 
@@ -82,6 +82,18 @@ export function ClinicNavigationProvider({
   value: ClinicNavigationValue;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    const confirm = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ handled: boolean; allowed: boolean }>
+      ).detail;
+      detail.handled = true;
+      detail.allowed = value.confirmNavigation?.() ?? false;
+    };
+    window.addEventListener("demo:confirm-local-navigation", confirm);
+    return () =>
+      window.removeEventListener("demo:confirm-local-navigation", confirm);
+  }, [value]);
   return (
     <ClinicNavigationContext value={value}>{children}</ClinicNavigationContext>
   );
