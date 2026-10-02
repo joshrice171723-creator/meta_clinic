@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -9,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { ApiError, api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
@@ -434,9 +438,16 @@ export function TimecardReviewPage() {
         </Alert>
       )}
       {canReview && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Stack spacing={2}>
+        <Accordion disableGutters variant="outlined">
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="timecard-calculation-content"
+            id="timecard-calculation-header"
+          >
             <Typography variant="h3">Calculate a timecard</Typography>
+          </AccordionSummary>
+          <AccordionDetails id="timecard-calculation-content">
+          <Stack spacing={2}>
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <TextField
                 select
@@ -488,7 +499,8 @@ export function TimecardReviewPage() {
               </Alert>
             )}
           </Stack>
-        </Paper>
+          </AccordionDetails>
+        </Accordion>
       )}
       {canReview && currentSource && correctionCard && (
         <AdjustmentDialog

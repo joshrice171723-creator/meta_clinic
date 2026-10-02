@@ -1,5 +1,8 @@
 import { useId, useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   Checkbox,
@@ -22,6 +25,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
 import { api, ApiError, csrf } from "../../api/client";
@@ -256,6 +260,7 @@ export function EmploymentAdminPage() {
   const [activationToken, setActivationToken] = useState<string | null>(null);
   const [activationPath, setActivationPath] = useState<string | null>(null);
   const [setupRoleCode, setSetupRoleCode] = useState<string | null>(null);
+  const [setupOpen, setSetupOpen] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState<{
     mode: "existing" | "new";
     displayName: string;
@@ -660,7 +665,27 @@ export function EmploymentAdminPage() {
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+      <Accordion
+        expanded={setupOpen || dirty || unconfirmed !== null}
+        onChange={(_, expanded) => {
+          if (expanded || (!dirty && !unconfirmed)) setSetupOpen(expanded);
+        }}
+        disableGutters
+        variant="outlined"
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          aria-controls="employee-setup-content"
+          id="employee-setup-header"
+        >
+          <Stack spacing={0.5}>
+            <Typography variant="h2">Add employee</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Open to add or link an employee and configure access.
+            </Typography>
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails id="employee-setup-content">
         <Stack
           component="form"
           spacing={2.5}
@@ -668,7 +693,6 @@ export function EmploymentAdminPage() {
           inert={unconfirmed !== null}
         >
           <Stack spacing={0.5}>
-            <Typography variant="h2">Add employee</Typography>
             <Typography variant="body2" color="text.secondary">
               A new login is created only after the employee activates the
               invitation. The employee record, access role, and workforce setup
@@ -828,7 +852,8 @@ export function EmploymentAdminPage() {
                 : "Create employee invitation"}
           </Button>
         </Stack>
-      </Paper>
+        </AccordionDetails>
+      </Accordion>
 
       {data.invitations.length > 0 && (
         <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>

@@ -96,7 +96,19 @@ export function WorkforceApp({ path }: { path: string }) {
         scrollButtons="auto"
         aria-label="Workforce sections"
         onChange={(_, value: string) => navigate(`/clinic/workforce/${value}`)}
-        sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}
+        sx={{
+          minWidth: 0,
+          maxWidth: "100%",
+          borderBottom: 1,
+          borderColor: "divider",
+          mb: 3,
+          "& .MuiTab-root": {
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            minWidth: "max-content",
+          },
+          "& .MuiTabs-scroller": { minWidth: 0 },
+        }}
       >
         {pages.map((page) => (
           <Tab key={page.id} value={page.id} label={page.label} />
