@@ -1,15 +1,11 @@
-.clinic-theme .clinic-work-navigation {
+.clinic-theme .clinic-sidebar .clinic-work-navigation {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .clinic-theme .clinic-work-navigation section {
   display: grid;
   gap: 2px;
-}
-
-.clinic-theme .clinic-work-navigation section + section {
-  margin-top: 14px;
 }
 
 .clinic-theme .clinic-work-navigation .MuiListSubheader-root {

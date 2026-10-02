@@ -21,15 +21,15 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 22px 16px;
+  padding: 16px 12px;
   gap: 6px;
 }
 .clinic-theme .clinic-sidebar[hidden] {
   display: none;
 }
 .clinic-theme .clinic-sidebar .practice-label {
-  margin: 0 0 12px;
-  padding: 12px 0;
+  margin: 0 0 8px;
+  padding: 8px 0;
   line-height: 1.5;
 }
 .clinic-theme .clinic-sidebar .practice-location {
@@ -57,7 +57,7 @@
 }
 .clinic-theme .clinic-sidebar .practice-location-trigger {
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -121,7 +121,7 @@
 }
 .clinic-theme .clinic-sidebar .practice-location-option {
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -165,7 +165,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 8px 12px;
 }
 .clinic-theme .clinic-sidebar nav .MuiSvgIcon-root,
 .clinic-theme .clinic-sidebar-bottom .MuiSvgIcon-root {
@@ -185,8 +185,8 @@
   display: grid;
   align-items: stretch;
   margin: auto 0 0;
-  padding-top: 22px;
-  gap: 14px;
+  padding-top: 16px;
+  gap: 8px;
   flex-shrink: 0;
 }
 .clinic-theme .clinic-sidebar-bottom > a {
@@ -207,7 +207,7 @@
   top: 14px;
   right: 12px;
   width: 40px;
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid var(--clinic-control);
   border-radius: 6px;
   background: var(--clinic-surface);
@@ -260,11 +260,11 @@
 }
 .clinic-theme .clinic-topbar {
   min-height: 52px;
-  padding: 8px 20px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 .clinic-theme .clinic-topbar-context {
@@ -280,7 +280,7 @@
 .clinic-theme .clinic-topbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
   flex: 0 0 auto;
   flex-wrap: wrap;
 }
@@ -290,7 +290,7 @@
 }
 .clinic-theme .clinic-development-toolbar.MuiStack-root {
   min-height: 0;
-  padding: 10px 20px;
+  padding: 8px 16px;
   gap: 12px;
   background: var(--clinic-surface);
   color: var(--clinic-text);
@@ -410,6 +410,7 @@
     gap: 4px;
   }
   .clinic-theme .clinic-topbar-context {
+    flex: 0 1 auto;
     width: 100%;
     max-width: 100%;
   }
@@ -419,7 +420,7 @@
     gap: 10px;
   }
   .clinic-theme .clinic-development-toolbar.MuiStack-root {
-    padding: 10px 12px;
+    padding: 8px 12px;
   }
   .clinic-theme .clinic-content {
     padding: 18px 16px 40px;
