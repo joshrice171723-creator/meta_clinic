@@ -32,6 +32,12 @@ import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
 import { DemoEntry, DemoEntryLoading } from "./DemoEntry";
 import {
+  canEnterCareModel,
+  enterSandboxCareModel,
+  sandboxCareModels,
+  type SandboxCareModel,
+} from "./careModels";
+import {
   confirmSandboxNavigation,
   sandboxAccounts,
   type SandboxAccountKey,
@@ -190,6 +196,8 @@ export function DemoJourney() {
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] =
     useState<SandboxAccountKey>("admin");
+  const [selectedCareModel, setSelectedCareModel] =
+    useState<SandboxCareModel>("primary_care");
 
   useEffect(() => {
     if (!preparingSandbox) return;
@@ -306,8 +314,15 @@ export function DemoJourney() {
     lesson_key: string | null,
     restart = false,
     account: SandboxAccountKey = run?.account?.key ?? selectedAccount,
+    careModel: SandboxCareModel = "primary_care",
   ) => {
     if (accountBusy.current) return;
+    if (lesson_key === "sandbox" && !canEnterCareModel(account, careModel)) {
+      setError(
+        "Choose Admin for Weight management, or Primary care for this account.",
+      );
+      return;
+    }
     accountBusy.current = true;
     if (
       run?.sandbox &&
@@ -391,6 +406,10 @@ export function DemoJourney() {
           },
         });
         clearCsrf();
+        if (careModel !== "primary_care") {
+          await enterSandboxCareModel(response, careModel);
+          if (current !== generation.current) return;
+        }
       }
       if (current !== generation.current) return;
       setState({ status: "ready", value: response });
@@ -586,13 +605,27 @@ export function DemoJourney() {
             </Alert>
           )}
           <div className="demo-entry__model">
-            <span>Entry care model</span>
-            <strong>Primary care</strong>
-            <p>
-              The sandbox opens in primary care. Admin can also explore the
-              prepared weight-management clinic using the clinic selector
-              inside.
-            </p>
+            <TextField
+              select
+              label="Care model"
+              value={selectedCareModel}
+              onChange={(event) =>
+                setSelectedCareModel(event.target.value as SandboxCareModel)
+              }
+              disabled={busy}
+              fullWidth
+              helperText="Primary care supports all five accounts. Weight management uses Admin's existing clinic assignment."
+            >
+              {sandboxCareModels.map(({ key, label }) => (
+                <MenuItem
+                  key={key}
+                  value={key}
+                  disabled={!canEnterCareModel(selectedAccount, key)}
+                >
+                  {label}
+                </MenuItem>
+              ))}
+            </TextField>
           </div>
           <TextField
             select
@@ -605,7 +638,11 @@ export function DemoJourney() {
             fullWidth
           >
             {sandboxAccounts.map(({ key, label }) => (
-              <MenuItem key={key} value={key}>
+              <MenuItem
+                key={key}
+                value={key}
+                disabled={!canEnterCareModel(key, selectedCareModel)}
+              >
                 {label}
               </MenuItem>
             ))}
@@ -706,7 +743,12 @@ export function DemoJourney() {
                 endIcon={<ArrowForwardRoundedIcon />}
                 disabled={busy}
                 onClick={() =>
-                  void selectLesson("sandbox", false, selectedAccount)
+                  void selectLesson(
+                    "sandbox",
+                    false,
+                    selectedAccount,
+                    selectedCareModel,
+                  )
                 }
               >
                 {busy
