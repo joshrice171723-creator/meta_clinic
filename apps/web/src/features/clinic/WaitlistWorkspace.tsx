@@ -20,6 +20,8 @@ import type { Patient } from "../../api/contracts";
 import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { WaitlistAvailability } from "./WaitlistAvailability";
+import { WeeklyCapacityRules } from "./WeeklyCapacityRules";
 import type {
   OperationalPolicyResponse,
   RecordedBlockCategory,
@@ -102,7 +104,7 @@ type AffectedAppointment = {
   ends_at: string;
   status: string;
 };
-type Attempt = { path: string; body: unknown };
+type Attempt = { path: string; body: unknown; label?: string };
 const days = [
   "Sunday",
   "Monday",
@@ -123,11 +125,6 @@ function localDatePart(value: string) {
 }
 function localTimePart(value: string) {
   return value.slice(11, 16);
-}
-function clock(value: number | null) {
-  return value === null
-    ? ""
-    : `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 }
 
 export function WaitlistWorkspace() {
@@ -183,6 +180,7 @@ export function WaitlistWorkspace() {
     startsTime: string;
     expiresDate: string;
     expiresTime: string;
+    startsAt?: string;
   } | null>(null);
   const offerHeading = useRef<HTMLHeadingElement>(null);
   const revealOffer = useRef(false);
@@ -199,6 +197,15 @@ export function WaitlistWorkspace() {
   const [blockStart, setBlockStart] = useState("");
   const [blockEnd, setBlockEnd] = useState("");
   const [capacityReason, setCapacityReason] = useState("");
+  const capacityEditor = useRef<HTMLHeadingElement>(null);
+  const revealCapacity = useRef(false);
+  const [capacityDraftRevision, setCapacityDraftRevision] = useState(0);
+  useEffect(() => {
+    if (!revealCapacity.current || !capacityEditor.current) return;
+    revealCapacity.current = false;
+    capacityEditor.current.focus({ preventScroll: true });
+    capacityEditor.current.scrollIntoView({ block: "center" });
+  }, [capacityDraftRevision]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -269,7 +276,7 @@ export function WaitlistWorkspace() {
       setNotice(
         affected.length > 0
           ? "Blocked time saved. Review the appointments that still overlap it."
-          : "Saved. The queue is refreshing from the clinic records.",
+          : `${current.label ? `${current.label}: saved` : "Saved"}. The queue is refreshing from the clinic records.`,
       );
       queue.refresh();
       capacity.refresh();
@@ -287,7 +294,7 @@ export function WaitlistWorkspace() {
         }
       }
       setError(
-        value instanceof Error ? value.message : "The save outcome is unknown.",
+        `${current.label ? `${current.label}: ` : ""}${value instanceof Error ? value.message : "The save outcome is unknown."}`,
       );
     } finally {
       setBusy(false);
@@ -351,6 +358,10 @@ export function WaitlistWorkspace() {
           };
     void submit({
       path: "/api/clinic/capacity",
+      label:
+        kind === "weekly"
+          ? `${days[Number(weekday)]} hours ${startTime}–${endTime}`
+          : "Blocked time",
       body: {
         capacity: {
           site_id: site,
@@ -371,6 +382,7 @@ export function WaitlistWorkspace() {
     revealOffer.current = true;
     setOffer({
       entry,
+      startsAt: starts || undefined,
       startsDate: starts ? localDatePart(localInput(starts)) : "",
       startsTime: starts ? localTimePart(localInput(starts)) : "",
       expiresDate: localDatePart(
@@ -380,6 +392,21 @@ export function WaitlistWorkspace() {
         localInput(new Date(expiration).toISOString()),
       ),
     });
+  }
+  function deactivateRule(rule: Rule) {
+    void submit({
+      path: `/api/clinic/capacity/${rule.id}/deactivate`,
+      label: `Deactivate rule #${rule.id}`,
+      body: { capacity: { expected_version: rule.version } },
+    });
+  }
+  function addWeeklyHours(siteId: number, clinicianId: number, day: number) {
+    setSite(String(siteId));
+    setClinician(String(clinicianId));
+    setWeekday(String(day));
+    setKind("weekly");
+    revealCapacity.current = true;
+    setCapacityDraftRevision((value) => value + 1);
   }
   const selector = (
     label: string,
@@ -569,6 +596,14 @@ export function WaitlistWorkspace() {
                     </Button>
                   </Stack>
                 )}
+                {canBook && ["waiting", "expired"].includes(entry.state) && (
+                  <WaitlistAvailability
+                    key={`${entry.id}:${entry.version}`}
+                    entry={entry}
+                    disabled={disabled}
+                    onChoose={(starts) => chooseOffer(entry, starts)}
+                  />
+                )}
                 {canBook &&
                   ["waiting", "expired"].includes(entry.state) &&
                   queue.data?.cancellations
@@ -611,13 +646,21 @@ export function WaitlistWorkspace() {
                 >
                   Offer to {offer.entry.patient_name}
                 </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Date and time fields use{" "}
+                  {Intl.DateTimeFormat().resolvedOptions().timeZone}.
+                </Typography>
                 <TextField
                   type="date"
                   label="Offer date"
                   value={offer.startsDate}
                   disabled={disabled}
                   onChange={(event) =>
-                    setOffer({ ...offer, startsDate: event.target.value })
+                    setOffer({
+                      ...offer,
+                      startsDate: event.target.value,
+                      startsAt: undefined,
+                    })
                   }
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
@@ -627,7 +670,11 @@ export function WaitlistWorkspace() {
                   value={offer.startsTime}
                   disabled={disabled}
                   onChange={(event) =>
-                    setOffer({ ...offer, startsTime: event.target.value })
+                    setOffer({
+                      ...offer,
+                      startsTime: event.target.value,
+                      startsAt: undefined,
+                    })
                   }
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
@@ -669,9 +716,11 @@ export function WaitlistWorkspace() {
                   }
                   onClick={() =>
                     void transition(offer.entry, "offer", {
-                      starts_at: new Date(
-                        `${offer.startsDate}T${offer.startsTime}`,
-                      ).toISOString(),
+                      starts_at:
+                        offer.startsAt ??
+                        new Date(
+                          `${offer.startsDate}T${offer.startsTime}`,
+                        ).toISOString(),
                       expires_at: new Date(
                         `${offer.expiresDate}T${offer.expiresTime}`,
                       ).toISOString(),
@@ -841,53 +890,66 @@ export function WaitlistWorkspace() {
                   ))}
                 </Box>
               ))}
-              {capacity.data?.rules.map((rule) => (
-                <Box key={rule.id}>
-                  <Typography>
-                    {
-                      queue.data?.clinicians.find(
-                        (item) => item.id === rule.clinician_id,
-                      )?.name
-                    }{" "}
-                    ·{" "}
-                    {
-                      queue.data?.sites.find((item) => item.id === rule.site_id)
-                        ?.name
-                    }
-                    :{" "}
-                    {rule.kind === "weekly"
-                      ? `${days[rule.weekday ?? 0]} ${clock(rule.start_minute)}–${clock(rule.end_minute)}`
-                      : `${new Date(rule.starts_at!).toLocaleString()} – ${new Date(rule.ends_at!).toLocaleString()}`}{" "}
-                    {rule.reason}
-                  </Typography>
-                  {rule.kind === "block" && (
-                    <Typography variant="body2" color="text.secondary">
-                      {rule.reason_category?.state === "recorded"
-                        ? `Recorded category: ${rule.reason_category.label} · Policy revision ${rule.reason_category.policy_revision}`
-                        : rule.reason_category?.state === "not_recorded"
-                          ? "Structured category not recorded."
-                          : "Recorded structured category unavailable."}
-                    </Typography>
-                  )}
-                  {capabilities.facilities_write && (
-                    <Button
-                      disabled={disabled}
-                      onClick={() =>
-                        void submit({
-                          path: `/api/clinic/capacity/${rule.id}/deactivate`,
-                          body: {
-                            capacity: { expected_version: rule.version },
-                          },
-                        })
+              {capacity.data && (
+                <WeeklyCapacityRules
+                  rules={capacity.data.rules}
+                  sites={queue.data.sites}
+                  clinicians={queue.data.clinicians}
+                  canWrite={capabilities.facilities_write === true}
+                  disabled={disabled}
+                  onAdd={addWeeklyHours}
+                  onDeactivate={deactivateRule}
+                />
+              )}
+              {capacity.data?.rules
+                .filter((rule) => rule.kind !== "weekly")
+                .map((rule) => (
+                  <Box key={rule.id}>
+                    <Typography>
+                      {
+                        queue.data?.clinicians.find(
+                          (item) => item.id === rule.clinician_id,
+                        )?.name
+                      }{" "}
+                      ·{" "}
+                      {
+                        queue.data?.sites.find(
+                          (item) => item.id === rule.site_id,
+                        )?.name
                       }
-                    >
-                      Deactivate rule
-                    </Button>
-                  )}
-                </Box>
-              ))}
+                      :{" "}
+                      {`${new Date(rule.starts_at!).toLocaleString()} – ${new Date(rule.ends_at!).toLocaleString()}`}{" "}
+                      {rule.reason}
+                    </Typography>
+                    {rule.kind === "block" && (
+                      <Typography variant="body2" color="text.secondary">
+                        {rule.reason_category?.state === "recorded"
+                          ? `Recorded category: ${rule.reason_category.label} · Policy revision ${rule.reason_category.policy_revision}`
+                          : rule.reason_category?.state === "not_recorded"
+                            ? "Structured category not recorded."
+                            : "Recorded structured category unavailable."}
+                      </Typography>
+                    )}
+                    {capabilities.facilities_write && (
+                      <Button
+                        disabled={disabled}
+                        onClick={() => deactivateRule(rule)}
+                      >
+                        Deactivate rule
+                      </Button>
+                    )}
+                  </Box>
+                ))}
               {capabilities.facilities_write && (
                 <>
+                  <Typography
+                    variant="subtitle1"
+                    component="h3"
+                    ref={capacityEditor}
+                    tabIndex={-1}
+                  >
+                    New capacity rule
+                  </Typography>
                   <TextField
                     select
                     label="Rule type"
@@ -903,6 +965,16 @@ export function WaitlistWorkspace() {
                       Blocked time
                     </MenuItem>
                   </TextField>
+                  <Typography variant="body2">
+                    New rule for{" "}
+                    {queue.data.sites.find((item) => item.id === Number(site))
+                      ?.name ?? "choose a site"}{" "}
+                    ·{" "}
+                    {queue.data.clinicians.find(
+                      (item) => item.id === Number(clinician),
+                    )?.name ?? "choose a clinician"}
+                    . Changes apply only after Save capacity rule.
+                  </Typography>
                   {kind === "weekly" ? (
                     <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                       <TextField
