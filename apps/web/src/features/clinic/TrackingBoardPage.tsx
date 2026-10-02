@@ -1687,6 +1687,14 @@ export function TrackingBoardView({
           <h1>Tracking Board</h1>
           {boardDate && <p className="tracking-board-date">{boardDate}</p>}
           <Typography variant="caption" color="text.secondary">
+            <span
+              role="note"
+              aria-label="All authorized locations. The Location selector does not filter this clinic-wide board."
+              title="The Location selector does not filter this clinic-wide board."
+            >
+              All authorized locations
+            </span>
+            {" · "}
             All times shown in {timezone}
           </Typography>
         </div>

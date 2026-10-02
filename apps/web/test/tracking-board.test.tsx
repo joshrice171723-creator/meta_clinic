@@ -328,6 +328,13 @@ describe("tracking-board identities and waiting times", () => {
   });
 });
 describe("board and Operations presentation boundaries", () => {
+  it("explains clinic-wide scope in the existing board context line", () => {
+    const html = renderToStaticMarkup(<TestTrackingBoard />);
+    expect(html).toContain(
+      'role="note" aria-label="All authorized locations. The Location selector does not filter this clinic-wide board." title="The Location selector does not filter this clinic-wide board.">All authorized locations</span> · All times shown in America/Chicago',
+    );
+  });
+
   it("matches chart actions to chart state", () => {
     expect(chartActionPresentation("unopened", "open")).toEqual({
       label: "Start new Chart",
