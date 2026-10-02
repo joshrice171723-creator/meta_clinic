@@ -1,18 +1,18 @@
 {
   "summary": {
-    "generated_at": "2026-10-01T22:25:56.739141+00:00",
-    "source_revision": "f1cd859921fd6f29a1480524bbfd3d939f295bb7",
+    "generated_at": "2026-10-02T00:41:27.604960+00:00",
+    "source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
     "total_original_entries": 241,
     "unique_numeric_ids": 239,
-    "closed": 158,
-    "remaining": 83,
+    "closed": 179,
+    "remaining": 62,
     "counts": {
-      "mixed": 37,
-      "fixed_and_verified": 150,
-      "deferred": 5,
-      "unverified": 23,
-      "blocked": 18,
-      "proven_invalid": 8
+      "mixed": 28,
+      "fixed_and_verified": 170,
+      "deferred": 4,
+      "unverified": 16,
+      "blocked": 14,
+      "proven_invalid": 9
     },
     "all_original_dispositions_recorded": true,
     "closure_rule": "Whole current original claim reviewed against its stated evidence; partial results, feature deferrals, policy-only resolutions and blocked/unverified work excluded. Local checks and historical invalidations keep their original scope/revision; no hosted candidate closure is inferred.",
@@ -3380,6 +3380,770 @@
         ],
         "integrated_source_revision": "f1cd859921fd6f29a1480524bbfd3d939f295bb7",
         "evidence_label": "worker_review_complete; whole_claim_not_closed"
+      },
+      {
+        "key": "54 | Visitor demo tenant isolation",
+        "disposition": "proven_invalid",
+        "scope": "Current shared visitor behavior is intentional accepted design; historical observation is accurate, defect interpretation is not applicable.",
+        "components": [
+          {
+            "claim_scope": "Whole current visitor-sharing and reset-boundary claim",
+            "status": "accepted_design_verified",
+            "detail": "Founder clarification in Decisions.md and guided-demo.md explicitly supersedes personal visitor clinics with shared global lessons. The original shared-workspace observation remains accurate. Current two-visitor regression at6aaa verifies identical active run/practice and explicit restart with fixed practice identity; the independently rerun leaving-browser case at48f3 passes13assertions and preserves the other browser active session. The initial404 came from a stale test URL; only that URL changed to canonical /api/demo/run/reset. No per-visitor tenancy or production acceptance is claimed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_public-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\issue54-shared-demo-disposition.md",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-09-30\\task-3\\relay-qa-combined-20261001\\APPlyVault\\03 Execution\\Decisions.md",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-09-30\\task-3\\relay-qa-combined-20261001\\docs\\development\\guided-demo.md",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-6aaaabe02f08-20261001T225838Z-6cac5a\\focused-closeout-batch-backend-qa.txt",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-48f3a9af4f7b-20261001T232522Z-1968fe\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "48f3a9af4f7b7a39b8e9f8c9a268bcf81bde8cd6",
+        "evidence_label": "accepted_shared_demo_design_verified; no_per_visitor_isolation_claim"
+      },
+      {
+        "key": "168 | Medication record silently dropped despite group reporting \"Saved\" (data loss)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual intact App completed-encounter Safety/history UI saves a fully specified supplement via real Rails201; receipt and exact medication fields match, Group saved appears, Unsaved changes clears, actual nurse-workspace GET retains the entry and full UI reload retains all saved fields. No historical cause or hosted acceptance claimed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-3.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "8bb537f3b16f2d3af09b3789deaaf6b325434e93",
+        "evidence_label": "whole_current_local_claim_verified; actual_App_Rails_persistence_and_reload"
+      },
+      {
+        "key": "221 | Medication-history group save rejects every save with \"Choose supported history entry details.\" (validation dead-end)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual intact App completed-encounter Safety/history UI saves a fully specified supplement via real Rails201; receipt and exact medication fields match, Group saved appears, Unsaved changes clears, actual nurse-workspace GET retains the entry and full UI reload retains all saved fields. No historical cause or hosted acceptance claimed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-3.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "8bb537f3b16f2d3af09b3789deaaf6b325434e93",
+        "evidence_label": "whole_current_local_claim_verified; actual_App_Rails_persistence_and_reload"
+      },
+      {
+        "key": "169 | \"Save & continue\" gives no confirmation and local state stays \"Unsaved changes\" after a successful save",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual intact App completed-encounter Safety/history UI saves a fully specified supplement via real Rails201; receipt and exact medication fields match, Group saved appears, Unsaved changes clears, actual nurse-workspace GET retains the entry and full UI reload retains all saved fields. No historical cause or hosted acceptance claimed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-3.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "8bb537f3b16f2d3af09b3789deaaf6b325434e93",
+        "evidence_label": "whole_current_local_claim_verified; actual_App_Rails_persistence_and_reload"
+      },
+      {
+        "key": "165 | Contradictory signing state on Encounter #2",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual intact App signed chart shows consistent Signed state with immutable readonly revision and no contradictory unsigned signer. Start correction with reason/attestation creates real201 unsigned correction, parent chart remains In progress, interactive signed Revision1 remains immutable in history, and reload retains the current correction and signed history."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-4.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "8bb537f3b16f2d3af09b3789deaaf6b325434e93",
+        "evidence_label": "whole_current_local_claim_verified; actual_App_Rails_persistence_and_reload"
+      },
+      {
+        "key": "200 | Signed notes cannot be reopened/amended — revision history is display-only",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual intact App signed chart shows consistent Signed state with immutable readonly revision and no contradictory unsigned signer. Start correction with reason/attestation creates real201 unsigned correction, parent chart remains In progress, interactive signed Revision1 remains immutable in history, and reload retains the current correction and signed history."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-4.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "8bb537f3b16f2d3af09b3789deaaf6b325434e93",
+        "evidence_label": "whole_current_local_claim_verified; actual_App_Rails_persistence_and_reload"
+      },
+      {
+        "key": "118 | Selecting \"QA Gate Test\" from the location chooser locks the session instead of switching",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Native authorized location switch receives actual200, context and identity retain actor and selected site; forbidden foreign switch404 preserves current site and unlocked session across reload."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\browser-0.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "ea034b1bfbaaf7a287d648de766581e13a361bd4",
+        "evidence_label": "actual_App_Rails_native_current_local_claim_verified"
+      },
+      {
+        "key": "161 | Inconsistent permission gating between inventory routes",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Same native authorized session completes supplier creation, normalized catalog quote persistence, Plan recovery and empty-bin Manage storage route, actual location creation and reload; matched passing backend role/grant/revocation evidence remains valid. Manufactured catalog seed does not establish FDA import."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\browser-5.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "ea034b1bfbaaf7a287d648de766581e13a361bd4",
+        "evidence_label": "actual_App_Rails_native_current_local_claim_verified"
+      },
+      {
+        "key": "189 | Dev sign-in form resets on first LOG IN",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Fresh browser native four-selection Log in sends exactly one real201, identity/context readback and full reload retain intended clinic and actor; no first-login reset."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\browser-0.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "ea034b1bfbaaf7a287d648de766581e13a361bd4",
+        "evidence_label": "actual_App_Rails_native_current_local_claim_verified"
+      },
+      {
+        "key": "58 | Invite silently dropped under sync race",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Native two-window practice change during actual invitation submission returns real409, retains employee draft fields and eligible site, locks second window appropriately then re-entry retains identity; actual membership/invitation GET demonstrates no unintended write."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-0.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "7e08553c92ca127c29bfd8b646ea6f6a352c3e71",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "179 | CRITICAL — client-side blocked booking silently created server-side with wrong date-time (phantom booking)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual native rejected capacity booking yields real422 with exact submitted date/time, readback across all patient appointments confirms no phantom record; valid within-policy retry real201 creates exactly one appointment with exact clinician/site/timestamps and reload persistence."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-1.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "7e08553c92ca127c29bfd8b646ea6f6a352c3e71",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "184 | Availability pre-check ignores the capacity template",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual capacity-policy rejection and within-policy retry are verified through native booking and real422/201, exact submitted timestamps and all-date patient readbacks; no historical packet reconstructed."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-1.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "7e08553c92ca127c29bfd8b646ea6f6a352c3e71",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "230 | Vitals review readback shows 'Observed (clinic time ·UTC)'",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual intact nurse Room and vitals entry uses Chicago location override over UTC clinic/browser, persists exact UTC observation and native review label/value presents clinic-local time; real readback and reload retain correct observation."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-2.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "7e08553c92ca127c29bfd8b646ea6f6a352c3e71",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "199 | \"Save clinic profile\" fails with an unresolvable duplicate-record conflict",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local inherited-profile save/replay verified; original inaccessible packet and historical cause remain unavailable.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual newly created location inherits default revision0, native recommended starting scope saves real200 site-specific revision1, exact replay creates no duplicate, GET/full reload retain revision and primary-site configuration remains unchanged. Backend independent location/replay/conflict checks also pass."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-4.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "7e08553c92ca127c29bfd8b646ea6f6a352c3e71",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "31 | Newly invited Clinician not bookable",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual native employee clinician activation persists, capacity setup GET confirms linked clinician, native booking real201 and calendar readback/full reload retain exact clinician/site/times; includes final Front Desk cancellation verification."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-31-syntax-a7ec.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\browser-0.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\shared-real-stack-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "5d8a05f7aca8a0c9bad4cd6ee6bd9882a19e8a86",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "172 | \"Not reviewed in this encounter\" missing on Conditions",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual Conditions section explicitly starts Not reviewed in this encounter, records attributed review using real API, current review survives reload and condition verification state is unchanged. Matching focused API case preserves prior immutable attestations, replay, active-condition none-report guard and closed-encounter rejection."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\browser-1.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\shared-real-stack-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "5d8a05f7aca8a0c9bad4cd6ee6bd9882a19e8a86",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "96 | Appointment cancellation does not apply (REGRESSION)",
+        "disposition": "fixed_and_verified",
+        "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
+        "components": [
+          {
+            "claim_scope": "Whole current local claim",
+            "status": "locally_verified",
+            "detail": "Actual Front Desk Appointment date selection exposes saved booking, native cancellation acknowledgment applies real write; actual appointment GET and full App reload retain cancelled state."
+          }
+        ],
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\browser-0.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\shared-real-stack-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
+        ],
+        "integrated_source_revision": "5d8a05f7aca8a0c9bad4cd6ee6bd9882a19e8a86",
+        "evidence_label": "actual_App_Rails_current_local_claim_verified"
+      },
+      {
+        "key": "220 | Chart-level Clinical history shows zero conditions despite encounter intake listing two",
+        "disposition": "fixed_and_verified",
+        "components": [
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "whole_current_claim_verified",
+            "detail": "Current intact App patient record displays both saved intake concerns with source encounter/revision, reload persistence, source-link URL and nurse readback, sibling-chart fallback, with longitudinal conditions remaining separate empty list. Native1 PASS; exact focused backend1 run21 assertions PASS verifies own-encounter preference, legitimate scoped encounter-source restriction with null source/no older fallback, and wrong-patient404. Historical cause unknown; no hosted retest."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-1.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-20dc2861ca51-20261002T003642Z-e6f9bd\\focused-closeout-batch-backend-qa.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "evidence_label": "whole_current_original_claim_verified_local_synthetic"
+      },
+      {
+        "key": "231 | Stale working-note resurrection after hard reload (refresh-recovery bug)",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Supported local part",
+            "status": "locally_verified",
+            "detail": "Deletion that finishes persisting survives reload; shared-hook clear/replacement after a lost response is tested."
+          },
+          {
+            "claim_scope": "Remaining original claim",
+            "status": "unverified",
+            "detail": "Deletion followed by hard reload while the autosave remains pending and repeated reload behavior at that boundary remain unverified."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue231-closure-audit.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Deletion followed by hard reload while the autosave remains pending and repeated reload behavior at that boundary remain unverified."
+      },
+      {
+        "key": "22 | Inventory receiving/counting unreachable — and setup itself is permission-blocked",
+        "disposition": "fixed_and_verified",
+        "components": [
+          {
+            "claim_scope": "Locally covered component",
+            "status": "scoped_local_verified_or_retained_source",
+            "detail": "Empty count-bin recovery source and focused checks retained."
+          },
+          {
+            "claim_scope": "Original remainder",
+            "status": "unverified",
+            "detail": "Supplier-offer setup, permission denial and receiving/counting end-to-end prerequisites remain separately unproved."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "whole_current_claim_verified",
+            "detail": "Current intact App full configured inventory journey PASS: same-session supplier creation, catalog match/normalized quote, eligible purchase, receipt, leaf-bin setup, physical count completion and reload. First-run supplier/product/offer/purchase_order/received/binned remain true with configured status, exact created product and ordered purchase IDs; after legitimate second-site switch and return/full reload, first_run equals complete prior snapshot. This covers160's setup-state regression while configured persists. Prior permission/backend receipts retained. Historical cause unknown; no hosted retest."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-3.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "evidence_label": "whole_current_original_claim_verified_local_synthetic"
+      },
+      {
+        "key": "55 | Reminder configuration UI doesn't exist",
+        "disposition": "deferred",
+        "components": [
+          {
+            "claim_scope": "Reminder configuration UI doesn't exist",
+            "status": "delegated_feature_deferral",
+            "detail": "Retain existing policy-enforced reminder operations; defer practice-wide reminder configuration editor."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases: #71/#55 actual App practice audit and reminder settings persist and isolate switched clinics=failed Combined case failed on empty Material UI placeholder assumption; no passed combined audit/settings journey inferred."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_operations-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-2.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": null
+      },
+      {
+        "key": "63 | SOAP note: explicit Save draft disabled; reload resets chart state",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Locally covered component",
+            "status": "scoped_local_verified_or_retained_source",
+            "detail": "Manual SOAP draft-save correction and recovery copy retained."
+          },
+          {
+            "claim_scope": "Original remainder",
+            "status": "unverified",
+            "detail": "Full reported chart-state reload and persistence claims lack connected proof."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Full reported chart-state reload and persistence claims lack connected proof."
+      },
+      {
+        "key": "71 | No practice-level audit trail",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Clinic-wide audit screen",
+            "status": "delegated_feature_deferral",
+            "detail": "New practice-wide audit screen deferred."
+          },
+          {
+            "claim_scope": "Existing required audit capture",
+            "status": "source_present_partial_backend_evidence",
+            "detail": "Durable storage and patient activity are narrower; verify required existing capture, no blanket audit compliance or complete trail claim."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases: #71/#55 actual App practice audit and reminder settings persist and isolate switched clinics=failed Combined case failed on empty Material UI placeholder assumption; no passed combined audit/settings journey inferred."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_operations-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-2.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Required existing audit capture operation-to-persisted-record mapping; no pending new-screen decision."
+      },
+      {
+        "key": "160 | Inventory setup state regressed while \"Configured\" persists",
+        "disposition": "fixed_and_verified",
+        "components": [
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "whole_current_claim_verified",
+            "detail": "Current intact App full configured inventory journey PASS: same-session supplier creation, catalog match/normalized quote, eligible purchase, receipt, leaf-bin setup, physical count completion and reload. First-run supplier/product/offer/purchase_order/received/binned remain true with configured status, exact created product and ordered purchase IDs; after legitimate second-site switch and return/full reload, first_run equals complete prior snapshot. This covers160's setup-state regression while configured persists. Prior permission/backend receipts retained. Historical cause unknown; no hosted retest."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-3.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "evidence_label": "whole_current_original_claim_verified_local_synthetic"
+      },
+      {
+        "key": "187 | \"Open work item\" deep link drops location context",
+        "disposition": "unverified",
+        "components": [
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Observed failures involve noncritical fragment focus/duplicate selector; product workflow failure beyond those selectors is not established."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_access-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Original work-item deep link retains site/organization, loads encounter and does not lock session. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable."
+      },
+      {
+        "key": "198 | Chart fields render read-only after \"Save new revision\" until reload",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Supported local part",
+            "status": "locally_verified",
+            "detail": "Isolated SoapNoteForm re-enables fields after saving revision 2 and survives reload."
+          },
+          {
+            "claim_scope": "Remaining original claim",
+            "status": "unverified",
+            "detail": "The actual chart parent refresh/rehydration callback after Save new revision is absent from the fixture."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-198-result.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "The actual chart parent refresh/rehydration callback after Save new revision is absent from the fixture."
+      },
+      {
+        "key": "212 | Checked-in visit has no cancellation or resolution path (WF-054 FAIL)",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Locally covered component",
+            "status": "scoped_local_verified_or_retained_source",
+            "detail": "Post-check-in cancellation explanation and capability-respecting encounter link checked."
+          },
+          {
+            "claim_scope": "Original remainder",
+            "status": "unverified",
+            "detail": "Explanation alone does not prove a checked-in visit can complete an authorized resolution journey."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases: #212 actual checked-in appointment resolves through recorded encounter completion and reload=failed"
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-0.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Explanation alone does not prove a checked-in visit can complete an authorized resolution journey."
+      },
+      {
+        "key": "77 | Inventory first-run guide (Notes for QA #3)",
+        "disposition": "fixed_and_verified",
+        "components": [
+          {
+            "claim_scope": "Locally covered component",
+            "status": "scoped_local_verified_or_retained_source",
+            "detail": "Normalized catalog/NDC matching locally checked1/10 and historical live improvement preserved."
+          },
+          {
+            "claim_scope": "Original remainder",
+            "status": "unverified",
+            "detail": "Full inventory first-run quote/order/receiving progression is outside normalized-search coverage."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "whole_current_claim_verified",
+            "detail": "Current intact App full configured inventory journey PASS: same-session supplier creation, catalog match/normalized quote, eligible purchase, receipt, leaf-bin setup, physical count completion and reload. First-run supplier/product/offer/purchase_order/received/binned remain true with configured status, exact created product and ordered purchase IDs; after legitimate second-site switch and return/full reload, first_run equals complete prior snapshot. This covers160's setup-state regression while configured persists. Prior permission/backend receipts retained. Historical cause unknown; no hosted retest."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-3.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": null,
+        "blocking_input": null,
+        "evidence_label": "whole_current_original_claim_verified_local_synthetic"
+      },
+      {
+        "key": "9 | Truncated labels",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Locally covered component",
+            "status": "scoped_local_verified_or_retained_source",
+            "detail": "Booking recurrence clipping repaired and verified desktop/mobile."
+          },
+          {
+            "claim_scope": "Original remainder",
+            "status": "unverified",
+            "detail": "Original encounter clipping examples lack their own viewport evidence."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final original9 command passed only bounded script assertions; full original claim remains partial and is not promoted."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Original encounter clipping examples lack their own viewport evidence."
+      },
+      {
+        "key": "81 | Chart \"Signing\" anchor renders nothing; completed encounter stuck as unsigned draft",
+        "disposition": "mixed",
+        "components": [
+          {
+            "claim_scope": "Locally covered component",
+            "status": "scoped_local_verified_or_retained_source",
+            "detail": "Signing anchor is present in current source."
+          },
+          {
+            "claim_scope": "Original remainder",
+            "status": "unverified",
+            "detail": "Completed-but-unsigned state and actual anchor rendering are not established by source presence."
+          },
+          {
+            "claim_scope": "Reviewed current batch component",
+            "status": "unverified_whole_claim",
+            "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          },
+          {
+            "claim_scope": "Final started-only current verification",
+            "status": "unverified_whole_claim",
+            "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
+          }
+        ],
+        "integrator_evidence": [
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+          "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
+        ],
+        "integrated_source_revision": "20dc2861ca5166a3914c1609bcc06e36052bf283",
+        "remaining_qa_input": "Completed-but-unsigned state and actual anchor rendering are not established by source presence."
       }
     ]
   },
@@ -3699,25 +4463,29 @@
       "key": "220 | Chart-level Clinical history shows zero conditions despite encounter intake listing two",
       "title": "Chart-level Clinical history shows zero conditions despite encounter intake listing two",
       "source_line": 39,
-      "disposition": "blocked",
-      "closed": false,
+      "disposition": "fixed_and_verified",
+      "closed": true,
       "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
       "components": [
         {
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "whole_current_claim_verified",
+          "detail": "Current intact App patient record displays both saved intake concerns with source encounter/revision, reload persistence, source-link URL and nurse readback, sibling-chart fallback, with longitudinal conditions remaining separate empty list. Native1 PASS; exact focused backend1 run21 assertions PASS verifies own-encounter preference, legitimate scoped encounter-source restriction with null source/no older fallback, and wrong-patient404. Historical cause unknown; no hosted retest."
         }
       ],
-      "blocking_input": {
-        "input": "Authorized intake/history packet libfile_b9ea2be481d08191bd2739b64b04c331 and explicit intake-versus-longitudinal-history contract evidence.",
-        "owner": "Dot / authorized packet owner; integrator after authorized availability",
-        "reason": "Existing explicit access hold; no bypass or held-source reconstruction."
-      },
-      "remaining_qa_input": "Authorized intake/history packet libfile_b9ea2be481d08191bd2739b64b04c331 and explicit intake-versus-longitudinal-history contract evidence.",
+      "blocking_input": null,
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-1.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-20dc2861ca51-20261002T003642Z-e6f9bd\\focused-closeout-batch-backend-qa.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -3793,6 +4561,11 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
         }
       ],
       "blocking_input": null,
@@ -3800,7 +4573,8 @@
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
         "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\issue231-closure-audit.json",
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -4528,8 +5302,8 @@
       "key": "22 | Inventory receiving/counting unreachable — and setup itself is permission-blocked",
       "title": "Inventory receiving/counting unreachable — and setup itself is permission-blocked",
       "source_line": 117,
-      "disposition": "mixed",
-      "closed": false,
+      "disposition": "fixed_and_verified",
+      "closed": true,
       "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
       "components": [
         {
@@ -4546,13 +5320,20 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "whole_current_claim_verified",
+          "detail": "Current intact App full configured inventory journey PASS: same-session supplier creation, catalog match/normalized quote, eligible purchase, receipt, leaf-bin setup, physical count completion and reload. First-run supplier/product/offer/purchase_order/received/binned remain true with configured status, exact created product and ordered purchase IDs; after legitimate second-site switch and return/full reload, first_run equals complete prior snapshot. This covers160's setup-state regression while configured persists. Prior permission/backend receipts retained. Historical cause unknown; no hosted retest."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Supplier-offer setup, permission denial and receiving/counting end-to-end prerequisites remain separately unproved.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-3.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -4633,27 +5414,25 @@
       "key": "31 | Newly invited Clinician not bookable",
       "title": "Newly invited Clinician not bookable",
       "source_line": 125,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Assigned work completed to stated evidence boundary; whole original remains open.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Current assigned continuation proof",
-          "status": "locally_verified_component",
-          "detail": "Actual invitation, activation, authorized clinician setup, offered profile and persisted booking readback pass. Added permission-gated scheduling setup helper; syntax-only transform passes without loading imports."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual native employee clinician activation persists, capacity setup GET confirms linked clinician, native booking real201 and calendar readback/full reload retain exact clinician/site/times; includes final Front Desk cancellation verification."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual new helper and complete booking UI journey remain unverified under held dependency graph.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
         "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\reconciliation\\issue-31-syntax-a7ec.json",
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\browser-0.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\shared-real-stack-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
       ],
       "integrator_review_note": null
     },
@@ -5168,13 +5947,20 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases: #71/#55 actual App practice audit and reminder settings persist and isolate switched clinics=failed Combined case failed on empty Material UI placeholder assumption; no passed combined audit/settings journey inferred."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_operations-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_operations-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-2.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -5212,31 +5998,23 @@
       "key": "58 | Invite silently dropped under sync race",
       "title": "Invite silently dropped under sync race",
       "source_line": 169,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Synthetic409 rejection/draft-preservation checks passed."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Actual cross-window synchronization/remount during submission is not covered by the synthetic409 case."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Native two-window practice change during actual invitation submission returns real409, retains employee draft fields and eligible site, locks second window appropriately then re-entry retains identity; actual membership/invitation GET demonstrates no unintended write."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Actual cross-window synchronization/remount during submission is not covered by the synthetic409 case.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-0.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -5345,13 +6123,19 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": "Full reported chart-state reload and persistence claims lack connected proof.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -5518,13 +6302,20 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases: #71/#55 actual App practice audit and reminder settings persist and isolate switched clinics=failed Combined case failed on empty Material UI placeholder assumption; no passed combined audit/settings journey inferred."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": "Required existing audit capture operation-to-persisted-record mapping; no pending new-screen decision.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_operations-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_operations-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-2.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -5987,21 +6778,23 @@
       "key": "118 | Selecting \"QA Gate Test\" from the location chooser locks the session instead of switching",
       "title": "Selecting \"QA Gate Test\" from the location chooser locks the session instead of switching",
       "source_line": 229,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "locally_verified_component",
-          "detail": "Two real backend continuity cases passed2063 (18 assertions total): authorized selection and foreign-site refusal preserve actor/current site on subsequent GET. Original QA Gate Test cookie/generation context remains unproved."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Native authorized location switch receives actual200, context and identity retain actor and selected site; forbidden foreign switch404 preserves current site and unlocked session across reload."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Capture original location-switch response, actor generation and cookies to distinguish legitimate denial from unintended session lock.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\browser-0.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -6871,25 +7664,28 @@
       "key": "160 | Inventory setup state regressed while \"Configured\" persists",
       "title": "Inventory setup state regressed while \"Configured\" persists",
       "source_line": 311,
-      "disposition": "blocked",
-      "closed": false,
+      "disposition": "fixed_and_verified",
+      "closed": true,
       "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
       "components": [
         {
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "whole_current_claim_verified",
+          "detail": "Current intact App full configured inventory journey PASS: same-session supplier creation, catalog match/normalized quote, eligible purchase, receipt, leaf-bin setup, physical count completion and reload. First-run supplier/product/offer/purchase_order/received/binned remain true with configured status, exact created product and ordered purchase IDs; after legitimate second-site switch and return/full reload, first_run equals complete prior snapshot. This covers160's setup-state regression while configured persists. Prior permission/backend receipts retained. Historical cause unknown; no hosted retest."
         }
       ],
-      "blocking_input": {
-        "input": "Authorized inventory packet libfile_69c7495cf27c8191b2481df86014630a with original setup identity/persistence evidence.",
-        "owner": "Dot / authorized packet owner; integrator after authorized availability",
-        "reason": "Existing explicit access hold; no bypass or held-source reconstruction."
-      },
-      "remaining_qa_input": "Authorized inventory packet libfile_69c7495cf27c8191b2481df86014630a with original setup identity/persistence evidence.",
+      "blocking_input": null,
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-3.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -6899,31 +7695,23 @@
       "key": "161 | Inconsistent permission gating between inventory routes",
       "title": "Inconsistent permission gating between inventory routes",
       "source_line": 313,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Capability affordance correction locally checked."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original same-session supplier-route effective capability/denial remains unclassified."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "locally_verified_component",
-          "detail": "Two supplier guide links now match existing catalog plus supplier-pricing capabilities; four capability combinations SSR pass2063. Original same-session route denial remains unclassified."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Same native authorized session completes supplier creation, normalized catalog quote persistence, Plan recovery and empty-bin Manage storage route, actual location creation and reload; matched passing backend role/grant/revocation evidence remains valid. Manufactured catalog seed does not establish FDA import."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original same-session supplier-route effective capability/denial remains unclassified.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\browser-5.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -6999,21 +7787,23 @@
       "key": "165 | Contradictory signing state on Encounter #2",
       "title": "Contradictory signing state on Encounter #2",
       "source_line": 321,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual intact App signed chart shows consistent Signed state with immutable readonly revision and no contradictory unsigned signer. Start correction with reason/attestation creates real201 unsigned correction, parent chart remains In progress, interactive signed Revision1 remains immutable in history, and reload retains the current correction and signed history."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original encounter signed metadata and signature-card projection agree after reload. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-4.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7055,25 +7845,23 @@
       "key": "168 | Medication record silently dropped despite group reporting \"Saved\" (data loss)",
       "title": "Medication record silently dropped despite group reporting \"Saved\" (data loss)",
       "source_line": 327,
-      "disposition": "blocked",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual intact App completed-encounter Safety/history UI saves a fully specified supplement via real Rails201; receipt and exact medication fields match, Group saved appears, Unsaved changes clears, actual nurse-workspace GET retains the entry and full UI reload retains all saved fields. No historical cause or hosted acceptance claimed."
         }
       ],
-      "blocking_input": {
-        "input": "Authorized intake packet libfile_b9ea2be481d08191bd2739b64b04c331, including medication save/reload evidence.",
-        "owner": "Dot / authorized packet owner; integrator after authorized availability",
-        "reason": "Existing explicit access hold; no bypass or held-source reconstruction."
-      },
-      "remaining_qa_input": "Authorized intake packet libfile_b9ea2be481d08191bd2739b64b04c331, including medication save/reload evidence.",
+      "blocking_input": null,
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-3.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7083,31 +7871,23 @@
       "key": "169 | \"Save & continue\" gives no confirmation and local state stays \"Unsaved changes\" after a successful save",
       "title": "\"Save & continue\" gives no confirmation and local state stays \"Unsaved changes\" after a successful save",
       "source_line": 329,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Partial local behavior verified; remaining material original-claim behavior unverified. Excluded from the closed count.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Supported local part",
+          "claim_scope": "Whole current local claim",
           "status": "locally_verified",
-          "detail": "Open-encounter Save preparation shows a confirmed revision and Saved state in its passing fixture."
-        },
-        {
-          "claim_scope": "Remaining original claim",
-          "status": "unverified",
-          "detail": "Original completed-encounter questionnaire-group Save & continue and unsaved-state clearing are a different action/context; no matching current execution proof."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "detail": "Actual intact App completed-encounter Safety/history UI saves a fully specified supplement via real Rails201; receipt and exact medication fields match, Group saved appears, Unsaved changes clears, actual nurse-workspace GET retains the entry and full UI reload retains all saved fields. No historical cause or hosted acceptance claimed."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original completed-encounter questionnaire-group Save & continue and unsaved-state clearing are a different action/context; no matching current execution proof.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-3.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7161,26 +7941,24 @@
       "key": "172 | \"Not reviewed in this encounter\" missing on Conditions",
       "title": "\"Not reviewed in this encounter\" missing on Conditions",
       "source_line": 335,
-      "disposition": "deferred",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "\"Not reviewed in this encounter\" missing on Conditions",
-          "status": "delegated_feature_deferral",
-          "detail": "Defer Conditions review attestation/parity. Keep Conditions as patient history and retain existing allergy/medication/care-needs explicit reviews."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual Conditions section explicitly starts Not reviewed in this encounter, records attributed review using real API, current review survives reload and condition verification state is unchanged. Matching focused API case preserves prior immutable attestations, replay, active-condition none-report guard and closed-encounter rejection."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\browser-1.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\shared-real-stack-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
       ],
       "integrator_review_note": null
     },
@@ -7297,21 +8075,23 @@
       "key": "179 | CRITICAL — client-side blocked booking silently created server-side with wrong date-time (phantom booking)",
       "title": "CRITICAL — client-side blocked booking silently created server-side with wrong date-time (phantom booking)",
       "source_line": 349,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual native rejected capacity booking yields real422 with exact submitted date/time, readback across all patient appointments confirms no phantom record; valid within-policy retry real201 creates exactly one appointment with exact clinician/site/timestamps and reload persistence."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Correlated rejected booking request, appointment creation record and timestamps proving or disproving phantom-booking causality. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-1.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7405,31 +8185,23 @@
       "key": "184 | Availability pre-check ignores the capacity template",
       "title": "Availability pre-check ignores the capacity template",
       "source_line": 357,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Availability wording now distinguishes appointment conflicts from remaining checks."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Original complete capacity-validation/submission behavior is narrower than corrected wording."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual capacity-policy rejection and within-policy retry are verified through native booking and real422/201, exact submitted timestamps and all-date patient readbacks; no historical packet reconstructed."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Original complete capacity-validation/submission behavior is narrower than corrected wording.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-1.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7491,13 +8263,19 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Observed failures involve noncritical fragment focus/duplicate selector; product workflow failure beyond those selectors is not established."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": "Original work-item deep link retains site/organization, loads encounter and does not lock session. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_access-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_access-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7523,21 +8301,23 @@
       "key": "189 | Dev sign-in form resets on first LOG IN",
       "title": "Dev sign-in form resets on first LOG IN",
       "source_line": 367,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "locally_verified_component",
-          "detail": "Real backend first login and subsequent session/context continuity passed2063, composed with existing Login-only UI selection proof; actual first-browser App bootstrap/re-entry remains outside permitted graph."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Fresh browser native four-selection Log in sends exactly one real201, identity/context readback and full reload retain intended clinic and actor; no first-login reset."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Real first-login cookie/bootstrap round trip retains all four selections and intended route;8477 mocked transport pass is narrower. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\activation_copy-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\browser-0.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-ea034b1bfbaa-20261001T234653Z-a78610\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7697,6 +8477,11 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
         }
       ],
       "blocking_input": null,
@@ -7704,7 +8489,8 @@
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
         "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-evidence-continuation\\issue-198-result.json",
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -7714,25 +8500,24 @@
       "key": "199 | \"Save clinic profile\" fails with an unresolvable duplicate-record conflict",
       "title": "\"Save clinic profile\" fails with an unresolvable duplicate-record conflict",
       "source_line": 383,
-      "disposition": "blocked",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local inherited-profile save/replay verified; original inaccessible packet and historical cause remain unavailable.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual newly created location inherits default revision0, native recommended starting scope saves real200 site-specific revision1, exact replay creates no duplicate, GET/full reload retain revision and primary-site configuration remains unchanged. Backend independent location/replay/conflict checks also pass."
         }
       ],
-      "blocking_input": {
-        "input": "Authorized inventory packet libfile_69c7495cf27c8191b2481df86014630a with inherited-profile save/replay conflict evidence.",
-        "owner": "Dot / authorized packet owner; integrator after authorized availability",
-        "reason": "Existing explicit access hold; no bypass or held-source reconstruction."
-      },
-      "remaining_qa_input": "Authorized inventory packet libfile_69c7495cf27c8191b2481df86014630a with inherited-profile save/replay conflict evidence.",
+      "blocking_input": null,
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-4.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
       ],
       "integrator_review_note": null
     },
@@ -7742,31 +8527,23 @@
       "key": "200 | Signed notes cannot be reopened/amended — revision history is display-only",
       "title": "Signed notes cannot be reopened/amended — revision history is display-only",
       "source_line": 385,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Locally covered component",
-          "status": "scoped_local_verified_or_retained_source",
-          "detail": "Read-only revision UI, immutable signed history and independent signed-correction backend3/57 plus concurrency1/7 pass."
-        },
-        {
-          "claim_scope": "Original remainder",
-          "status": "unverified",
-          "detail": "Connected amendment entry/revision-history reload needs full UI evidence; backend success does not prove all missing controls."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual intact App signed chart shows consistent Signed state with immutable readonly revision and no contradictory unsigned signer. Start correction with reason/attestation creates real201 unsigned correction, parent chart remains In progress, interactive signed Revision1 remains immutable in history, and reload retains the current correction and signed history."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Connected amendment entry/revision-history reload needs full UI evidence; backend success does not prove all missing controls.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-4.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8020,13 +8797,20 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases: #212 actual checked-in appointment resolves through recorded encounter completion and reload=failed"
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": "Explanation alone does not prove a checked-in visit can complete an authorized resolution journey.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-0.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8196,35 +8980,23 @@
       "key": "221 | Medication-history group save rejects every save with \"Choose supported history entry details.\" (validation dead-end)",
       "title": "Medication-history group save rejects every save with \"Choose supported history entry details.\" (validation dead-end)",
       "source_line": 421,
-      "disposition": "mixed",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local original claim verified on actual connected App/Rails; original historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Allowlisted form payload correction",
-          "status": "source_and_mocked_local_cases_retained",
-          "detail": "Product_id emitted only for declared form field; this safe local correction is separate from held intake source."
-        },
-        {
-          "claim_scope": "Original completed-encounter medication-history save/reload",
-          "status": "blocked_by_intake_evidence_hold",
-          "detail": "Clinical-note221 passes are a different claim and cannot clear this original intake report."
-        },
-        {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual intact App completed-encounter Safety/history UI saves a fully specified supplement via real Rails201; receipt and exact medication fields match, Group saved appears, Unsaved changes clears, actual nurse-workspace GET retains the entry and full UI reload retains all saved fields. No historical cause or hosted acceptance claimed."
         }
       ],
-      "blocking_input": {
-        "input": "Authorized original intake medication-history save/reload evidence associated with held168/220 packet.",
-        "owner": "Dot / authorized intake packet owner",
-        "reason": "Separate medication-history evidence hold; no denied content access."
-      },
-      "remaining_qa_input": "Original intake medication-history221 save/reload evidence; clinical-note221 tests are a different claim and held intake evidence remains unavailable. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "blocking_input": null,
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_history-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\browser-3.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-8bb537f3b16f-20261001T233129Z-2db1b3\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8234,21 +9006,23 @@
       "key": "230 | Vitals review readback shows 'Observed (clinic time ·UTC)'",
       "title": "Vitals review readback shows 'Observed (clinic time ·UTC)'",
       "source_line": 423,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical causes and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Configured review-preview labels and UTC submission pass. Original reported site setting/readback context remains unknown; no claim of persisted saved-observation reload proof."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual intact nurse Room and vitals entry uses Chicago location override over UTC clinic/browser, persists exact UTC observation and native review label/value presents clinic-local time; real readback and reload retain correct observation."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Historical site timezone setting and observed-time roundtrip distinguish UTC configuration from conversion defect. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\evidence_audit-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\browser-2.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-7e08553c92ca-20261001T235743Z-1d1214\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8258,8 +9032,8 @@
       "key": "77 | Inventory first-run guide (Notes for QA #3)",
       "title": "Inventory first-run guide (Notes for QA #3)",
       "source_line": 427,
-      "disposition": "mixed",
-      "closed": false,
+      "disposition": "fixed_and_verified",
+      "closed": true,
       "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
       "components": [
         {
@@ -8276,13 +9050,20 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "whole_current_claim_verified",
+          "detail": "Current intact App full configured inventory journey PASS: same-session supplier creation, catalog match/normalized quote, eligible purchase, receipt, leaf-bin setup, physical count completion and reload. First-run supplier/product/offer/purchase_order/received/binned remain true with configured status, exact created product and ordered purchase IDs; after legitimate second-site switch and return/full reload, first_run equals complete prior snapshot. This covers160's setup-state regression while configured persists. Prior permission/backend receipts retained. Historical cause unknown; no hosted retest."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Full inventory first-run quote/order/receiving progression is outside normalized-search coverage.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\frontend_checks-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\browser-3.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8360,13 +9141,19 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final original9 command passed only bounded script assertions; full original claim remains partial and is not promoted."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": "Original encounter clipping examples lack their own viewport evidence.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_recovery-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8493,21 +9280,26 @@
       "key": "54 | Visitor demo tenant isolation",
       "title": "Visitor demo tenant isolation",
       "source_line": 447,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "proven_invalid",
+      "closed": true,
+      "scope": "Current shared visitor behavior is intentional accepted design; historical observation is accurate, defect interpretation is not applicable.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current visitor-sharing and reset-boundary claim",
+          "status": "accepted_design_verified",
+          "detail": "Founder clarification in Decisions.md and guided-demo.md explicitly supersedes personal visitor clinics with shared global lessons. The original shared-workspace observation remains accurate. Current two-visitor regression at6aaa verifies identical active run/practice and explicit restart with fixed practice identity; the independently rerun leaving-browser case at48f3 passes13assertions and preserves the other browser active session. The initial404 came from a stale test URL; only that URL changed to canonical /api/demo/run/reset. No per-visitor tenancy or production acceptance is claimed."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Two independent visitor sessions have intended tenant isolation and reset boundaries; this54 is NOT statement generation. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_public-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\forty-item-wave\\remaining_public-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\issue54-shared-demo-disposition.md",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-09-30\\task-3\\relay-qa-combined-20261001\\APPlyVault\\03 Execution\\Decisions.md",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-09-30\\task-3\\relay-qa-combined-20261001\\docs\\development\\guided-demo.md",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-6aaaabe02f08-20261001T225838Z-6cac5a\\focused-closeout-batch-backend-qa.txt",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\sol-clock-continuation\\run-48f3a9af4f7b-20261001T232522Z-1968fe\\focused-closeout-batch-backend-qa.json"
       ],
       "integrator_review_note": null
     },
@@ -8611,13 +9403,19 @@
           "claim_scope": "Reviewed current batch component",
           "status": "unverified_whole_claim",
           "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+        },
+        {
+          "claim_scope": "Final started-only current verification",
+          "status": "unverified_whole_claim",
+          "detail": "Final20dc started-only native selection failed; no whole-claim closure promotion. Preserve earlier source/component proof and historical facts. Cases:  Pending acknowledgment timeout remains unresolved; no corruption demonstrated."
         }
       ],
       "blocking_input": null,
       "remaining_qa_input": "Completed-but-unsigned state and actual anchor rendering are not established by source presence.",
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\dispositions-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-20dc2861ca51-20261002T003020Z-b3fa1f\\shared-real-stack-result.json"
       ],
       "integrator_review_note": null
     },
@@ -8723,21 +9521,24 @@
       "key": "96 | Appointment cancellation does not apply (REGRESSION)",
       "title": "Appointment cancellation does not apply (REGRESSION)",
       "source_line": 467,
-      "disposition": "unverified",
-      "closed": false,
-      "scope": "Stated local evidence only; original historical observation retained; no fresh hosted candidate acceptance.",
+      "disposition": "fixed_and_verified",
+      "closed": true,
+      "scope": "Whole current local claim verified; historical cause and hosted acceptance separate.",
       "components": [
         {
-          "claim_scope": "Reviewed current batch component",
-          "status": "unverified_whole_claim",
-          "detail": "Original claim reviewed in disjoint worker batch; whole-claim closure not established. Existing required original inputs and held boundaries remain authoritative; source-only, deferred or partial proof is excluded from closure."
+          "claim_scope": "Whole current local claim",
+          "status": "locally_verified",
+          "detail": "Actual Front Desk Appointment date selection exposes saved booking, native cancellation acknowledgment applies real write; actual appointment GET and full App reload retain cancelled state."
         }
       ],
       "blocking_input": null,
-      "remaining_qa_input": "Acknowledged cancellation applies and remains cancelled after reload in original Front Desk context. Supply exact runtime build, actor/site prerequisites, observed result and reload/persistence evidence where applicable.",
+      "remaining_qa_input": null,
       "live_status": "Historical report evidence preserved; no exact candidate hosted/Muse acceptance performed.",
       "integrator_evidence": [
-        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json"
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\fifty-item-wave\\clock_fixtures-results.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\browser-0.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\shared-5d8a05f7aca8-20261002T001552Z-1f9f99\\shared-real-stack-result.json",
+        "C:\\Users\\joshr\\Documents\\Codex\\2026-10-01\\finish-and-close-out-the-meta\\work\\authorized-closeout\\run-7e08553c92ca-20261002T000404Z-a5d55e\\focused-closeout-batch-backend-qa.json"
       ],
       "integrator_review_note": null
     },
