@@ -911,9 +911,6 @@ export function BillingDashboard() {
                               setSelectedInvoiceId(invoice.id);
                               setInvoiceOpen(true);
                               clearActionState();
-                              setPaymentReference("");
-                              setPaymentAmount("");
-                              setPaymentEventAmount("");
                               setActionMessage("");
                             }}
                             aria-pressed={selected}
