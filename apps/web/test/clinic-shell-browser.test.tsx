@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -55,13 +54,14 @@ beforeAll(async () => {
           },
           load(id) {
             if (id.endsWith("?shell-baseline")) {
-              const path = id
-                .split("?")[0]
-                .slice(repo.replaceAll("\\", "/").length + 1);
-              return execFileSync("git", ["show", "5da1a9f5:" + path], {
-                cwd: repo,
-                encoding: "utf8",
-              });
+              return readFileSync(
+                resolve(
+                  root,
+                  "test/fixtures/clinic-shell-baseline",
+                  basename(id.split("?")[0]) + ".txt",
+                ),
+                "utf8",
+              );
             }
             if (id !== entry) return;
             return `
