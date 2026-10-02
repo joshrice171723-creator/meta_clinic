@@ -398,10 +398,16 @@ Parent explicitly authorized independent disjoint leaf candidate authoring, supp
 
 C accepted MZ-01c and released shared foundation. A transferred the exact three accepted patches into both lead worktrees after shared-overlap/apply checks: clinical00dbfcc2, operations5178ec74. Seven normalized source files matched2d109493; all concurrent domain dirty paths remained. Transfer manifest SHA25641c5520ceb048853a8f9dc14bd9ebed89508721bbbb9bea42ae404a1bd1dde09. No reset/runtime/publication. Board MZ-02a candidate and separately authorized single class-token/button-semantics test amendment are ready for A/C integration; application checks remain A-owned. Existing appointment/service/waitlist configuration is being read for the safe synthetic fixture queue, without new permissions or changes to configured durations.
 
+### Board/auth candidate integration and bounded fixtures
+
+A froze board df99c016 and login737978e1 separately, preserving lead candidates. The board/CSS and separately authorized three-case test amendment matched B reviewed source blobs before formatting; scoped Prettier changed board line wrapping only (review delta pending mechanical reconstruction), yielding6a49441e; CSS611d9b09/teste232b486 and Loginb077658f retained exact source blobs. Current integration tree clean before this docs checkpoint. A queues one compatible typecheck/changed-format/main+Office bundle batch and only the named board/identity/login-return tests; no current pass is inferred before completion. First formatter launch failed before execution on unresolved Windows pnpm command; pinned Node/Corepack launch succeeded. No dependencies installed.
+
+BM-04/BM-05 isolated synthetic fixtures prepared through guarded real APIs: October5 appointments2/3/4 at09:05/10:10/12:15 site time for15/30/60minutes, and25 waiting entries1..25 verified FIFO. All reuse synthetic patient1 and actor/practice/site/clinician/visit-type1. One synthetic weekly availability fixture supports ordinary booking; no authorization grants, configured service duration changes, offers/acceptance, shared resets or sends. Fixture JSON SHA256 c53da18d0e154208b78c20366244eea7b161a3aaad059cb6a21c68531fa3afe1. Distinct-patient, expiry/denial and20-visit real board fixture remain unproved.
+
 ## Last run
 
-- Date UTC:2026-10-02; accepted source2d109493; integration docs1f1dd1f4.
-- Outcome:C accepted MZ-01c/count6/74; accepted foundation applied to both active lead branches without changing dirty candidates.
-- Changed canonical paths:this brief and central tracker; seven accepted foundation paths synchronized in each lead worktree only.
-- Checks:hash-checked per-packet patches/apply checks/exact normalized source equality PASS; existing context checks reused, no duplicate foundation tests. Required docs validators retain baseline seven harness failures/advisories.
-- Next:integrate ready board source plus narrowly authorized assertion amendment; use serialized isolated fixture/check work. No publication.
+- Date UTC:2026-10-02; board df99c016; login737978e1.
+- Outcome:two candidate packets integrated, acceptance still6/74; BM-04/BM-05 fixtures ready.
+- Changed canonical paths:this brief and central tracker; scoped board/CSS/test amendment and Login candidates committed separately.
+- Checks:hash/base/apply checks PASS; scoped formatter executed; current application/check results pending, no green inference.
+- Next:shared bounded check batch, independent C review and rendered board/auth proof. No publication.
