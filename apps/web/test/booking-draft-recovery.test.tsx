@@ -184,6 +184,82 @@ beforeEach(() => {
 });
 
 describe("booking recovery and definite rejection controls", () => {
+  it("recovers the selected duration after saving and closing with Starts blank", async () => {
+    mock.restored = null;
+    let tree = render();
+    find(
+      tree,
+      (element) =>
+        element.type === "Button" && element.props.children?.[0] === 45,
+    ).props.onClick();
+    tree = render();
+    field(tree, "Starts").props.onChange({ target: { value: "" } });
+    tree = render();
+    button(tree, "Save as draft").props.onClick();
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    const saved = JSON.parse(JSON.stringify(mock.save.mock.calls.at(-1)![0]));
+    expect(saved.draft).toMatchObject({
+      startsAt: "",
+      durationMinutes: 45,
+      endTimeEdited: false,
+    });
+
+    mock.states = [];
+    mock.refs = [];
+    mock.restored = saved;
+    tree = render();
+    field(tree, "Starts").props.onChange({
+      target: { value: "2099-10-06T13:00" },
+    });
+    tree = render();
+    expect(field(tree, "Ends").props.value).toBe("2099-10-06T13:45");
+    expect(mock.api).not.toHaveBeenCalled();
+  });
+
+  it("derives duration from a legacy draft without saved duration metadata", () => {
+    mock.restored.draft.endTimeEdited = false;
+    mock.restored.draft.endsAt = "2099-10-05T10:45";
+    let tree = render();
+    field(tree, "Starts").props.onChange({
+      target: { value: "2099-10-05T11:00" },
+    });
+    tree = render();
+    expect(field(tree, "Ends").props.value).toBe("2099-10-05T11:45");
+  });
+
+  it.runIf(
+    Intl.DateTimeFormat().resolvedOptions().timeZone === "America/Chicago",
+  )(
+    "rejects the pre-existing Chicago fall-back input round trip before submitting",
+    async () => {
+      mock.restored.draft.startsAt = "2026-11-01T01:45";
+      mock.restored.draft.endsAt = "2026-11-01T02:15";
+      mock.restored.draft.endTimeEdited = false;
+      choosePatient(render());
+      let tree = render();
+      find(
+        tree,
+        (element) =>
+          element.type === "Button" && element.props.children?.[0] === 45,
+      ).props.onClick();
+      tree = render();
+      const start = field(tree, "Starts").props.value;
+      const end = field(tree, "Ends").props.value;
+      expect(new Date(start).toISOString()).toBe("2026-11-01T06:45:00.000Z");
+      expect(end).toBe("2026-11-01T01:30");
+      // The desired elapsed end is 07:30Z (second 01:30). Re-parsing the
+      // offset-free native input selects the first 01:30, or 06:30Z.
+      expect(new Date(end).toISOString()).toBe("2026-11-01T06:30:00.000Z");
+      expect(field(tree, "Ends").props.helperText).toBe(
+        "End time must be after the start time.",
+      );
+      await form(tree).props.onSubmit({ preventDefault: vi.fn() });
+      expect(mock.api).not.toHaveBeenCalled();
+      expect(mock.save).not.toHaveBeenCalled();
+      expect(onCreated).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([45, 60])(
     "keeps a chosen %i-minute duration when Starts changes",
     (minutes) => {

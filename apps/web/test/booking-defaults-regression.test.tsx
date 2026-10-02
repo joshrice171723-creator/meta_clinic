@@ -80,14 +80,11 @@ function deviceValue(instant: string) {
 }
 
 describe("Muse 180 booking form timezone defaults", () => {
-  it("keeps duration arithmetic on instants across DST changes and midnight", () => {
-    for (const start of [
-      "2026-03-08T07:45:00Z",
-      "2026-11-01T06:45:00Z",
-      "2026-10-07T04:45:00Z",
-    ]) {
+  it("round trips derived end inputs across spring-forward and midnight", () => {
+    for (const start of ["2026-03-08T07:45:00Z", "2026-10-07T04:45:00Z"]) {
       const end = new Date(Date.parse(start) + 45 * 60_000).toISOString();
       expect(bookingEndTime(start, 45)).toBe(deviceValue(end));
+      expect(new Date(bookingEndTime(start, 45)!).toISOString()).toBe(end);
       expect(bookingDurationMinutes(start, end)).toBe(45);
     }
     expect(bookingEndTime("", 45)).toBeNull();

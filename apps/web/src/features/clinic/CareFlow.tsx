@@ -120,6 +120,7 @@ type BookingDraft = {
   patientId: string;
   startsAt: string;
   endsAt: string;
+  durationMinutes?: number;
   endTimeEdited?: boolean;
   siteId: string;
   roomId: string;
@@ -697,7 +698,18 @@ export function appointmentIntervalError(startsAt: string, endsAt: string) {
   return "";
 }
 
-export function bookingDurationMinutes(startsAt: string, endsAt: string) {
+export function bookingDurationMinutes(
+  startsAt: string,
+  endsAt: string,
+  savedDuration?: number,
+) {
+  if (
+    typeof savedDuration === "number" &&
+    Number.isFinite(savedDuration) &&
+    savedDuration > 0 &&
+    savedDuration <= 24 * 60
+  )
+    return savedDuration;
   const minutes = (Date.parse(endsAt) - Date.parse(startsAt)) / 60_000;
   return Number.isFinite(minutes) && minutes > 0 && minutes <= 24 * 60
     ? minutes
@@ -828,15 +840,18 @@ function BookingFormEditor({
     const defaults = appointmentDefaults();
     const slotStart = initialSlot?.starts_at;
     const useSlotTime = !!slotStart && Date.parse(slotStart) > Date.now();
+    const startsAt = useSlotTime
+      ? localDateTimeValue(new Date(slotStart))
+      : defaults.startsAt;
+    const endsAt =
+      useSlotTime && initialSlot?.ends_at
+        ? localDateTimeValue(new Date(initialSlot.ends_at))
+        : defaults.endsAt;
     return {
       patientId: initialPatientId ? String(initialPatientId) : "",
-      startsAt: useSlotTime
-        ? localDateTimeValue(new Date(slotStart))
-        : defaults.startsAt,
-      endsAt:
-        useSlotTime && initialSlot?.ends_at
-          ? localDateTimeValue(new Date(initialSlot.ends_at))
-          : defaults.endsAt,
+      startsAt,
+      endsAt,
+      durationMinutes: bookingDurationMinutes(startsAt, endsAt),
       endTimeEdited: false,
       siteId: initialSlot ? String(initialSlot.site_id) : "",
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
@@ -919,7 +934,11 @@ function BookingFormEditor({
   const [startsAt, setStartsAt] = useState(restoredDraft.startsAt);
   const [endsAt, setEndsAt] = useState(restoredDraft.endsAt);
   const [durationMinutes, setDurationMinutes] = useState(() =>
-    bookingDurationMinutes(restoredDraft.startsAt, restoredDraft.endsAt),
+    bookingDurationMinutes(
+      restoredDraft.startsAt,
+      restoredDraft.endsAt,
+      restoredDraft.durationMinutes,
+    ),
   );
   const [endTimeEdited, setEndTimeEdited] = useState(
     restoredDraft.endTimeEdited ?? Boolean(initialDraft),
@@ -1090,6 +1109,7 @@ function BookingFormEditor({
       patientId,
       startsAt,
       endsAt,
+      durationMinutes,
       endTimeEdited,
       siteId,
       roomId,
@@ -1111,6 +1131,7 @@ function BookingFormEditor({
       patientId,
       startsAt,
       endsAt,
+      durationMinutes,
       endTimeEdited,
       siteId,
       roomId,
