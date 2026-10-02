@@ -73,7 +73,16 @@ afterAll(async () => {
   await server?.close();
 });
 
-async function fixture(page: Page, pending?: Promise<void>) {
+async function fixture(
+  page: Page,
+  pending?: Promise<void>,
+  scenario: {
+    unknown?: boolean;
+    saved?: boolean;
+    readError?: boolean;
+    existing?: boolean;
+  } = {},
+) {
   page.setDefaultTimeout(5000);
   page.on("pageerror", (error) => console.error(error));
   const switches: unknown[] = [];
@@ -84,6 +93,25 @@ async function fixture(page: Page, pending?: Promise<void>) {
       "/api/",
     );
     let body: unknown;
+    if (
+      path === "/api/clinic/workforce/employments" &&
+      route.request().method() === "POST"
+    ) {
+      submissions.push(path);
+      await route.fulfill({ json: { employment: { id: 99 } } });
+      return;
+    }
+    if (
+      path === "/api/clinic/workforce/employments" &&
+      scenario.readError &&
+      submissions.length
+    ) {
+      await route.fulfill({
+        status: 503,
+        json: { error: "Synthetic readback unavailable" },
+      });
+      return;
+    }
     if (path === "/api/csrf") body = { csrf_token: "synthetic-token" };
     else if (path === "/api/demo/run")
       body = {
@@ -101,8 +129,19 @@ async function fixture(page: Page, pending?: Promise<void>) {
       body = {
         employments: [],
         staff_members: [],
-        membership_options: [],
-        invitations: [],
+        membership_options: scenario.existing
+          ? [{ id: 7, email_address: "eligible@example.test" }]
+          : [],
+        invitations: scenario.saved
+          ? [
+              {
+                id: 99,
+                email_address: "uncertain@example.test",
+                display_name: "Synthetic uncertain employee",
+                role_code: "workforce-employee",
+              },
+            ]
+          : [],
         sites: [{ id: 2, name: "Synthetic site" }],
         role_options: [
           { id: 104, role_code: "workforce-employee", permissions: [] },
@@ -111,8 +150,21 @@ async function fixture(page: Page, pending?: Promise<void>) {
     else if (path === "/api/demo/run/view") {
       switches.push(route.request().postDataJSON());
       body = {};
-    } else if (path === "/api/clinic/workforce/onboarding" && pending) {
+    } else if (
+      path === "/api/clinic/workforce/onboarding" &&
+      (pending || scenario.unknown)
+    ) {
       submissions.push(path);
+      if (scenario.unknown) {
+        await route.fulfill({
+          status: 504,
+          json: {
+            error: "Synthetic outcome is unconfirmed",
+            code: "outcome_unconfirmed",
+          },
+        });
+        return;
+      }
       await pending;
       body = {
         invitation: {
@@ -170,6 +222,142 @@ it("actual employee draft cancels switching without actor/draft loss, then expli
       { account: "front_desk", expected_run_id: 1, expected_user_id: 10 },
     ]);
     expect(submissions).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
+it("unknown setup keeps its veto through failed and empty readback, then authoritative saved record releases it", async () => {
+  const page = await browser.newPage();
+  const scenario = { unknown: true, saved: false, readError: false };
+  try {
+    const { frame, switches, submissions } = await fixture(
+      page,
+      undefined,
+      scenario,
+    );
+    await frame
+      .getByRole("textbox", { name: /^Employee name/ })
+      .fill("Synthetic uncertain employee");
+    await frame
+      .getByRole("textbox", { name: /^Employee email/ })
+      .fill("uncertain@example.test");
+    await frame
+      .locator("form")
+      .evaluate((form) =>
+        form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        ),
+      );
+    const check = frame.getByRole("button", {
+      name: "Check saved employee setup",
+      exact: true,
+    });
+    await check.waitFor();
+    const prompts: string[] = [];
+    page.on("dialog", async (dialog) => {
+      prompts.push(dialog.message());
+      await dialog.accept();
+    });
+    await page.getByRole("button", { name: "Front Desk", exact: true }).click();
+    await expect
+      .poll(() => page.getByText("cancelled", { exact: true }).count())
+      .toBe(1);
+    expect(switches).toEqual([]);
+    expect(prompts).toEqual([]);
+    expect(await frame.locator("form").getAttribute("inert")).not.toBeNull();
+    await frame
+      .locator("form")
+      .evaluate((form) =>
+        form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        ),
+      );
+    expect(submissions).toHaveLength(1);
+    scenario.readError = true;
+    await check.click();
+    await expect
+      .poll(() =>
+        frame
+          .getByText("Synthetic readback unavailable", { exact: true })
+          .count(),
+      )
+      .toBe(1);
+    scenario.readError = false;
+    await check.click();
+    await expect
+      .poll(() =>
+        frame.getByText(/The saved setup is not yet confirmed/).count(),
+      )
+      .toBe(1);
+    await page.getByRole("button", { name: "Front Desk", exact: true }).click();
+    expect(switches).toEqual([]);
+    expect(prompts).toEqual([]);
+    scenario.saved = true;
+    await check.click();
+    await check.waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "Front Desk", exact: true }).click();
+    await expect
+      .poll(() => page.getByText("Actor 20", { exact: true }).count())
+      .toBe(1);
+    expect(prompts).toEqual([]);
+    expect(submissions).toHaveLength(1);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
+it("confirmed existing-login setup resets account mode and leaves a clean form without false discard", async () => {
+  const page = await browser.newPage();
+  try {
+    const { frame, switches, submissions } = await fixture(page, undefined, {
+      existing: true,
+    });
+    await frame
+      .getByRole("textbox", { name: /^Employee name/ })
+      .fill("Synthetic linked employee");
+    await frame
+      .getByRole("radio", {
+        name: "Link an existing clinic login",
+        exact: true,
+      })
+      .check();
+    await frame.getByRole("combobox", { name: /^Clinic account/ }).click();
+    await frame
+      .getByRole("option", { name: "eligible@example.test", exact: true })
+      .click();
+    await frame
+      .locator("form")
+      .evaluate((form) =>
+        form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        ),
+      );
+    await expect.poll(() => submissions.length).toBe(1);
+    await expect
+      .poll(() =>
+        frame
+          .getByRole("radio", {
+            name: "Create a new employee login",
+            exact: true,
+          })
+          .isChecked(),
+      )
+      .toBe(true);
+    expect(
+      await frame.getByRole("textbox", { name: /^Employee name/ }).inputValue(),
+    ).toBe("");
+    const prompts: string[] = [];
+    page.on("dialog", async (dialog) => {
+      prompts.push(dialog.message());
+      await dialog.dismiss();
+    });
+    await page.getByRole("button", { name: "Front Desk", exact: true }).click();
+    await expect
+      .poll(() => page.getByText("Actor 20", { exact: true }).count())
+      .toBe(1);
+    expect(prompts).toEqual([]);
+    expect(switches).toHaveLength(1);
   } finally {
     await page.close();
   }

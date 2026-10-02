@@ -24,7 +24,7 @@ import {
 } from "@mui/material";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type {
   EmploymentAdminData,
@@ -256,6 +256,14 @@ export function EmploymentAdminPage() {
   const [activationToken, setActivationToken] = useState<string | null>(null);
   const [activationPath, setActivationPath] = useState<string | null>(null);
   const [setupRoleCode, setSetupRoleCode] = useState<string | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState<{
+    mode: "existing" | "new";
+    displayName: string;
+    membershipId: string;
+    email: string;
+    roleCode: string;
+    previousIds: number[];
+  } | null>(null);
   const { registerBlocker } = useClinicNavigation();
   const defaultRoleId = data?.role_options.find(
     (role) => role.role_code === "workforce-employee",
@@ -270,7 +278,10 @@ export function EmploymentAdminPage() {
     effectiveFrom !== initialEffectiveFrom.current ||
     (roleVersionId && roleVersionId !== String(defaultRoleId)),
   );
-  useDemoNavigationBlocker(() => ({ blocked: saving, message: null }));
+  useDemoNavigationBlocker(() => ({
+    blocked: saving || unconfirmed !== null,
+    message: null,
+  }));
   useEffect(() => {
     if (!dirty) return;
     const warning = "Discard your unsaved employee setup?";
@@ -305,6 +316,7 @@ export function EmploymentAdminPage() {
       ?.role_code === "clinician";
   const frontDeskTitle = /front[\s-]*desk/i.test(jobTitle);
   const reset = () => {
+    setAccountMode("new");
     setDisplayName("");
     setJobTitle("");
     setMembershipId("");
@@ -314,6 +326,53 @@ export function EmploymentAdminPage() {
     initialEffectiveFrom.current = localDateTime();
     setEffectiveFrom(initialEffectiveFrom.current);
   };
+  const checkSavedSetup = async () => {
+    if (!unconfirmed || saving) return;
+    setSaving(true);
+    try {
+      const saved = await api<EmploymentAdminData>(
+        "/api/clinic/workforce/employments",
+      );
+      const confirmed =
+        unconfirmed.mode === "existing"
+          ? saved.employments.some(
+              (record) =>
+                !unconfirmed.previousIds.includes(record.id) &&
+                String(record.membership_summary.id) ===
+                  unconfirmed.membershipId &&
+                record.staff_member.display_name === unconfirmed.displayName,
+            )
+          : saved.invitations.some(
+              (record) =>
+                !unconfirmed.previousIds.includes(record.id) &&
+                record.email_address.trim().toLowerCase() ===
+                  unconfirmed.email &&
+                record.display_name === unconfirmed.displayName &&
+                record.role_code === unconfirmed.roleCode,
+            );
+      if (!confirmed)
+        throw new Error(
+          "The saved setup is not yet confirmed. Keep this page open; do not submit another setup.",
+        );
+      setUnconfirmed(null);
+      reset();
+      refresh();
+      setFeedback({
+        severity: "success",
+        text: "Employee setup confirmed in saved records. Any one-time activation link was not recovered; review the pending invitation before another action.",
+      });
+    } catch (reason) {
+      setFeedback({
+        severity: "error",
+        text:
+          reason instanceof Error
+            ? reason.message
+            : "Unable to confirm the saved setup.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
   const toggleSite = (siteId: number) =>
     setSiteIds((current) =>
       current.includes(siteId)
@@ -322,13 +381,29 @@ export function EmploymentAdminPage() {
     );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving || unconfirmed) return;
     setSaving(true);
     setFeedback(null);
     setActivationToken(null);
     setActivationPath(null);
     setSetupRoleCode(null);
+    const attempt = {
+      mode: accountMode,
+      displayName,
+      membershipId,
+      email: emailAddress.trim().toLowerCase(),
+      roleCode:
+        data.role_options.find((role) => String(role.id) === roleVersionId)
+          ?.role_code ?? "",
+      previousIds: (accountMode === "existing"
+        ? data.employments
+        : data.invitations
+      ).map((record) => record.id),
+    };
+    let submitted = false;
     try {
       const isoEffectiveFrom = new Date(effectiveFrom).toISOString();
+      submitted = true;
       if (accountMode === "existing") {
         await api("/api/clinic/workforce/employments", {
           method: "POST",
@@ -385,6 +460,14 @@ export function EmploymentAdminPage() {
       reset();
       refresh();
     } catch (reason) {
+      if (
+        submitted &&
+        (!(reason instanceof ApiError) ||
+          reason.status >= 500 ||
+          reason.code === "outcome_unconfirmed")
+      ) {
+        setUnconfirmed(attempt);
+      }
       setFeedback({
         severity: "error",
         text:
@@ -437,6 +520,19 @@ export function EmploymentAdminPage() {
         </Typography>
       </Stack>
       {feedback && <Alert severity={feedback.severity}>{feedback.text}</Alert>}
+      {unconfirmed && (
+        <Alert
+          severity="warning"
+          action={
+            <Button disabled={saving} onClick={() => void checkSavedSetup()}>
+              Check saved employee setup
+            </Button>
+          }
+        >
+          This employee setup has an unconfirmed outcome. Account switching and
+          another submission stay blocked until saved records confirm it.
+        </Alert>
+      )}
       {activationToken && (
         <Alert severity="warning">
           <Typography sx={{ fontWeight: 700 }}>
@@ -564,7 +660,12 @@ export function EmploymentAdminPage() {
       </Paper>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
-        <Stack component="form" spacing={2.5} onSubmit={submit}>
+        <Stack
+          component="form"
+          spacing={2.5}
+          onSubmit={submit}
+          inert={unconfirmed !== null}
+        >
           <Stack spacing={0.5}>
             <Typography variant="h2">Add employee</Typography>
             <Typography variant="body2" color="text.secondary">
