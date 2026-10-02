@@ -354,11 +354,17 @@ Next: C reviews this source/runtime packet and records MZ-00c readiness per scen
 
 Before resuming, compare this checkpoint and the tracker against source and newer parent direction. Keep the same explicit Sol workers and fixed owners. Runtime `/build.json` reports the current documentation HEAD dynamically; refresh declared fixture HEAD to the exact frozen candidate before any subsequent guarded check, preserving this observed evidence revision.
 
+### Authorized swarm dispatch
+
+Joshua's 02:28:02 UTC instruction expands staffing to three local leads with children while preserving the 74-packet scope and gates. A is local Lead1 and sole Git/runtime/integration owner. Exactly three explicit GPT-6.1 Sol/xhigh children were started for read-only preparation: `/root/foundation_theme` (MZ-01a), `/root/foundation_frame` (MZ-01b), `/root/foundation_context` (MZ-01c). Each receives its exact existing maximum allowlist and may edit only after A explicitly releases it following its true accepted predecessor. No extra children created by A.
+
+Two clean sibling lead worktrees were prepared at 00cc70c58942b12abac2049827779de95b0b5018: `modernization-clinical` for parent-created Lead2 (MZ-03/04), and `modernization-operations` for parent-created Lead3 (MZ-05..09). Parent admitted Lead2 thread `01a0fa73-559f-70eb-904b-626d28d370db` (four Sol children) and Lead3 thread `01a0fa74-0fea-74f7-b8b1-19b824abf0d3` (five Sol children); exact child IDs remain parent-owned dispatch evidence. Cloud B is restricted to MZ-02a; C remains independent review. CareFlow, Billing and InventoryApp retain one exclusive editor each under the newly assigned lead children. All code changes remain gated; runtime/fixtures and serialized heavy commands remain A's responsibility. These staffing changes supersede prior B domain ownership prose without broadening any packet allowlist or product authority.
+
 ## Last run
 
 - Date (UTC): 2026-10-02; current runtime observation at 02:27 UTC, application source e5d065fe, documentation candidate 8fe225eb.
 - Outcome: existing setup completed; scoped isolated clinic runtime and one-patient fixture work; C runtime gate remains pending.
-- Changed canonical paths: this brief, central tracker and required progress pointer. Application source unchanged.
+- Changed canonical paths: this brief, central tracker and required progress pointer. Application source unchanged. Clean Lead2/Lead3 worktrees and three read-only Sol/xhigh workers were prepared under the later staffing grant.
 - Checks actually executed: prewarm/setup/start/status PASS; one local-real-stack browser readiness walkthrough PASS. No application-suite evidence reused, no comparison measurement.
 - Documentation checks: verify-vault PASS (43 notes / 522 links); vault-audit completed with unchanged advisory categories; git diff --check PASS. verify-agent-harness retains the same seven unrelated missing-plan-link failures. Prior CI failures remain separate.
 - Next action: C MZ-00c review, then fixed MZ-01a typography/token/density packet under A's exclusive ownership.
