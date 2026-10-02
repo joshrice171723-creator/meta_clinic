@@ -653,6 +653,15 @@ code {
 .inventory-muted-panel p {
   margin: 4px 0 0;
 }
+.inventory-info a,
+a.inventory-info {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.inventory-info a:hover,
+a.inventory-info:hover {
+  text-decoration-thickness: 2px;
+}
 .inventory-warning {
   border: 1px solid var(--inventory-red);
   border-radius: 9px;
@@ -1013,8 +1022,13 @@ code {
   display: block;
   text-decoration: none;
 }
-.inventory-info:hover {
-  text-decoration: underline;
+.inventory-first-run > summary {
+  cursor: pointer;
+  color: var(--inventory-blue);
+  font-weight: 700;
+}
+.inventory-first-run[open] > summary {
+  margin-bottom: 10px;
 }
 
 /* Inventory operations pass: denser hierarchy, clearer actions, and mobile-safe records. */

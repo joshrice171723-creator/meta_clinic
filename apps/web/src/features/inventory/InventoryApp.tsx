@@ -3750,8 +3750,14 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
     },
   ];
   const nextStepIndex = steps.findIndex((step) => !step.complete);
+  const remainingSteps = steps.filter((step) => !step.complete).length;
   return (
-    <section aria-labelledby="inventory-first-run-title">
+    <details className="inventory-first-run" open={remainingSteps > 0}>
+      <summary>
+        First inventory run ┬╖ {remainingSteps} step
+        {remainingSteps === 1 ? "" : "s"} remaining
+      </summary>
+      <section aria-labelledby="inventory-first-run-title">
       <h2 id="inventory-first-run-title">First inventory run</h2>
       <p className="inventory-lead">
         Follow the saved workflow from supplier setup through stock stored in a
@@ -3781,7 +3787,8 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
           </li>
         ))}
       </ol>
-    </section>
+      </section>
+    </details>
   );
 }
 
@@ -5425,6 +5432,18 @@ function PurchaseOrderDetails({
   const [shipmentEventDrafts, setShipmentEventDrafts] = useState<
     Record<string, { status: string; note: string }>
   >({});
+  const canSelectOrder =
+    !busy &&
+    !preparationBusy &&
+    !deliveryBlocked &&
+    !financeBlocked &&
+    !carrierBlocked &&
+    !actionReason.trim() &&
+    confirmationAction === null &&
+    Object.keys(shipmentEventDrafts).length === 0;
+  const selectOrder = (nextOrderId: string) => {
+    if (canSelectOrder) setOrderId(nextOrderId);
+  };
   const order =
     data.purchase_orders.find((record) => record.id === orderId) ??
     data.purchase_orders[0];
@@ -5563,11 +5582,12 @@ function PurchaseOrderDetails({
                   type="button"
                   disabled={busy}
                   aria-expanded={expanded}
-                  onClick={() =>
-                    setExpandedGroupId((current) =>
-                      current === group.id ? "" : group.id,
-                    )
-                  }
+                  onClick={() => {
+                    const willExpand = !expanded;
+                    setExpandedGroupId(willExpand ? group.id : "");
+                    if (willExpand && group.orders.length === 1)
+                      selectOrder(group.orders[0].id);
+                  }}
                 >
                   <span className="inventory-purchase-batch-heading">
                     <strong>{title}</strong>
@@ -5592,15 +5612,11 @@ function PurchaseOrderDetails({
                         className={`inventory-purchase-order-option ${record.id === order.id ? "selected" : ""}`}
                         type="button"
                         key={record.id}
-                        disabled={busy}
+                        disabled={!canSelectOrder}
                         aria-current={
                           record.id === order.id ? "true" : undefined
                         }
-                        onClick={() => {
-                          setOrderId(record.id);
-                          setActionReason("");
-                          setConfirmationAction(null);
-                        }}
+                        onClick={() => selectOrder(record.id)}
                       >
                         <span>
                           <strong>
@@ -5932,6 +5948,36 @@ function PurchaseOrderDetails({
                         disabled={busy || !draft.status || !draft.note.trim()}
                       >
                         Record status update
+                      </Button>
+                      <Button
+                        type="button"
+                        disabled={
+                          busy ||
+                          preparationBusy ||
+                          deliveryBlocked ||
+                          financeBlocked ||
+                          carrierBlocked ||
+                          !shipmentEventDrafts[shipment.id]
+                        }
+                        onClick={() => {
+                          if (
+                            busy ||
+                            preparationBusy ||
+                            deliveryBlocked ||
+                            financeBlocked ||
+                            carrierBlocked ||
+                            !shipmentEventDrafts[shipment.id] ||
+                            !window.confirm("Discard this unsaved shipment status draft?")
+                          )
+                            return;
+                          setShipmentEventDrafts((current) => {
+                            const next = { ...current };
+                            delete next[shipment.id];
+                            return next;
+                          });
+                        }}
+                      >
+                        Discard status draft
                       </Button>
                     </form>
                   )}

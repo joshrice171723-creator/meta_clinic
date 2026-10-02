@@ -69,6 +69,22 @@ export function confirmUnregisteredDemoNavigation(
   );
 }
 
+function confirmLessonCatalogNavigation() {
+  const blockers = collectDemoNavigationBlockers();
+  if (blockers.blocked) return false;
+  const detail: NavigationConfirmation = { handled: false, allowed: false };
+  window.dispatchEvent(
+    new CustomEvent("demo:confirm-local-navigation", { detail }),
+  );
+  if (detail.handled) return detail.allowed;
+  return confirmClinicNavigation(
+    blockers.messages.length
+      ? blockers.messages
+      : ["Leave this lesson and discard any unsaved changes?"],
+    true,
+  );
+}
+
 export function demoRouteAllowed(
   href: string,
   run: FrameRun,
@@ -273,13 +289,27 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
       {blockedLink && (
         <Alert
           severity="info"
-          onClose={
-            navigationTour(run) ? undefined : () => setBlockedLink(false)
+          action={
+            !navigationTour(run) && !sandboxRun(run) ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  if (!confirmLessonCatalogNavigation()) return;
+                  window.parent.postMessage(
+                    { type: "demo:open-catalog", runId: run.run?.id },
+                    window.location.origin,
+                  );
+                }}
+              >
+                Back to clinic entry
+              </Button>
+            ) : undefined
           }
         >
           {navigationTour(run)
             ? "This is a read-only navigation tour. Use the clinic navigation to preview another workspace."
-            : "This area is outside the current lesson. Choose another lesson from the catalog to explore it in its own clinic."}
+            : "This area isn't included in the current lesson. Return to clinic entry to choose an available workspace."}
         </Alert>
       )}
       {navigationTour(run) && (

@@ -151,6 +151,8 @@ function frameUrl(run: DemoRun) {
   const href =
     run.sandbox && run.account?.portal === "patient"
       ? "/patient-portal"
+      : run.sandbox && run.account?.key === "inventory"
+        ? "/clinic/inventory"
       : run.steps.find((step) => step.id === run.lesson_key)?.href;
   if (!href) return null;
   const target = new URL(href, window.location.origin);
@@ -481,6 +483,30 @@ export function DemoJourney() {
       accountBusy.current = false;
     }
   };
+  useEffect(() => {
+    const openCatalog = (event: MessageEvent<unknown>) => {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== frameRef.current?.contentWindow ||
+        !event.data ||
+        typeof event.data !== "object"
+      )
+        return;
+      const data = event.data as Record<string, unknown>;
+      if (
+        data.type !== "demo:open-catalog" ||
+        !run ||
+        run.sandbox ||
+        !run.lesson_key ||
+        String(run.id) !== data.runId ||
+        busy
+      )
+        return;
+      void selectLesson(null);
+    };
+    window.addEventListener("message", openCatalog);
+    return () => window.removeEventListener("message", openCatalog);
+  }, [run, busy, selectLesson]);
   const switchAccount = async (account: SandboxAccountKey) => {
     if (
       !run?.account ||
