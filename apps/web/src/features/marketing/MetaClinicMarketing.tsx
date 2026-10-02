@@ -546,10 +546,7 @@ export function MetaClinicMarketing({
                 </article>
               ))}
             </div>
-            <Button
-              href="/demo"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
+            <Button href="/demo" endIcon={<ArrowForwardRoundedIcon />}>
               Open the guided demo
             </Button>
           </section>
@@ -803,10 +800,7 @@ export function MetaClinicMarketing({
                 </p>
               </article>
             </div>
-            <Button
-              href="/demo"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
+            <Button href="/demo" endIcon={<ArrowForwardRoundedIcon />}>
               Open the guided demo
             </Button>
           </section>
