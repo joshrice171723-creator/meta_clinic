@@ -447,12 +447,12 @@ export function MembershipGrowth() {
                     aria-label="Membership pipeline"
                   >
                     <colgroup>
-                      <col style={{ width: "25%" }} />
+                      <col style={{ width: "22%" }} />
                       <col style={{ width: "12%" }} />
                       <col style={{ width: "16%" }} />
-                      <col style={{ width: "24%" }} />
-                      <col style={{ width: "13%" }} />
-                      <col style={{ width: "10%" }} />
+                      <col style={{ width: "23%" }} />
+                      <col />
+                      <col style={{ width: 104 }} />
                     </colgroup>
                     <TableHead>
                       <TableRow>
