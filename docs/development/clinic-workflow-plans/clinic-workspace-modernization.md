@@ -382,12 +382,12 @@ Frozen source 22b85efa4839545224dcdcc6358be7aef2bcfa80: only clinicFrame.css and
 
 Measured 1440/1280/1024/834/768 widths at 900 height: candidate containment passed everywhere; all21 role-visible nav destinations preserved. Ordinary narrow header 562px baseline to63px candidate; long narrow baseline562px to84px at834 /105px at768. Desktop nav height1268.984375 to1204.796875; effective group gap4px to12px as scoped selector resolves the prior override. Visible toggle44x40 baseline to44x44 candidate. Drawer focus entry, inert main, Escape close and focus return passed at834/768. Long768 screenshot inspected. No dirty-form scope switch, provider/portal behavior or task-time claim.
 
-Targeted clinic-shell + clinic-navigation:16pass/1unchanged baseline-copy fail (1.108s); tracking-board viewport-height selection4pass/49name-filter exclusions (8.4s). Formatting initially failed, scoped repair/check passed; normalized source Git blobs unchanged. MZ-01a typecheck/bundles reused for CSS-only packet. Initial capture stopped on a hidden desktop toggle assertion; probe corrected to visible targets. Next stopped on unchanged line-ending dirty metadata after format; index refresh restored exact candidate. Final paired capture passed. No command remains running. C review pending, accepted count4/74.
+Targeted clinic-shell + clinic-navigation:16pass/1unchanged baseline-copy fail (1.108s); tracking-board viewport-height selection4pass/49name-filter exclusions (8.4s). Formatting initially failed, scoped repair/check passed; normalized source Git blobs unchanged. MZ-01a typecheck/bundles reused for CSS-only packet. Initial capture stopped on a hidden desktop toggle assertion; probe corrected to visible targets. Next stopped on unchanged line-ending dirty metadata after format; index refresh restored exact candidate. Final paired capture passed. No command remains running. C accepted MZ-01b after exact5913byte JSON transfer; count5/74. Text relay had reworded only visible controls to visible targets; mechanically encoded existing bytes fixed the evidence mismatch without a new capture. Current combined builds remain required; prior typecheck/bundles are predecessor evidence. MZ-01c released with query-context/copy truth and unchanged draft/provider lifetime.
 
 ## Last run
 
-- Date (UTC): 2026-10-02; inspected accepted candidate 0a850bab39669367b9c5251c614b3f76285964fc; original application baseline e5d065fe.
-- Outcome: C accepted MZ-01a with scoped rendered and mixed S evidence; count 4/74. MZ-01b implementation released.
-- Changed canonical paths: this brief, central tracker and existing Progress Log pointer. Original dirty checkout preserved.
-- Checks: existing typecheck, S pool, baseline comparison, formatting, bundles and rendered evidence reused without rerun. verify-vault PASS (43 notes/522 links); vault-audit existing size/lifecycle advisories; verify-agent-harness FAIL on the same seven unrelated missing plan tracker links; diff check PASS.
-- Next: submit frozen MZ-01b self-contained patch/evidence to C; release context only after acceptance. Review next approach at 10 accepted packets; no publication.
+- Date UTC:2026-10-02; inspected source22b85efa and docs276af3de.
+- Outcome:C accepted MZ-01b; count5/74. MZ-01c released.
+- Changed canonical paths:this brief and central tracker.
+- Checks:reuse exact source/rendered/targeted proof; no check/capture rerun for evidence transfer. Required docs checks retain existing seven harness missing-link failures.
+- Next:freeze MZ-01c, verify route-context truth, full identity, draft/navigation invariants and submit mechanical exact patch/evidence; then dispatch accepted shared contract.
