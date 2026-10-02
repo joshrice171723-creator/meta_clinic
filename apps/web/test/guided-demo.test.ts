@@ -128,10 +128,27 @@ describe("guided demo navigation", () => {
     expect(html).not.toContain(">Complete<");
     expect(html).toContain("Primary care");
     expect(html).toContain("Weight management");
-    expect(html).toContain('aria-label="Open Sandbox"');
-    expect(html).toContain("Full Sandbox Demo");
+    expect(html).toContain('aria-label="Choose a sandbox account"');
     expect(html).toContain("Start demo");
     expect(html).not.toContain("Find a lesson");
+  });
+
+  it("advertises all five accounts before opening the sandbox picker", () => {
+    const html = renderToStaticMarkup(
+      createElement(LessonCatalog, {
+        busy: false,
+        showLessons: false,
+        onSelect: () => undefined,
+        onSandbox: () => undefined,
+        lessons: [],
+      }),
+    );
+    expect(html).toContain(
+      "Choose an Admin, Front Desk, Clinician, Inventory or Patient account",
+    );
+    expect(html).toContain('aria-label="Choose a sandbox account"');
+    expect(html).toMatch(/>Choose a sandbox account</);
+    expect(html).not.toContain("Clinic administrator access.");
   });
 
   it("explains the demo's scoped feature availability before preparation", () => {

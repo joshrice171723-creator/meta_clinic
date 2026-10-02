@@ -1176,9 +1176,8 @@ export function LessonCatalog({
             inventory at your own pace.
           </Typography>
           <Typography variant="body2" sx={{ color: "#d8e8ef" }}>
-            Clinic administrator access. Explore the work of the front desk,
-            clinical team and inventory coordinator, along with the patient
-            experience.
+            Choose an Admin, Front Desk, Clinician, Inventory or Patient account
+            to explore the clinic from their perspective.
           </Typography>
           <Button
             variant="contained"
@@ -1186,7 +1185,7 @@ export function LessonCatalog({
             fullWidth
             size="large"
             disabled={busy}
-            aria-label="Open Sandbox"
+            aria-label="Choose a sandbox account"
             onClick={onSandbox}
             endIcon={<ArrowForwardRoundedIcon />}
             sx={{
@@ -1212,7 +1211,7 @@ export function LessonCatalog({
               },
             }}
           >
-            {showLessons ? "Full Sandbox Demo" : "Open Sandbox"}
+            Choose a sandbox account
           </Button>
         </Stack>
       </Box>
