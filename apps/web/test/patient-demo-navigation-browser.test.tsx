@@ -364,6 +364,7 @@ it("requires explicit consent for Back, and pending or unknown outcomes veto bot
     await page.waitForFunction(
       () => !document.querySelector('iframe[name="clinic-demo-workspace"]'),
     );
+    await expect.poll(() => posts.length).toBe(1);
     expect(posts).toEqual([
       {
         path: "/api/demo-workspace/demo/lesson",
