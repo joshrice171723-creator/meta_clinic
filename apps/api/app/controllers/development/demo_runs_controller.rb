@@ -96,10 +96,7 @@ module Development
       input = demo_input!(%i[view account expected_run_id expected_user_id])
       if input[:account].present?
         raise ActiveRecord::RecordNotFound unless DemoLessonCatalog.sandbox?(run.lesson_key) && current_visitor
-        run.with_lock do
-          raise ActiveRecord::RecordNotFound unless run.reload.active?
-          record = current_member_session
-          raise ActiveRecord::RecordNotFound if record && !MemberSession.exists?(id: record.id)
+        with_current_sandbox_run!(run) do
           raise ArgumentError, "The sandbox changed. Refresh before switching accounts." unless
             input[:expected_run_id].to_s == run.id.to_s && input[:expected_user_id].to_s == current_user&.id.to_s
           account = SandboxAccounts.resolve(run, input[:account])
@@ -125,8 +122,10 @@ module Development
       run = current_run!
       require_run_user!(run)
       if DemoLessonCatalog.sandbox?(run.lesson_key) && session[:sandbox_account]
-        account = SandboxAccounts.resolve(run, session[:sandbox_account])
-        establish_demo_session(account.user, run, view: account.portal, account: account)
+        with_current_sandbox_run!(run) do
+          account = SandboxAccounts.resolve(run, session[:sandbox_account])
+          establish_demo_session(account.user, run, view: account.portal, account: account)
+        end
       else
         raise ActiveRecord::RecordNotFound if pending_sandbox_account?(run)
         establish_demo_session(session_user_for(run), run, view: DemoLessonCatalog.view_for(run.lesson_key))
@@ -242,6 +241,19 @@ module Development
 
     def require_run_user!(run)
       raise ActiveRecord::RecordNotFound unless run && valid_run_user?(run)
+    end
+
+    def with_current_sandbox_run!(run)
+      run.with_lock do
+        raise ActiveRecord::RecordNotFound unless run.reload.active?
+        if (record = current_member_session)
+          fresh = MemberSession.lock.find_by(id: record.id)
+          raise ActiveRecord::RecordNotFound unless fresh&.unexpired? && fresh.user.active?
+          @current_member_session = fresh
+        end
+        require_run_user!(run)
+        yield
+      end
     end
 
     def clear_demo_session!
