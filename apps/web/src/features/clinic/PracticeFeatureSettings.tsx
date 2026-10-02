@@ -579,18 +579,20 @@ export function PracticeFeatureSettings({
             />
           </Stack>
           <Alert severity="info">
-            Setup finalized{features.finalized_at
-              ? ` ${features.finalized_at}`
-              : ""}. Clinic type and insurance workflow remain protected.
-            Authorized service and assessment changes remain available through
-            the supported change review below.
+            Setup finalized
+            {features.finalized_at ? ` ${features.finalized_at}` : ""}. Clinic
+            type and insurance workflow remain protected. Authorized service and
+            assessment changes remain available through the supported change
+            review below.
           </Alert>
 
           <Stack spacing={1.5}>
             <Typography variant="subtitle1">Current settings</Typography>
             <Stack spacing={1}>
               <Typography>
-                <strong>{siteId ? "Location specialty" : "Clinic type"}:</strong>{" "}
+                <strong>
+                  {siteId ? "Location specialty" : "Clinic type"}:
+                </strong>{" "}
                 {clinicTypeLabel ??
                   (siteId ? "Inherited from clinic profile" : "Not configured")}
               </Typography>

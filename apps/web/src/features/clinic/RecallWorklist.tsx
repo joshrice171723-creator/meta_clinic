@@ -358,7 +358,9 @@ function RecallWorklistContent() {
                     Review encounter follow-up
                   </Button>
                   {resource.data?.capabilities.write &&
-                    !["completed", "excluded", "snoozed"].includes(recall.status) && (
+                    !["completed", "excluded", "snoozed"].includes(
+                      recall.status,
+                    ) && (
                       <Button
                         startIcon={<PhoneInTalkOutlinedIcon />}
                         variant="outlined"
@@ -575,23 +577,37 @@ function InlineRecallOutreach({
   onClose: () => void;
   onSaved: (message: string) => void;
 }) {
-  const resource = useResource<RecallDetailResponse>(`/api/clinic/recalls/${recallId}`);
+  const resource = useResource<RecallDetailResponse>(
+    `/api/clinic/recalls/${recallId}`,
+  );
   if (!resource.data || resource.data.recall.id !== recallId) {
     return (
       <Stack spacing={1} sx={{ mt: 2 }}>
         {resource.error ? (
-          <Alert severity="error" action={<Button onClick={resource.refresh}>Retry</Button>}>
+          <Alert
+            severity="error"
+            action={<Button onClick={resource.refresh}>Retry</Button>}
+          >
             {resource.error}
           </Alert>
-        ) : <Typography role="status">Loading current recall.</Typography>}
+        ) : (
+          <Typography role="status">Loading current recall.</Typography>
+        )}
         <Button onClick={onClose}>Cancel</Button>
       </Stack>
     );
   }
-  if (["completed", "excluded", "snoozed"].includes(resource.data.recall.status)) {
+  if (
+    ["completed", "excluded", "snoozed"].includes(resource.data.recall.status)
+  ) {
     return (
-      <Alert severity="info" sx={{ mt: 2 }} action={<Button onClick={onClose}>Close</Button>}>
-        This recall has changed. Review its current history before logging outreach.
+      <Alert
+        severity="info"
+        sx={{ mt: 2 }}
+        action={<Button onClick={onClose}>Close</Button>}
+      >
+        This recall has changed. Review its current history before logging
+        outreach.
       </Alert>
     );
   }
@@ -607,29 +623,52 @@ function InlineRecallOutreach({
 }
 
 function RecallContactPreference({ patientId }: { patientId: number }) {
-  const resource = useResource<{ patient: Patient }>(`/api/clinic/patients/${patientId}`);
-  if (resource.error) return (
-    <Alert severity="warning" action={<Button onClick={resource.refresh}>Retry</Button>}>
-      Contact preferences unavailable. Review the patient record before any new contact.
-    </Alert>
+  const resource = useResource<{ patient: Patient }>(
+    `/api/clinic/patients/${patientId}`,
   );
-  if (!resource.data) return <Typography role="status">Loading contact preferences.</Typography>;
-  if (resource.data.patient.id !== patientId) return <Alert severity="warning">Contact preferences could not be confirmed.</Alert>;
+  if (resource.error)
+    return (
+      <Alert
+        severity="warning"
+        action={<Button onClick={resource.refresh}>Retry</Button>}
+      >
+        Contact preferences unavailable. Review the patient record before any
+        new contact.
+      </Alert>
+    );
+  if (!resource.data)
+    return <Typography role="status">Loading contact preferences.</Typography>;
+  if (resource.data.patient.id !== patientId)
+    return (
+      <Alert severity="warning">
+        Contact preferences could not be confirmed.
+      </Alert>
+    );
   const preference = resource.data.patient.communication_preference;
   return (
     <Box>
       <Typography variant="body2">
-        Recorded preferred channel: {preference?.preferred_contact_method || "Not recorded"}
+        Recorded preferred channel:{" "}
+        {preference?.preferred_contact_method || "Not recorded"}
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        General communication consent: {preference
-          ? preference.general_communications_consent ? "Consented" : "Not consented"
-          : "Not recorded"}. Reminder consent: {preference
-          ? preference.appointment_reminders_consent ? "Consented" : "Not consented"
-          : "Not recorded"}.
+        General communication consent:{" "}
+        {preference
+          ? preference.general_communications_consent
+            ? "Consented"
+            : "Not consented"
+          : "Not recorded"}
+        . Reminder consent:{" "}
+        {preference
+          ? preference.appointment_reminders_consent
+            ? "Consented"
+            : "Not consented"
+          : "Not recorded"}
+        .
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        Confirm permission and the appropriate contact details in the patient record before new outreach.
+        Confirm permission and the appropriate contact details in the patient
+        record before new outreach.
       </Typography>
       <Button href={`/clinic/patients/${patientId}`} size="small">
         Review patient contact details and permissions
@@ -663,13 +702,15 @@ function RecallActionDialog({
   const [outcomeUnconfirmed, setOutcomeUnconfirmed] = useState(false);
   const requestKey = useRef(crypto.randomUUID());
   const { registerBlocker } = useClinicNavigation();
-  const dirty = Boolean(channel || reason || completionEvidence) ||
+  const dirty =
+    Boolean(channel || reason || completionEvidence) ||
     (action === "snooze" && snoozedUntil !== initialSnoozedUntil.current);
   useEffect(() => {
     if (!dirty && !busy && !outcomeUnconfirmed) return;
-    const warning = busy || outcomeUnconfirmed
-      ? "The recall action may be unresolved. Reconcile the same action before leaving."
-      : "Leave and discard this unsaved recall action?";
+    const warning =
+      busy || outcomeUnconfirmed
+        ? "The recall action may be unresolved. Reconcile the same action before leaving."
+        : "Leave and discard this unsaved recall action?";
     const unregister = registerBlocker(() => warning);
     const unload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -682,8 +723,12 @@ function RecallActionDialog({
     };
   }, [dirty, busy, outcomeUnconfirmed, registerBlocker]);
   const close = () => {
-    if (!busy && !outcomeUnconfirmed &&
-      (!dirty || window.confirm("Discard this unsaved recall action?"))) onClose();
+    if (
+      !busy &&
+      !outcomeUnconfirmed &&
+      (!dirty || window.confirm("Discard this unsaved recall action?"))
+    )
+      onClose();
   };
 
   const submit = async () => {
@@ -719,12 +764,18 @@ function RecallActionDialog({
           },
         },
       );
-      if (result.recall.id !== recall.id ||
+      if (
+        result.recall.id !== recall.id ||
         result.recall.patient.id !== recall.patient.id ||
         result.recall.encounter.id !== recall.encounter.id ||
         !Number.isInteger(result.recall.version) ||
-        result.recall.version <= recall.version) {
-        throw new ApiError(502, "The saved recall could not be confirmed.", "outcome_unconfirmed");
+        result.recall.version <= recall.version
+      ) {
+        throw new ApiError(
+          502,
+          "The saved recall could not be confirmed.",
+          "outcome_unconfirmed",
+        );
       }
       onSaved(
         action === "record_outreach"
@@ -735,9 +786,9 @@ function RecallActionDialog({
     } catch (reasonValue) {
       const unknown =
         !(reasonValue instanceof ApiError) ||
-        (reasonValue.code === "outcome_unconfirmed" ||
-          reasonValue.status === 408 ||
-          reasonValue.status >= 500);
+        reasonValue.code === "outcome_unconfirmed" ||
+        reasonValue.status === 408 ||
+        reasonValue.status >= 500;
       setOutcomeUnconfirmed((current) => current || unknown);
       setError(
         unknown || outcomeUnconfirmed
@@ -767,17 +818,26 @@ function RecallActionDialog({
         <Stack spacing={2}>
           <Box>
             <Typography sx={{ fontWeight: 700 }}>
-              {recall.patient.display_name} · {patientReferenceLabel(recall.patient.reference) || recall.patient.reference}
+              {recall.patient.display_name} ·{" "}
+              {patientReferenceLabel(recall.patient.reference) ||
+                recall.patient.reference}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Source: {recall.source_kind === "telehealth" ? "Telehealth" : "In-person"} encounter {formatDateTime(recall.encounter.started_at)}
+              Source:{" "}
+              {recall.source_kind === "telehealth" ? "Telehealth" : "In-person"}{" "}
+              encounter {formatDateTime(recall.encounter.started_at)}
             </Typography>
-            <Typography sx={{ whiteSpace: "pre-wrap" }}>{recall.plan}</Typography>
+            <Typography sx={{ whiteSpace: "pre-wrap" }}>
+              {recall.plan}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Source due: {formatDateTime(recall.source_due_at)} · Effective due: {formatDateTime(recall.effective_due_at)}
+              Source due: {formatDateTime(recall.source_due_at)} · Effective
+              due: {formatDateTime(recall.effective_due_at)}
             </Typography>
           </Box>
-          {action === "record_outreach" && <RecallContactPreference patientId={recall.patient.id} />}
+          {action === "record_outreach" && (
+            <RecallContactPreference patientId={recall.patient.id} />
+          )}
           <Typography color="text.secondary">
             {action === "record_outreach"
               ? "Record an attempt that already occurred. This action does not send a message."
@@ -880,7 +940,12 @@ function RecallActionDialog({
     </>
   );
   return inline ? (
-    <Paper component="section" variant="outlined" aria-label="Log outreach attempt" sx={{ mt: 2 }}>
+    <Paper
+      component="section"
+      variant="outlined"
+      aria-label="Log outreach attempt"
+      sx={{ mt: 2 }}
+    >
       {content}
     </Paper>
   ) : (

@@ -412,7 +412,7 @@ export function SubscriptionCatalog() {
                                   ? "changed"
                                   : status.startsWith("Published")
                                     ? "published"
-                                  : status.toLowerCase()
+                                    : status.toLowerCase()
                               }
                             >
                               {status}

@@ -100,7 +100,9 @@ export function Patients({ id }: { id?: string }) {
       return (
         <ClinicViewLoading
           view="patients"
-          showIdentityLookup={clinic.capabilities.patient_identity_read === true}
+          showIdentityLookup={
+            clinic.capabilities.patient_identity_read === true
+          }
         />
       );
     return <LoadState error={error} />;

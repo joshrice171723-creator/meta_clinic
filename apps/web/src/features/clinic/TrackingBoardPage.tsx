@@ -1029,9 +1029,9 @@ function TrackingBoardRow({
                         Intake ownership
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Claim intake to take temporary ownership of intake
-                        work. Release intake to make it available to others.
-                        These actions do not change the assigned provider.
+                        Claim intake to take temporary ownership of intake work.
+                        Release intake to make it available to others. These
+                        actions do not change the assigned provider.
                       </Typography>
                       {operations.intakeOwnership && (
                         <Typography variant="body2">
@@ -1133,11 +1133,17 @@ function TrackingBoardRow({
                               });
                           }}
                         >
-                          {intakeAction === "claim" ? "Claiming…" : "Claim intake"}
+                          {intakeAction === "claim"
+                            ? "Claiming…"
+                            : "Claim intake"}
                         </Button>
                       )}
                       {intakeError && (
-                        <Typography variant="caption" color="error" role="alert">
+                        <Typography
+                          variant="caption"
+                          color="error"
+                          role="alert"
+                        >
                           {intakeError}
                         </Typography>
                       )}
