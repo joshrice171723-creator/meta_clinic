@@ -477,6 +477,7 @@ export function PracticeFeatureSettings({
   >([]);
   const [insuranceEnabled, setInsuranceEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reviewFinalizedChanges, setReviewFinalizedChanges] = useState(false);
   const request = useRef<{ signature: string; key: string } | null>(null);
   const [preview, setPreview] = useState<{
     signature: string;
@@ -510,6 +511,7 @@ export function PracticeFeatureSettings({
 
   useEffect(() => {
     scopeGeneration.current += 1;
+    setReviewFinalizedChanges(false);
     previewGeneration.current += 1;
     setPreview(null);
     setPreviewing(false);
@@ -541,6 +543,128 @@ export function PracticeFeatureSettings({
   );
 
   if (!features) return <LoadState error={error} />;
+
+  if (features.finalized && !reviewFinalizedChanges && !saving && !uncertain) {
+    const clinicTypeLabel = clinicTypes.find(
+      (option) => option.code === features.clinic_type,
+    )?.label;
+    const selectedServices = features.service_scope
+      .map((code) => services.find((service) => service.code === code)?.label)
+      .filter((label): label is string => Boolean(label));
+    const selectedAssessments = features.assessment_scope
+      .map(
+        (code) =>
+          assessments.find((assessment) => assessment.code === code)?.label,
+      )
+      .filter((label): label is string => Boolean(label));
+
+    return (
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+        <Stack spacing={3}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { sm: "center" },
+            }}
+          >
+            <Typography variant="h2">
+              {siteId ? "Location" : "Clinic"} profile
+            </Typography>
+            <Chip
+              size="small"
+              color="success"
+              label={`Finalized ┬╖ revision ${features.revision}`}
+            />
+          </Stack>
+          <Alert severity="info">
+            Setup finalized{features.finalized_at
+              ? ` ${features.finalized_at}`
+              : ""}. Clinic type and insurance workflow remain protected.
+            Authorized service and assessment changes remain available through
+            the supported change review below.
+          </Alert>
+
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle1">Current settings</Typography>
+            <Stack spacing={1}>
+              <Typography>
+                <strong>{siteId ? "Location specialty" : "Clinic type"}:</strong>{" "}
+                {clinicTypeLabel ??
+                  (siteId ? "Inherited from clinic profile" : "Not configured")}
+              </Typography>
+              <Typography>
+                <strong>Planned services:</strong>{" "}
+                {selectedServices.length
+                  ? selectedServices.join(", ")
+                  : "None selected"}
+              </Typography>
+              <Typography>
+                <strong>Screening and assessment:</strong>{" "}
+                {!features.assessment_configured
+                  ? "Not explicitly configured"
+                  : selectedAssessments.length
+                    ? selectedAssessments.join(", ")
+                    : "None selected"}
+              </Typography>
+              <Typography>
+                <strong>Insurance workflows:</strong>{" "}
+                {features.insurance_workflows_enabled
+                  ? "Enabled"
+                  : "Not enabled"}
+              </Typography>
+            </Stack>
+          </Stack>
+
+          {features.starter_profile && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle1">Configured starter</Typography>
+              <Typography variant="body2">
+                {features.starter_profile.id ?? "Starter profile"}
+                {features.starter_profile.version !== undefined
+                  ? ` ┬╖ revision ${features.starter_profile.version}`
+                  : ""}
+              </Typography>
+              {features.starter_profile.visits &&
+                Object.values(features.starter_profile.visits).map((visit) => (
+                  <Typography key={visit.visit_type_id} variant="body2">
+                    {visit.name} ┬╖ {visit.form_id} ┬╖ visit type{" "}
+                    {visit.visit_type_id}
+                  </Typography>
+                ))}
+            </Stack>
+          )}
+
+          <Divider />
+          <Stack spacing={1}>
+            <Typography variant="subtitle1">Supported change routes</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {features.change_handoff ??
+                "These setup choices are finalized. Contact Meta Clinic to review a capability change; unsupported transitions require a scoped FDE assignment."}
+            </Typography>
+          </Stack>
+          {canWrite && (
+            <Button
+              variant="outlined"
+              onClick={() => setReviewFinalizedChanges(true)}
+            >
+              Review supported profile changes
+            </Button>
+          )}
+          {!canWrite && (
+            <Typography variant="body2">
+              This profile is read-only for your role.
+            </Typography>
+          )}
+          <Alert severity="info">
+            Intended service scope does not grant clinical authority, verify
+            credentials, or establish readiness for patient care.
+          </Alert>
+        </Stack>
+      </Paper>
+    );
+  }
 
   const disabling =
     (features.finalized === true &&

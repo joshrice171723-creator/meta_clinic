@@ -105,8 +105,9 @@ export function AppearanceSettings({
       </Card>
       <Card title="Appearance">
         <p>
-          Choose a color palette and display brightness. Follow system matches
-          this device’s light or dark setting.
+          Choose a color palette and set light or dark mode for this account.
+          There is no Follow system option on this screen; changing the switch
+          sets an explicit light or dark mode.
         </p>
         <form
           className="settings-form appearance-form"
