@@ -40,6 +40,7 @@ export function MembershipCard({
   draftPreview?: boolean;
 }) {
   const cardId = useId();
+  const hasDescription = t.description.trim().length > 0;
 
   const included = t.components.filter((c) => c.mode === "included");
   const optional = t.components.filter((c) => c.mode === "optional");
@@ -75,7 +76,7 @@ export function MembershipCard({
           bgcolor: "action.hover",
           borderBottom: "1px solid",
           borderColor: "divider",
-          minHeight: { md: 168 },
+          minHeight: { md: hasDescription ? 168 : 0 },
         }}
       >
         <Typography component="h3" variant="h5" sx={{ fontWeight: 600 }}>
@@ -83,6 +84,7 @@ export function MembershipCard({
         </Typography>
         <Typography
           sx={{
+            display: { md: hasDescription ? "block" : "none" },
             mt: 1.5,
             color: "text.secondary",
             fontSize: 15,
