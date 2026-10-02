@@ -373,6 +373,12 @@ function dateLabel(value: string | null, fallback: string) {
       }).format(date);
 }
 
+function itemDateLabel(item: InboxItem) {
+  return item.dateCaption === "Due" && !item.dueAt
+    ? "No due date"
+    : `${item.dateCaption}: ${dateLabel(item.dueAt, "Not recorded")}`;
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unable to load this queue.";
 }
@@ -1322,7 +1328,7 @@ function InboxRow({
             variant="body2"
             color={item.overdue ? "warning.main" : "text.secondary"}
           >
-            {item.dateCaption}: {dateLabel(item.dueAt, "Not recorded")}
+            {itemDateLabel(item)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Owner: {item.owner}
@@ -1337,7 +1343,7 @@ function InboxRow({
             Next action: {item.nextAction}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Source: {item.sourceLabel}
+            Source: {item.sourceLabel.replaceAll("_", " ")}
           </Typography>
         </Stack>
         {item.callbackRequest && (
@@ -1403,9 +1409,10 @@ function PatientFlowCard({
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
 }) {
+  const { capabilities } = useClinic();
   const patientId = item.href.match(/\/clinic\/patients\/(\d+)/)?.[1];
   const scheduleHref =
-    item.scheduleReady && patientId
+    item.scheduleReady && patientId && capabilities.appointments_read === true
       ? `/clinic/schedule?patient_id=${encodeURIComponent(patientId)}`
       : null;
   return (
@@ -1430,10 +1437,13 @@ function PatientFlowCard({
             {item.nextAction}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {item.dateCaption}: {dateLabel(item.dueAt, "Not recorded")}
+            {itemDateLabel(item)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Assigned to: {item.owner}
+            Owner: {item.owner}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Source: {item.sourceLabel.replaceAll("_", " ")}
           </Typography>
           {!scheduleHref && (
             <Button
@@ -1463,7 +1473,7 @@ function PatientFlowCard({
           }}
         >
           <Typography component="summary" variant="body2">
-            Task details
+            Actions and details
           </Typography>
           {item.patientReference && (
             <Typography
@@ -1824,7 +1834,7 @@ function ScopedWorkInbox() {
         dateCaption: "Due",
         overdue: task.overdue,
         assignment: assignmentLabel(task),
-        owner: task.assignee_label
+        owner: task.assigned_to_membership_id
           ? assignmentLabel(task).replace(/^Assigned to /, "")
           : `${task.pool_code.replaceAll("_", " ")} team`,
         nextAction: taskNextAction(task),
@@ -2056,8 +2066,9 @@ function ScopedWorkInbox() {
   const exceptionSourceErrors = exceptions.data
     ? Object.entries(exceptions.data.sources)
         .filter(([, source]) => Boolean(source.error))
-        .map(([, source]) => source.error?.message)
-        .filter((message): message is string => Boolean(message))
+        .map(([name]) =>
+          name === "unsigned_notes" ? "Unsigned notes" : "Payment exceptions",
+        )
     : [];
   const sourceErrors = (
     assignment === "offboarded"
@@ -2073,6 +2084,31 @@ function ScopedWorkInbox() {
           ...exceptionSourceErrors,
         ]
   ).filter(Boolean);
+  const sourceFeeds = [
+    { label: "Assigned work", enabled: canLoadWork, state: work },
+    ...(assignment === "offboarded"
+      ? []
+      : [
+          {
+            label: "Callback requests",
+            enabled: canLoadCallbacks,
+            state: callbacks,
+          },
+          { label: "Lab review", enabled: canLoadLabs, state: labReviews },
+          { label: "Lab follow-up", enabled: canLoadLabs, state: labFollowUps },
+          { label: "Refill requests", enabled: canLoadRefills, state: refills },
+          {
+            label: "Documentation and payment exceptions",
+            enabled: canLoadExceptions,
+            state: exceptions,
+          },
+          {
+            label: "Scheduled visits",
+            enabled: canLoadScheduledVisits,
+            state: scheduledVisits,
+          },
+        ]),
+  ].filter((source) => source.enabled);
   const queuesTruncated =
     (assignment !== "offboarded" &&
       work.data &&
@@ -2184,9 +2220,21 @@ function ScopedWorkInbox() {
       )}
 
       {sourceErrors.length > 0 && (
-        <Alert severity="warning">
-          Some inbox sources are unavailable: {sourceErrors.join("; ")} The
-          loaded rows remain visible, but this inbox is not a complete view.
+        <Alert
+          severity="warning"
+          action={
+            <Button
+              color="inherit"
+              disabled={anyLoading}
+              onClick={() => setRefreshRevision((value) => value + 1)}
+            >
+              Retry source reads
+            </Button>
+          }
+        >
+          Unavailable sources: {sourceErrors.join("; ")}. Their current workload
+          is unknown. Loaded rows remain visible; Patient Flow coverage is
+          incomplete.
         </Alert>
       )}
       {queuesTruncated && (
@@ -2197,6 +2245,30 @@ function ScopedWorkInbox() {
         </Alert>
       )}
 
+      <Box component="details">
+        <Typography
+          component="summary"
+          variant="body2"
+          sx={{ cursor: "pointer" }}
+        >
+          Source feeds
+        </Typography>
+        <Stack spacing={0.5} sx={{ mt: 1 }}>
+          {sourceFeeds.map(({ label, state }) => (
+            <Typography key={label} variant="body2" color="text.secondary">
+              {label}:{" "}
+              {state.loading
+                ? "Updating; current coverage pending"
+                : state.error || !state.data
+                  ? "Unavailable; current workload unknown"
+                  : label === "Documentation and payment exceptions" &&
+                      exceptionSourceErrors.length > 0
+                    ? "Partially loaded; unavailable workload unknown"
+                    : "Loaded accessible queues; limits and filters apply"}
+            </Typography>
+          ))}
+        </Stack>
+      </Box>
       <Paper
         elevation={0}
         sx={{
@@ -2241,30 +2313,35 @@ function ScopedWorkInbox() {
             >
               <Typography variant="body2" aria-live="polite">
                 {work.data.offboarded_tasks_page.total} active tasks assigned to
-                revoked accounts · Page {work.data.offboarded_tasks_page.page}{" "}
-                of {Math.max(1, work.data.offboarded_tasks_page.total_pages)}
+                revoked accounts
+                {work.data.offboarded_tasks_page.total_pages > 1 &&
+                  ` · Page ${work.data.offboarded_tasks_page.page} of ${work.data.offboarded_tasks_page.total_pages}`}
               </Typography>
-              <Button
-                disabled={
-                  work.loading || work.data.offboarded_tasks_page.page <= 1
-                }
-                onClick={() =>
-                  setOffboardedPage(work.data!.offboarded_tasks_page.page - 1)
-                }
-              >
-                Previous
-              </Button>
-              <Button
-                disabled={
-                  work.data.offboarded_tasks_page.page >=
-                  work.data.offboarded_tasks_page.total_pages
-                }
-                onClick={() =>
-                  setOffboardedPage(work.data!.offboarded_tasks_page.page + 1)
-                }
-              >
-                Next
-              </Button>
+              {work.data.offboarded_tasks_page.total_pages > 1 && (
+                <>
+                  <Button
+                    disabled={
+                      work.loading || work.data.offboarded_tasks_page.page <= 1
+                    }
+                    onClick={() =>
+                      setOffboardedPage(work.data!.offboarded_tasks_page.page - 1)
+                    }
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    disabled={
+                      work.data.offboarded_tasks_page.page >=
+                      work.data.offboarded_tasks_page.total_pages
+                    }
+                    onClick={() =>
+                      setOffboardedPage(work.data!.offboarded_tasks_page.page + 1)
+                    }
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
             </Stack>
           )}
           {assignment !== "offboarded" && (
