@@ -279,6 +279,12 @@ it("#61 configured clinician enables an exact waitlist create and queue reload",
     await routeApi(page, state);
     await page.goto(baseUrl + "/__waitlist_original_proof");
     await page
+      .getByRole("button", {
+        name: "Add a patient to the waitlist",
+        exact: true,
+      })
+      .click();
+    await page
       .getByRole("heading", {
         name: "Add a patient to the waitlist",
         exact: true,
@@ -291,6 +297,12 @@ it("#61 configured clinician enables an exact waitlist create and queue reload",
     ).toBe(true);
     state.configured = true;
     await page.reload();
+    await page
+      .getByRole("button", {
+        name: "Add a patient to the waitlist",
+        exact: true,
+      })
+      .click();
     await page
       .getByRole("heading", {
         name: "Add a patient to the waitlist",

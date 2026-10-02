@@ -87,14 +87,21 @@ it.runIf(realStackEnabled)(
         product_sku: string;
         product_ndc: string;
       };
-      expect(seeded.catalog_provenance).toBe("independently_manufactured_synthetic_model_fixture");
+      expect(seeded.catalog_provenance).toBe(
+        "independently_manufactured_synthetic_model_fixture",
+      );
       const created = { id: seeded.product_id };
-      const catalogProduct = (await api(page, "/api/clinic/inventory/bootstrap")).data.products.find(
+      const catalogProduct = (
+        await api(page, "/api/clinic/inventory/bootstrap")
+      ).data.products.find(
         (product: { id: string }) => product.id === String(created.id),
       );
       expect(catalogProduct).toMatchObject({
-        id: String(created.id), name: seeded.product_name, ndc: seeded.product_ndc,
-        base_unit: "tablet", units_per_package: "90.0",
+        id: String(created.id),
+        name: seeded.product_name,
+        ndc: seeded.product_ndc,
+        base_unit: "tablet",
+        units_per_package: "90.0",
       });
       await page.goto(realUrl("/clinic/inventory/purchasing/new"));
       const recovery = page.getByRole("link", {
@@ -211,79 +218,218 @@ it.runIf(realStackEnabled)(
       ).toBe(true);
       // Continue through the existing native purchasing, shipment, receiving and count screens.
       await page.goto(realUrl("/clinic/inventory/purchasing/new"));
-      await page.locator(".purchase-catalog-list .inventory-list-row").filter({ hasText: "Synthetic Aspirin" }).getByRole("button", { name: "Add", exact: true }).click();
-      await page.locator(".purchase-catalog-list .inventory-list-row")
+      await page
+        .locator(".purchase-catalog-list .inventory-list-row")
         .filter({ hasText: "Synthetic Aspirin" })
-        .getByRole("button", { name: "In draft", exact: true }).waitFor();
+        .getByRole("button", { name: "Add to cart", exact: true })
+        .click();
+      await page
+        .locator(".purchase-catalog-list .inventory-list-row")
+        .filter({ hasText: "Synthetic Aspirin" })
+        .getByRole("button", { name: "In cart", exact: true })
+        .waitFor();
       await choose(page, "Destination facility", fixture.site_name);
-      await page.getByRole("textbox", { name: /^Purchase reason/ }).fill("Synthetic first-run procurement");
-      await page.getByRole("button", { name: "Check out", exact: true }).click();
-      await expect.poll(async () => (await api(page, "/api/clinic/inventory/bootstrap")).data.purchase_orders.length).toBe(1);
-      const ordered = (await api(page, "/api/clinic/inventory/bootstrap")).data.purchase_orders[0];
-      await page.goto(realUrl(`/clinic/inventory/purchasing?purchase_order_id=${ordered.id}`));
-      for (const action of ["Submit purchase order", "Approve purchase order", "Mark order sent"]) {
+      await page
+        .getByRole("textbox", { name: /^Purchase reason/ })
+        .fill("Synthetic first-run procurement");
+      await page
+        .getByRole("button", { name: "Create purchase orders", exact: true })
+        .click();
+      await expect
+        .poll(
+          async () =>
+            (await api(page, "/api/clinic/inventory/bootstrap")).data
+              .purchase_orders.length,
+        )
+        .toBe(1);
+      const ordered = (await api(page, "/api/clinic/inventory/bootstrap")).data
+        .purchase_orders[0];
+      await page.goto(
+        realUrl(`/clinic/inventory/purchasing?purchase_order_id=${ordered.id}`),
+      );
+      for (const action of [
+        "Submit purchase order",
+        "Approve purchase order",
+        "Mark order sent",
+      ]) {
         await page.getByRole("button", { name: action, exact: true }).click();
-        const confirmation = page.getByRole("dialog", { name: "Confirm inventory action", exact: true });
+        const confirmation = page.getByRole("dialog", {
+          name: "Confirm inventory action",
+          exact: true,
+        });
         await confirmation.getByText(`${action}?`, { exact: true }).waitFor();
-        await confirmation.getByRole("textbox", { name: /^Action reason/ }).fill("Synthetic authorized first-run action");
-        await confirmation.getByRole("button", { name: action, exact: true }).click();
+        await confirmation
+          .getByRole("textbox", { name: /^Action reason/ })
+          .fill("Synthetic authorized first-run action");
+        await confirmation
+          .getByRole("button", { name: action, exact: true })
+          .click();
         await expect.poll(() => confirmation.count()).toBe(0);
       }
-      await page.getByRole("link", { name: "Record delivery", exact: true }).click();
-      await page.getByRole("spinbutton", { name: /^Packages in shipment/ }).fill("1");
-      await page.getByRole("textbox", { name: /^Internal shipment reference/ }).fill("SYN-JOURNEY-SHIPMENT");
-      await page.getByRole("textbox", { name: /^Supplier delivery reference/ }).fill("SYN-JOURNEY-DELIVERY");
-      await page.getByRole("button", { name: "Register shipment", exact: true }).click();
-      await page.getByRole("dialog", { name: "Confirm inventory action", exact: true }).getByRole("button", { name: "Confirm action", exact: true }).click();
-      await page.waitForURL(url => url.pathname === "/clinic/inventory/purchasing");
-      const shipment = page.getByRole("region", { name: "Shipment SYN-JOURNEY-DELIVERY", exact: true });
-      await choose(page, "Next status for shipment SYN-JOURNEY-DELIVERY", "delivered");
-      await shipment.getByRole("textbox", { name: /^Status update note/ }).fill("Synthetic delivery physically checked");
-      await shipment.getByRole("button", { name: "Record status update", exact: true }).click();
-      await shipment.getByRole("link", { name: "Open receiving record", exact: true }).click();
-      await page.getByRole("textbox", { name: "Lot number", exact: true }).fill("SYN-JOURNEY-LOT");
-      const expiry = new Date(`${fixture.day}T12:00:00Z`); expiry.setUTCFullYear(expiry.getUTCFullYear() + 1);
-      await page.getByLabel("Expiration", { exact: true }).fill(expiry.toISOString().slice(0, 10));
+      await page
+        .getByRole("link", { name: "Record delivery", exact: true })
+        .click();
+      await page
+        .getByRole("spinbutton", { name: /^Packages in shipment/ })
+        .fill("1");
+      await page
+        .getByRole("textbox", { name: /^Internal shipment reference/ })
+        .fill("SYN-JOURNEY-SHIPMENT");
+      await page
+        .getByRole("textbox", { name: /^Supplier delivery reference/ })
+        .fill("SYN-JOURNEY-DELIVERY");
+      await page
+        .getByRole("button", { name: "Register shipment", exact: true })
+        .click();
+      await page
+        .getByRole("dialog", { name: "Confirm inventory action", exact: true })
+        .getByRole("button", { name: "Confirm action", exact: true })
+        .click();
+      await page.waitForURL(
+        (url) => url.pathname === "/clinic/inventory/purchasing",
+      );
+      const shipment = page.getByRole("region", {
+        name: "Shipment SYN-JOURNEY-DELIVERY",
+        exact: true,
+      });
+      await choose(
+        page,
+        "Next status for shipment SYN-JOURNEY-DELIVERY",
+        "delivered",
+      );
+      await shipment
+        .getByRole("textbox", { name: /^Status update note/ })
+        .fill("Synthetic delivery physically checked");
+      await shipment
+        .getByRole("button", { name: "Record status update", exact: true })
+        .click();
+      await shipment
+        .getByRole("link", { name: "Open receiving record", exact: true })
+        .click();
+      await page
+        .getByRole("textbox", { name: "Lot number", exact: true })
+        .fill("SYN-JOURNEY-LOT");
+      const expiry = new Date(`${fixture.day}T12:00:00Z`);
+      expiry.setUTCFullYear(expiry.getUTCFullYear() + 1);
+      await page
+        .getByLabel("Expiration", { exact: true })
+        .fill(expiry.toISOString().slice(0, 10));
       await page.getByRole("textbox", { name: /^Accepted/ }).fill("1");
-      const leaf = (await api(page, "/api/clinic/inventory/locations")).data.location_options.find((location: any) => location.name === "Synthetic journey leaf");
-      await page.getByRole("combobox", { name: /^Destination/ }).selectOption(String(leaf.id));
-      await page.getByRole("textbox", { name: "Reason", exact: true }).fill("Synthetic first-run receipt");
-      await page.getByRole("button", { name: "Confirm receipt", exact: true }).click();
-      const receiptConfirmation = page.getByRole("dialog", { name: "Confirm inventory action", exact: true });
-      await receiptConfirmation.getByText("Confirm this receipt?", { exact: true }).waitFor();
-      await receiptConfirmation.getByRole("button", { name: "Confirm action", exact: true }).click();
-      await expect.poll(async () => (await api(page, "/api/clinic/inventory/catalog?view=table")).data.first_run.received).toBe(true);
-      await page.goto(realUrl("/clinic/inventory")); await page.reload();
-      const completed = (await api(page, "/api/clinic/inventory/catalog?view=table")).data;
-      expect(completed.first_run).toMatchObject({ supplier: true, product: true, offer: true, purchase_order: true, received: true, binned: true });
+      const leaf = (
+        await api(page, "/api/clinic/inventory/locations")
+      ).data.location_options.find(
+        (location: any) => location.name === "Synthetic journey leaf",
+      );
+      await page
+        .getByRole("combobox", { name: /^Destination/ })
+        .selectOption(String(leaf.id));
+      await page
+        .getByRole("textbox", { name: "Reason", exact: true })
+        .fill("Synthetic first-run receipt");
+      await page
+        .getByRole("button", { name: "Confirm receipt", exact: true })
+        .click();
+      const receiptConfirmation = page.getByRole("dialog", {
+        name: "Confirm inventory action",
+        exact: true,
+      });
+      await receiptConfirmation
+        .getByText("Confirm this receipt?", { exact: true })
+        .waitFor();
+      await receiptConfirmation
+        .getByRole("button", { name: "Confirm action", exact: true })
+        .click();
+      await expect
+        .poll(
+          async () =>
+            (await api(page, "/api/clinic/inventory/catalog?view=table")).data
+              .first_run.received,
+        )
+        .toBe(true);
+      await page.goto(realUrl("/clinic/inventory"));
+      await page.reload();
+      const completed = (
+        await api(page, "/api/clinic/inventory/catalog?view=table")
+      ).data;
+      expect(completed.first_run).toMatchObject({
+        supplier: true,
+        product: true,
+        offer: true,
+        purchase_order: true,
+        received: true,
+        binned: true,
+      });
       expect(completed.configuration.status).toBe("configured");
       expect(completed.first_run.product_id).toBe(String(created.id));
       expect(completed.first_run.purchase_order_id).toBe(String(ordered.id));
       for (const siteId of [fixture.second_site_id, fixture.site_id]) {
-        const switched = await realMutation(page, "/api/clinic/context", { site_id: siteId }, "PATCH");
+        const switched = await realMutation(
+          page,
+          "/api/clinic/context",
+          { site_id: siteId },
+          "PATCH",
+        );
         expect(switched.status()).toBe(200);
-        await page.goto(realUrl("/clinic/inventory")); await page.reload();
-        const restored = (await api(page, "/api/clinic/inventory/catalog?view=table")).data;
+        await page.goto(realUrl("/clinic/inventory"));
+        await page.reload();
+        const restored = (
+          await api(page, "/api/clinic/inventory/catalog?view=table")
+        ).data;
         expect(restored.configuration.status).toBe("configured");
         expect(restored.first_run).toEqual(completed.first_run);
       }
       await page.goto(realUrl("/clinic/inventory/counts"));
-      const countData = (await api(page, "/api/clinic/inventory/count-sessions")).data;
-      const assignee = countData.assignees.find((person: any) => person.id === String(fixture.actor_user_id));
+      const countData = (
+        await api(page, "/api/clinic/inventory/count-sessions")
+      ).data;
+      const assignee = countData.assignees.find(
+        (person: any) => person.id === String(fixture.actor_user_id),
+      );
       await choose(page, /^Leaf bin/, leaf.path);
       await choose(page, /^Assigned counter/, assignee.name);
       await page.getByLabel(/^Due date/).fill(fixture.day);
       await choose(page, "Counting mode", "Show expected quantity");
-      await page.getByRole("textbox", { name: /^Session reason/ }).fill("Synthetic first-run count");
-      await page.getByRole("button", { name: "Create count session", exact: true }).click();
-      await page.getByRole("button", { name: "Open session", exact: true }).click();
-      await page.getByRole("spinbutton", { name: /^Counted quantity/ }).fill("90");
-      await page.getByRole("textbox", { name: /^Observation reason \/ note/ }).fill("Synthetic exact physical count");
-      await page.getByRole("button", { name: "Record observation", exact: true }).click();
-      await page.getByRole("textbox", { name: /^Management reason/ }).fill("Synthetic count reconciled");
-      await page.getByRole("button", { name: "Complete session", exact: true }).click();
-      await expect.poll(async () => (await api(page, "/api/clinic/inventory/count-sessions?count_status=completed")).data.sessions.length).toBe(1);
-      const counted = (await api(page, "/api/clinic/inventory/count-sessions?count_status=completed")).data.sessions[0];
+      await page
+        .getByRole("textbox", { name: /^Session reason/ })
+        .fill("Synthetic first-run count");
+      await page
+        .getByRole("button", { name: "Create count session", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Open session", exact: true })
+        .click();
+      await page
+        .getByRole("spinbutton", { name: /^Counted quantity/ })
+        .fill("90");
+      await page
+        .getByRole("textbox", { name: /^Observation reason \/ note/ })
+        .fill("Synthetic exact physical count");
+      await page
+        .getByRole("button", { name: "Record observation", exact: true })
+        .click();
+      await page
+        .getByRole("textbox", { name: /^Management reason/ })
+        .fill("Synthetic count reconciled");
+      await page
+        .getByRole("button", { name: "Complete session", exact: true })
+        .click();
+      await expect
+        .poll(
+          async () =>
+            (
+              await api(
+                page,
+                "/api/clinic/inventory/count-sessions?count_status=completed",
+              )
+            ).data.sessions.length,
+        )
+        .toBe(1);
+      const counted = (
+        await api(
+          page,
+          "/api/clinic/inventory/count-sessions?count_status=completed",
+        )
+      ).data.sessions[0];
       expect(counted.status).toBe("completed");
       expect(counted.line_count).toBe(1);
       await page.reload();
@@ -295,48 +441,123 @@ it.runIf(realStackEnabled)(
   240_000,
 );
 
-
 it.runIf(realStackEnabled)(
   "#199 actual inherited location recommended scope saves and exact replay does not duplicate",
   async () => {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 1000 },
+    });
     page.setDefaultTimeout(10_000);
     try {
       await loginReal(page, fixture);
-      const before = await realGet<any>(page, `/api/clinic/practice_features?site_id=${fixture.site_id}`);
-      const defaults = await realMutation(page, "/api/clinic/practice_features", { features: {
-        clinic_type: "primary_care", service_scope: ["telehealth"], assessment_scope: [],
-        insurance_workflows_enabled: false, expected_revision: 0,
-        request_key: `native-inherited-default-${fixture.head}`,
-      } }, "PUT");
+      const before = await realGet<any>(
+        page,
+        `/api/clinic/practice_features?site_id=${fixture.site_id}`,
+      );
+      const defaults = await realMutation(
+        page,
+        "/api/clinic/practice_features",
+        {
+          features: {
+            clinic_type: "primary_care",
+            service_scope: ["telehealth"],
+            assessment_scope: [],
+            insurance_workflows_enabled: false,
+            expected_revision: 0,
+            request_key: `native-inherited-default-${fixture.head}`,
+          },
+        },
+        "PUT",
+      );
       expect(defaults.status()).toBe(200);
-      const site = await api(page, "/api/clinic/facilities", { site: {
-        code: "INHERITED-NATIVE", name: "Synthetic inherited profile location", status: "active",
-        address_line1: "100 Synthetic QA Way", city: "Oklahoma City", state: "OK", postal_code: "73102", country: "US",
-      } });
-      const inherited = await realGet<any>(page, `/api/clinic/practice_features?site_id=${site.id}`);
-      expect(inherited.features).toMatchObject({ profile_scope: "clinic_default", configured: false, revision: 0, service_scope: ["telehealth"] });
+      const site = await api(page, "/api/clinic/facilities", {
+        site: {
+          code: "INHERITED-NATIVE",
+          name: "Synthetic inherited profile location",
+          status: "active",
+          address_line1: "100 Synthetic QA Way",
+          city: "Oklahoma City",
+          state: "OK",
+          postal_code: "73102",
+          country: "US",
+        },
+      });
+      const inherited = await realGet<any>(
+        page,
+        `/api/clinic/practice_features?site_id=${site.id}`,
+      );
+      expect(inherited.features).toMatchObject({
+        profile_scope: "clinic_default",
+        configured: false,
+        revision: 0,
+        service_scope: ["telehealth"],
+      });
       await page.goto(realUrl("/clinic/setup"));
-      await page.getByText("This location currently inherits its clinic profile. Choose and save a location specialty before assigning patients here.", { exact: true }).waitFor();
-      await page.getByRole("button", { name: "Use recommended starting scope", exact: true }).click();
-      const submitted = page.waitForRequest(request => new URL(request.url()).pathname === "/api/clinic/practice_features" && request.method() === "PUT");
-      const response = page.waitForResponse(response => new URL(response.url()).pathname === "/api/clinic/practice_features" && response.request().method() === "PUT");
-      await page.getByRole("button", { name: "Save clinic profile", exact: true }).click();
+      await page
+        .getByText(
+          "This location currently inherits its clinic profile. Choose and save a location specialty before assigning patients here.",
+          { exact: true },
+        )
+        .waitFor();
+      await page
+        .getByRole("button", {
+          name: "Use recommended starting scope",
+          exact: true,
+        })
+        .click();
+      const submitted = page.waitForRequest(
+        (request) =>
+          new URL(request.url()).pathname === "/api/clinic/practice_features" &&
+          request.method() === "PUT",
+      );
+      const response = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname ===
+            "/api/clinic/practice_features" &&
+          response.request().method() === "PUT",
+      );
+      await page
+        .getByRole("button", { name: "Save clinic profile", exact: true })
+        .click();
       const request = await submitted;
       expect((await response).status()).toBe(200);
-      const saved = await realGet<any>(page, `/api/clinic/practice_features?site_id=${site.id}`);
-      expect(saved.features).toMatchObject({ profile_scope: "site", configured: true, revision: 1 });
-      expect(saved.features.service_scope).toEqual(inherited.features.recommended_service_scope);
-      const replay = await realMutation(page, "/api/clinic/practice_features", request.postDataJSON(), "PUT");
+      const saved = await realGet<any>(
+        page,
+        `/api/clinic/practice_features?site_id=${site.id}`,
+      );
+      expect(saved.features).toMatchObject({
+        profile_scope: "site",
+        configured: true,
+        revision: 1,
+      });
+      expect(saved.features.service_scope).toEqual(
+        inherited.features.recommended_service_scope,
+      );
+      const replay = await realMutation(
+        page,
+        "/api/clinic/practice_features",
+        request.postDataJSON(),
+        "PUT",
+      );
       expect(replay.status()).toBe(200);
       expect((await replay.json()).features.revision).toBe(1);
       await page.reload();
-      await page.getByRole("button", { name: "Save clinic profile", exact: true }).waitFor();
-      const reloaded = await realGet<any>(page, `/api/clinic/practice_features?site_id=${site.id}`);
+      await page
+        .getByRole("button", { name: "Save clinic profile", exact: true })
+        .waitFor();
+      const reloaded = await realGet<any>(
+        page,
+        `/api/clinic/practice_features?site_id=${site.id}`,
+      );
       expect(reloaded.features.revision).toBe(1);
-      const primary = await realGet<any>(page, `/api/clinic/practice_features?site_id=${fixture.site_id}`);
+      const primary = await realGet<any>(
+        page,
+        `/api/clinic/practice_features?site_id=${fixture.site_id}`,
+      );
       expect(primary.features).toEqual(before.features);
-    } finally { await page.close(); }
+    } finally {
+      await page.close();
+    }
   },
   90_000,
 );

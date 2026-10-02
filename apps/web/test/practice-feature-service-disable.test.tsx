@@ -195,7 +195,7 @@ async function fixture(
 const telehealth = (page: Page) =>
   page.getByRole("checkbox", { name: /^Telehealth/ });
 const save = (page: Page) =>
-  page.getByRole("button", { name: "Save clinic profile", exact: true });
+  page.getByRole("button", { name: "Save location profile", exact: true });
 const review = (page: Page) =>
   page.getByRole("button", {
     name: "Review service consequences",

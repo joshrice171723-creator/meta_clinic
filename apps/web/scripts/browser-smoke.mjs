@@ -854,7 +854,7 @@ async function runAuthorizedCapture(selected, baseUrl) {
         );
         if (target.pathname === "/login")
           await capturePage
-            .getByRole("button", { name: "Log in", exact: true })
+            .getByRole("button", { name: /^(Log in|Sign in)$/ })
             .waitFor({ state: "visible", timeout: 30000 });
         else
           await capturePage
