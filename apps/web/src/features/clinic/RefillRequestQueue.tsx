@@ -28,6 +28,12 @@ import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { patientReferenceLabel } from "./patientReference";
+import {
+  refillApprovalAttempt,
+  refillApprovalReady,
+  submitRefillApproval,
+  type RefillReviewResult,
+} from "./refillReviewBatch";
 
 type Decision = "approved" | "changed" | "declined";
 type CreateAttempt = {
@@ -64,8 +70,9 @@ const statusLabels: Record<ClinicRefillRequest["status"], string> = {
 };
 
 export function RefillRequestQueue() {
+  const clinic = useClinic();
   const { capabilities, current_clinician_profile_id: clinicianProfileId } =
-    useClinic();
+    clinic;
   const canManage =
     capabilities.patients === true &&
     capabilities.medication_requests_write === true;
@@ -78,6 +85,7 @@ export function RefillRequestQueue() {
     pagination: { page: number; per_page: number; total: number };
   }>(
     `/api/clinic/refill_requests?page=${requestPage}&per_page=25${deliveryFilter === "failed" ? "&delivery=failed" : ""}`,
+    { retainDataOnRefresh: true },
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [patientOptions, setPatientOptions] = useState<Patient[]>([]);
@@ -124,6 +132,25 @@ export function RefillRequestQueue() {
   const createAllowed = useRef(canManage);
   createAllowed.current = canManage;
   const [createRetryPending, setCreateRetryPending] = useState(false);
+  const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
+  const [batchResults, setBatchResults] = useState<
+    Record<number, RefillReviewResult>
+  >({});
+  const batchInFlight = useRef(false);
+  const decisionContext = `${clinic.user_id}:${clinic.practice?.id}:${clinic.authorization_generation}:${clinicianProfileId}:${canDecide}`;
+  const currentDecisionContext = useRef(decisionContext);
+  currentDecisionContext.current = decisionContext;
+  useEffect(() => {
+    currentDecisionContext.current = decisionContext;
+    setSelectedRequests([]);
+    setBatchResults({});
+    setOutcomes({});
+    setMedicationSummaries({});
+    setEncounterSelections({});
+    return () => {
+      currentDecisionContext.current = "";
+    };
+  }, [decisionContext]);
 
   useEffect(() => {
     const query = patientQuery.trim();
@@ -199,7 +226,13 @@ export function RefillRequestQueue() {
   );
 
   const createRequest = async () => {
-    if (!createAllowed.current || busyKey || createInFlight.current) return;
+    if (
+      !createAllowed.current ||
+      busyKey ||
+      createInFlight.current ||
+      batchInFlight.current
+    )
+      return;
     let attempt = createAttempt.current;
     if (!attempt) {
       if (!selectedPatient) return;
@@ -315,7 +348,14 @@ export function RefillRequestQueue() {
     status: "in_review" | "resolved" | "declined",
     decision?: Decision,
   ) => {
-    if (!canManage || busyKey) return;
+    if (
+      !canManage ||
+      busyKey ||
+      batchInFlight.current ||
+      batchResults[request.id]?.state === "saved" ||
+      batchResults[request.id]?.state === "unknown"
+    )
+      return;
     const outcome = outcomes[request.id] ?? {
       patientMessage: "",
       reconciliationAcknowledged: false,
@@ -379,7 +419,7 @@ export function RefillRequestQueue() {
   };
 
   const retryDelivery = async (request: ClinicRefillRequest) => {
-    if (!canManage || busyKey) return;
+    if (!canManage || busyKey || batchInFlight.current) return;
     const signature = `retry-delivery:${request.id}`;
     const requestKey = attempts.current.get(signature) ?? crypto.randomUUID();
     attempts.current.set(signature, requestKey);
@@ -426,11 +466,16 @@ export function RefillRequestQueue() {
           reconciliationNote: "",
         }),
         ...change,
+        ...("patientMessage" in change || "reconciliationNote" in change
+          ? { reconciliationAcknowledged: false }
+          : {}),
       },
     }));
   };
 
   const loadMedicationSummary = async (request: ClinicRefillRequest) => {
+    const context = currentDecisionContext.current;
+    updateOutcome(request.id, { reconciliationAcknowledged: false });
     setMedicationSummaries((current) => ({
       ...current,
       [request.id]: { loading: true },
@@ -444,8 +489,14 @@ export function RefillRequestQueue() {
           `/api/clinic/encounters?patient_id=${request.patient.id}&status=open&per_page=50`,
         ),
       ]);
+      if (currentDecisionContext.current !== context) return;
+      if (data.patient_id !== request.patient.id)
+        throw new Error("Medication history did not match this patient.");
       const encounters = encounterPage.encounters.filter(
-        (encounter) => encounter.site_id !== null,
+        (encounter) =>
+          encounter.site_id != null &&
+          encounter.patient_id === request.patient.id &&
+          encounter.status === "open",
       );
       setMedicationSummaries((current) => ({
         ...current,
@@ -457,6 +508,7 @@ export function RefillRequestQueue() {
           [request.id]: encounters[0].id,
         }));
     } catch (reason) {
+      if (currentDecisionContext.current !== context) return;
       setMedicationSummaries((current) => ({
         ...current,
         [request.id]: {
@@ -469,6 +521,77 @@ export function RefillRequestQueue() {
     }
   };
 
+  const selected = sortedRequests.filter((request) =>
+    selectedRequests.includes(request.id),
+  );
+  const batchReady =
+    canDecide &&
+    !requests.error &&
+    selected.length > 0 &&
+    selected.length === selectedRequests.length &&
+    selected.every(
+      (request) =>
+        !batchResults[request.id] &&
+        refillApprovalReady(
+          request,
+          outcomes[request.id],
+          medicationSummaries[request.id]?.data,
+          medicationSummaries[request.id]?.encounters,
+          encounterSelections[request.id],
+        ),
+    );
+
+  const submitBatch = async (retry?: RefillReviewResult) => {
+    if (
+      !canDecide ||
+      busyKey ||
+      batchInFlight.current ||
+      (retry
+        ? retry.state === "saved" ||
+          retry.attempt.clinicianProfileId !== clinicianProfileId
+        : !batchReady)
+    )
+      return;
+    const context = currentDecisionContext.current;
+    const batch = retry
+      ? [retry.attempt]
+      : selected.map((request) =>
+          refillApprovalAttempt(
+            request,
+            outcomes[request.id],
+            Number(encounterSelections[request.id]),
+            clinicianProfileId!,
+          ),
+        );
+    batchInFlight.current = true;
+    setBusyKey("batch");
+    setError("");
+    setNotice("");
+    try {
+      for (const attempt of batch) {
+        // A changed account/authority stops unsent decisions and ignores old responses.
+        if (currentDecisionContext.current !== context) break;
+        const result = await submitRefillApproval(
+          attempt,
+          api,
+          retry?.state === "unknown",
+        );
+        if (currentDecisionContext.current !== context) break;
+        setBatchResults((current) => ({
+          ...current,
+          [attempt.request.id]: result,
+        }));
+        setSelectedRequests((current) =>
+          current.filter((id) => id !== attempt.request.id),
+        );
+      }
+      if (currentDecisionContext.current === context) requests.refresh();
+    } finally {
+      batchInFlight.current = false;
+      setBusyKey(null);
+    }
+  };
+
   return (
     <Stack spacing={3}>
       <Box>
@@ -477,12 +600,94 @@ export function RefillRequestQueue() {
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
           Review patient medication and pharmacy details, record the clinical
-          decision, and return an outcome to the patient portal. This queue does
-          not create or transmit a prescription.
+          decision, and return an outcome to the patient portal. Approval
+          creates an authorized medication order in the selected encounter;
+          pharmacy transmission is a separate workflow.
         </Typography>
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {canDecide && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={1}>
+            <Typography component="h2" variant="h5">
+              Batch clinician review
+            </Typography>
+            <Typography variant="body2">
+              Select requests individually to open their medication histories.
+              Review each patient, encounter and response, then attest to each
+              plan before submitting.
+            </Typography>
+            <Button
+              variant="contained"
+              disabled={busyKey !== null || !batchReady}
+              onClick={() => void submitBatch()}
+            >
+              Approve selected reviewed requests ({selectedRequests.length})
+            </Button>
+            {selectedRequests.length > 0 && !batchReady && (
+              <Typography variant="body2">
+                Each selected request needs matching medication history, an open
+                encounter, a patient response and reconciliation before
+                approval.
+              </Typography>
+            )}
+            {busyKey === "batch" && (
+              <Typography role="status">
+                Submitting reviewed requests individually.
+              </Typography>
+            )}
+            {Object.values(batchResults).map((result) => (
+              <Alert
+                key={result.attempt.request.id}
+                severity={
+                  result.state === "saved"
+                    ? "success"
+                    : result.state === "unknown"
+                      ? "warning"
+                      : "error"
+                }
+              >
+                Request #{result.attempt.request.id} ·{" "}
+                {result.attempt.request.patient.display_name} ·{" "}
+                {patientReferenceLabel(
+                  result.attempt.request.patient.reference,
+                ) || result.attempt.request.patient.reference}{" "}
+                · {result.attempt.request.medication_name} · Encounter #
+                {result.attempt.body.refill_request.encounter_id}:{" "}
+                {result.message}
+                {result.state !== "saved" && (
+                  <Button
+                    color="inherit"
+                    disabled={busyKey !== null}
+                    onClick={() => void submitBatch(result)}
+                  >
+                    Retry exact decision #{result.attempt.request.id}
+                  </Button>
+                )}
+                {result.state === "failed" && (
+                  <Button
+                    color="inherit"
+                    disabled={busyKey !== null}
+                    onClick={() => {
+                      setBatchResults((current) => {
+                        const next = { ...current };
+                        delete next[result.attempt.request.id];
+                        return next;
+                      });
+                      updateOutcome(result.attempt.request.id, {
+                        reconciliationAcknowledged: false,
+                      });
+                    }}
+                  >
+                    Edit and review again #{result.attempt.request.id}
+                  </Button>
+                )}
+              </Alert>
+            ))}
+          </Stack>
+        </Paper>
+      )}
       {canManage && createRetryPending && createAttempt.current && (
         <Alert severity="warning">
           The outcome for {createAttempt.current.patientLabel}:{" "}
@@ -548,13 +753,18 @@ export function RefillRequestQueue() {
             <Typography component="h2" variant="h5">
               Request queue
             </Typography>
-            <Button size="small" onClick={requests.refresh}>
+            <Button
+              size="small"
+              disabled={busyKey !== null}
+              onClick={requests.refresh}
+            >
               Refresh
             </Button>
           </Stack>
           <TextField
             select
             label="Show requests"
+            disabled={busyKey !== null || selectedRequests.length > 0}
             value={deliveryFilter}
             onChange={(event) => {
               setDeliveryFilter(event.target.value as "all" | "failed");
@@ -589,7 +799,11 @@ export function RefillRequestQueue() {
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <Button
                 size="small"
-                disabled={requestPage <= 1}
+                disabled={
+                  busyKey !== null ||
+                  selectedRequests.length > 0 ||
+                  requestPage <= 1
+                }
                 onClick={() => setRequestPage((page) => page - 1)}
               >
                 Previous
@@ -604,8 +818,10 @@ export function RefillRequestQueue() {
               <Button
                 size="small"
                 disabled={
+                  busyKey !== null ||
+                  selectedRequests.length > 0 ||
                   requestPage * requests.data.pagination.per_page >=
-                  requests.data.pagination.total
+                    requests.data.pagination.total
                 }
                 onClick={() => setRequestPage((page) => page + 1)}
               >
@@ -623,6 +839,8 @@ export function RefillRequestQueue() {
             };
             const busy = busyKey === `transition:${request.id}`;
             const medicationSummary = medicationSummaries[request.id];
+            const decisionLocked =
+              busyKey !== null || !!batchResults[request.id];
             return (
               <Box
                 key={request.id}
@@ -634,6 +852,30 @@ export function RefillRequestQueue() {
                     spacing={1}
                     sx={{ alignItems: "center", flexWrap: "wrap" }}
                   >
+                    {canDecide && !terminal && (
+                      <Checkbox
+                        checked={selectedRequests.includes(request.id)}
+                        disabled={decisionLocked || !!batchResults[request.id]}
+                        slotProps={{
+                          input: {
+                            "aria-label": `Select request #${request.id} for ${request.patient.display_name} for batch review`,
+                          },
+                        }}
+                        onChange={(_, checked) => {
+                          setSelectedRequests((current) =>
+                            checked
+                              ? [...current, request.id]
+                              : current.filter((id) => id !== request.id),
+                          );
+                          if (
+                            checked &&
+                            !medicationSummary?.data &&
+                            !medicationSummary?.loading
+                          )
+                            void loadMedicationSummary(request);
+                        }}
+                      />
+                    )}
                     <Typography sx={{ fontWeight: 700 }}>
                       {request.patient.display_name}
                       {patientReferenceLabel(request.patient.reference) &&
@@ -794,14 +1036,18 @@ export function RefillRequestQueue() {
                           select
                           fullWidth
                           required
+                          disabled={decisionLocked}
                           label="Encounter for the medication order"
                           value={encounterSelections[request.id] ?? ""}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            updateOutcome(request.id, {
+                              reconciliationAcknowledged: false,
+                            });
                             setEncounterSelections((current) => ({
                               ...current,
                               [request.id]: Number(event.target.value),
-                            }))
-                          }
+                            }));
+                          }}
                           helperText={
                             medicationSummary.encounters?.length
                               ? "Approvals and changed plans create an authoritative medication order in this open encounter."
@@ -824,6 +1070,7 @@ export function RefillRequestQueue() {
                         fullWidth
                         required
                         multiline
+                        disabled={decisionLocked}
                         minRows={2}
                         label="Patient-visible outcome"
                         value={outcome.patientMessage}
@@ -839,7 +1086,9 @@ export function RefillRequestQueue() {
                         control={
                           <Checkbox
                             checked={outcome.reconciliationAcknowledged}
-                            disabled={!medicationSummary?.data}
+                            disabled={
+                              decisionLocked || !medicationSummary?.data
+                            }
                             onChange={(event) =>
                               updateOutcome(request.id, {
                                 reconciliationAcknowledged:
@@ -852,6 +1101,7 @@ export function RefillRequestQueue() {
                       />
                       <TextField
                         fullWidth
+                        disabled={decisionLocked}
                         label="Reconciliation note (optional)"
                         value={outcome.reconciliationNote}
                         onChange={(event) =>
@@ -867,7 +1117,10 @@ export function RefillRequestQueue() {
                       >
                         {request.status === "pending" && (
                           <Button
-                            disabled={busyKey !== null}
+                            disabled={
+                              decisionLocked ||
+                              selectedRequests.includes(request.id)
+                            }
                             onClick={() =>
                               void transition(request, "in_review")
                             }
@@ -878,7 +1131,8 @@ export function RefillRequestQueue() {
                         <Button
                           variant="contained"
                           disabled={
-                            busyKey !== null ||
+                            decisionLocked ||
+                            selectedRequests.includes(request.id) ||
                             !canDecide ||
                             !outcome.patientMessage.trim() ||
                             !medicationSummary?.data ||
@@ -894,7 +1148,8 @@ export function RefillRequestQueue() {
                         <Button
                           variant="outlined"
                           disabled={
-                            busyKey !== null ||
+                            decisionLocked ||
+                            selectedRequests.includes(request.id) ||
                             !canDecide ||
                             !outcome.patientMessage.trim() ||
                             !medicationSummary?.data ||
@@ -910,7 +1165,8 @@ export function RefillRequestQueue() {
                         <Button
                           color="inherit"
                           disabled={
-                            busyKey !== null ||
+                            decisionLocked ||
+                            selectedRequests.includes(request.id) ||
                             !canDecide ||
                             !outcome.patientMessage.trim()
                           }
