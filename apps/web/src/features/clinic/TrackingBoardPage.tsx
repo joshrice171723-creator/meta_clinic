@@ -527,8 +527,9 @@ function storedTrackingBoardColumns(): ColumnKey[] {
     return initialColumns;
   }
 }
+const minimumPatientColumnWidth = 360;
 const initialColumnWidths: Record<ColumnKey, number> = {
-  patient: 180,
+  patient: minimumPatientColumnWidth,
   stage: 175,
   wait: 130,
   location: 120,
@@ -1496,7 +1497,10 @@ export function TrackingBoardView({
     );
     setColumnWidths((widths) => ({
       ...widths,
-      [current.column]: nextWidth,
+      [current.column]:
+        current.column === "patient"
+          ? Math.max(minimumPatientColumnWidth, nextWidth)
+          : nextWidth,
     }));
   };
   const finishColumnResize = () => {
@@ -1506,7 +1510,13 @@ export function TrackingBoardView({
   const resizeColumnWithKeyboard = (column: ColumnKey, delta: number) => {
     setColumnWidths((widths) => ({
       ...widths,
-      [column]: Math.min(600, Math.max(0, widths[column] + delta)),
+      [column]: Math.min(
+        600,
+        Math.max(
+          column === "patient" ? minimumPatientColumnWidth : 0,
+          widths[column] + delta,
+        ),
+      ),
     }));
   };
   const tableWidth = columns.reduce(
@@ -1745,6 +1755,11 @@ export function TrackingBoardView({
                     role="separator"
                     aria-orientation="vertical"
                     aria-label={`Resize ${columnLabels[column]} column`}
+                    aria-valuemin={
+                      column === "patient"
+                        ? minimumPatientColumnWidth
+                        : undefined
+                    }
                     aria-valuemax={600}
                     aria-valuenow={columnWidths[column]}
                     tabIndex={0}

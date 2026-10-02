@@ -672,6 +672,14 @@
   margin-top: 10px;
   max-width: 1080px;
 }
+@media (min-width: 761px) {
+  .clinic-theme .tracking-table-container .tracking-patient-cell {
+    min-width: 360px;
+  }
+  .clinic-theme .tracking-patient-details {
+    min-width: 304px;
+  }
+}
 @media (max-width: 760px) {
   .clinic-theme .tracking-table-container {
     max-height: none;
