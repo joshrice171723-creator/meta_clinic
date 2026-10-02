@@ -5,8 +5,15 @@ module Clinic
     class Calendar
       SLOT_MINUTES = 30
 
-      def initialize(practice:, site:, date:, actor:)
+      def initialize(practice:, site:, date:, actor:, duration_minutes: SLOT_MINUTES, waitlist_entry: nil)
         @practice, @site, @actor = practice, site, actor
+        unless duration_minutes.is_a?(Integer) && duration_minutes.between?(5, 240)
+          raise ArgumentError, "Choose a visit duration from 5 to 240 minutes."
+        end
+        if waitlist_entry && (waitlist_entry.practice_id != practice.id || waitlist_entry.site_id != site.id || waitlist_entry.duration_minutes != duration_minutes)
+          raise ArgumentError, "The waitlist entry does not match this availability request."
+        end
+        @duration_minutes, @waitlist_entry = duration_minutes, waitlist_entry
         @can_read_hold_patient = Ability.new(actor, practice: practice).allowed_permission?("patients.read", site: site)
         @timezone_name = site.timezone_override.presence || practice.timezone
         @zone = ActiveSupport::TimeZone[@timezone_name]
@@ -28,7 +35,8 @@ module Clinic
           .includes(:patient).to_a
         @hours = site.operating_hours.to_a
         @exceptions = site.hour_exceptions.where(date: @first.prev_day..@last.next_day).index_by(&:date)
-        @clinicians = practice.clinician_profiles.order(:id).to_a
+        @clinicians = practice.clinician_profiles.includes(:assignments).order(:id).to_a
+        @clinicians_by_id = @clinicians.index_by(&:id)
         @rooms = practice.rooms.where(site: site).order(:code).to_a
       end
 
@@ -50,6 +58,8 @@ module Clinic
         end
         { month: @first.strftime("%Y-%m"), as_of: @generated_at, timezone: @timezone_name, site_id: @site.id,
           slot_minutes: SLOT_MINUTES, capacity_configured: configured?,
+          duration_minutes: @duration_minutes,
+          waitlist_entry: (@waitlist_entry && { id: @waitlist_entry.id, version: @waitlist_entry.lock_version }),
           policy: { recurrence: (SitePolicy.current(practice: @practice, site: @site)&.recurrence_enabled? ? "configured" : "not_configured"),
             overbook: (SitePolicy.current(practice: @practice, site: @site)&.overbook_enabled? ? "configured" : "not_configured"),
             external_sync: "read_only_export" },
@@ -69,16 +79,26 @@ module Clinic
       end
 
       def slots_for(date)
+        return [] unless @site.status == "active"
+
         slots = []
         @rules.select { |r| r.kind == "weekly" && r.site_id == @site.id && r.weekday == date.wday }.each do |rule|
+          next if @waitlist_entry && rule.clinician_id != @waitlist_entry.clinician_id
+
           (rule.start_minute...rule.end_minute).step(SLOT_MINUTES) do |minute|
-            next if minute + SLOT_MINUTES > rule.end_minute
+            next if minute + @duration_minutes > rule.end_minute
 
             start = @zone.local(date.year, date.month, date.day, minute / 60, minute % 60)
-            finish = start + SLOT_MINUTES.minutes
+            finish = start + @duration_minutes.minutes
             # Do not offer nonexistent/shifted local times at daylight-saving boundaries.
             next unless start.hour * 60 + start.min == minute && finish.in_time_zone(@zone).to_date == date
+            next unless minutes(finish.in_time_zone(@zone)) == minute + @duration_minutes && start.utc_offset == finish.utc_offset
+            next unless clinician_assigned?(rule.clinician_id, start, finish)
             next unless site_open?(start, finish)
+            if @waitlist_entry
+              next unless start > Current.business_time && start >= @waitlist_entry.earliest_at && finish <= @waitlist_entry.latest_at
+              next if @busy.any? { |a| a.patient_id == @waitlist_entry.patient_id && overlap?(start, finish, a.starts_at, a.ends_at) }
+            end
             next if @rules.any? { |r| r.kind == "block" && r.clinician_id == rule.clinician_id && overlap?(start, finish, r.starts_at, r.ends_at) }
             next if @busy.any? { |a| a.booked_clinician_id == rule.clinician_id && overlap?(start, finish, a.starts_at, a.ends_at) }
             next if @offers.any? { |o| o.clinician_id == rule.clinician_id && overlap?(start, finish, o.offer_starts_at, o.offer_ends_at) }
@@ -88,6 +108,10 @@ module Clinic
               @busy.any? { |a| a.room_id == room.id && overlap?(start, finish, a.starts_at, a.ends_at) } ||
                 @holds.any? { |h| h.room_id == room.id && overlap?(start, finish, h.starts_at, h.ends_at) }
             end
+            # A waitlist suggestion never switches rooms midway through a visit.
+            # Roomless sites retain their existing optional-room semantics.
+            next if @waitlist_entry && @rooms.any? { |room| room.kind == "physical" } && rooms.empty?
+
             slots << { starts_at: start.iso8601, ends_at: finish.iso8601, clinician_id: rule.clinician_id,
               room_ids: rooms.map(&:id),
               provenance: { generated_at: @generated_at, source_rules: [ { id: rule.id, version: rule.lock_version } ] } }
@@ -99,6 +123,17 @@ module Clinic
           matching.first.merge(provenance: { generated_at: @generated_at,
             source_rules: matching.flat_map { |s| s[:provenance][:source_rules] }.uniq.sort_by { |r| r[:id] } })
         end.sort_by { |s| [ s[:starts_at], s[:clinician_id] ] }
+      end
+
+      def clinician_assigned?(clinician_id, start, finish)
+        clinician = @clinicians_by_id[clinician_id]
+        return false unless clinician
+
+        assignments = clinician.assignments.select { |item| item.practice_id == @practice.id }
+        return true if assignments.empty?
+
+        assignments.any? { |item| item.site_id == @site.id && item.effective_from <= start &&
+          (item.effective_until.nil? || item.effective_until >= finish) }
       end
 
       def site_open?(start, finish)

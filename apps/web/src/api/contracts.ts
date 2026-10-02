@@ -1681,6 +1681,10 @@ export type CalendarResponse = {
   timezone: string;
   site_id: number;
   slot_minutes: number;
+  /** Full interval duration; slot_minutes remains the candidate start spacing. */
+  duration_minutes?: number;
+  /** Response ownership for an optional authorized waitlist availability read. */
+  waitlist_entry?: { id: number; version: number } | null;
   capacity_configured: boolean;
   policy?: {
     recurrence: "not_configured" | "configured";
