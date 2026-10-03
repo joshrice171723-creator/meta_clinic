@@ -1435,3 +1435,6 @@ Coding was frozen before TypeScript and main/Office production bundles passed. S
 ### 2026-10-03 - Clickable Muse QA grid
 
 Joshua requested direct editable workflow controls. Added local-key signing controls and authenticated owner approval showing the familiar OpenSSH fingerprint, preserving exact build pins and server synthetic checks. Scoped API, signing, type and two browser walkthrough checks passed; actual Muse enrollment and live verdict acceptance remain pending. Version 0.2.6 publication evidence is tracked in [the delivery record](../../records/progress/2026/10/2026-10-03-muse-qa-write-api.md).
+
+
+Published clickable Muse QA controls as 0.2.6 at aab93057 on aimetaclinic.com after pushing main. Exact clean-build readback, hosted release checks and live route/auth checks passed. Live Muse key approval, verified fixture registration and screenshot hostname setup remain pending; no live verdict acceptance is claimed. See the delivery record above.
