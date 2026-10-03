@@ -12,12 +12,17 @@ import {
 } from "react";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   Chip,
   MenuItem,
+  Stack,
   Tab,
   Tabs,
   TextField,
@@ -3770,44 +3775,98 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
   ];
   const nextStepIndex = steps.findIndex((step) => !step.complete);
   const remainingSteps = steps.filter((step) => !step.complete).length;
+  const nextStep = nextStepIndex >= 0 ? steps[nextStepIndex] : null;
   return (
-    <details className="inventory-first-run" open={remainingSteps > 0}>
-      <summary>
-        First inventory run · {remainingSteps} step
-        {remainingSteps === 1 ? "" : "s"} remaining
-      </summary>
-      <section aria-labelledby="inventory-first-run-title">
-        <h2 id="inventory-first-run-title">First inventory run</h2>
-        <p className="inventory-lead">
-          Follow the saved workflow from supplier setup through stock stored in
-          a bin. Each step opens the existing inventory action for that record.
-        </p>
-        <ol>
-          {steps.map((step, index) => (
-            <li key={step.title}>
-              <strong>
-                {step.complete
-                  ? "Complete"
-                  : index === nextStepIndex
-                    ? "Next"
-                    : "Not started"}
-                : {step.title}
-              </strong>{" "}
-              — {step.detail}{" "}
-              {!step.complete &&
-                (step.requiresSupplierSetup && !canSetUpSuppliers ? (
-                  <PermissionNote
-                    allowed={false}
-                    permission="Supplier setup access"
-                  />
-                ) : (
-                  <a href={step.href}>Continue to {step.title} →</a>
-                ))}
-            </li>
-          ))}
-        </ol>
-      </section>
-    </details>
+    <Accordion
+      className="inventory-first-run"
+      disableGutters
+      elevation={0}
+      defaultExpanded={false}
+      square
+      sx={{
+        mb: 2,
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 2,
+        bgcolor: "background.paper",
+        overflow: "hidden",
+        "&:before": { display: "none" },
+      }}
+    >
+      <AccordionSummary
+        id="inventory-first-run-heading"
+        aria-controls="inventory-first-run-panel"
+        expandIcon={<ExpandMoreRoundedIcon />}
+        sx={{
+          minHeight: 52,
+          px: 2,
+          "&.Mui-expanded": { minHeight: 52 },
+          "& .MuiAccordionSummary-content, & .MuiAccordionSummary-content.Mui-expanded": {
+            my: 1,
+          },
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1.5}
+          useFlexGap
+          sx={{ alignItems: "center", flexWrap: "wrap", minWidth: 0 }}
+        >
+          <Typography component="span" sx={{ fontWeight: 650 }}>
+            First inventory run
+          </Typography>
+          <Typography component="span" variant="body2" color="text.secondary">
+            {remainingSteps} step{remainingSteps === 1 ? "" : "s"} remaining
+          </Typography>
+          <Typography component="span" variant="body2" sx={{ fontWeight: 600 }}>
+            {nextStep ? `Next: ${nextStep.title}` : "All steps complete"}
+          </Typography>
+          {nextStep?.requiresSupplierSetup && !canSetUpSuppliers && (
+            <Typography component="span" variant="body2" color="text.secondary">
+              Supplier setup access required
+            </Typography>
+          )}
+        </Stack>
+      </AccordionSummary>
+      <AccordionDetails
+        id="inventory-first-run-panel"
+        aria-labelledby="inventory-first-run-heading"
+        sx={{ borderTop: 1, borderColor: "divider", px: 2, py: 1.5 }}
+      >
+        <section aria-labelledby="inventory-first-run-title">
+          <h2 id="inventory-first-run-title">First inventory run</h2>
+          <p className="inventory-lead">
+            Follow the saved workflow from supplier setup through stock stored
+            in a bin. Each step opens the existing inventory action for that
+            record.
+          </p>
+          <ol>
+            {steps.map((step, index) => (
+              <li key={step.title}>
+                <strong>
+                  {step.complete
+                    ? "Complete"
+                    : index === nextStepIndex
+                      ? "Next"
+                      : "Not started"}
+                  : {step.title}
+                </strong>{" "}
+                — {step.detail}{" "}
+                {!step.complete &&
+                  (step.requiresSupplierSetup && !canSetUpSuppliers ? (
+                    <PermissionNote
+                      allowed={false}
+                      permission="Supplier setup access"
+                    />
+                  ) : (
+                    <a href={step.href}>Continue to {step.title} →</a>
+                  ))}
+              </li>
+            ))}
+          </ol>
+        </section>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
