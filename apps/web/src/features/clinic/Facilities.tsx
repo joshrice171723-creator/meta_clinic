@@ -290,15 +290,14 @@ export function Facilities() {
       <Stack spacing={1} sx={{ mb: 3 }}>
         <Typography variant="h1">Clinic setup</Typography>
         <Typography color="text.secondary">
-          Define the clinic model and intended services, then configure visit
-          types, locations, and operating hours for implementation handoff.
-          Storage cabinets, quarantine, and returns remain in Inventory.
+          Manage your locations, visit types, services, and operating hours.
         </Typography>
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
           <Button href="#location-setup">Location profile</Button>
           <Button href="#assessment-setup">Assessment scope</Button>
           <Button href="#visit-type-setup">Visit types</Button>
           <Button href="#service-offering-setup">Service offerings</Button>
+          <Button href="#lab-unit-setup">Lab unit mappings</Button>
           {selected?.finalized === true && !creating && (
             <Button href="#scheduling-policy-setup">Scheduling policy</Button>
           )}
@@ -322,7 +321,6 @@ export function Facilities() {
           )}
         </Alert>
       )}
-      <LabUnitMappingSettings />
       {!creating && (
         <div id="location-setup">
           <PracticeFeatureSettings
@@ -901,6 +899,9 @@ export function Facilities() {
           scheduling policies.
         </Typography>
       )}
+      <section id="lab-unit-setup" aria-label="Lab unit mappings">
+        <LabUnitMappingSettings />
+      </section>
     </div>
   );
 }

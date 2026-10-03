@@ -1,6 +1,6 @@
 .front-desk-page {
   display: grid;
-  gap: 24px;
+  gap: 20px;
 }
 
 .front-desk-heading,
@@ -12,8 +12,23 @@
   gap: 20px;
 }
 
+.front-desk-more-actions .MuiAccordionSummary-root {
+  min-height: 44px;
+  align-content: center;
+  color: var(--clinic-accent);
+  cursor: pointer;
+  font-weight: 600;
+  text-align: right;
+}
+
+.front-desk-more-actions .MuiAccordionSummary-root:focus-visible {
+  outline: 3px solid var(--clinic-accent);
+  outline-offset: 2px;
+}
+
 .front-desk-quick-actions {
   justify-content: flex-end;
+  padding-top: 8px;
 }
 
 .front-desk-ledger {
@@ -21,19 +36,19 @@
 }
 
 .front-desk-toolbar {
-  padding: 22px 24px 18px;
+  padding: 16px 24px 14px;
 }
 
 .front-desk-filters {
   display: grid;
   grid-template-columns:
-    minmax(180px, 0.75fr) auto minmax(190px, 0.85fr)
-    minmax(260px, 1.4fr);
-  align-items: center;
+    minmax(150px, 0.8fr) minmax(190px, 1fr) auto
+    minmax(160px, 0.9fr) minmax(240px, 1.5fr);
+  align-items: start;
   gap: 12px;
   padding: 16px 24px;
   border-block: 1px solid var(--clinic-border);
-  background: var(--clinic-soft);
+  background: var(--clinic-surface);
 }
 
 .front-desk-filters .MuiInputBase-root {
@@ -73,8 +88,8 @@
 }
 
 .front-desk-row {
-  min-height: 104px;
-  padding-block: 18px;
+  min-height: 88px;
+  padding-block: 12px;
   border-bottom: 1px solid var(--clinic-border);
   transition: background-color 120ms ease;
 }
@@ -161,8 +176,7 @@
   font-size: 0.875rem !important;
 }
 
-.front-desk-loading,
-.front-desk-empty {
+.front-desk-loading {
   display: flex;
   min-height: 260px;
   align-items: center;
@@ -170,17 +184,6 @@
   gap: 12px;
   padding: 36px 24px;
   color: var(--clinic-muted);
-}
-
-.front-desk-empty {
-  flex-direction: column;
-  text-align: center;
-}
-
-.front-desk-empty > svg {
-  width: 38px;
-  height: 38px;
-  color: var(--clinic-accent);
 }
 
 .front-desk-pagination {
@@ -218,9 +221,10 @@
 
 @media (max-width: 1180px) {
   .front-desk-filters {
-    grid-template-columns: minmax(180px, 1fr) auto minmax(190px, 1fr);
+    grid-template-columns: minmax(150px, 1fr) minmax(190px, 1fr) auto;
   }
 
+  .front-desk-filters > :nth-child(4),
   .front-desk-filters > :last-child {
     grid-column: 1 / -1;
   }
@@ -250,7 +254,7 @@
   }
 
   .front-desk-filters {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .front-desk-filters > :nth-child(3),

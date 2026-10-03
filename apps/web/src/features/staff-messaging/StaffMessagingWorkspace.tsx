@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Avatar,
   Badge,
@@ -16,6 +19,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined";
 import PriorityHighRoundedIcon from "@mui/icons-material/PriorityHighRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
@@ -29,11 +33,13 @@ export type StaffRequestTransitionState =
 
 export type StaffMessage = {
   id: number;
+  senderMembershipId?: number | null;
   sender: string;
   senderEmail: string;
   body: string;
   messageClass: StaffMessageClass;
   createdAt: string;
+  createdAtExact?: string;
   acknowledgementRequired?: boolean;
   acknowledged?: boolean;
   reminderId?: number;
@@ -122,11 +128,51 @@ function participantSummary(participants: StaffConversation["participants"]) {
     .map((participant) =>
       typeof participant === "string"
         ? participant
-        : participant.displayName
-          ? `${participant.displayName} (${participant.email})`
-          : participant.email,
+        : participant.displayName || participant.email || "Unnamed participant",
     )
     .join(" | ");
+}
+
+function messageSenderKey(message: StaffMessage): string {
+  if (message.senderMembershipId != null) {
+    return `membership:${message.senderMembershipId}`;
+  }
+  const email = message.senderEmail.trim().toLowerCase();
+  return email ? `email:${email}` : `message:${message.id}`;
+}
+
+function groupConsecutiveMessages(messages: StaffMessage[]) {
+  return messages.reduce<
+    Array<{ key: string; senderKey: string; messages: StaffMessage[] }>
+  >(
+    (groups, message) => {
+      const senderKey = messageSenderKey(message);
+      const currentGroup = groups[groups.length - 1];
+      if (currentGroup?.senderKey === senderKey) {
+        currentGroup.messages.push(message);
+      } else {
+        groups.push({
+          key: `${senderKey}:${message.id}`,
+          senderKey,
+          messages: [message],
+        });
+      }
+      return groups;
+    },
+    [],
+  );
+}
+
+function shortMessageTime(value: string): string {
+  const time = new Date(value);
+  return Number.isNaN(time.valueOf())
+    ? value || "Time unavailable"
+    : new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(time);
 }
 
 const fixtureState: StaffMessagingState = {
@@ -242,6 +288,7 @@ function ConversationBadge({
 
 function MessageCard({
   message,
+  showSender,
   canAcknowledge,
   onAcknowledge,
   canTransition,
@@ -253,6 +300,7 @@ function MessageCard({
   pendingActions,
 }: {
   message: StaffMessage;
+  showSender: boolean;
   canAcknowledge: boolean;
   onAcknowledge?: (messageId: number) => void | Promise<void>;
   canTransition?: boolean;
@@ -272,70 +320,85 @@ function MessageCard({
   const acknowledgementKey = `acknowledge:${message.id}`;
 
   return (
-    <Paper
+    <Box
       component="article"
-      variant="outlined"
       sx={{
-        p: { xs: 1.5, sm: 2 },
-        borderColor:
+        px: { xs: 1, sm: 1.5 },
+        py: 1.25,
+        borderLeft:
+          message.acknowledgementRequired && !message.acknowledged
+            ? "3px solid"
+            : "3px solid transparent",
+        borderLeftColor:
           message.acknowledgementRequired && !message.acknowledged
             ? "warning.main"
-            : "divider",
+            : "transparent",
         bgcolor:
           message.messageClass === "urgent"
             ? "action.hover"
-            : "background.paper",
+            : "transparent",
       }}
     >
-      <Stack spacing={1.25}>
+      <Stack spacing={0.75}>
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction="row"
           spacing={1}
-          sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+          sx={{ alignItems: "center", justifyContent: "space-between" }}
         >
           <Stack
             direction="row"
             spacing={1}
-            sx={{ alignItems: "center", minWidth: 0 }}
+            sx={{ alignItems: "center", minWidth: 0, flex: 1 }}
           >
-            <Avatar
+            {showSender && (
+              <>
+                <Avatar
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    fontSize: 13,
+                  }}
+                >
+                  {(message.sender.trim() || "?").slice(0, 1)}
+                </Avatar>
+                <Typography
+                  sx={{ fontWeight: 650, overflowWrap: "anywhere", minWidth: 0 }}
+                >
+                  {message.sender.trim() || "Unknown sender"}
+                </Typography>
+              </>
+            )}
+            <Typography
+              component="time"
+              dateTime={message.createdAtExact || undefined}
+              variant="body2"
+              color="text.secondary"
               sx={{
-                width: 34,
-                height: 34,
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-                fontSize: 14,
+                ml: "auto",
+                whiteSpace: "nowrap",
+                fontVariantNumeric: "tabular-nums",
               }}
             >
-              {message.sender.slice(0, 1)}
-            </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 650, overflowWrap: "anywhere" }}>
-                {message.sender}
-              </Typography>
-              {message.senderEmail &&
-                message.senderEmail !== message.sender && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ overflowWrap: "anywhere" }}
-                  >
-                    {message.senderEmail}
-                  </Typography>
-                )}
-              <Typography variant="body2" color="text.secondary">
-                {message.createdAt}
-              </Typography>
-            </Box>
+              {shortMessageTime(message.createdAt)}
+            </Typography>
           </Stack>
-          <Chip
-            size="small"
-            label={classLabel[message.messageClass]}
-            color={classColor[message.messageClass]}
-            variant={message.messageClass === "routine" ? "outlined" : "filled"}
-          />
+          {message.messageClass !== "routine" && (
+            <Chip
+              size="small"
+              label={classLabel[message.messageClass]}
+              color={classColor[message.messageClass]}
+            />
+          )}
         </Stack>
-        <Typography sx={{ lineHeight: 1.5, overflowWrap: "anywhere" }}>
+        <Typography
+          sx={{
+            lineHeight: 1.5,
+            overflowWrap: "anywhere",
+            pl: showSender ? 5 : 0,
+          }}
+        >
           {message.body}
         </Typography>
         {message.reminderId && (
@@ -454,7 +517,7 @@ function MessageCard({
           </Stack>
         )}
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 
@@ -560,6 +623,14 @@ export function StaffMessagingWorkspace({
     );
   }
 
+  const activeConversationCount = state.conversations.filter(
+    ({ status }) => status === "active",
+  ).length;
+  const activeConversationLabel =
+    activeConversationCount === 1
+      ? "1 active conversation"
+      : `${activeConversationCount} active conversations`;
+
   const sendMessage = async () => {
     const conversationId = selectedConversation.id;
     const draft = drafts[conversationId] || "";
@@ -652,7 +723,7 @@ export function StaffMessagingWorkspace({
             </Typography>
           </Box>
           <Chip
-            label={`${state.conversations.filter(({ status }) => status === "active").length} active conversations`}
+            label={activeConversationLabel}
             variant="outlined"
             sx={{ alignSelf: { xs: "flex-start", sm: "auto" } }}
           />
@@ -847,7 +918,7 @@ export function StaffMessagingWorkspace({
             variant="outlined"
             sx={{ minWidth: 0, overflow: "hidden" }}
           >
-            <Box sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "background.paper" }}>
+            <Box sx={{ p: { xs: 1, sm: 1.5 }, bgcolor: "background.paper" }}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1.25}
@@ -860,7 +931,7 @@ export function StaffMessagingWorkspace({
                   <Typography
                     id="conversation-heading"
                     component="h2"
-                    variant="h5"
+                    variant="h2"
                     sx={{ overflowWrap: "anywhere" }}
                   >
                     {selectedConversation.title}
@@ -870,7 +941,7 @@ export function StaffMessagingWorkspace({
                     color="text.secondary"
                     sx={{ mt: 0.4, overflowWrap: "anywhere" }}
                   >
-                    {selectedConversation.kind} conversation ·{" "}
+                    {selectedConversation.kind} ·{" "}
                     {participantSummary(selectedConversation.participants)}
                   </Typography>
                 </Box>
@@ -886,7 +957,7 @@ export function StaffMessagingWorkspace({
                   {selectedConversation.unread && onMarkRead && (
                     <Button
                       size="small"
-                      variant="outlined"
+                      variant="text"
                       startIcon={<MarkEmailReadOutlinedIcon />}
                       onClick={() => void onMarkRead(selectedConversation.id)}
                     >
@@ -905,7 +976,7 @@ export function StaffMessagingWorkspace({
               </Stack>
             </Box>
             <Divider />
-            <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
+            <Stack spacing={1.25} sx={{ p: { xs: 1, sm: 1.5 }, minWidth: 0 }}>
               {(selectedConversation.messagePage || 1) > 1 && (
                 <Button
                   variant="outlined"
@@ -919,41 +990,118 @@ export function StaffMessagingWorkspace({
                     : "Load earlier messages"}
                 </Button>
               )}
-              {selectedConversation.messages.map((message) => (
-                <MessageCard
-                  key={message.id}
-                  message={message}
-                  canAcknowledge={state.canAcknowledge}
-                  onAcknowledge={(messageId) =>
-                    runAction(`acknowledge:${messageId}`, () =>
-                      onAcknowledge?.(messageId),
-                    )
-                  }
-                  canTransition={state.canTransition}
-                  canEscalate={state.canEscalate}
-                  onTransitionRequest={(requestId, requestState) =>
-                    runAction(`request:${requestId}`, () =>
-                      onTransitionRequest?.(requestId, requestState),
-                    )
-                  }
-                  onResolveRequest={(requestId) =>
-                    runAction(`request:${requestId}`, () =>
-                      onResolveRequest?.(requestId),
-                    )
-                  }
-                  onDeclineRequest={(requestId) =>
-                    runAction(`request:${requestId}`, () =>
-                      onDeclineRequest?.(requestId),
-                    )
-                  }
-                  onEscalateRequest={(requestId) =>
-                    runAction(`escalate:${requestId}`, () =>
-                      onEscalateRequest?.(requestId),
-                    )
-                  }
-                  pendingActions={pendingActions}
-                />
-              ))}
+              {groupConsecutiveMessages(selectedConversation.messages).map(
+                (group, groupIndex) => (
+                  <Box key={group.key} component="section" sx={{ minWidth: 0 }}>
+                    {group.messages.map((message, messageIndex) => (
+                      <Fragment key={message.id}>
+                        <MessageCard
+                          message={message}
+                          showSender={messageIndex === 0}
+                          canAcknowledge={state.canAcknowledge}
+                          onAcknowledge={(messageId) =>
+                            runAction(`acknowledge:${messageId}`, () =>
+                              onAcknowledge?.(messageId),
+                            )
+                          }
+                          canTransition={state.canTransition}
+                          canEscalate={state.canEscalate}
+                          onTransitionRequest={(requestId, requestState) =>
+                            runAction(`request:${requestId}`, () =>
+                              onTransitionRequest?.(requestId, requestState),
+                            )
+                          }
+                          onResolveRequest={(requestId) =>
+                            runAction(`request:${requestId}`, () =>
+                              onResolveRequest?.(requestId),
+                            )
+                          }
+                          onDeclineRequest={(requestId) =>
+                            runAction(`request:${requestId}`, () =>
+                              onDeclineRequest?.(requestId),
+                            )
+                          }
+                          onEscalateRequest={(requestId) =>
+                            runAction(`escalate:${requestId}`, () =>
+                              onEscalateRequest?.(requestId),
+                            )
+                          }
+                          pendingActions={pendingActions}
+                        />
+                        {messageIndex < group.messages.length - 1 && (
+                          <Divider sx={{ ml: { xs: 1, sm: 1.5 } }} />
+                        )}
+                      </Fragment>
+                    ))}
+                    <Accordion
+                      disableGutters
+                      elevation={0}
+                      square
+                      sx={{
+                        borderTop: 1,
+                        borderColor: "divider",
+                        bgcolor: "transparent",
+                        "&:before": { display: "none" },
+                      }}
+                    >
+                      <AccordionSummary
+                        id={`message-details-heading-${selectedConversation.id}-${groupIndex}`}
+                        aria-controls={`message-details-panel-${selectedConversation.id}-${groupIndex}`}
+                        expandIcon={<ExpandMoreRoundedIcon />}
+                        sx={{
+                          minHeight: 40,
+                          px: 1,
+                          "& .MuiAccordionSummary-content": { my: 0.75 },
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Exact sender and timestamp details
+                        </Typography>
+                      </AccordionSummary>
+                      <AccordionDetails
+                        id={`message-details-panel-${selectedConversation.id}-${groupIndex}`}
+                        sx={{ pt: 0, px: 1 }}
+                      >
+                        <Stack spacing={1}>
+                          {group.messages.map((message, messageIndex) => {
+                            const senderName = message.sender.trim() || "Unknown sender";
+                            const exactTime =
+                              message.createdAtExact ||
+                              message.createdAt ||
+                              "Timestamp unavailable";
+                            return (
+                              <Box key={message.id}>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  Message {messageIndex + 1} · {senderName}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ overflowWrap: "anywhere" }}
+                                >
+                                  Email: {message.senderEmail || "Unavailable"}
+                                </Typography>
+                                <Typography
+                                  component="time"
+                                  dateTime={message.createdAtExact || undefined}
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{
+                                    overflowWrap: "anywhere",
+                                    fontVariantNumeric: "tabular-nums",
+                                  }}
+                                >
+                                  {exactTime}
+                                </Typography>
+                              </Box>
+                            );
+                          })}
+                        </Stack>
+                      </AccordionDetails>
+                    </Accordion>
+                  </Box>
+                ),
+              )}
               <Divider sx={{ my: 0.5 }} />
               <Box
                 component="form"

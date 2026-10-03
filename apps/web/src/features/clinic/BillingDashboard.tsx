@@ -22,6 +22,7 @@ import {
   Typography,
 } from "@mui/material";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
@@ -784,109 +785,6 @@ export function BillingDashboard() {
           {checkoutReturnError}
         </Alert>
       )}
-      {checkoutQueue.available && (
-        <section className="clinic-card billing-ledger-card">
-          <div className="billing-section-heading billing-ledger-heading">
-            <div>
-              <h2>Completed visits awaiting checkout</h2>
-              <p className="billing-subtitle">
-                These completed visits have no active invoice. Start checkout to
-                review stored charges, packages, and staff-entered lines.
-              </p>
-            </div>
-            <strong>{checkoutQueue.total ?? 0} awaiting checkout</strong>
-          </div>
-          {checkoutQueue.items.length === 0 ? (
-            <p className="billing-clear-state">
-              No completed visits are awaiting checkout.
-            </p>
-          ) : (
-            <>
-              <TableContainer className="billing-table-wrap">
-                <Table className="billing-ledger-table" size="small">
-                  <caption className="sr-only">
-                    Completed visits awaiting checkout
-                  </caption>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Patient</TableCell>
-                      <TableCell>Site</TableCell>
-                      <TableCell>Completed</TableCell>
-                      <TableCell>Invoice state</TableCell>
-                      <TableCell className="billing-checkout-cell">
-                        Checkout
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {checkoutQueue.items.map((encounter) => {
-                      const site = encounter.site
-                        ? `${encounter.site.name} · ${encounter.site.code}`
-                        : "No site recorded";
-                      const href = `/clinic/billing/patients?patient_id=${encodeURIComponent(String(encounter.patient.id))}&encounter_id=${encodeURIComponent(String(encounter.encounter_id))}`;
-                      return (
-                        <TableRow key={encounter.encounter_id}>
-                          <TableCell component="th" scope="row">
-                            <strong>{encounter.patient.display_name}</strong>
-                            <Typography color="text.secondary" variant="body2">
-                              {patientReferenceLabel(
-                                encounter.patient.reference,
-                              )}
-                            </Typography>
-                          </TableCell>
-                          <TableCell data-label="Site">{site}</TableCell>
-                          <TableCell data-label="Completed">
-                            {date(
-                              encounter.ended_at,
-                              data.practice.timezone,
-                              true,
-                            )}
-                          </TableCell>
-                          <TableCell data-label="Invoice state">
-                            <Typography variant="body2">
-                              No active invoice
-                            </Typography>
-                            {encounter.previous_void_invoice_id && (
-                              <Typography
-                                color="text.secondary"
-                                variant="body2"
-                              >
-                                Previous invoice #
-                                {encounter.previous_void_invoice_id} was voided
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell
-                            className="billing-checkout-cell"
-                            data-label="Checkout"
-                          >
-                            <Button
-                              component="a"
-                              href={href}
-                              className="billing-checkout-button"
-                              variant="outlined"
-                            >
-                              Start checkout
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              {checkoutQueue.total !== null &&
-                checkoutQueue.total > checkoutQueue.items.length && (
-                  <p className="billing-fine-print">
-                    Showing the oldest {checkoutQueue.items.length} visits.
-                    Complete checkout for these visits, then refresh to bring
-                    the next visits into the queue.
-                  </p>
-                )}
-            </>
-          )}
-        </section>
-      )}
       <Tabs
         className="billing-workspace-tabs"
         value={activeTab}
@@ -919,6 +817,115 @@ export function BillingDashboard() {
         aria-labelledby="billing-tab-invoices"
         hidden={activeTab !== "invoices"}
       >
+        {checkoutQueue.available && (
+          <Accordion className="billing-checkout-queue" disableGutters>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              id="billing-checkout-queue-heading"
+              aria-controls="billing-checkout-queue-content"
+            >
+              <span>
+                Review completed visits awaiting checkout ·{" "}
+                {checkoutQueue.total ?? "count unavailable"}
+              </span>
+            </AccordionSummary>
+            <AccordionDetails id="billing-checkout-queue-content">
+              <p className="billing-subtitle">
+                These completed visits have no active invoice. Start checkout
+                to review stored charges, packages, and staff-entered lines.
+              </p>
+              {checkoutQueue.items.length === 0 ? (
+                <p className="billing-clear-state">
+                  No completed visits are awaiting checkout.
+                </p>
+              ) : (
+                <>
+                  <TableContainer className="billing-table-wrap">
+                    <Table className="billing-ledger-table" size="small">
+                      <caption className="sr-only">
+                        Completed visits awaiting checkout
+                      </caption>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Patient</TableCell>
+                          <TableCell>Site</TableCell>
+                          <TableCell>Completed</TableCell>
+                          <TableCell>Invoice state</TableCell>
+                          <TableCell className="billing-checkout-cell">
+                            Checkout
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {checkoutQueue.items.map((encounter) => {
+                          const site = encounter.site
+                            ? `${encounter.site.name} · ${encounter.site.code}`
+                            : "No site recorded";
+                          const href = `/clinic/billing/patients?patient_id=${encodeURIComponent(String(encounter.patient.id))}&encounter_id=${encodeURIComponent(String(encounter.encounter_id))}`;
+                          return (
+                            <TableRow key={encounter.encounter_id}>
+                              <TableCell component="th" scope="row">
+                                <strong>{encounter.patient.display_name}</strong>
+                                <Typography color="text.secondary" variant="body2">
+                                  {patientReferenceLabel(
+                                    encounter.patient.reference,
+                                  )}
+                                </Typography>
+                              </TableCell>
+                              <TableCell data-label="Site">{site}</TableCell>
+                              <TableCell data-label="Completed">
+                                {date(
+                                  encounter.ended_at,
+                                  data.practice.timezone,
+                                  true,
+                                )}
+                              </TableCell>
+                              <TableCell data-label="Invoice state">
+                                <Typography variant="body2">
+                                  No active invoice
+                                </Typography>
+                                {encounter.previous_void_invoice_id && (
+                                  <Typography
+                                    color="text.secondary"
+                                    variant="body2"
+                                  >
+                                    Previous invoice #
+                                    {encounter.previous_void_invoice_id} was voided
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell
+                                className="billing-checkout-cell"
+                                data-label="Checkout"
+                              >
+                                <Button
+                                  component="a"
+                                  href={href}
+                                  className="billing-checkout-button"
+                                  variant="outlined"
+                                >
+                                  Start checkout
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  {checkoutQueue.total !== null &&
+                    checkoutQueue.total > checkoutQueue.items.length && (
+                      <p className="billing-fine-print">
+                        Showing the oldest {checkoutQueue.items.length} visits.
+                        Complete checkout for these visits, then refresh to
+                        bring the next visits into the queue.
+                      </p>
+                    )}
+                </>
+              )}
+            </AccordionDetails>
+          </Accordion>
+        )}
         <section className="clinic-card billing-ledger-card">
           <div className="billing-section-heading billing-ledger-heading">
             <div>
@@ -1057,6 +1064,7 @@ export function BillingDashboard() {
                         data-selected={selected || undefined}
                       >
                         <TableCell component="th" scope="row">
+                          <div className="billing-invoice-identity">
                           <Button
                             type="button"
                             className="billing-invoice-button"
@@ -1071,35 +1079,25 @@ export function BillingDashboard() {
                           >
                             #{invoice.id}
                           </Button>
-                          <Typography variant="body2" color="text.secondary">
-                            Location: {invoiceLocationLabel(invoice)}
-                          </Typography>
                           {invoice.patient ? (
-                            <>
                               <Button
                                 size="small"
                                 href={`/clinic/billing/patients?patient_id=${invoice.patient.id}`}
                               >
                                 {invoice.patient.display_name}
                               </Button>
-                              {patientReferenceLabel(
-                                invoice.patient.reference,
-                              ) && (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  {patientReferenceLabel(
-                                    invoice.patient.reference,
-                                  )}
-                                </Typography>
-                              )}
-                            </>
                           ) : (
                             <Typography variant="body2" color="text.secondary">
                               Patient identity unavailable
                             </Typography>
                           )}
+                          </div>
+                          <Typography component="p" variant="caption" color="text.secondary">
+                            {invoiceLocationLabel(invoice)}
+                            {invoice.patient && patientReferenceLabel(invoice.patient.reference)
+                              ? ` · ${patientReferenceLabel(invoice.patient.reference)}`
+                              : ""}
+                          </Typography>
                         </TableCell>
                         <TableCell data-label="State">
                           <span className={`billing-badge billing-${state}`}>

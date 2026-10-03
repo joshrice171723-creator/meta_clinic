@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   FormControl,
@@ -6,7 +9,9 @@ import {
   MenuItem,
   Select,
   Stack,
+  Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect } from "react";
 import { useResource } from "../../shared/ui";
 
@@ -79,25 +84,41 @@ export function TelehealthBookingFormat({
         </Alert>
       )}
       {options.data && !videoAvailable && (
-        <Alert
-          severity="warning"
-          action={
-            canConfigure ? (
-              <Button
-                color="inherit"
-                href="/clinic/settings/telehealth"
-                size="small"
-              >
-                Open setup
-              </Button>
-            ) : undefined
-          }
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{ border: 1, borderColor: "divider" }}
         >
-          Video visits are unavailable for this clinic. An authorized
-          administrator must connect a video provider, publish the clinic
-          policy, confirm provider health, and enable an eligible visit type.
-          In-person scheduling is still available.
-        </Alert>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="video-availability-details"
+            id="video-availability-heading"
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Video unavailable · In-person booking is available
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails id="video-availability-details">
+            <Stack spacing={1}>
+              <Typography variant="body2" color="text.secondary">
+                Video visits are unavailable for this clinic. An authorized
+                administrator must connect a video provider, publish the clinic
+                policy, confirm provider health, and enable an eligible visit
+                type.
+              </Typography>
+              {canConfigure && (
+                <Button
+                  color="primary"
+                  href="/clinic/settings/telehealth"
+                  size="small"
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Open setup
+                </Button>
+              )}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       )}
       {videoAvailable && value === "video" && (
         <Alert severity="info">

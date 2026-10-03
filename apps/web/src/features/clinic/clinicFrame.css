@@ -1,6 +1,6 @@
 .clinic-theme .clinic-shell {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   min-height: 100dvh;
 }
 .clinic-theme .clinic-shell[data-collapsed="true"] {
@@ -292,6 +292,14 @@
   margin: 0;
   padding: 16px 16px 24px;
 }
+.clinic-theme details > summary {
+  color: var(--clinic-accent);
+  cursor: pointer;
+}
+.clinic-theme details > summary:focus-visible {
+  outline: 3px solid var(--clinic-accent);
+  outline-offset: 2px;
+}
 .clinic-theme .clinic-shell .clinic-content {
   max-width: none;
   margin: 0;
@@ -315,6 +323,10 @@
 }
 .clinic-theme .clinic-scope-selector .MuiSelect-select {
   padding: 7px 28px 7px 9px;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
 }
 .clinic-theme .clinic-scope-selector .MuiInputLabel-root {
   font-size: 16px;

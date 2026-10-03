@@ -58,6 +58,7 @@ export function WaitlistAvailability({
   return (
     <Stack spacing={1}>
       <Button
+        sx={{ alignSelf: "flex-start" }}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
@@ -66,7 +67,7 @@ export function WaitlistAvailability({
       </Button>
       {open && (
         <>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
             <TextField
               type="month"
               label="Search month"
@@ -76,6 +77,7 @@ export function WaitlistAvailability({
               slotProps={{ inputLabel: { shrink: true } }}
             />
             <Button
+              variant="outlined"
               disabled={disabled || !validMonth || !validDuration}
               onClick={calendar.refresh}
             >
@@ -131,6 +133,7 @@ export function WaitlistAvailability({
                   <Button
                     key={`${slot.clinician_id}:${slot.starts_at}`}
                     disabled={disabled}
+                    variant="outlined"
                     onClick={() => onChoose(slot.starts_at)}
                   >
                     Draft offer:{" "}

@@ -178,14 +178,14 @@
   border-color: var(--clinic-border);
   color: var(--clinic-text);
   vertical-align: top;
-  padding: 12px 12px;
+  padding: 12px 14px;
   font-size: 14px;
   min-height: 0;
   white-space: nowrap;
   overflow: hidden;
 }
 .clinic-theme .tracking-visit-alt > .MuiTableCell-root {
-  background: color-mix(in srgb, var(--clinic-soft) 28%, var(--clinic-surface));
+  background: color-mix(in srgb, var(--clinic-soft) 8%, var(--clinic-surface));
 }
 .clinic-theme .tracking-table-container .MuiTableCell-head {
   position: sticky;
@@ -193,13 +193,12 @@
   z-index: 2;
   background: var(--clinic-soft);
   color: var(--clinic-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  min-height: 52px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  min-height: 44px;
+  padding-block: 10px;
 }
 .clinic-theme .tracking-table-container .tracking-patient-cell {
   position: sticky;
@@ -434,9 +433,9 @@
 }
 .clinic-theme .tracking-reason {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   min-width: 0;
   overflow: visible;
 }
@@ -445,6 +444,7 @@
   overflow: visible;
 }
 .clinic-theme .tracking-reason .MuiTypography-root {
+  flex: 1 1 120px;
   display: block;
   overflow: visible;
   text-overflow: clip;
@@ -669,15 +669,6 @@
   display: block;
   margin-top: 2px;
 }
-.clinic-theme .tracking-empty {
-  border: 1px dashed var(--clinic-border);
-  padding: 28px;
-  border-radius: 8px;
-}
-.clinic-theme .tracking-empty h2 {
-  margin-top: 0;
-  font-size: 20px;
-}
 .clinic-theme .tracking-caption {
   font-size: 14px;
   color: var(--clinic-muted);
@@ -753,7 +744,7 @@
     padding-inline: 8px;
   }
   .clinic-theme .tracking-table-container .tracking-patient-cell {
-    min-width: 280px;
+    min-width: 248px;
     padding: 6px 8px;
   }
   .clinic-theme .tracking-patient-details {

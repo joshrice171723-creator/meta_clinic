@@ -110,6 +110,22 @@ function displayTime(value: string | null): string {
   return Number.isNaN(time.valueOf()) ? value : time.toLocaleString();
 }
 
+function displayInboxTime(value: string | null): string {
+  if (!value) return "No messages";
+  const time = new Date(value);
+  if (Number.isNaN(time.valueOf())) return value;
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  };
+  if (time.getFullYear() !== new Date().getFullYear()) {
+    options.year = "numeric";
+  }
+  return new Intl.DateTimeFormat(undefined, options).format(time);
+}
+
 function participantLabel(participant: ApiParticipant): string {
   return participant.display_name
     ? `${participant.display_name} (${participant.email})`
@@ -136,7 +152,7 @@ function mapConversation(
         displayName: participant.display_name,
       }),
     ),
-    lastMessageAt: displayTime(conversation.last_message_at),
+    lastMessageAt: displayInboxTime(conversation.last_message_at),
     lastMessageClass: conversation.last_message_class || "routine",
     messages: messages.map((message) => {
       const sender = conversation.participants.find(
@@ -148,11 +164,13 @@ function mapConversation(
       );
       return {
         id: message.id,
-        sender: sender?.display_name || message.sender_email,
+        senderMembershipId: message.sender_membership_id,
+        sender: sender?.display_name || "",
         senderEmail: message.sender_email,
         body: message.body,
         messageClass: message.message_class,
         createdAt: displayTime(message.created_at),
+        createdAtExact: message.created_at,
         acknowledgementRequired: message.acknowledgement_required,
         acknowledged: message.acknowledged_at !== null,
         request: message.request

@@ -23,6 +23,7 @@ import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import { WaitlistAvailability } from "./WaitlistAvailability";
+import { ClinicEmptyState } from "./ClinicEmptyState";
 import { WeeklyCapacityRules } from "./WeeklyCapacityRules";
 import type {
   OperationalPolicyResponse,
@@ -475,7 +476,7 @@ export function WaitlistWorkspace() {
   );
   return (
     <Stack spacing={2}>
-      <Typography variant="h4" component="h1">
+      <Typography variant="h1" component="h1">
         Capacity and waitlist
       </Typography>
       <Typography color="text.secondary">
@@ -541,7 +542,10 @@ export function WaitlistWorkspace() {
             {queue.data.ranking}
           </Typography>
           {queue.data.entries.length === 0 && (
-            <Alert severity="info">No waiting patients.</Alert>
+            <ClinicEmptyState
+              title="No waiting patients"
+              description="Waitlist requests and any available offers appear here."
+            />
           )}
           {queue.data.cancellations.length > 0 && (
             <Paper variant="outlined" sx={{ p: 2 }}>
@@ -597,6 +601,7 @@ export function WaitlistWorkspace() {
                   >
                     {["waiting", "expired"].includes(entry.state) && (
                       <Button
+                        variant="contained"
                         disabled={disabled}
                         onClick={() => chooseOffer(entry)}
                       >
@@ -606,6 +611,7 @@ export function WaitlistWorkspace() {
                     {entry.state === "offered" && (
                       <>
                         <Button
+                          variant="contained"
                           disabled={disabled}
                           onClick={() =>
                             void transition(entry, "accept", {
@@ -616,6 +622,7 @@ export function WaitlistWorkspace() {
                           Record patient acceptance and book
                         </Button>
                         <Button
+                          variant="outlined"
                           disabled={disabled}
                           onClick={() => void transition(entry, "release")}
                         >
@@ -634,6 +641,7 @@ export function WaitlistWorkspace() {
                     <Button
                       disabled={disabled}
                       color="error"
+                      variant="outlined"
                       onClick={() => void transition(entry, "cancel")}
                     >
                       Remove from waitlist
@@ -668,6 +676,7 @@ export function WaitlistWorkspace() {
                       <Button
                         key={slot.id}
                         disabled={disabled}
+                        variant="outlined"
                         onClick={() => chooseOffer(entry, slot.starts_at)}
                       >
                         Use{" "}

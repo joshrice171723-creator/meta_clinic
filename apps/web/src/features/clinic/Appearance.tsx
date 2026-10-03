@@ -135,12 +135,10 @@ export function ClinicAppearanceScope({
           text: { primary: tokens.text, secondary: tokens.muted },
           divider: tokens.border,
         },
-        shape: { borderRadius: preferences.palette === "astra" ? 3 : 8 },
+        shape: { borderRadius: 6 },
         typography: {
           fontFamily:
-            preferences.palette === "astra"
-              ? '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif'
-              : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           ...CLINIC_TYPOGRAPHY,
         },
         components: {
@@ -159,15 +157,6 @@ export function ClinicAppearanceScope({
                 justifyContent: "safe center",
                 textTransform: "none",
                 fontWeight: 650,
-                ...(preferences.palette === "astra"
-                  ? {
-                      "&.MuiButton-containedPrimary": {
-                        backgroundColor: "#0e639c",
-                        color: "#ffffff",
-                        "&:hover": { backgroundColor: "#1177bb" },
-                      },
-                    }
-                  : {}),
                 "&:focus-visible": {
                   outline: `3px solid ${tokens.accent}`,
                   outlineOffset: 3,
@@ -189,6 +178,18 @@ export function ClinicAppearanceScope({
             styleOverrides: {
               root: { backgroundImage: "none" },
               outlined: { borderColor: tokens.border },
+            },
+          },
+          MuiTableCell: {
+            styleOverrides: {
+              root: { padding: "12px 14px" },
+              head: {
+                color: tokens.muted,
+                fontSize: "0.8125rem",
+                fontWeight: 650,
+                lineHeight: 1.35,
+              },
+              body: { fontSize: "0.875rem", lineHeight: 1.4 },
             },
           },
           MuiChip: {

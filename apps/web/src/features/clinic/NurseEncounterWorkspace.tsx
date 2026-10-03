@@ -130,8 +130,21 @@ const MEASUREMENT_CODES = new Set([
   "vital-pain-score",
 ]);
 
-export function intakeGroupProgressLabel(saved: number, total: number) {
-  return `${saved} of ${total} ${total === 1 ? "group" : "groups"} saved · Save each group to unlock the next.`;
+export function intakeGroupProgressLabel(
+  saved: number,
+  total: number,
+  encounterCompleted = false,
+) {
+  const groupLabel = total === 1 ? "group" : "groups";
+  if (encounterCompleted) {
+    const incomplete = Math.max(0, total - saved);
+    const incompleteLabel =
+      incomplete === 1 ? "group remains" : "groups remain";
+    return incomplete === 0
+      ? `${saved} of ${total} ${groupLabel} saved · Encounter completed.`
+      : `${saved} of ${total} ${groupLabel} saved · ${incomplete} ${incompleteLabel} incomplete.`;
+  }
+  return `${saved} of ${total} ${groupLabel} saved · Save each group to unlock the next.`;
 }
 
 export function allIntakeChunksConfirmed(
@@ -241,7 +254,9 @@ export function NurseEncounterWorkspaceContent({
   const [questionToReview, setQuestionToReview] =
     useState<IntakeQuestionError | null>(null);
   const [activeChunk, setActiveChunk] = useState(0);
-  const [groupExpanded, setGroupExpanded] = useState(true);
+  const [groupExpanded, setGroupExpanded] = useState(
+    encounter.status !== "completed",
+  );
   const [activeWorkspace, setActiveWorkspace] = useState("intake");
   const hydratedVersion = useRef<number | null>(null);
   const saveAttempt = useRef<{ signature: string; key: string } | null>(null);
@@ -260,7 +275,7 @@ export function NurseEncounterWorkspaceContent({
     setQuestionToReview(null);
     setNotice("");
     setActiveChunk(0);
-    setGroupExpanded(true);
+    setGroupExpanded(encounter.status !== "completed");
     setActiveWorkspace("intake");
     hydratedVersion.current = null;
     saveAttempt.current = null;
@@ -880,8 +895,11 @@ export function NurseEncounterWorkspaceContent({
             {workspace.questionnaire_form && (
               <Chip
                 label={intakeGroupProgressLabel(
-                  confirmedChunkIndexes.length,
+                  intakeChunks.filter((_chunk, index) =>
+                    confirmedChunkIndexes.includes(index),
+                  ).length,
                   intakeChunks.length,
+                  encounter.status === "completed",
                 )}
                 size="small"
                 variant="outlined"
@@ -918,7 +936,14 @@ export function NurseEncounterWorkspaceContent({
             </Button>
           ))}
         </Stack>
-        {!readyEvidence && (
+        {encounter.status === "completed" && handoffAttention.length > 0 ? (
+          <Alert severity="info">
+            This encounter is complete. The current intake still has these
+            incomplete handoff checks: {handoffAttention.join(" · ")}. Staff
+            with intake access may record corrections as a new intake revision;
+            this does not reopen the encounter.
+          </Alert>
+        ) : encounter.status !== "completed" && !readyEvidence ? (
           <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
             <Typography variant="body2">
               <Box component="span" sx={{ fontWeight: 600 }}>
@@ -927,7 +952,7 @@ export function NurseEncounterWorkspaceContent({
               {handoffAttention.join(" · ")}.
             </Typography>
           </Alert>
-        )}
+        ) : null}
         {intakeConflict && (
           <Alert
             severity="warning"
@@ -1199,10 +1224,17 @@ export function NurseEncounterWorkspaceContent({
                 hidden={activeWorkspace !== "intake"}
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
-                <Typography variant="body2" color="text.secondary">
-                  Open any group to review its questions. Save and confirm
-                  groups in order; previewing a group does not complete it.
-                </Typography>
+                {encounter.status === "completed" ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Review the saved answers below. Authorized corrections are
+                    saved as new intake revisions and do not reopen the encounter.
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Open any group to review its questions. Save and confirm
+                    groups in order; previewing a group does not complete it.
+                  </Typography>
+                )}
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;
                   const locked = intakeChunks
@@ -1256,11 +1288,13 @@ export function NurseEncounterWorkspaceContent({
                             {index + 1}. {chunk.label}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {locked
-                              ? "Preview only — save earlier groups first"
-                              : confirmedChunkIndexes.includes(index)
-                                ? "Saved"
-                                : "To complete"}
+                            {confirmedChunkIndexes.includes(index)
+                              ? "Saved"
+                              : encounter.status === "completed"
+                                ? "Incomplete"
+                                : locked
+                                  ? "Preview only — save earlier groups first"
+                                  : "To complete"}
                           </Typography>
                         </Stack>
                       </AccordionSummary>
@@ -1272,8 +1306,10 @@ export function NurseEncounterWorkspaceContent({
                               ref={groupHeading}
                               tabIndex={-1}
                             >
-                              {chunk.description} Save earlier groups before
-                              entering and confirming this group.
+                              {chunk.description}{" "}
+                              {encounter.status === "completed"
+                                ? "This group is preview-only because an earlier group was not confirmed."
+                                : "Save earlier groups before entering and confirming this group."}
                             </Typography>
                             <StaffIntakeSections
                               sectionId={chunk.id}
@@ -1636,9 +1672,13 @@ export function NurseEncounterWorkspaceContent({
                                   )
                                 }
                               >
-                                {activeChunkIndex < intakeChunks.length - 1
-                                  ? "Save & continue"
-                                  : "Save group"}
+                                {encounter.status === "completed"
+                                  ? activeChunkIndex < intakeChunks.length - 1
+                                    ? "Save correction & continue"
+                                    : "Save correction"
+                                  : activeChunkIndex < intakeChunks.length - 1
+                                    ? "Save & continue"
+                                    : "Save group"}
                               </Button>
                               <Button
                                 variant="outlined"
@@ -1650,7 +1690,9 @@ export function NurseEncounterWorkspaceContent({
                                 }
                                 onClick={() => void saveIntake()}
                               >
-                                Save draft
+                                {encounter.status === "completed"
+                                  ? "Save correction draft"
+                                  : "Save draft"}
                               </Button>
                             </Stack>
                           </Stack>

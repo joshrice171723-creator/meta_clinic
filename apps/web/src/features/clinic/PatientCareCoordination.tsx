@@ -105,9 +105,11 @@ const emptyEntry = (): CoordinationEntry => ({
 export function PatientCareCoordination({
   patientId,
   onSaved,
+  compactOverview = false,
 }: {
   patientId: number;
   onSaved?: () => void;
+  compactOverview?: boolean;
 }) {
   const clinic = useClinic();
   return (
@@ -115,6 +117,7 @@ export function PatientCareCoordination({
       key={`${clinic.user_id}:${clinic.practice.id}:${clinic.authorization_generation}:${patientId}`}
       patientId={patientId}
       onSaved={onSaved}
+      compactOverview={compactOverview}
     />
   );
 }
@@ -122,9 +125,11 @@ export function PatientCareCoordination({
 function CoordinationPanel({
   patientId,
   onSaved,
+  compactOverview,
 }: {
   patientId: number;
   onSaved?: () => void;
+  compactOverview: boolean;
 }) {
   const path = `/api/clinic/patients/${patientId}/care_coordination`;
   const resource = useResource<PatientCareCoordinationResponse>(path);
@@ -252,7 +257,21 @@ function CoordinationPanel({
         </>
       ) : (
         <>
-          <Stack spacing={2}>
+          <Stack
+            spacing={2}
+            sx={
+              compactOverview
+                ? {
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(3, minmax(0, 1fr))",
+                    },
+                    gap: 1.5,
+                  }
+                : undefined
+            }
+          >
             {groups.map((group) => (
               <Box key={group}>
                 <Typography component="h3" variant="subtitle1">
@@ -269,7 +288,11 @@ function CoordinationPanel({
               </Box>
             ))}
             {data.coordination.recorded_at && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={compactOverview ? { gridColumn: "1 / -1" } : undefined}
+              >
                 Revision {data.coordination.revision} · Recorded{" "}
                 {new Date(data.coordination.recorded_at).toLocaleString()}
               </Typography>
@@ -277,6 +300,11 @@ function CoordinationPanel({
             {data.can_write && (
               <Button
                 variant="outlined"
+                sx={
+                  compactOverview
+                    ? { gridColumn: "1 / -1", justifySelf: "start" }
+                    : undefined
+                }
                 onClick={() => {
                   setDraft(structuredClone(data.coordination.payload));
                   setExpectedRevision(data.coordination.revision);

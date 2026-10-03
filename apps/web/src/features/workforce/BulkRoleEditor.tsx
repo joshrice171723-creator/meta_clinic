@@ -13,6 +13,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import { api, ApiError, csrf } from "../../api/client";
@@ -25,11 +26,21 @@ import type {
 
 type Role = EmploymentAdminData["role_options"][number];
 type Change = { before: WorkforceEmployment; role: Role };
+type SelectionRequest = { sequence: number; ids: number[] };
 type Outcome = {
   change: Change;
   state: "saved" | "failed" | "unknown" | "pending";
   message: string;
 };
+
+export function clinicAccountStatus(
+  employee: Pick<WorkforceEmployment, "membership_summary">,
+): "active" | "inactive" | "unknown" {
+  const active: unknown = employee.membership_summary?.active;
+  if (active === true) return "active";
+  if (active === false) return "inactive";
+  return "unknown";
+}
 
 export function accessSnapshot(employee: WorkforceEmployment) {
   return JSON.stringify({
@@ -68,7 +79,7 @@ export function sameRoleScope(employee: WorkforceEmployment, role: Role) {
         )));
   return (
     employee.active_for_work &&
-    employee.membership_summary.active &&
+    clinicAccountStatus(employee) === "active" &&
     existingRolesMatchScope &&
     siteScopeReady
   );
@@ -103,13 +114,16 @@ export function BulkRoleEditor({
   refresh,
   disabled = false,
   onBlockingChange,
+  selectionRequest = null,
 }: {
   data: EmploymentAdminData;
   refresh: () => void;
   disabled?: boolean;
   onBlockingChange: (blocked: boolean) => void;
+  selectionRequest?: SelectionRequest | null;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
+  const [query, setQuery] = useState("");
   const [roleId, setRoleId] = useState("");
   const [review, setReview] = useState<Change[] | null>(null);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
@@ -121,6 +135,47 @@ export function BulkRoleEditor({
   const locked = disabled || saving || unknown;
   const role = data.role_options.find((option) => String(option.id) === roleId);
   const dirty = selected.length > 0 || review !== null;
+  const searchTerm = query.trim().toLocaleLowerCase();
+  const matchingEmployees = data.employments.filter((employee) => {
+    const accountStatus = clinicAccountStatus(employee);
+    if (searchTerm === "active" || searchTerm === "inactive")
+      return employee.active_for_work === (searchTerm === "active");
+    if (
+      ["login active", "account active", "clinic access active"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "active";
+    if (
+      ["login inactive", "account inactive", "clinic access inactive"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "inactive";
+    if (
+      ["login unknown", "account unknown", "clinic access unknown"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "unknown";
+    return [
+      employee.staff_member.display_name,
+      employee.membership_summary.email_address,
+      ...employee.roles.map((grant) => grant.label),
+      ...employee.sites
+        .filter((site) => site.active)
+        .map((site) => site.name),
+      employee.active_for_work ? "work active" : "work inactive",
+      accountStatus === "active"
+        ? "login active account active clinic access active"
+        : accountStatus === "inactive"
+          ? "login inactive account inactive clinic access inactive"
+          : "login unknown account unknown clinic access unknown",
+    ]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(searchTerm);
+  });
   useEffect(() => {
     if (data.role_options.some((option) => String(option.id) === roleId))
       return;
@@ -135,6 +190,12 @@ export function BulkRoleEditor({
   useEffect(() => {
     onBlockingChange(dirty || saving || unknown);
   }, [dirty, saving, unknown, onBlockingChange]);
+  useEffect(() => {
+    if (!selectionRequest) return;
+    setSelected(selectionRequest.ids);
+    setReview(null);
+    setError(null);
+  }, [selectionRequest]);
   useDemoNavigationBlocker(() => ({
     blocked: saving || unknown,
     message: dirty ? "Discard your selected employee role changes?" : null,
@@ -342,25 +403,18 @@ export function BulkRoleEditor({
 
   return (
     <Stack spacing={1.5}>
-      <Typography variant="h3">Bulk role editor</Typography>
       <Typography
         variant="body2"
         sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}
       >
-        Select active accounts individually. Their work sites stay the same. Use
-        the separate account action below to turn off clinic access.
+        Choose employees individually. Their work sites stay the same. Use the
+        separate account action to turn off clinic access.
       </Typography>
-      <Typography variant="caption" color="text.secondary">
-        Inactive accounts and accounts with a different access scope cannot be
-        selected.
-      </Typography>
-      <FormControl size="small" fullWidth disabled={locked}>
-        <InputLabel id="bulk-employee-role">
-          Role for selected accounts
-        </InputLabel>
+      <FormControl size="small" sx={{ maxWidth: 480 }} disabled={locked}>
+        <InputLabel id="bulk-employee-role">Role to assign</InputLabel>
         <Select
           labelId="bulk-employee-role"
-          label="Role for selected accounts"
+          label="Role to assign"
           value={roleId}
           onChange={(event) => {
             setRoleId(event.target.value);
@@ -375,42 +429,135 @@ export function BulkRoleEditor({
           ))}
         </Select>
       </FormControl>
-      {data.employments.map((employee) => (
-        <FormControlLabel
-          key={employee.id}
-          control={
-            <Checkbox
-              checked={selected.includes(employee.id)}
-              disabled={
-                locked ||
-                !role ||
-                !sameRoleScope(employee, role) ||
-                outcomes.some(
-                  (result) =>
-                    result.change.before.id === employee.id &&
-                    result.state === "saved" &&
-                    result.change.role.id === role.id,
-                )
-              }
-              onChange={(_, checked) =>
-                setSelected((ids) =>
-                  checked
-                    ? [...ids, employee.id]
-                    : ids.filter((id) => id !== employee.id),
-                )
-              }
-            />
-          }
-          label={`${employee.staff_member.display_name} — ${employee.membership_summary.email_address} (account ${employee.membership_summary.id})`}
-        />
-      ))}
-      <Button
-        variant="outlined"
-        disabled={locked || !role || selected.length === 0}
-        onClick={() => void openReview()}
-      >
-        Review {selected.length} selected accounts
-      </Button>
+      <TextField
+        label="Find employees for this change"
+        size="small"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Name, email, role, site, work or login status"
+        slotProps={{ htmlInput: { maxLength: 120 } }}
+        sx={{ maxWidth: 480 }}
+      />
+      <Typography variant="caption" color="text.secondary" role="status">
+        {matchingEmployees.length} of {data.employments.length} employees shown.
+        {role
+          ? " Inactive employees, inactive or unknown clinic accounts, and " +
+            "accounts with a different access scope cannot be selected."
+          : " Select a role after choosing employees."}
+      </Typography>
+      {matchingEmployees.map((employee) => {
+        const alreadySaved = outcomes.some(
+          (result) =>
+            result.change.before.id === employee.id &&
+            result.state === "saved" &&
+            result.change.role.id === role?.id,
+        );
+        const accountStatus = clinicAccountStatus(employee);
+        const unavailableReason = !employee.active_for_work
+          ? "Inactive employee"
+          : accountStatus === "inactive"
+            ? "Clinic account inactive"
+            : accountStatus === "unknown"
+              ? "Clinic account status unavailable"
+              : role && !sameRoleScope(employee, role)
+                ? "Different access scope for this role"
+                : alreadySaved
+                  ? "This role is already saved"
+                  : null;
+        return (
+          <FormControlLabel
+            key={employee.id}
+            sx={{ alignItems: "flex-start", mr: 0, py: 0.5 }}
+            control={
+              <Checkbox
+                checked={selected.includes(employee.id)}
+                disabled={
+                  locked ||
+                  !role ||
+                  !sameRoleScope(employee, role) ||
+                  alreadySaved
+                }
+                onChange={(_, checked) =>
+                  setSelected((ids) =>
+                    checked
+                      ? [...ids, employee.id]
+                      : ids.filter((id) => id !== employee.id),
+                  )
+                }
+              />
+            }
+            label={
+              <Stack spacing={0.15} sx={{ py: 0.5, minWidth: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                  {employee.staff_member.display_name} ·{" "}
+                  {employee.membership_summary.email_address}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {employee.active_for_work
+                    ? "Work active"
+                    : "Work inactive"} ·{" "}
+                  {accountStatus === "active"
+                    ? "Clinic login active"
+                    : accountStatus === "inactive"
+                      ? "Clinic login inactive"
+                      : "Clinic login status unknown"} ·{" "}
+                  {employee.roles.map((grant) => grant.label).join(", ") ||
+                    "No role recorded"}{" "}
+                  ·{" "}
+                  {employee.sites
+                    .filter((site) => site.active)
+                    .map((site) => site.name)
+                    .join(", ") || "No eligible sites"}{" "}
+                  · Account {employee.membership_summary.id}
+                </Typography>
+                {unavailableReason && (
+                  <Typography variant="caption" color="text.secondary">
+                    {unavailableReason}
+                  </Typography>
+                )}
+              </Stack>
+            }
+          />
+        );
+      })}
+      {matchingEmployees.length === 0 && (
+        <Typography color="text.secondary" role="status">
+          No employees match this search.
+        </Typography>
+      )}
+      {selected.length > 0 && (
+        <>
+          <Typography variant="body2" role="status">
+            Selected:{" "}
+            {data.employments
+              .filter((employee) => selected.includes(employee.id))
+              .map((employee) => employee.staff_member.display_name)
+              .join(", ")}
+          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{ alignItems: { sm: "center" }, pt: 1 }}
+          >
+            <Button
+              variant="outlined"
+              disabled={locked || !role || selected.length === 0}
+              onClick={() => void openReview()}
+            >
+              Review {selected.length} selected
+            </Button>
+            <Button
+              disabled={saving || unknown}
+              onClick={() => {
+                setSelected([]);
+                setReview(null);
+              }}
+            >
+              Clear selection
+            </Button>
+          </Stack>
+        </>
+      )}
       {error && <Alert severity="error">{error}</Alert>}
       {unknown && (
         <Alert

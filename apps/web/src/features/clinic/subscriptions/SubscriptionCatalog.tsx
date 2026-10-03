@@ -243,8 +243,8 @@ export function SubscriptionCatalog() {
             Membership catalog
           </Typography>
           <Typography className="subscription-catalog__intro">
-            Build clinic programs, assemble their services, and control exactly
-            which membership terms patients can see.
+            Manage programs, reusable services, and patient-visible membership
+            terms.
           </Typography>
         </div>
         <Button

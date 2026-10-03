@@ -153,13 +153,17 @@ export function Patients({ id }: { id?: string }) {
           )}
         </Stack>
       </Stack>
-      <Card title="Find and browse patients">
+      <Stack spacing={2}>
         {clinic.capabilities.patient_identity_read === true && (
-          <>
+          <Card title="Check for an existing patient">
             <PatientLookup />
-            <Divider sx={{ my: 2 }} />
-          </>
+          </Card>
         )}
+        <Card
+          title={
+            selectedSite ? `${selectedSite.name} patients` : "All patients"
+          }
+        >
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}
@@ -170,9 +174,6 @@ export function Patients({ id }: { id?: string }) {
           }}
         >
           <Box>
-            <Typography component="h2" variant="h6">
-              {selectedSite ? `${selectedSite.name} patients` : "All patients"}
-            </Typography>
             <Typography color="text.secondary" variant="body2">
               {selectedSite
                 ? `Browse patients assigned to ${selectedSite.name}.`
@@ -252,7 +253,8 @@ export function Patients({ id }: { id?: string }) {
             path={`/clinic/patients${selectedSite ? `?site_id=${selectedSite.id}` : ""}`}
           />
         )}
-      </Card>
+        </Card>
+      </Stack>
     </>
   );
 }
@@ -382,9 +384,6 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography component="h2" variant="h6" sx={{ mb: 0.5 }}>
-          Find an existing patient
-        </Typography>
         <Typography color="text.secondary">
           Search by name or clinic reference, birth date, or phone number.
         </Typography>
@@ -441,9 +440,23 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
         </Typography>
       )}
       {canSearch && !lookupQuery && (
-        <Typography color="text.secondary" role="status">
-          Updating search…
+        <Typography color="text.secondary" role="status" aria-live="polite">
+          Updating identity search…
         </Typography>
+      )}
+      {(query || dateOfBirth || phone) && (
+        <Button
+          size="small"
+          onClick={() => {
+            setQuery("");
+            setDateOfBirth("");
+            setPhone("");
+            setDebouncedSearch("");
+          }}
+          sx={{ alignSelf: "flex-start" }}
+        >
+          Clear identity search
+        </Button>
       )}
       {lookupQuery && (
         <PatientLookupResults
@@ -488,10 +501,20 @@ export function PatientLookupResults({
     );
   if (!lookup.data?.patients.length)
     return (
-      <Stack spacing={1.5}>
-        <Typography color="text.secondary">
-          No matching patients were found. Check the information you entered
-          before creating a new record.
+      <Stack spacing={1.5} component="section" aria-labelledby="patient-search-results-heading">
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}
+        >
+          <Typography id="patient-search-results-heading" component="h4" variant="subtitle1">
+            Search results
+          </Typography>
+          <Chip size="small" variant="outlined" label="0 matches" />
+        </Stack>
+        <Typography color="text.secondary" role="status" aria-live="polite">
+          No patients match this identity search. Check the details or clear the
+          search to return to the directory below.
         </Typography>
         {onProceed && (
           <Button onClick={onProceed} variant="contained">
@@ -504,7 +527,21 @@ export function PatientLookupResults({
   const data = lookup.data;
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} component="section" aria-labelledby="patient-search-results-heading">
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}
+      >
+        <Typography id="patient-search-results-heading" component="h4" variant="subtitle1">
+          Search results
+        </Typography>
+        <Chip
+          size="small"
+          variant="outlined"
+          label={`${data.pagination.total} ${data.pagination.total === 1 ? "match" : "matches"}`}
+        />
+      </Stack>
       <Stack
         component="ul"
         spacing={1}
@@ -904,6 +941,10 @@ function PatientRecord({
           <ActiveEncounterAction patientId={patient.id} />
         </Box>
       </Stack>
+      <PatientDetails
+        patient={patient}
+        onCoordinationSaved={onRegistrationSaved}
+      />
       {canInvitePortal && (
         <PatientPortalInvitation
           patient={patient}
@@ -1106,10 +1147,6 @@ function PatientRecord({
           </Dialog>
         </>
       )}
-      <PatientDetails
-        patient={patient}
-        onCoordinationSaved={onRegistrationSaved}
-      />
       <Typography component="h2" variant="h6" sx={{ mt: 2, mb: 1 }}>
         History and source records
       </Typography>
@@ -1411,18 +1448,44 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
   const { data, error, refresh } = useResource<{
     encounters: Encounter[];
   }>(`/api/clinic/patients/${patientId}/encounters?status=open&per_page=1`);
+  const title = (
+    <Typography
+      id="active-visit-heading"
+      component="h2"
+      variant="subtitle1"
+      sx={{ fontWeight: 700 }}
+    >
+      Active visit
+    </Typography>
+  );
+  const surface = {
+    border: 1,
+    borderColor: "divider",
+    borderRadius: 1,
+    p: 1.5,
+  } as const;
   if (!data && !error)
     return (
-      <Card title="Active visit">
-        <p>Checking for an open visit…</p>
-      </Card>
+      <Paper component="section" variant="outlined" sx={surface} aria-labelledby="active-visit-heading">
+        <Stack spacing={0.5}>
+          {title}
+          <Typography variant="body2" color="text.secondary" role="status">
+            Checking for an open visit…
+          </Typography>
+        </Stack>
+      </Paper>
     );
   if (error)
     return (
-      <Card title="Active visit">
-        <p>Unable to check for an open visit: {error}</p>
-        <Button onClick={refresh}>Retry open visit lookup</Button>
-      </Card>
+      <Paper component="section" variant="outlined" sx={surface} aria-labelledby="active-visit-heading">
+        <Stack spacing={0.5}>
+          {title}
+          <Alert severity="error">Unable to check for an open visit. {error}</Alert>
+          <Button onClick={refresh} sx={{ alignSelf: "flex-start" }}>
+            Retry open visit lookup
+          </Button>
+        </Stack>
+      </Paper>
     );
   const encounter = data?.encounters[0];
   if (
@@ -1431,37 +1494,58 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
       !Number.isSafeInteger(encounter.id) ||
       encounter.id <= 0 ||
       encounter.status !== "open")
-  )
+    )
     return (
-      <Card title="Active visit">
-        <Alert severity="error">
-          The returned visit does not match this patient or is no longer open.
-          Reload the visit list before continuing.
-        </Alert>
-        <Button onClick={refresh}>Reload visits</Button>
-      </Card>
+      <Paper component="section" variant="outlined" sx={surface} aria-labelledby="active-visit-heading">
+        <Stack spacing={0.5}>
+          {title}
+          <Alert severity="error">
+            The returned visit does not match this patient or is no longer open.
+            Reload the visit list before continuing.
+          </Alert>
+          <Button onClick={refresh} sx={{ alignSelf: "flex-start" }}>
+            Reload visits
+          </Button>
+        </Stack>
+      </Paper>
     );
   if (!encounter)
     return (
-      <Card title="Active visit">
-        <p>No open visit is recorded.</p>
-      </Card>
+      <Paper component="section" variant="outlined" sx={surface} aria-labelledby="active-visit-heading">
+        <Stack spacing={0.5}>
+          {title}
+          <Typography variant="body2" color="text.secondary">
+            No open visit is recorded.
+          </Typography>
+        </Stack>
+      </Paper>
     );
   return (
-    <Card title="Active visit">
-      <p>
-        Open encounter #{encounter.id}, started{" "}
-        {clinicDateTime(encounter.started_at, timezone)}. Confirm the patient
-        and encounter when resuming.
-      </p>
-      <Button
-        component="a"
-        href={`/clinic/patients/${patientId}/encounters/${encounter.id}`}
-        variant="contained"
+    <Paper component="section" variant="outlined" sx={surface} aria-labelledby="active-visit-heading">
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1.5}
+        sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
       >
-        Resume entry
-      </Button>
-    </Card>
+        <Box>
+          {title}
+          <Typography variant="body2" color="text.secondary">
+            Open encounter #{encounter.id} · Started {clinicDateTime(encounter.started_at, timezone)}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Confirm the patient and encounter when resuming.
+          </Typography>
+        </Box>
+        <Button
+          component="a"
+          href={`/clinic/patients/${patientId}/encounters/${encounter.id}`}
+          variant="contained"
+          sx={{ flexShrink: 0 }}
+        >
+          Resume entry
+        </Button>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -2527,7 +2611,6 @@ function PatientRegistrationEditor({
                 value={initialValues.display_name}
                 maxLength={120}
                 description="The name staff see in schedules, queues, and the chart."
-                owner="registration staff"
               />
               <Field
                 name="clinic_patient[legal_name]"
@@ -2536,7 +2619,6 @@ function PatientRegistrationEditor({
                 value={initialValues.legal_name}
                 maxLength={160}
                 description="Use only when it differs from the chart name."
-                owner="registration staff"
               />
               <Field
                 name="clinic_patient[preferred_name]"
@@ -2545,7 +2627,6 @@ function PatientRegistrationEditor({
                 value={initialValues.preferred_name}
                 maxLength={160}
                 description="How the patient asks to be addressed."
-                owner="registration staff"
               />
               {(!patient?.reference ||
                 patientReferenceLabel(patient.reference)) && (
@@ -2564,7 +2645,6 @@ function PatientRegistrationEditor({
                       ? "This identifier is fixed after registration."
                       : "Use a stable clinic reference for reliable lookup."
                   }
-                  owner="clinic system"
                 />
               )}
               {patient?.reference &&
@@ -2585,7 +2665,6 @@ function PatientRegistrationEditor({
                 autoComplete="address-line1"
                 maxLength={200}
                 description="Used for correspondence and patient identity checks."
-                owner="registration staff"
               />
               <Field
                 name="clinic_patient[address_line2]"
@@ -2735,6 +2814,7 @@ function PatientDetails({
   patient: Patient;
   onCoordinationSaved: () => void;
 }) {
+  const timezone = useClinic().practice.timezone;
   const d = patient.demographics;
   const vitalLabel = (code: string) =>
     ({
@@ -2764,7 +2844,107 @@ function PatientDetails({
       "{score}": "0–10",
     })[unit] ?? unit;
   return (
-    <div className="care-grid">
+    <Stack spacing={2.5}>
+      <Box component="section" aria-labelledby="patient-care-overview-heading">
+        <Typography
+          id="patient-care-overview-heading"
+          component="h2"
+          variant="h5"
+          sx={{ mb: 1.5 }}
+        >
+          Care overview
+        </Typography>
+        <Stack spacing={2}>
+          <PatientClinicalHistory patientId={patient.id} compactOverview />
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(0, 1fr) minmax(0, 1fr)",
+              },
+              gap: 1.5,
+              alignItems: "start",
+            }}
+          >
+          <Card title="Vital-sign history">
+            {patient.vital_signs?.length ? (
+              <Stack
+                component="ul"
+                spacing={0}
+                divider={<Divider />}
+                sx={{ p: 0, m: 0, listStyle: "none" }}
+              >
+                {patient.vital_signs.map((v, index) => {
+                  const label = vitalLabel(v.code);
+                  const value = v.numeric_value ?? "Not recorded";
+                  const unit = vitalUnit(v.unit_code);
+                  return (
+                    <Box
+                      component="li"
+                      key={`${v.code}:${v.observed_at}:${index}`}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 2,
+                        py: 1,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="body2">{label}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Observed {clinicDateTime(v.observed_at, timezone)}
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {value}{unit ? ` ${unit}` : ""}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            ) : (
+              <Typography color="text.secondary" variant="body2">
+                No vital-sign observations recorded.
+              </Typography>
+            )}
+            {patient.vital_signs?.length ? (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                Measurements are shown as recorded in the clinic time zone. No
+                trend, normal range, or clinical status is inferred.
+              </Typography>
+            ) : null}
+          </Card>
+          <PatientCareCoordination
+            patientId={patient.id}
+            onSaved={onCoordinationSaved}
+            compactOverview
+          />
+          </Box>
+          <IntakeConsentEvidence patientId={patient.id} />
+          <PatientLabReports
+            patientId={patient.id}
+            patientName={patient.display_name}
+          />
+        </Stack>
+      </Box>
+      <Accordion>
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          id="patient-registration-details-heading"
+          aria-controls="patient-registration-details-content"
+          sx={{ minHeight: 48 }}
+        >
+          <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700 }}>
+            Registration details
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails id="patient-registration-details-content">
+          <div className="care-grid">
       <Card title="Demographics">
         <dl className="care-observations">
           <div>
@@ -2839,31 +3019,10 @@ function PatientDetails({
             : "Not recorded."}
         </p>
       </Card>
-      <Card title="Vital-sign history">
-        <p>
-          {patient.vital_signs?.length
-            ? patient.vital_signs
-                .map((v) => {
-                  const label = vitalLabel(v.code);
-                  const value = v.numeric_value ?? "Not recorded";
-                  const unit = vitalUnit(v.unit_code);
-                  return `${label}: ${value}${unit ? ` ${unit}` : ""}`;
-                })
-                .join(" · ")
-            : "No vital-sign observations recorded."}
-        </p>
-      </Card>
-      <PatientCareCoordination
-        patientId={patient.id}
-        onSaved={onCoordinationSaved}
-      />
-      <IntakeConsentEvidence patientId={patient.id} />
-      <PatientClinicalHistory patientId={patient.id} />
-      <PatientLabReports
-        patientId={patient.id}
-        patientName={patient.display_name}
-      />
-    </div>
+          </div>
+        </AccordionDetails>
+      </Accordion>
+    </Stack>
   );
 }
 

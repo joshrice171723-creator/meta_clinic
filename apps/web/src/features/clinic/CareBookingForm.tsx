@@ -1755,101 +1755,47 @@ function BookingFormEditor({
                 setReplacementPatientId(undefined);
               }}
             />
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 2,
-              }}
-            >
-              <TextField
-                label="Starts"
-                type="datetime-local"
+            <Typography component="h3" variant="subtitle1">
+              Visit details
+            </Typography>
+              <FormControl
+                fullWidth
                 required
-                disabled={
-                  busy ||
-                  outcomeUnconfirmed ||
-                  holdOutcomeUnconfirmed ||
-                  seriesOutcomeUnconfirmed ||
-                  Boolean(heldSlot)
-                }
-                value={startsAt}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setStartsAt(value);
-                  if (!endTimeEdited) {
-                    const end = bookingEndTime(value, durationMinutes);
-                    if (end) setEndsAt(end);
-                  }
-                }}
-                helperText="Use your device's time zone. Review clinic time below."
-                slotProps={{
-                  inputLabel: { shrink: true },
-                }}
-              />
-              <TextField
-                label="Ends"
-                type="datetime-local"
-                required
-                disabled={
-                  busy ||
-                  outcomeUnconfirmed ||
-                  holdOutcomeUnconfirmed ||
-                  seriesOutcomeUnconfirmed ||
-                  Boolean(heldSlot)
-                }
-                value={endsAt}
-                error={Boolean(intervalError)}
-                helperText={
-                  intervalError ||
-                  (endTimeEdited
-                    ? "Edited end stays fixed. Choose a duration to calculate it again."
-                    : "Calculated from duration. Edit to set a specific end.")
-                }
-                onChange={(event) => {
-                  setEndsAt(event.target.value);
-                  setEndTimeEdited(true);
-                }}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                }}
-              />
-            </Box>
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Duration:
-              </Typography>
-              {[30, 45, 60].map((minutes) => (
-                <Button
-                  key={minutes}
-                  size="small"
-                  variant={
-                    !endTimeEdited && durationMinutes === minutes
-                      ? "contained"
-                      : "outlined"
-                  }
-                  disabled={
-                    busy ||
-                    outcomeUnconfirmed ||
-                    holdOutcomeUnconfirmed ||
-                    seriesOutcomeUnconfirmed ||
-                    Boolean(heldSlot)
-                  }
-                  onClick={() => setDuration(minutes)}
+                disabled={busy || outcomeUnconfirmed}
+              >
+                <InputLabel id="visit-type-label">Visit type</InputLabel>
+                <Select
+                  labelId="visit-type-label"
+                  label="Visit type"
+                  value={visitTypeId}
+                  onChange={(event) => setVisitTypeId(event.target.value)}
                 >
-                  {minutes} min
-                </Button>
-              ))}
-            </Stack>
-            {timePreview && (
-              <Alert severity="info" variant="outlined">
-                {timePreview} — look right?
-              </Alert>
-            )}
+                  <MenuItem value="" disabled>
+                    Select a visit type
+                  </MenuItem>
+                  {visitTypeId && visitTypeIssue && (
+                    <MenuItem value={visitTypeId} disabled>
+                      Previously selected visit type is unavailable
+                    </MenuItem>
+                  )}
+                  {visitTypes.data.visit_types
+                    .filter((type) => !type.retired_at)
+                    .map((type) => (
+                      <MenuItem key={type.id} value={type.id.toString()}>
+                        {statusLabel(type.code)}
+                      </MenuItem>
+                    ))}
+                </Select>
+                {visitTypeIssue && (
+                  <FormHelperText
+                    error={Boolean(visitTypeId) || !visitTypes.data.visit_types.some((type) => !type.retired_at)}
+                  >
+                    {!visitTypeId && visitTypes.data.visit_types.some((type) => !type.retired_at)
+                      ? "Choose a visit type to continue."
+                      : visitTypeIssue}
+                  </FormHelperText>
+                )}
+              </FormControl>
             <TelehealthBookingFormat
               siteId={siteId}
               visitTypeId={visitTypeId}
@@ -1988,38 +1934,7 @@ function BookingFormEditor({
                   )}
                 </FormHelperText>
               </FormControl>
-              <FormControl
-                fullWidth
-                required
-                disabled={busy || outcomeUnconfirmed}
-              >
-                <InputLabel id="visit-type-label">Visit type</InputLabel>
-                <Select
-                  labelId="visit-type-label"
-                  label="Visit type"
-                  value={visitTypeId}
-                  onChange={(event) => setVisitTypeId(event.target.value)}
-                >
-                  <MenuItem value="" disabled>
-                    Select a visit type
-                  </MenuItem>
-                  {visitTypeId && visitTypeIssue && (
-                    <MenuItem value={visitTypeId} disabled>
-                      Previously selected visit type is unavailable
-                    </MenuItem>
-                  )}
-                  {visitTypes.data.visit_types
-                    .filter((type) => !type.retired_at)
-                    .map((type) => (
-                      <MenuItem key={type.id} value={type.id.toString()}>
-                        {type.code}
-                      </MenuItem>
-                    ))}
-                </Select>
-                {visitTypeIssue && (
-                  <FormHelperText error>{visitTypeIssue}</FormHelperText>
-                )}
-              </FormControl>
+
               <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                 <FormControl
                   fullWidth
@@ -2093,6 +2008,116 @@ function BookingFormEditor({
                   resource={resourceAvailability}
                 />
               </Box>
+              <Typography
+                component="h3"
+                variant="subtitle1"
+                sx={{ gridColumn: "1 / -1" }}
+              >
+                Appointment time
+              </Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ gridColumn: "1 / -1" }}
+              >
+                Clinic time zone: {bookingTimezone}
+              </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridColumn: "1 / -1",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Starts"
+                type="datetime-local"
+                required
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
+                value={startsAt}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStartsAt(value);
+                  if (!endTimeEdited) {
+                    const end = bookingEndTime(value, durationMinutes);
+                    if (end) setEndsAt(end);
+                  }
+                }}
+                helperText="Use your device's time zone. Review clinic time below."
+                slotProps={{
+                  inputLabel: { shrink: true },
+                }}
+              />
+              <TextField
+                label="Ends"
+                type="datetime-local"
+                required
+                disabled={
+                  busy ||
+                  outcomeUnconfirmed ||
+                  holdOutcomeUnconfirmed ||
+                  seriesOutcomeUnconfirmed ||
+                  Boolean(heldSlot)
+                }
+                value={endsAt}
+                error={Boolean(intervalError)}
+                helperText={
+                  intervalError ||
+                  (endTimeEdited
+                    ? "Edited end stays fixed. Choose a duration to calculate it again."
+                    : "Calculated from duration. Edit to set a specific end.")
+                }
+                onChange={(event) => {
+                  setEndsAt(event.target.value);
+                  setEndTimeEdited(true);
+                }}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                }}
+              />
+            </Box>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1, gridColumn: "1 / -1" }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Duration:
+              </Typography>
+              {[30, 45, 60].map((minutes) => (
+                <Button
+                  key={minutes}
+                  size="small"
+                  variant={
+                    !endTimeEdited && durationMinutes === minutes
+                      ? "contained"
+                      : "outlined"
+                  }
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
+                    Boolean(heldSlot)
+                  }
+                  onClick={() => setDuration(minutes)}
+                >
+                  {minutes} min
+                </Button>
+              ))}
+            </Stack>
+            {timePreview && (
+              <Alert severity="info" variant="outlined" sx={{ gridColumn: "1 / -1" }}>
+                {timePreview} — look right?
+              </Alert>
+            )}
               <TextField
                 fullWidth
                 label="Visit reason"

@@ -467,7 +467,10 @@ export function siteLabel(
 }
 
 export function statusLabel(value: string) {
-  return value.replaceAll("_", " ");
+  return value
+    .split(/[_\s-]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 export function chartStateLabel(

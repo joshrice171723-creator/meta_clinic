@@ -92,15 +92,19 @@ export function LabUnitMappingSettings() {
   return (
     <Stack spacing={2}>
       <Divider />
-      <Typography variant="h3">Clinic-supplied lab unit mappings</Typography>
+      <Typography component="h2" variant="h5">Lab unit mappings</Typography>
       <Typography variant="body2" color="text.secondary">
-        Supply approved test system/code/version pairs and a reference UCUM unit expressing the expected dimension. Linear UCUM dimensions are computed from pinned definitions; every approved unit must match. Special/non-ratio and arbitrary units are unsupported. No result values are converted and no medical mappings are suggested.
+        Define which units your clinic has approved for each test code and version.
+        Use a Unified Code for Units of Measure (UCUM) reference unit; all allowed
+        units must have matching linear dimensions. Special, non-ratio, and
+        arbitrary units are unsupported. This checks compatibility using pinned
+        UCUM definitions; it does not convert results or suggest medical mappings.
       </Typography>
       <Alert severity={saved.configured ? "info" : "warning"}>
         {saved.configured ? `Configured declarations: ${saved.mappings.length}. Other tests remain unmapped. Legacy mappings without a reference UCUM unit require completion.` : "Unconfigured: unit/dimension compatibility is not validated."} Revision {saved.revision}.
       </Alert>
       {feedback && <Alert severity={pending ? "warning" : "info"}>{feedback}</Alert>}
-      {pending && <Alert severity="warning">Save outcome unresolved. Editing is locked; retry preserves the original body and request key.</Alert>}
+      {pending && <Alert severity="warning">Your save has not been confirmed. Editing is paused. Retry to confirm the same changes without submitting a duplicate.</Alert>}
       {draft.map((row, index) => (
         <Stack key={index} spacing={1}>
           <Typography variant="subtitle2">Mapping {index + 1}</Typography>

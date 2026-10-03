@@ -11,10 +11,44 @@ function recordedDay(value: string | null, timezone: string) {
   return calendarDate(new Date(value), timezone);
 }
 
-// Display the server's decimal string without rounding or ledger arithmetic.
+// Pad minor units and group digits without converting the server's decimal
+// string to a floating-point number or rounding away recorded precision.
 function recordedCash(value: string | null, currency: string | null) {
   if (value === null) return "Not recorded";
-  return currency ? `${currency} ${value}` : `${value} (currency unavailable)`;
+  if (!currency) return `${value} (currency unavailable)`;
+  const amount = /^(-?)(\d+)(?:\.(\d+))?$/.exec(value);
+  if (!amount) return `${currency} ${value}`;
+  try {
+    const digits = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).resolvedOptions().minimumFractionDigits;
+    const fraction = (amount[3] ?? "").padEnd(digits ?? 0, "0");
+    const whole = amount[2].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return `${currency} ${amount[1]}${whole}${fraction ? `.${fraction}` : ""}`;
+  } catch {
+    return `${currency} ${value}`;
+  }
+}
+
+function displayDay(value: string | null) {
+  if (!value) return "Date unavailable";
+  const day = new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(day.getTime())
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeZone: "UTC",
+      }).format(day)
+    : "Date unavailable";
+}
+
+function displaySnapshot(value: string | null | undefined, timezone: string) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "Time unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: timezone,
+  }).format(new Date(value));
 }
 
 export function OwnerCloseOfDayView() {
@@ -90,8 +124,9 @@ function CloseOfDaySnapshot({ timezone }: { timezone: string }) {
             Close of day
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {site?.name || site?.code || "Location not selected"} · {today} ·{" "}
-            {timezone}. Refresh this snapshot before reviewing closeout.
+            {site?.name || site?.code || "Location not selected"} ·{" "}
+            {displayDay(today)} · {timezone}. Refresh this snapshot before
+            reviewing closeout.
           </Typography>
         </Box>
         <Button
@@ -157,10 +192,9 @@ function CloseOfDaySnapshot({ timezone }: { timezone: string }) {
                     </Typography>
                     <Typography variant="body2">
                       Opened{" "}
-                      {recordedDay(drawer.opened_at, timezone) ??
-                        "date unavailable"}
+                      {displayDay(recordedDay(drawer.opened_at, timezone))}
                       {drawer.status === "closed" &&
-                        ` · Closed ${recordedDay(drawer.closed_at, timezone)}`}
+                        ` · Closed ${displayDay(recordedDay(drawer.closed_at, timezone))}`}
                     </Typography>
                     <Typography
                       variant="body2"
@@ -178,7 +212,9 @@ function CloseOfDaySnapshot({ timezone }: { timezone: string }) {
                         {recordedCash(drawer.counted_cash, drawer.currency)} ·{" "}
                         Discrepancy:{" "}
                         {recordedCash(drawer.discrepancy, drawer.currency)} ·{" "}
-                        Reconciliation: {drawer.reconciliation_status}
+                        Reconciliation:{" "}
+                        {drawer.reconciliation_status?.replaceAll("_", " ") ??
+                          "Not recorded"}
                       </Typography>
                     )}
                   </Box>
@@ -198,7 +234,7 @@ function CloseOfDaySnapshot({ timezone }: { timezone: string }) {
         )}
         <Divider sx={{ my: 1.5 }} />
         <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-          Tomorrow's appointments · {tomorrow}
+          Tomorrow's appointments · {displayDay(tomorrow)}
         </Typography>
         {!site ? (
           <Typography>Select a location to read tomorrow's counts.</Typography>
@@ -223,7 +259,11 @@ function CloseOfDaySnapshot({ timezone }: { timezone: string }) {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Recorded scheduled and confirmed appointments only. Calendar
-              snapshot: {projection.as_of ?? "time unavailable"}.
+              snapshot:{" "}
+              <time dateTime={projection.as_of ?? undefined}>
+                {displaySnapshot(projection.as_of, timezone)}
+              </time>
+              .
             </Typography>
             <Button
               component="a"

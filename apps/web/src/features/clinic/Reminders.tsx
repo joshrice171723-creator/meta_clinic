@@ -6,6 +6,7 @@ import { useClinic } from "./Workspace";
 import { clinicDateValue } from "./frontDeskModel";
 import type { Appointment, PatientReminder } from "../../api/contracts";
 import { AppointmentReminderBatch } from "./AppointmentReminderBatch";
+import { ClinicEmptyState } from "./ClinicEmptyState";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
@@ -636,7 +637,13 @@ function DeliveryAttemptHistory({ reminder }: { reminder: PatientReminder }) {
   );
 }
 
-function NeedsAttention({ query }: { query: string }) {
+function NeedsAttention({
+  query,
+  onClearFilter,
+}: {
+  query: string;
+  onClearFilter: () => void;
+}) {
   const { capabilities, membership_id } = useClinic();
   const [page, setPage] = useState(1);
   const params = new URLSearchParams({
@@ -680,15 +687,24 @@ function NeedsAttention({ query }: { query: string }) {
   }
   if (reminders.length === 0) {
     return (
-      <Box sx={{ py: 7, textAlign: "center" }}>
-        <ReportProblemOutlinedIcon
-          sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
+      <Box role="status">
+        <ClinicEmptyState
+          title={
+            query.trim()
+              ? "No matching reminders"
+              : "No reminders need attention"
+          }
+          description={
+            query.trim()
+              ? "No reminders needing attention match this patient filter."
+              : "Delivery problems and patient requests for help or rescheduling will appear here."
+          }
+          action={
+            query.trim() ? (
+              <Button onClick={onClearFilter}>Clear patient filter</Button>
+            ) : undefined
+          }
         />
-        <Typography variant="h6">No reminders need attention</Typography>
-        <Typography color="text.secondary">
-          Failed or uncertain deliveries and patient requests for help or
-          rescheduling will appear here.
-        </Typography>
       </Box>
     );
   }
@@ -771,20 +787,19 @@ function MessageHistory({
   if (resource.error) return <Alert severity="error">{resource.error}</Alert>;
   if (reminders.length === 0) {
     return (
-      <Box sx={{ py: 7, textAlign: "center" }}>
-        <HistoryOutlinedIcon
-          sx={{ fontSize: 40, color: "text.disabled", mb: 1 }}
+      <Box role="status">
+        <ClinicEmptyState
+          title={
+            reminderId
+              ? "Selected reminder was not found"
+              : "No messages with a recorded delivery attempt"
+          }
+          description={
+            reminderId
+              ? "It may have been removed or is outside your current clinic access."
+              : "Messages appear here after a delivery attempt is recorded."
+          }
         />
-        <Typography variant="h6">
-          {reminderId
-            ? "Selected reminder was not found"
-            : "No messages with a recorded delivery attempt"}
-        </Typography>
-        <Typography color="text.secondary">
-          {reminderId
-            ? "It may have been removed or is outside your current clinic access."
-            : "Messages appear here after a delivery attempt is recorded."}
-        </Typography>
       </Box>
     );
   }
@@ -1235,16 +1250,21 @@ export function Reminders() {
                   </Stack>
                 )}
                 {appointmentsResource.data && appointments.length === 0 && (
-                  <Box sx={{ py: 7, textAlign: "center" }}>
-                    <CalendarMonthOutlinedIcon
-                      sx={{ fontSize: 42, color: "text.disabled", mb: 1 }}
-                    />
+                  <Box sx={{ py: 3 }} role="status">
                     <Typography variant="h6">
                       No upcoming appointments in this range
                     </Typography>
                     <Typography color="text.secondary">
                       Adjust the dates or clear the patient filter.
                     </Typography>
+                    {patientQuery.trim() && (
+                      <Button
+                        onClick={() => setPatientQuery("")}
+                        sx={{ mt: 1 }}
+                      >
+                        Clear patient filter
+                      </Button>
+                    )}
                   </Box>
                 )}
                 {appointmentsResource.data && appointments.length > 0 && (
@@ -1429,7 +1449,10 @@ export function Reminders() {
               )}
             </Box>
           ) : tab === 1 ? (
-            <NeedsAttention query={deferredQuery} />
+            <NeedsAttention
+              query={deferredQuery}
+              onClearFilter={() => setPatientQuery("")}
+            />
           ) : (
             <MessageHistory
               query={deferredQuery}

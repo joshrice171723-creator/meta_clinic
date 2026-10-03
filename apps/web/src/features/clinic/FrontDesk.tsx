@@ -1,11 +1,16 @@
 import { lateArrivalMessage } from "./arrivalTiming";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
+import { ClinicEmptyState } from "./ClinicEmptyState";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -125,47 +130,78 @@ export function FrontDesk() {
             check patients in when they arrive.
           </Typography>
         </div>
-        <Stack
-          component="nav"
-          aria-label="Front desk actions"
-          className="front-desk-quick-actions"
-          direction="row"
-          spacing={1.5}
-          useFlexGap
-          sx={{ flexWrap: "wrap" }}
+        <Accordion
+          disableGutters
+          elevation={0}
+          className="front-desk-more-actions"
+          sx={{
+            bgcolor: "transparent",
+            boxShadow: "none",
+            "&::before": { display: "none" },
+          }}
         >
-          {canMembershipEnrollment && <FrontDeskMembershipEnrollment />}
-          {capabilities.telehealth_read && (
-            <Button href="/clinic/telehealth" variant="outlined">
-              Virtual waiting room
-            </Button>
-          )}
-          {booking.visible && (
-            <Button
-              component="a"
-              href="/clinic/schedule"
-              variant="contained"
-              startIcon={<EventOutlinedIcon />}
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            sx={{
+              px: 0,
+              minHeight: 44,
+              "&.Mui-expanded": { minHeight: 44 },
+            }}
+          >
+            <Typography variant="body2">More front desk actions</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: 0, pt: 0 }}>
+            <Stack
+              component="nav"
+              aria-label="More front desk actions"
+              className="front-desk-quick-actions"
+              direction="row"
+              spacing={1.5}
+              useFlexGap
+              sx={{ flexWrap: "wrap" }}
             >
-              Schedule visit
-            </Button>
-          )}
-          {canPatients && (
-            <Button component="a" href="/clinic/patients" variant="outlined">
-              Patient directory
-            </Button>
-          )}
-          {canBilling && (
-            <Button component="a" href="/clinic/billing" variant="outlined">
-              Billing
-            </Button>
-          )}
-          {allowed(capabilities.staff_messaging_read) && (
-            <Button component="a" href="/clinic/messages" variant="outlined">
-              Staff messages
-            </Button>
-          )}
-        </Stack>
+              {canMembershipEnrollment && <FrontDeskMembershipEnrollment />}
+              {capabilities.telehealth_read && (
+                <Button href="/clinic/telehealth" variant="outlined">
+                  Virtual waiting room
+                </Button>
+              )}
+              {booking.visible && (
+                <Button
+                  component="a"
+                  href="/clinic/schedule"
+                  variant="outlined"
+                  startIcon={<EventOutlinedIcon />}
+                >
+                  Schedule visit
+                </Button>
+              )}
+              {canPatients && (
+                <Button
+                  component="a"
+                  href="/clinic/patients"
+                  variant="outlined"
+                >
+                  Patient directory
+                </Button>
+              )}
+              {canBilling && (
+                <Button component="a" href="/clinic/billing" variant="outlined">
+                  Billing
+                </Button>
+              )}
+              {allowed(capabilities.staff_messaging_read) && (
+                <Button
+                  component="a"
+                  href="/clinic/messages"
+                  variant="outlined"
+                >
+                  Staff messages
+                </Button>
+              )}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       </header>
 
       {canReadAppointments ? (
@@ -973,30 +1009,31 @@ function AppointmentDayQueue({
         </Alert>
       )}
       {response && records.length === 0 && (
-        <div className="front-desk-empty">
-          <TodayOutlinedIcon aria-hidden="true" />
-          <Typography component="h3" variant="h6">
-            No appointments found
-          </Typography>
-          <Typography color="text.secondary">
-            {closedSite
+        <ClinicEmptyState
+          title="No appointments found"
+          description={
+            closedSite
               ? "No matching upcoming visits affected by a location closure."
-              : "Try another date, site, or search term."}
-          </Typography>
-          {(query || siteId || date !== today) && (
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setDate(today);
-                setSiteId(currentSiteId === null ? "" : String(currentSiteId));
-                setQuery("");
-                setPage(1);
-              }}
-            >
-              Reset filters
-            </Button>
-          )}
-        </div>
+              : "Try another date, site, or search term."
+          }
+          action={
+            (query || siteId || date !== today) ? (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setDate(today);
+                  setSiteId(
+                    currentSiteId === null ? "" : String(currentSiteId),
+                  );
+                  setQuery("");
+                  setPage(1);
+                }}
+              >
+                Reset filters
+              </Button>
+            ) : undefined
+          }
+        />
       )}
       {response && records.length > 0 && (
         <>
@@ -1366,7 +1403,7 @@ function AppointmentRow({
             component="a"
             href={chartPath}
             size="small"
-            variant="contained"
+            variant={actions.canStartVisit ? "outlined" : "contained"}
           >
             Open chart
           </Button>
@@ -1396,7 +1433,8 @@ function AppointmentRow({
         {canTransition && actions.canCancel && (
           <Button
             size="small"
-            color="inherit"
+            color="error"
+            variant="outlined"
             disabled={anyActionBusy}
             onClick={() => void onTransition(appointment, "cancelled")}
           >

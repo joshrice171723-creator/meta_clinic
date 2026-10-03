@@ -62,7 +62,9 @@ function Fact({
       <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
         {title}
       </Typography>
-      <Typography variant="h6">{value}</Typography>
+      <Typography component="p" variant="h6">
+        {value}
+      </Typography>
       <Typography variant="body2" color="text.secondary">
         {detail}
       </Typography>
@@ -317,7 +319,7 @@ export function OwnerMorningView() {
                   ? "Reading the published team schedule."
                   : !publication
                     ? "Current week is absent from the recent published schedules."
-                    : `${shiftsToday?.length ?? 0} published staff shifts today${unassigned === undefined ? "; appointment assignments unavailable" : ` · ${unassigned} appointments without a clinician`}.`)
+                    : `${shiftsToday?.length ?? 0} published staff ${shiftsToday?.length === 1 ? "shift" : "shifts"} today${unassigned === undefined ? "; appointment assignments unavailable" : ` · ${unassigned} ${unassigned === 1 ? "appointment" : "appointments"} without a clinician`}.`)
           }
           href={canStaff ? "/clinic/workforce/schedule" : undefined}
           link="Open team schedule"
@@ -346,7 +348,7 @@ export function OwnerMorningView() {
               : billing.error
                 ? "Unavailable"
                 : billing.data
-                  ? `${openInvoices} invoices`
+                  ? `${openInvoices} ${openInvoices === 1 ? "invoice" : "invoices"}`
                   : "Loading…"
           }
           detail={
