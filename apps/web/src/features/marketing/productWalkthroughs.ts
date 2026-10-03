@@ -15,6 +15,7 @@ export type WalkthroughStep = {
 export type ProductTour = {
   title: string;
   introduction: string;
+  limitation?: string;
   steps: readonly WalkthroughStep[];
 };
 
@@ -161,6 +162,89 @@ const reminders: WalkthroughStep = {
 
 export const productTours = {
   ...featureTutorials,
+  ai: {
+    ...featureTutorials.ai,
+    title: "Prepare a Scribe session. Review every draft.",
+    introduction:
+      "Connect the patient and visit, check recording consent, then prepare the transcript source. These app screens show the work before generation.",
+    limitation:
+      "No generated draft is shown here. Generation needs a configured provider and current consent; a clinician must check any output against its source before signing.",
+    steps: featureTutorials.ai.steps.slice(0, 2),
+  },
+  weightLoss: {
+    title: "Keep program follow-up connected to the visit.",
+    introduction:
+      "Review intake, read the recorded plan, and give follow-up a date and an owner. This tour uses the shared encounter tools available to a weight management team.",
+    limitation:
+      "Shared-core examples from a primary care demo. They do not demonstrate weight trends, a GLP-1 protocol, dose decisions, or a weight-loss outcome.",
+    steps: [
+      featureTutorials.intake.steps[1],
+      featureTutorials.plans.steps[0],
+      featureTutorials.plans.steps[2],
+    ],
+  },
+  behavioralHealth: {
+    title: "Organize the work around the next session.",
+    introduction:
+      "Reserve the session, find the open team task, and record the next contact. Follow the administrative handoffs without losing the owner of the work.",
+    limitation:
+      "These are shared scheduling and follow-up tools. The captures do not demonstrate protected psychotherapy notes, crisis response, or specialty assessment instruments.",
+    steps: [
+      {
+        ...booking,
+        label: "Reserve the session",
+        title: "Give the session a time, clinician, and room.",
+      },
+      featureTutorials.team.steps[1],
+      featureTutorials.plans.steps[2],
+    ],
+  },
+  primaryCare: {
+    title: "From visit preparation to a reviewed result.",
+    introduction:
+      "Read the clinician handoff, review the documented findings, and open a lab result for review. Each capture shows a real part of the primary care demo.",
+    limitation:
+      "Separate sample records illustrate these steps; they are not a single patient's completed journey. The lab-review form is shown before submission.",
+    steps: [
+      featureTutorials.intake.steps[2],
+      featureTutorials.notes.steps[1],
+      featureTutorials.labs.steps[1],
+    ],
+  },
+  cashBilling: {
+    title: "From a payment question to its financial record.",
+    introduction:
+      "Review the recorded payment, prepare a credit with a reason when needed, and check the invoice balance. Keep receipts, refunds, and invoice adjustments distinct.",
+    limitation:
+      "These separate app examples show recorded financial states. A paid invoice capture does not demonstrate a live card transaction or processor settlement.",
+    steps: [
+      {
+        ...payment,
+        label: "Review payments",
+        title: "See what was received and what was refunded.",
+        body: "Payments & receipts lists the payment method, original amount, refunds, amount after refunds, and receipt status. Open the recorded payment to inspect its related invoices and refunds.",
+        detail:
+          "In Billing: Payments & receipts → review method and amounts → open the payment or available receipt. Confirm any external processor outcome separately.",
+        image: capture("finance-omni-payments-table"),
+        width: 1160,
+        height: 430,
+        caption: "Recorded payments in a separate sample clinic.",
+      },
+      {
+        ...invoice,
+        label: "Prepare a credit",
+        title: "Give the adjustment a recorded reason.",
+        body: "Open the invoice credit form and review the amount and reason before saving. A credit reduces the invoice balance; it is separate from returning money through a refund.",
+        detail:
+          "Review the adjustment form before submission. This screen shows credit preparation, not a completed refund or processor action.",
+        image: capture("finance-credit-dialog"),
+        width: 601,
+        height: 525,
+        caption: "Invoice credit dialog with amount and reason controls.",
+      },
+      payment,
+    ],
+  },
   day: {
     title: "Follow the work through a clinic day.",
     introduction:
@@ -178,6 +262,20 @@ export const productTours = {
     introduction:
       "See the screens that help staff find the patient, prepare the arrival, and understand the recorded visit stage.",
     steps: [directory, arrival, board],
+  },
+  trackingBoard: {
+    title: "Read the handoff in one board.",
+    introduction:
+      "Start with the current visit stage, then scan the room, clinician, recorded care context, and timing. Use the board to find the operational work that needs a next action.",
+    limitation:
+      "Stage, timing, and row color describe recorded workflow. They do not establish clinical urgency or a completed handoff.",
+    steps: [
+      {
+        ...board,
+        detail:
+          "Read across the row: patient and reason → current stage and room → assigned clinician → recorded vitals and care context. Open the visit for the underlying encounter; a board view does not complete the work.",
+      },
+    ],
   },
   inventory: {
     title: "Follow an inventory question beyond the total.",
@@ -207,10 +305,18 @@ export const productTours = {
     ],
   },
   reminders: {
-    title: "Keep the next appointment in view.",
+    title: "Prepare the reminder. Check what happened next.",
     introduction:
-      "Begin with the calendar, prepare appointment reminders, and return to the front-desk queue as the visit approaches.",
-    steps: [calendar, reminders, arrival],
+      "Start in Appointment reminders, where upcoming visits and message history sit together. Review readiness before preparing a message, then inspect its recorded outcome.",
+    limitation:
+      "The demo uses sandbox delivery. Prepared, provider-accepted, delivered, and read are different states; this capture does not show a real text reaching a patient.",
+    steps: [
+      {
+        ...reminders,
+        detail:
+          "Upcoming appointments → check contact and consent readiness → prepare a reminder. Then open Message history for queued, accepted, failed, or uncertain delivery outcomes; unresolved work needs a staff review.",
+      },
+    ],
   },
 } satisfies Record<string, ProductTour>;
 
@@ -222,7 +328,7 @@ const featureTours: Partial<Record<string, ProductTourKey>> = {
   "labs-results": "labs",
   "care-plans": "plans",
   scheduling: "scheduling",
-  "tracking-board": "visits",
+  "tracking-board": "trackingBoard",
   "team-workspace": "team",
   "clinical-notes": "notes",
   "intake-forms": "intake",
@@ -230,7 +336,7 @@ const featureTours: Partial<Record<string, ProductTourKey>> = {
   "patient-portal": "portal",
   telehealth: "telehealth",
   inventory: "inventory",
-  "cash-billing": "billing",
+  "cash-billing": "cashBilling",
   invoices: "billing",
   reminders: "reminders",
 };
@@ -248,6 +354,12 @@ export function growthTour(path: string): ProductTourKey | undefined {
     .filter(Boolean);
   const topic = segments.at(-1) ?? "";
   if (segments[0] === "ai" && segments.length === 1) return "ai";
+  if (segments[0] === "ai" && ["scribe", "documentation"].includes(topic))
+    return "ai";
+  if (segments.length === 1 && topic === "weight-loss") return "weightLoss";
+  if (segments.length === 1 && topic === "behavioral-health")
+    return "behavioralHealth";
+  if (segments.length === 1 && topic === "primary-care") return "primaryCare";
   if (
     ["platform", "demo", "sandbox", "solutions"].includes(topic) &&
     segments.length === 1
@@ -290,14 +402,14 @@ export function growthTour(path: string): ProductTourKey | undefined {
   )
     return undefined;
   if (topic === "telehealth") return "telehealth";
+  if (["ai-scribe", "documentation-assistance"].includes(topic)) return "ai";
+  if (["labs", "lab-results"].includes(topic)) return "labs";
+  if (["medications", "medication-management"].includes(topic))
+    return "medications";
+  if (["follow-ups", "treatment-plans"].includes(topic)) return "plans";
   if (topic === "patient-portal") return "portal";
   if (topic === "online-booking") return "requests";
-  if (
-    [
-      "scheduling",
-      "recurring-appointments",
-    ].includes(topic)
-  )
+  if (["scheduling", "recurring-appointments"].includes(topic))
     return "scheduling";
   if (
     [
@@ -308,18 +420,13 @@ export function growthTour(path: string): ProductTourKey | undefined {
     ].includes(topic)
   )
     return "inventory";
-  if (["billing", "payments", "invoices", "cash-pay"].includes(topic))
-    return "billing";
-  if (["clinical-notes", "clinical-documentation"].includes(topic)) return "notes";
+  if (["billing", "payments", "cash-pay"].includes(topic)) return "cashBilling";
+  if (topic === "invoices") return "billing";
+  if (["clinical-notes", "clinical-documentation"].includes(topic))
+    return "notes";
   if (["patient-intake", "intake", "forms"].includes(topic)) return "intake";
   if (["care-plans", "care-planning", "goals"].includes(topic)) return "plans";
-  if (
-    [
-      "workflows",
-      "patient-management",
-    ].includes(topic)
-  )
-    return "visits";
+  if (["workflows", "patient-management"].includes(topic)) return "visits";
   if (["reminders", "appointment-reminders"].includes(topic))
     return "reminders";
   return undefined;

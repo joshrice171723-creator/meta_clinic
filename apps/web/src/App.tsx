@@ -25,7 +25,10 @@ import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
 import { DemoEntryLoading } from "./features/demo/DemoEntry";
 import { LoadingFeedback } from "./shared/LoadingFeedback";
 import { hasGrowthPage } from "./features/marketing/marketingPaths";
-import { isUnavailableMarketingPath } from "./features/marketing/marketingAvailability";
+import {
+  isUnavailableMarketingPath,
+  marketingReplacement,
+} from "./features/marketing/marketingAvailability";
 import { isDemoFrame } from "./features/demo/frame";
 import {
   SessionGuard,
@@ -936,6 +939,12 @@ function Application() {
       .catch(() => setConfigurationError(true));
   }, []);
   const path = window.location.pathname.replace(/\/$/, "") || "/";
+  const replacement = path.startsWith("/meta-clinic/")
+    ? marketingReplacement(path)
+    : undefined;
+  useEffect(() => {
+    if (replacement) window.location.replace(replacement);
+  }, [replacement]);
   const publicMembership =
     /^\/memberships\/([a-z0-9](?:[a-z0-9-]{1,78}[a-z0-9]))$/.exec(path);
   const publicClinicServices =

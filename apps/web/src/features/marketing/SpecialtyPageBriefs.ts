@@ -1,4 +1,5 @@
 import { marketingPaths } from "./marketingPaths";
+import { growthTour } from "./productWalkthroughs";
 import type { GrowthPage } from "./growthPageContent";
 
 type Specialty = {
@@ -176,7 +177,7 @@ const topicCopy: Record<string, { label: string; purpose: string; section: strin
   replenishment: { label: "Replenishment workflow", purpose: "Replenishment starts with a supply need, continues through review, and ends with a clinic-owned purchasing decision.", section: "Need identification and approval" },
   "margin-estimation": { label: "Cost and margin review", purpose: "Cost review makes the clinic’s assumptions visible as it considers the financial side of a service or supply decision.", section: "Assumptions and financial review" },
   reporting: { label: "Reporting workflow", purpose: "Operational reporting starts with the clinic’s questions and the source information it uses to review its work.", section: "Questions, data, and interpretation" },
-  "consents": { label: "Consent workflow", purpose: "Consent materials are presented and reviewed as part of the clinic’s process, with a clear route for questions and completion records.", section: "Presentation, review, and recordkeeping" },
+  consents: { label: "Consent workflow", purpose: "Consent materials are presented and reviewed as part of the clinic’s process, with a clear route for questions and completion records.", section: "Presentation, review, and recordkeeping" },
   packages: { label: "Package administration", purpose: "Package terms shape how patients book services and how the clinic coordinates use and follow-up.", section: "Terms, use, and follow-up" },
   "ed-treatment": { label: "Confidential service inquiry workflow", purpose: "A private service inquiry deserves respectful handling and a clear path to clinician-led evaluation.", section: "Privacy, review, and next steps" },
   "hormone-management": { label: "Hormone care coordination", purpose: "Hormone care coordination connects intake and clinician evaluation with documentation and follow-up responsibilities.", section: "Clinical ownership and operations" },
@@ -225,6 +226,7 @@ const overviewSteps: Record<string, readonly string[]> = {
 function childScenario(slug: string, label: string, specialty: Specialty): string {
   if (slug === "cash-pay") {
     return "A patient asks what a primary care visit costs and how to book. Front-desk staff share the clinic’s published service and payment terms, route payment-specific questions to the responsible administrator, and coordinate scheduling. The clinician receives the visit context; clinical questions stay with the care team. If a service or fee is unclear, staff confirm it with the clinic before setting expectations."
+  ;
   }
   if (specialty.name === "Weight loss" && /inventory|purchasing|receiving|replenishment|lot|expiration|recall|forecasting|margin/.test(slug)) {
     return `A program coordinator preparing for a ${label.toLowerCase()} task spots a stock or supply question. The coordinator checks the clinic’s recorded information, routes discrepancies to the operations owner, and keeps any patient-specific treatment question with the authorized clinician.`;
@@ -362,6 +364,74 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     { heading: "Team handoffs", body: `Patient-facing staff, the care team, and clinic operations each have a role in the ${specialty.name.toLowerCase()} journey. Clear ownership helps requests, visit preparation, and follow-up move to the right person while preserving professional responsibilities.` },
     { heading: "Key workflows", body: specialty.operations },
   ];
+  const currentOverview: Record<
+    string,
+    {
+      headline: string;
+      lead: string;
+      steps: string[];
+      sections: { heading: string; body: string }[];
+    }
+  > = {
+    "Weight loss": {
+      headline: "Give every follow-up a clear next step.",
+      lead: "Bring intake, recorded plans, program terms, and follow-up work into one clinic workspace. Start with the shared tools behind an ongoing weight management program.",
+      steps: [
+        "Review the intake",
+        "Read the recorded plan",
+        "Assign the next follow-up",
+      ],
+      sections: [
+        {
+          heading: "A program needs more than a calendar",
+          body: "Intake prepares the visit. Care plans keep documented intent visible. Follow-up work gives the next action a due date and responsible staff member. Memberships can describe your published program terms when that model fits.",
+        },
+        {
+          heading: "See the shared foundation",
+          body: "The walkthrough uses real intake, plan, and follow-up screens from the primary care demo. Dedicated weight trends, GLP-1 protocols, and dose decisions are outside the proof shown here; map those requirements in a focused clinic walkthrough.",
+        },
+      ],
+    },
+    "Behavioral health": {
+      headline: "Keep the work around each session organized.",
+      lead: "Reserve session time, find the team's open work, and make the next contact clear. Explore the shared operational tools around relationship-based care.",
+      steps: [
+        "Reserve the session",
+        "Find the team task",
+        "Record the next contact",
+      ],
+      sections: [
+        {
+          heading: "Continuity starts with a named next action",
+          body: "Scheduling holds the time, clinician, and room. Patient Flow keeps open source tasks and their owners visible. Encounter follow-up records the next contact, due date, and responsible staff member.",
+        },
+        {
+          heading: "Map specialty requirements explicitly",
+          body: "These captures show shared scheduling and follow-up tools. They do not demonstrate protected psychotherapy notes, crisis response, or specialty assessment instruments. Review those requirements against your practice's workflow before choosing a system.",
+        },
+      ],
+    },
+    "Primary care": {
+      headline: "Carry visit context into the next review.",
+      lead: "Prepare the clinician handoff, read the encounter's recorded findings, and keep lab review visible. Follow the current primary care demo through the work around a visit.",
+      steps: [
+        "Prepare the handoff",
+        "Review documented findings",
+        "Open the lab review",
+      ],
+      sections: [
+        {
+          heading: "Keep review states readable",
+          body: "Intake groups show their saved state. The clinician handoff lists remaining preparation. Chart findings distinguish positive, negative, and not reviewed. Lab receipt and clinical review remain separate steps.",
+        },
+        {
+          heading: "Choose the next action with its source in view",
+          body: "The tour uses separate sample records to show handoff, documentation, and a lab-review form before submission. Cash billing and membership tools can support the clinic's selected payment model alongside that visit work.",
+        },
+      ],
+    },
+  };
+  const overview = !slug ? currentOverview[specialty.name] : undefined;
   const objections = slug ? [
     { question: `How does ${pageLabel.toLowerCase()} fit our ${specialty.name.toLowerCase()} process?`, answer: `Start with your current steps, staff roles, and exceptions. ${focus} The walkthrough should confirm fit against your process rather than assume one standard workflow.` },
     { question: "What should our team bring to a walkthrough?", answer: "Bring a real clinic scenario, the people who own each step, and an exception that changes the usual path." },
@@ -374,24 +444,26 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
   return {
     path,
     eyebrow: slug ? `Workflow for ${specialty.name.toLowerCase()} clinics` : `For ${specialty.name.toLowerCase()} practices`,
-    headline,
-    lead,
-    ...(slug ? {} : { steps: overviewSteps[specialty.name] }),
+    headline: overview?.headline ?? headline,
+    lead: overview?.lead ?? lead,
+    ...(slug ? {} : { steps: overview?.steps ?? overviewSteps[specialty.name] }),
     audience: specialty.audience,
     note: "",
     searchIntent: slug ? `${pageLabel.toLowerCase()} software evaluation for ${specialty.name.toLowerCase()} clinics` : `${specialty.name.toLowerCase()} clinic software and workflow evaluation`,
     funnel: slug ? "Evaluation: explain one clinic workflow, then invite a product walkthrough." : "Awareness to evaluation: understand specialty fit, then request a workflow walkthrough.",
     visualBrief: `Future visual: a real, approved product screen or clearly labeled schematic showing the ${pageLabel.toLowerCase()} workflow for a ${specialty.name.toLowerCase()} clinic. Annotate the relevant handoff, staff role, and next action. Use synthetic records in demo imagery; do not imply unavailable features.`,
-    primaryCta: { label: "Book a Demo", path: "/book-demo" },
-    secondaryCta: { label: "Explore the Sandbox", path: "/sandbox" },
-    sections,
+    primaryCta: { label: "Try the demo", path: "/demo" },
+    secondaryCta: growthTour(path)
+      ? { label: "Explore the steps", path: "#product-walkthrough" }
+      : { label: "Request a walkthrough", path: "/book-demo" },
+    sections: overview?.sections ?? sections,
     questions: objections,
     links: [
       ...(slug ? [{ label: `${specialty.name} overview`, path: Object.keys(specialties).find((candidate) => path.startsWith(`${candidate}/`)) ?? path }] : []),
       ...(slug ? [{ label: "Shared platform capability", path: platformCapabilityFor(slug) }] : []),
       ...(guide ? [guide] : []),
       { label: "Explore the demo", path: "/demo" },
-      { label: "Book a demo", path: "/book-demo" },
+      { label: "Request a demo", path: "/book-demo" },
       ...(specialty.name === "Weight loss" && slug && /intake|forms|portal/.test(slug) ? [
         { label: "Weight loss intake form template", path: "/resources/templates/weight-loss-intake-form" },
       ] : []),

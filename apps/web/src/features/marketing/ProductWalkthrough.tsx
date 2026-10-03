@@ -2,7 +2,11 @@ import { useEffect } from "react";
 import { Button } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
-import { productTours, type ProductTourKey } from "./productWalkthroughs";
+import {
+  productTours,
+  type ProductTourKey,
+  type ProductTour,
+} from "./productWalkthroughs";
 import "./productWalkthrough.css";
 
 export function ProductWalkthrough({
@@ -14,7 +18,7 @@ export function ProductWalkthrough({
   id?: string;
   context?: string;
 }) {
-  const content = productTours[tour];
+  const content: ProductTour = productTours[tour];
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (
@@ -38,6 +42,9 @@ export function ProductWalkthrough({
         <header className="product-walkthrough__intro">
           <h2 id={`${id}-title`}>{content.title}</h2>
           <p>{content.introduction}</p>
+          {content.limitation && (
+            <p className="product-walkthrough__context">{content.limitation}</p>
+          )}
           {context && <p className="product-walkthrough__context">{context}</p>}
           <nav
             aria-label="Walkthrough steps"
@@ -114,7 +121,7 @@ export function ProductWalkthrough({
               Try the demo
             </Button>
             <Button href="/meta-clinic/book-demo" variant="outlined">
-              Book a walkthrough
+              Request a walkthrough
             </Button>
           </div>
         </footer>

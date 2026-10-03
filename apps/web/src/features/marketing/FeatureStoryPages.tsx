@@ -3,7 +3,7 @@ import { Button } from "@mui/material";
 import { marketingFeatures } from "./features";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import { ProductWalkthrough } from "./ProductWalkthrough";
-import { featureTour } from "./productWalkthroughs";
+import { featureTour, productTours } from "./productWalkthroughs";
 import "./featureStoryPages.css";
 
 type Story = {
@@ -73,9 +73,9 @@ export const stories: Record<string, Story> = {
     layout: "wide",
   },
   "intake-forms": {
-    eyebrow: "Before the encounter",
-    title: "A better visit begins before arrival.",
-    lead: "Gather the information a service needs, then let staff see what has been submitted and what still needs review.",
+    eyebrow: "Rooming and intake",
+    title: "Prepare the next clinician handoff.",
+    lead: "Review grouped intake questions, saved answers, and remaining preparation inside the encounter. Carry the patient's visit context into the clinician handoff.",
     chapter: "From invitation to reviewed answers.",
     chapterLead:
       "An intake form should help the next person in the workflow, not become another disconnected inbox.",
@@ -148,9 +148,9 @@ export const stories: Record<string, Story> = {
     layout: "folio",
   },
   "medication-workflows": {
-    eyebrow: "Medication work in context",
-    title: "Make each medication step explicit.",
-    lead: "Keep the proposed therapy, clinician review, local record, and fulfillment route distinct in the encounter.",
+    eyebrow: "Refill requests and review",
+    title: "Follow the request through a recorded decision.",
+    lead: "Read the patient's refill request, review the medication history, and check the saved decision. Keep patient-delivery follow-up separate from the clinician's review.",
     chapter: "The route matters as much as the order.",
     chapterLead:
       "A clear workflow distinguishes preparation, authorization, and recorded outcome instead of implying that a local entry was transmitted.",
@@ -199,8 +199,8 @@ export const stories: Record<string, Story> = {
   },
   "cash-billing": {
     eyebrow: "Revenue without mystery",
-    title: "A clear path from visit to payment.",
-    lead: "See the service, its price, what has been paid, and what remains in a clinic-first cash billing flow.",
+    title: "Keep the payment conversation clear.",
+    lead: "Review recorded payments, refunds, and receipt status. Follow each payment into its invoice, and keep a reason beside any credit adjustment.",
     chapter: "Every charge should be understandable.",
     chapterLead:
       "Tie a charge to its service and keep the balance legible as payment or correction work happens.",
@@ -219,9 +219,9 @@ export const stories: Record<string, Story> = {
       },
     ],
     image: {
-      src: "/marketing/captures/finance-open-invoice-queue.png",
-      alt: "Meta Clinic invoice ledger with synthetic patient balances, dates, and payment states.",
-      caption: "Invoice ledger · direct synthetic app capture",
+      src: "/marketing/captures/finance-omni-payments-table.png",
+      alt: "Meta Clinic payments and receipts table with sample amounts, payment methods, refunds, and receipt status.",
+      caption: "Payments and receipts · actual app with sample records",
     },
     secondaryImage: {
       src: "/marketing/captures/finance-paid-invoice-detail.png",
@@ -268,7 +268,8 @@ export const stories: Record<string, Story> = {
     image: {
       src: "/marketing/captures/membership-catalog-five-programs.png",
       alt: "Actual Meta Clinic membership catalog with five fictional published programs and program descriptions.",
-      caption: "Membership catalog · five programs · direct synthetic app capture",
+      caption:
+        "Membership catalog · five programs · direct synthetic app capture",
     },
     photos: [
       {
@@ -310,7 +311,8 @@ export const stories: Record<string, Story> = {
     image: {
       src: "/marketing/captures/finance-paid-invoice-detail.png",
       alt: "Meta Clinic synthetic paid invoice showing line items, allocated payment, credit, and zero balance.",
-      caption: "Paid invoice detail · captured from the synthetic clinic workspace",
+      caption:
+        "Paid invoice detail · captured from the synthetic clinic workspace",
     },
     photos: [
       {
@@ -406,7 +408,7 @@ export const stories: Record<string, Story> = {
   reminders: {
     eyebrow: "Timely follow-through",
     title: "Keep the next visit on the radar.",
-    lead: "Prepare appointment and follow-up messages with timing, channel, and outcome visible to the team.",
+    lead: "Review upcoming appointments and contact readiness, prepare a reminder, and return to its message history. The demo uses sandbox delivery.",
     chapter: "A message is useful when its status is clear.",
     chapterLead:
       "Teams should know what is scheduled, what was recorded as sent, and what still needs a person to act.",
@@ -429,9 +431,9 @@ export const stories: Record<string, Story> = {
     layout: "offset",
   },
   telehealth: {
-    eyebrow: "Visits beyond the room",
-    title: "A virtual visit still belongs to the clinic day.",
-    lead: "Keep the video appointment, preparation, encounter context, and next step connected for remote care.",
+    eyebrow: "Prepare for remote visits",
+    title: "Know what is ready before a video visit.",
+    lead: "Review patient preparation, consent policy, and the virtual waiting room. This demo shows setup and readiness; its video provider is not connected.",
     chapter: "The visit has a before, during, and after.",
     chapterLead:
       "A virtual room is one part of care. The surrounding schedule and encounter remain just as important.",
@@ -461,6 +463,16 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
   if (!story || !feature) return null;
   const related = marketingFeatures.find((item) => item.slug === story.related);
   const tour = featureTour(slug);
+  const firstStep = tour ? productTours[tour].steps[0] : undefined;
+  const preview =
+    story.image ??
+    (firstStep
+      ? {
+          src: firstStep.image,
+          alt: firstStep.caption,
+          caption: "Actual app screen · sample clinic records",
+        }
+      : undefined);
 
   return (
     <main id="main" className={`meta-story meta-story--${story.layout}`}>
@@ -472,14 +484,45 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
           <p className="meta-story__eyebrow">{story.eyebrow}</p>
           <h1>{story.title}</h1>
           <p className="meta-story__lead">{story.lead}</p>
-          <Button
-            href={slug === "memberships-packages" ? "#build-a-membership" : "#feature-workflows"}
-            endIcon={<ArrowForwardRoundedIcon />}
-            variant="contained"
-          >
-            Explore the workflow
-          </Button>
+          <div className="meta-story__hero-actions">
+            <Button
+              href="/demo"
+              endIcon={<ArrowForwardRoundedIcon />}
+              variant="contained"
+              disableElevation
+            >
+              Try the demo
+            </Button>
+            <Button
+              href={
+                slug === "memberships-packages"
+                  ? "#build-a-membership"
+                  : "#feature-workflows"
+              }
+              variant="outlined"
+            >
+              Explore the steps
+            </Button>
+          </div>
         </div>
+        {preview && (
+          <figure className="meta-story__hero-preview">
+            <a
+              href={preview.src}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open full-size preview: ${feature.label}`}
+            >
+              <img
+                src={preview.src}
+                alt={preview.alt}
+                loading="eager"
+                decoding="async"
+              />
+            </a>
+            <figcaption>{preview.caption} · Open full screen</figcaption>
+          </figure>
+        )}
       </section>
 
       {slug === "memberships-packages" && <MembershipWalkthrough />}
@@ -497,25 +540,27 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </figure>
       )}
 
-      {!tour && slug !== "memberships-packages" && <section
-        className="meta-story__work meta-story__wrap"
-        id="feature-workflows"
-      >
-        <div className="meta-story__work-heading">
-          <p className="meta-story__eyebrow">How it moves</p>
-          <h2>{story.chapter}</h2>
-          <p>{story.chapterLead}</p>
-        </div>
-        <div className="meta-story__workflows">
-          {story.workflows.map((item, index) => (
-            <article key={item.title}>
-              <span>0{index + 1}</span>
-              <h3>{item.title}</h3>
-              <p>{item.copy}</p>
-            </article>
-          ))}
-        </div>
-      </section>}
+      {!tour && slug !== "memberships-packages" && (
+        <section
+          className="meta-story__work meta-story__wrap"
+          id="feature-workflows"
+        >
+          <div className="meta-story__work-heading">
+            <p className="meta-story__eyebrow">How it moves</p>
+            <h2>{story.chapter}</h2>
+            <p>{story.chapterLead}</p>
+          </div>
+          <div className="meta-story__workflows">
+            {story.workflows.map((item, index) => (
+              <article key={item.title}>
+                <span>0{index + 1}</span>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {!tour && slug !== "memberships-packages" && story.secondaryImage && (
         <figure className="meta-story__product meta-story__product--secondary meta-story__wrap">

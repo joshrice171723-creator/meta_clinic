@@ -16,6 +16,14 @@ function tutorialScreen(feature: MarketingFeature) {
   return tour ? productTours[tour]?.steps[0] : undefined;
 }
 
+function tutorialSummary(feature: MarketingFeature) {
+  if (feature.slug === "reminders")
+    return "Review upcoming visits, contact readiness, and message-history states. The demo uses sandbox delivery.";
+  if (feature.slug === "telehealth")
+    return "Review preparation, consent policy, and waiting-room readiness. Video is not connected in the captured demo.";
+  return feature.summary;
+}
+
 const groupId = (heading: string) =>
   `tutorials-${heading.toLowerCase().replaceAll(" ", "-")}`;
 
@@ -33,10 +41,21 @@ export function TutorialLibrary() {
           <h1>Learn the workflow, one screen at a time.</h1>
           <p className="tutorial-library__lead">
             Start with the work you want to understand. Each tutorial follows
-            the actual app screens, explains what to look for, and connects
-            each step to the next.
+            the actual app screens, explains what to look for, and connects each
+            step to the next.
           </p>
-          <nav className="tutorial-library__jump" aria-label="Tutorial categories">
+          <Button
+            href="/demo"
+            variant="contained"
+            disableElevation
+            endIcon={<ArrowForwardRoundedIcon />}
+          >
+            Try the demo
+          </Button>
+          <nav
+            className="tutorial-library__jump"
+            aria-label="Tutorial categories"
+          >
             {featureGroups.map((group, index) => (
               <Button key={group.heading} href={`#${groupId(group.heading)}`}>
                 <span className="tutorial-library__jump-number">
@@ -67,7 +86,10 @@ export function TutorialLibrary() {
                 {group.features.map((feature, index) => {
                   const screen = tutorialScreen(feature);
                   return (
-                    <article className="tutorial-library__card" key={feature.slug}>
+                    <article
+                      className="tutorial-library__card"
+                      key={feature.slug}
+                    >
                       {screen && (
                         <a
                           className="tutorial-library__screen"
@@ -87,7 +109,7 @@ export function TutorialLibrary() {
                           Tutorial {String(offset + index + 1).padStart(2, "0")}
                         </span>
                         <h3>{feature.label}</h3>
-                        <p>{feature.summary}</p>
+                        <p>{tutorialSummary(feature)}</p>
                         <Button
                           href={featureHref(feature)}
                           endIcon={<ArrowForwardRoundedIcon />}
@@ -104,13 +126,18 @@ export function TutorialLibrary() {
             </section>
           );
         })}
-        <section className="tutorial-library__close" aria-labelledby="tutorial-library-demo-title">
+        <section
+          className="tutorial-library__close"
+          aria-labelledby="tutorial-library-demo-title"
+        >
           <div>
             <h2 id="tutorial-library-demo-title">See the steps together.</h2>
-            <p>Bring your clinic’s questions to a guided product conversation.</p>
+            <p>
+              Bring your clinic’s questions to a guided product conversation.
+            </p>
           </div>
-          <Button href="/meta-clinic/book-demo" variant="contained" disableElevation>
-            Book a demo
+          <Button href="/demo" variant="contained" disableElevation>
+            Try the demo
           </Button>
         </section>
       </div>

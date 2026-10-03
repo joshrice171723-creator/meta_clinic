@@ -13,8 +13,12 @@
 }
 .meta-story__hero {
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 40px;
   min-height: 470px;
-  padding-block: 70px 100px;
+  padding-block: 50px 65px;
 }
 .meta-story__hero-copy {
   position: relative;
@@ -23,7 +27,7 @@
 }
 .meta-story__crumb {
   display: inline-block;
-  margin-bottom: clamp(45px, 6vw, 100px);
+  margin-bottom: 35px;
   color: #5d7264 !important;
   font-size: 12px;
   text-decoration: none;
@@ -55,7 +59,7 @@
 .meta-story h1 {
   max-width: 680px;
   margin: 0;
-  font-size: clamp(49px, 5.4vw, 82px);
+  font-size: clamp(43px, 4.5vw, 70px);
   line-height: 1.07;
 }
 .meta-story__lead {
@@ -65,14 +69,54 @@
   font-size: clamp(17px, 1.35vw, 20px);
   line-height: 1.7;
 }
+.meta-story__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 .meta-story .meta-story__hero-copy .MuiButton-root {
   padding: 13px 20px;
   border-radius: 4px;
+  text-transform: none;
+  border-color: #234f3b;
+  color: #234f3b;
+}
+.meta-story .meta-story__hero-copy .MuiButton-contained {
   background: #234f3b;
   color: white;
 }
-.meta-story .meta-story__hero-copy .MuiButton-root:hover {
+.meta-story .meta-story__hero-copy .MuiButton-contained:hover {
   background: #163c2b;
+}
+.meta-story__hero-preview {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #cfddd2;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 20px 45px rgb(31 67 47 / 10%);
+}
+.meta-story__hero-preview a {
+  display: block;
+  padding: 16px;
+}
+.meta-story__hero-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+}
+.meta-story__hero-preview figcaption {
+  padding: 12px 16px;
+  border-top: 1px solid #e1e8e1;
+  color: var(--story-muted);
+  font-size: 12px;
+}
+.meta-story__hero-preview a:focus-visible {
+  outline: 3px solid #a76247;
+  outline-offset: -3px;
 }
 .meta-story__product {
   margin-block: -12px 0;
@@ -237,6 +281,7 @@
   }
   .meta-story__hero {
     min-height: 0;
+    grid-template-columns: 1fr;
   }
   .meta-story__crumb {
     margin-bottom: 45px;

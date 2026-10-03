@@ -56,6 +56,52 @@
   font-size: clamp(18px, 1.5vw, 22px);
   line-height: 1.6;
 }
+.meta-flagship__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.meta-flagship .meta-flagship__hero-actions .MuiButton-root {
+  min-height: 46px;
+  padding-inline: 20px;
+  text-transform: none;
+  border-color: currentColor;
+  color: inherit;
+}
+.meta-flagship .meta-flagship__hero-actions .MuiButton-contained {
+  background: #24513b;
+  color: white;
+}
+.meta-flagship--inventory .meta-flagship__hero-actions .MuiButton-contained {
+  background: #f4f1e5;
+  color: #193b30;
+}
+.meta-flagship--scheduling .meta-flagship__hero-actions .MuiButton-contained {
+  background: #c64852;
+}
+.meta-flagship--scheduling
+  .meta-flagship__hero-actions
+  .MuiButton-contained:hover {
+  background: #a9323d;
+}
+.meta-flagship__schedule-hero-proof {
+  min-width: 0;
+}
+.meta-flagship__schedule-hero-proof .meta-flagship__screen img {
+  max-height: 480px;
+  object-fit: contain;
+  background: #fff;
+}
+.meta-flagship__calendar-preview-switch {
+  margin-bottom: 16px;
+  background: #fff;
+}
+.meta-flagship__calendar-preview-switch .MuiToggleButton-root {
+  min-height: 44px;
+  padding-inline: 18px;
+  color: #31466d;
+  text-transform: none;
+}
 
 .meta-flagship__screen {
   position: relative;

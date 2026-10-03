@@ -73,14 +73,14 @@ const focus: Record<string, Partial<GrowthPage>> = {
     lead: "Explore how patient access, scheduling, the visit, payments, inventory, and follow-up connect without losing the team’s view of open work.",
     steps: ["Begin with the patient journey", "Work from a shared clinic view", "Carry open tasks through follow-up"],
     primaryCta: { label: "Explore the guided demo", path: "/demo" },
-    secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
+    secondaryCta: { label: "Request a walkthrough", path: "/book-demo" },
   },
   "/platform/memberships": {
     eyebrow: "Memberships from both sides",
     headline: "Build the membership your clinic wants to offer.",
     lead: "Create a care program, define reusable services, set the price and terms in a tier, then see the exact offer a patient can choose.",
     primaryCta: { label: "See the five steps", path: "#build-a-membership" },
-    secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
+    secondaryCta: { label: "Request a walkthrough", path: "/book-demo" },
     sections: [
       { heading: "Give each care model its own home", body: "A program groups the tiers patients browse. Its name and description explain the type of care before price enters the conversation." },
       { heading: "Make inclusions explicit", body: "Reusable services describe the actual visits or care activities. Add them to a tier with a quantity and frequency that patients and staff can understand." },
@@ -98,12 +98,12 @@ const focus: Record<string, Partial<GrowthPage>> = {
     headline: "Follow a clinic task through the product.",
     lead: "Explore scheduling, patient context, visit work, and billing together using sample clinic records.",
     primaryCta: { label: "Open the guided demo", path: "app:/demo" },
-    secondaryCta: { label: "Book a walkthrough", path: "/book-demo" },
+    secondaryCta: { label: "Request a walkthrough", path: "/book-demo" },
   },
   "/ai": {
     eyebrow: "AI in clinic workflow",
     headline: "Put AI assistance where review still belongs to your team.",
-    lead: "Evaluate assisted intake, documentation, and summaries in the context of real clinic work. Staff and clinicians remain responsible for review and decisions.",
+    lead: "Prepare a Scribe session with the visit context, recording consent, and source transcript together. Draft generation requires a configured provider; the walkthrough shows preparation and review controls.",
   },
   "/security": {
     eyebrow: "Security review",
@@ -635,7 +635,7 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
       note: "Availability and claims are confirmed during evaluation.",
       audience: "Clinic owners and operators", searchIntent: "Meta Clinic site map", canonicalPath: path, funnel: "Navigate → evaluate → demo",
       visualBrief: "A clinic work scene beside the structured topic directory.",
-      primaryCta: { label: "Explore the demo", path: "/demo" }, secondaryCta: { label: "Book a demo", path: "/book-demo" },
+      primaryCta: { label: "Explore the demo", path: "/demo" }, secondaryCta: { label: "Request a demo", path: "/book-demo" },
       sections: [{ heading: "Choose a topic", body: "Use the full directory below to find a specialty or operating problem." }],
       questions: [{ question: "Where should I start?", answer: "Start with your clinic type, then choose the specific workflow you want to evaluate." }],
       links: [{ label: "Platform", path: "/platform" }, { label: "Resources", path: "/resources" }], children: [],
@@ -674,7 +674,7 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
     ? { label: "See the product", path: "/demo" }
     : isConversion
       ? { label: "See the demo", path: "/demo" }
-      : { label: "Book a demo", path: "/book-demo" };
+      : { label: "Request a demo", path: "/book-demo" };
   const audience = isLegal
     ? "Clinic owners, medical directors, and security reviewers"
     : isResource
@@ -832,12 +832,12 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
     page.primaryCta = { label: "Send a request", path: "#request" };
   } else if (path === "/sandbox") {
     page.primaryCta = { label: "Open the guided demo", path: "app:/demo" };
-    page.secondaryCta = { label: "Book a walkthrough", path: "/book-demo" };
+    page.secondaryCta = { label: "Request a walkthrough", path: "/book-demo" };
   } else if (path === "/security") {
     page.secondaryCta = { label: "Explore the platform", path: "/platform" };
   } else if (path === "/try") {
     page.primaryCta = { label: "Start the demo", path: "/demo" };
-    page.secondaryCta = { label: "Book a demo", path: "/book-demo" };
+    page.secondaryCta = { label: "Request a demo", path: "/book-demo" };
   } else if (path === "/demo") {
     page.primaryCta = { label: "Open the guided demo", path: "app:/demo" };
   } else if (path === "/login") {
@@ -857,13 +857,14 @@ export function getGrowthPage(path: string): GrowthPage | null {
   if (!page) return null;
   return {
     ...page,
-    path: marketingUrl(page.path),
-    canonicalPath: marketingUrl(page.canonicalPath),
+    path: `/meta-clinic${page.path === "/" ? "" : page.path}`,
+    canonicalPath: `/meta-clinic${page.canonicalPath === "/" ? "" : page.canonicalPath}`,
     primaryCta: { ...page.primaryCta, path: marketingUrl(page.primaryCta.path) },
     secondaryCta: { ...page.secondaryCta, path: marketingUrl(page.secondaryCta.path) },
     links: page.links
       .filter((link) => !isUnavailableMarketingPath(link.path))
       .map((link) => ({ ...link, path: marketingUrl(link.path) })),
-    children: page.children.map((child) => ({ ...child, path: marketingUrl(child.path) })),
+    children: page.children.filter((child) => !isUnavailableMarketingPath(child.path))
+      .map((child) => ({ ...child, path: marketingUrl(child.path) })),
   };
 }

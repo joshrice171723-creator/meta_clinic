@@ -167,18 +167,6 @@ export const featureGroups: {
           "Keep payment and adjustment history",
         ],
       },
-      {
-        slug: "optional-insurance",
-        label: "Optional insurance",
-        headline: "Insurance when your clinic needs it.",
-        summary:
-          "Add payer workflows as a clinic choice while preserving the cash-pay foundation.",
-        points: [
-          "Keep coverage evidence separate",
-          "Prepare local work before vendor connection",
-          "Show submission and response state explicitly",
-        ],
-      },
     ],
   },
   {

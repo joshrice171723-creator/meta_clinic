@@ -298,6 +298,17 @@ export const marketingBase = "/meta-clinic";
 
 export function marketingUrl(path: string) {
   if (path.startsWith("app:")) return path.slice(4);
+  if (
+    [
+      "/demo",
+      "/sandbox",
+      "/try",
+      "/meta-clinic/demo",
+      "/meta-clinic/sandbox",
+      "/meta-clinic/try",
+    ].includes(path)
+  )
+    return "/demo";
   if (!path.startsWith("/") || path === marketingBase || path.startsWith(`${marketingBase}/`)) return path;
   return path === "/" ? marketingBase : `${marketingBase}${path}`;
 }
@@ -308,5 +319,6 @@ export function marketingInternalPath(path: string) {
 
 export function hasGrowthPage(path: string) {
   const internalPath = marketingInternalPath(path);
-  return internalPath !== null && (internalPath === "/site-map" || marketingPathSet.has(internalPath) || /^\/(alternatives|customers)\/[^/]+$/.test(internalPath));
+  return (
+    internalPath !== null && (internalPath === "/site-map" || marketingPathSet.has(internalPath) || /^\/(alternatives|customers)\/[^/]+$/.test(internalPath)));
 }

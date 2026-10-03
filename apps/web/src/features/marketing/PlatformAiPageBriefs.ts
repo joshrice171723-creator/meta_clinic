@@ -454,6 +454,108 @@ function specialtyExampleFor(path: string) {
 export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null {
   const brief = briefs[path];
   if (!brief) return null;
+  if (["/ai", "/ai/scribe", "/ai/documentation"].includes(path)) {
+    return {
+      group: "AI",
+      title: "Scribe preparation and clinician review",
+      eyebrow: "Inside Scribe",
+      headline: "Prepare the source. Keep the clinician in charge.",
+      lead: "Connect the patient and visit, check recording consent, and prepare the transcript. See the current Scribe workspace before draft generation.",
+      steps: [
+        "Select the patient and visit",
+        "Check consent and source material",
+        "Review any generated draft",
+      ],
+      note: "The captures show preparation and transcript controls. No generated draft is shown. Generation depends on the configured provider and current consent.",
+      primaryCta: { label: "Try the demo", path: "/demo" },
+      secondaryCta: {
+        label: "Explore the steps",
+        path: "#product-walkthrough",
+      },
+      sections: [
+        {
+          heading: "Give the draft a clear source",
+          body: "The Context tab keeps the session, visit, template, consent, and selected lab context together. The Transcript tab provides recording and import controls. Confirm the patient and allowed source before capture or generation.",
+        },
+        {
+          heading: "Review before the record changes",
+          body: "Check any generated draft against its source, correct missing or unsupported content, and make the record action deliberately. A generated draft does not sign the encounter. Final authorship stays with the clinician.",
+        },
+      ],
+      questions: [
+        {
+          question: "Can I see a generated draft in these screens?",
+          answer:
+            "No. These captures show session preparation and transcript controls before generation. Evaluate generated content separately when the provider and consent requirements are met.",
+        },
+        {
+          question: "What is required before recording?",
+          answer:
+            "Current recording consent is required. The app stops capture when the accepted consent or capture lease is no longer current.",
+        },
+        {
+          question: "Does generating a draft sign the note?",
+          answer:
+            "No. The clinician reviews and corrects the draft; signing remains a separate encounter action.",
+        },
+      ],
+      links: [
+        { label: "Clinical notes tutorial", path: "/features/clinical-notes" },
+        { label: "Intake tutorial", path: "/features/intake-forms" },
+        { label: "Request a walkthrough", path: "/book-demo" },
+      ],
+    };
+  }
+  if (path === "/platform/telehealth") {
+    return {
+      group: "Platform",
+      title: "Telehealth preparation and readiness",
+      eyebrow: "Before the video visit",
+      headline: "Know what is ready before the call.",
+      lead: "Review preparation instructions, consent policy, and the virtual waiting room. The demo shows setup and readiness with no active video connection.",
+      steps: [
+        "Review patient preparation",
+        "Publish the clinic policy",
+        "Check video readiness",
+      ],
+      primaryCta: { label: "Try the demo", path: "/demo" },
+      secondaryCta: {
+        label: "Explore the steps",
+        path: "#product-walkthrough",
+      },
+      sections: [
+        {
+          heading: "Prepare the patient before entry",
+          body: "Telehealth settings hold preparation wording, support details, patient location and callback requirements, and timing. Review the policy your clinic intends to publish before using it for visits.",
+        },
+        {
+          heading: "Check the dependencies together",
+          body: "New video bookings require a connected provider, a published policy, a successful provider health check, and an eligible visit type. The waiting room shows the current readiness state; a scheduled time alone cannot establish a working connection.",
+        },
+      ],
+      questions: [
+        {
+          question: "Does this demo show a live call?",
+          answer:
+            "No. The captures show preparation and waiting-room readiness. Video is not connected in the captured demo.",
+        },
+        {
+          question: "What enables new video bookings?",
+          answer:
+            "The clinic needs a connected provider, published policy, successful health check, and at least one eligible visit type.",
+        },
+        {
+          question: "Where do staff find the work?",
+          answer:
+            "Open the virtual waiting room and filter by date, site, clinician, or status. Review the readiness message before relying on a join action.",
+        },
+      ],
+      links: [
+        { label: "Scheduling tutorial", path: "/features/scheduling" },
+        { label: "Request a walkthrough", path: "/book-demo" },
+      ],
+    };
+  }
   const isAi = path.startsWith("/ai");
   const root = path === "/platform" || path === "/ai";
   const audience = isAi ? "Clinic owners, practice managers, and clinical reviewers evaluating AI-assisted work" : "Clinic owners, practice managers, and teams evaluating clinic operations";
@@ -472,7 +574,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
       { label: "Cash-pay primary care", path: "/primary-care/cash-pay" },
       { label: "Browse clinic resources", path: "/resources/guides" },
       { label: "Explore the demo", path: "/demo" },
-      { label: "Book a demo", path: "/book-demo" },
+      { label: "Request a demo", path: "/book-demo" },
     ]
     : path === "/ai"
       ? [
@@ -483,7 +585,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         { label: "Behavioral health documentation example", path: "/behavioral-health/ai-scribe" },
         { label: "Browse clinic resources", path: "/resources/guides" },
         { label: "Explore the demo", path: "/demo" },
-        { label: "Book a demo", path: "/book-demo" },
+        { label: "Request a demo", path: "/book-demo" },
       ]
       : [
         { label: `${isAi ? "AI" : "Platform"} overview`, path: parent },
@@ -491,7 +593,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         { label: "Related specialty example", path: specialtyExampleFor(path) },
         { label: "Browse clinic resources", path: "/resources/guides" },
         { label: "Explore the demo", path: "/demo" },
-        { label: "Book a demo", path: "/book-demo" },
+        { label: "Request a demo", path: "/book-demo" },
       ];
 
   return {
@@ -512,7 +614,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
     searchIntent: isAi ? `${brief.title.toLowerCase()} evaluation for clinics` : `${brief.title.toLowerCase()} for independent clinics`,
     funnel: "Evaluate workflow → confirm product scope → book a demo",
     visualBrief: brief.visual,
-    primaryCta: { label: "Book a demo", path: "/book-demo" },
+    primaryCta: { label: "Request a demo", path: "/book-demo" },
     secondaryCta: { label: "Explore the sandbox", path: "/sandbox" },
     sections: root
       ? [

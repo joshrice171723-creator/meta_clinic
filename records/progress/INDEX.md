@@ -16,3 +16,5 @@ Preserve entries that contain failures, inconclusive checks, incidents,
 migrations, recovery, security findings, professional limitations, release
 boundaries or explicit authority. When changing an archive, retain original
 headings and update this index if the period/count changes.
+
+- [2026-10-03 marketing quality review and route scores](2026/10/2026-10-03-marketing-quality.md)

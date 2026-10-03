@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import { Button } from "@mui/material";
 import "./membershipWalkthrough.css";
 
 const steps = [
@@ -150,6 +151,14 @@ export function MembershipWalkthrough() {
       </div>
       <div className="membership-walkthrough__close">
         <strong>See both sides of the membership.</strong>
+        <Button
+          href="/demo"
+          variant="contained"
+          disableElevation
+          endIcon={<ArrowForwardRoundedIcon />}
+        >
+          Try the demo
+        </Button>
         <a href="/meta-clinic/membership-care/patient-view">
           Open the patient view <ArrowForwardRoundedIcon aria-hidden="true" />
         </a>

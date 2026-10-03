@@ -7,6 +7,7 @@ import {
 import { marketingFeatures } from "./features";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import { ProductWalkthrough } from "./ProductWalkthrough";
+import type { ProductTourKey } from "./productWalkthroughs";
 import "./clinicTypePages.css";
 
 export type ClinicTypeSlug =
@@ -70,36 +71,49 @@ function ProductImage({
 
 function ClinicTypeFeatureCatalog({ slug }: { slug: ClinicTypeSlug }) {
   const toolkit = clinicTypeToolkits[slug];
+  const tours: Partial<Record<ClinicTypeSlug, ProductTourKey>> = {
+    "primary-care": "primaryCare",
+    "weight-management": "weightLoss",
+    "behavioral-health": "behavioralHealth",
+    infusion: "inventory",
+    aesthetics: "inventory",
+    "urgent-care": "visits",
+  };
   return (
     <>
-    {slug !== "membership-care" && <ProductWalkthrough tour={slug === "infusion" || slug === "aesthetics" ? "inventory" : slug === "urgent-care" ? "visits" : "day"} context={`Explore the shared app screens behind ${clinicTypeLabels[slug].toLowerCase()}. These examples use sample clinics; discuss your specialty's configuration in a walkthrough.`} />}
-    <section className="meta-type__catalog meta-type__wrap" id="features">
-      <div className="meta-type__catalog-heading">
-        <p className="meta-type__eyebrow">Explore the tools</p>
-        <h2>{toolkit.heading}</h2>
-        <p>{toolkit.introduction}</p>
-      </div>
-      <div className="meta-type__catalog-grid">
-        {toolkit.features.map((item, index) => {
-          const feature = marketingFeatures.find(
-            (entry) => entry.slug === item.slug,
-          );
-          if (!feature) return null;
-          return (
-            <a key={item.slug} href={clinicTypeFeatureHref(slug, item.slug)}>
-              <span className="meta-type__catalog-number">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span>
-                <strong>{feature.label}</strong>
-                <small>{item.headline}</small>
-              </span>
-              <ArrowForwardRoundedIcon aria-hidden="true" />
-            </a>
-          );
-        })}
-      </div>
-    </section>
+      {slug !== "membership-care" && (
+        <ProductWalkthrough
+          tour={tours[slug] ?? "day"}
+          context={`Explore the shared app screens behind ${clinicTypeLabels[slug].toLowerCase()}. These examples use sample clinics; discuss your specialty's configuration in a walkthrough.`}
+        />
+      )}
+      <section className="meta-type__catalog meta-type__wrap" id="features">
+        <div className="meta-type__catalog-heading">
+          <p className="meta-type__eyebrow">Explore the tools</p>
+          <h2>{toolkit.heading}</h2>
+          <p>{toolkit.introduction}</p>
+        </div>
+        <div className="meta-type__catalog-grid">
+          {toolkit.features.map((item, index) => {
+            const feature = marketingFeatures.find(
+              (entry) => entry.slug === item.slug,
+            );
+            if (!feature) return null;
+            return (
+              <a key={item.slug} href={clinicTypeFeatureHref(slug, item.slug)}>
+                <span className="meta-type__catalog-number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span>
+                  <strong>{feature.label}</strong>
+                  <small>{item.headline}</small>
+                </span>
+                <ArrowForwardRoundedIcon aria-hidden="true" />
+              </a>
+            );
+          })}
+        </div>
+      </section>
     </>
   );
 }
@@ -119,13 +133,23 @@ function PrimaryCarePage() {
             follow-up into the same day. Meta Clinic keeps patient context,
             visits, and the work around them close together.
           </p>
-          <Button
-            href="#primary-workflow"
-            variant="contained"
-            endIcon={<ArrowForwardRoundedIcon />}
-          >
-            See the clinic flow
-          </Button>
+          <div className="meta-type__hero-actions">
+            <Button
+              href="/demo"
+              variant="contained"
+              disableElevation
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              Try the demo
+            </Button>
+            <Button
+              href="#primary-workflow"
+              variant="outlined"
+              endIcon={<ArrowForwardRoundedIcon />}
+            >
+              See the clinic flow
+            </Button>
+          </div>
         </div>
         <figure className="meta-type__primary-photo">
           <img
@@ -242,13 +266,23 @@ function InfusionPage() {
               experience. Meta Clinic brings the shared clinic work into view
               while your team cares for the person in the chair.
             </p>
-            <Button
-              href="#infusion-foundation"
-              variant="contained"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              Explore the foundation
-            </Button>
+            <div className="meta-type__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button
+                href="#infusion-foundation"
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Explore the foundation
+              </Button>
+            </div>
           </div>
           <figure>
             <img
@@ -359,13 +393,23 @@ function UrgentCarePage() {
               stage, and provider assignment together so the team can see what
               needs to happen next.
             </p>
-            <Button
-              href="#urgent-board"
-              variant="contained"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              See the patient flow
-            </Button>
+            <div className="meta-type__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button
+                href="#urgent-board"
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                See the patient flow
+              </Button>
+            </div>
           </div>
           <figure>
             <img
@@ -477,13 +521,23 @@ function MembershipCarePage() {
               visits. Build a program that explains the services, rhythm, and
               terms behind that relationship.
             </p>
-            <Button
-              href="#build-a-membership"
-              variant="contained"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              See how to build a membership
-            </Button>
+            <div className="meta-type__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button
+                href="#build-a-membership"
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                See how to build a membership
+              </Button>
+            </div>
           </div>
           <figure>
             <img
@@ -555,13 +609,23 @@ function WeightManagementPage() {
               structure, schedule the next visit, and keep the patient&apos;s
               goals central to each follow-up.
             </p>
-            <Button
-              href="#weight-program"
-              variant="contained"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              See the program view
-            </Button>
+            <div className="meta-type__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button
+                href="#weight-program"
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                See the program view
+              </Button>
+            </div>
           </div>
           <figure>
             <img
@@ -672,13 +736,23 @@ function RehabilitationPage() {
                 goals. Shape a clear program, keep appointments in view, and
                 make the next session easy for the team to find.
               </p>
-              <Button
-                href="#rehab-program"
-                variant="contained"
-                endIcon={<ArrowForwardRoundedIcon />}
-              >
-                Explore the care rhythm
-              </Button>
+              <div className="meta-type__hero-actions">
+                <Button
+                  href="/demo"
+                  variant="contained"
+                  disableElevation
+                  endIcon={<ArrowForwardRoundedIcon />}
+                >
+                  Try the demo
+                </Button>
+                <Button
+                  href="#rehab-program"
+                  variant="outlined"
+                  endIcon={<ArrowForwardRoundedIcon />}
+                >
+                  Explore the care rhythm
+                </Button>
+              </div>
             </div>
             <figure>
               <img
@@ -775,13 +849,23 @@ function AestheticsPage() {
               conversation all shape a visit. Meta Clinic brings the shared
               operational pieces together around your practice&apos;s services.
             </p>
-            <Button
-              href="#aesthetics-work"
-              variant="contained"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              Explore the workflow
-            </Button>
+            <div className="meta-type__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button
+                href="#aesthetics-work"
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Explore the workflow
+              </Button>
+            </div>
           </div>
           <figure>
             <img
@@ -882,13 +966,23 @@ function HormoneHealthPage() {
               clear rhythm for consultations, review visits, and follow-up—while
               leaving the clinical choices with your team.
             </p>
-            <Button
-              href="#hormone-rhythm"
-              variant="contained"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              Explore the visit rhythm
-            </Button>
+            <div className="meta-type__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button
+                href="#hormone-rhythm"
+                variant="outlined"
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Explore the visit rhythm
+              </Button>
+            </div>
           </div>
           <figure>
             <img
@@ -907,8 +1001,8 @@ function HormoneHealthPage() {
           <p className="meta-type__eyebrow">The operational foundation</p>
           <h2>Make space for care over time.</h2>
           <p>
-            Review appointments across visit types, rooms, and clinicians in
-            the clinic calendar. Use that shared view to plan the next visit.
+            Review appointments across visit types, rooms, and clinicians in the
+            clinic calendar. Use that shared view to plan the next visit.
           </p>
         </div>
         <ProductImage
@@ -992,13 +1086,23 @@ function BehavioralHealthPage() {
                 should feel organized. Keep the schedule, room, and next visit
                 easy for the team to see.
               </p>
-              <Button
-                href="#behavioral-sessions"
-                variant="contained"
-                endIcon={<ArrowForwardRoundedIcon />}
-              >
-                See the session calendar
-              </Button>
+              <div className="meta-type__hero-actions">
+                <Button
+                  href="/demo"
+                  variant="contained"
+                  disableElevation
+                  endIcon={<ArrowForwardRoundedIcon />}
+                >
+                  Try the demo
+                </Button>
+                <Button
+                  href="#behavioral-sessions"
+                  variant="outlined"
+                  endIcon={<ArrowForwardRoundedIcon />}
+                >
+                  See the session calendar
+                </Button>
+              </div>
             </div>
             <figure>
               <img

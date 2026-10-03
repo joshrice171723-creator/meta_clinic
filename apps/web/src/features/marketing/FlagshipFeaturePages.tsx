@@ -1,7 +1,6 @@
 import { ProductWalkthrough } from "./ProductWalkthrough";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
-import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
-import { Button } from "@mui/material";
+import { Button, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useState } from "react";
 import "./flagshipFeaturePages.css";
 
@@ -87,13 +86,19 @@ function InventoryPage() {
               See recorded stock, spot a low quantity, and move into the work of
               replenishing it from the same clinic workspace.
             </p>
-            <Button
-              className="meta-flagship__hero-link"
-              href="#inventory-workflow"
-              endIcon={<ArrowForwardRoundedIcon />}
-            >
-              See the inventory flow
-            </Button>
+            <div className="meta-flagship__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button href="#inventory-workflow" variant="outlined">
+                Explore the steps
+              </Button>
+            </div>
           </div>
           <div className="meta-flagship__inventory-photo">
             <span className="meta-flagship__photo-index">THE PRODUCT / 01</span>
@@ -138,221 +143,64 @@ function SchedulingPage() {
             </p>
             <h1>One clinic day. Every kind of visit.</h1>
             <p className="meta-flagship__lead">
-              Bring in-person appointments, rooms, and virtual visits into a
-              schedule your team can read at a glance.
+              See appointments by room, time, and clinician. Book the visit with
+              its purpose in view, then carry it into the front-desk queue.
             </p>
-            <div className="meta-flagship__schedule-actions">
-              <a
-                className="meta-flagship__schedule-primary"
-                href="#schedule-preview"
+            <div className="meta-flagship__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
               >
-                Explore the calendar{" "}
-                <ArrowForwardRoundedIcon aria-hidden="true" />
-              </a>
-              <a
-                className="meta-flagship__schedule-text-link"
-                href="#schedule-telehealth"
-              >
-                See virtual visits
-              </a>
+                Try the demo
+              </Button>
+              <Button href="#schedule-workflow" variant="outlined">
+                Explore the steps
+              </Button>
             </div>
-            <p className="meta-flagship__schedule-hero-footnote">
-              Built for the people who keep a clinic day moving.
-            </p>
-          </div>
-          <figure className="meta-flagship__schedule-hero-photo">
-            <img
-              src="/marketing/scheduling-team.png"
-              alt="Two clinic staff members reviewing a scheduling app together at a front desk."
-              loading="eager"
-            />
-            <figcaption>Front desk, in sync.</figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section
-        className="meta-flagship__schedule-product"
-        id="schedule-preview"
-      >
-        <div className="meta-flagship__container">
-          <div className="meta-flagship__schedule-product-heading">
-            <div>
-              <p className="meta-flagship__overline">
-                See the work, not just the time
-              </p>
-              <h2>A calendar with the whole clinic in view.</h2>
-            </div>
-            <p>
-              See how appointments occupy a room and a time. Scan visit types
-              and providers before opening the detail.
-            </p>
           </div>
           <div
-            className="meta-flagship__calendar-switch"
-            role="group"
-            aria-label="Calendar preview view"
+            className="meta-flagship__schedule-hero-proof"
+            id="schedule-preview"
           >
-            <button
-              type="button"
-              aria-pressed={calendarView === "day"}
-              onClick={() => setCalendarView("day")}
-            >
-              Day view
-            </button>
-            <button
-              type="button"
-              aria-pressed={calendarView === "month"}
-              onClick={() => setCalendarView("month")}
-            >
-              Month view
-            </button>
-          </div>
-          {calendarView === "day" ? (
-            <div className="meta-flagship__schedule-day-gallery">
-              <Screen
-                src="/marketing/captures/schedule-day-omni-morning.png"
-                alt="Actual Meta Clinic day schedule showing three fictional morning visits across rooms, providers, and appointment times."
-                label="Day view · morning"
-                caption="Adapted direct app capture"
-                className="meta-flagship__schedule-screen"
-              />
-              <Screen
-                src="/marketing/captures/schedule-day-omni-afternoon.png"
-                alt="Actual Meta Clinic day schedule showing four fictional afternoon visits with different appointment lengths."
-                label="Day view · afternoon"
-                caption="Adapted direct app capture"
-                className="meta-flagship__schedule-screen"
-              />
-            </div>
-          ) : (
-            <Screen
-              src="/marketing/captures/schedule-month-omni-october.png"
-              alt="Meta Clinic October month calendar showing synthetic scheduled appointments across weekdays."
-              label="Month view · clinic calendar"
-              caption="Direct synthetic app capture"
-              className="meta-flagship__schedule-screen"
-            />
-          )}
-          <div className="meta-flagship__schedule-product-points">
-            <span>Room-based planning</span>
-            <span>Different visit lengths</span>
-            <span>Provider visibility</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="meta-flagship__schedule-perspective">
-        <div className="meta-flagship__container meta-flagship__schedule-perspective-layout">
-          <div className="meta-flagship__schedule-perspective-copy">
-            <p className="meta-flagship__overline">Two ways to see the day</p>
-            <h2>Zoom out without losing the details.</h2>
-            <p>
-              Use the month view to scan what is coming, then return to the day
-              view to see room assignments, visit lengths, and visit types.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setCalendarView("month");
-                document
-                  .getElementById("schedule-preview")
-                  ?.scrollIntoView({ behavior: "smooth" });
+            <ToggleButtonGroup
+              value={calendarView}
+              exclusive
+              onChange={(_, value: "day" | "month" | null) => {
+                if (value) setCalendarView(value);
               }}
+              aria-label="Calendar preview view"
+              size="small"
+              className="meta-flagship__calendar-preview-switch"
             >
-              Show month view <ArrowForwardRoundedIcon aria-hidden="true" />
-            </button>
-          </div>
-          <figure>
-            <img
-              src="/marketing/scheduling-front-desk.png"
-              alt="A front desk coordinator working with a clinic calendar in a bright reception area."
-              loading="lazy"
-            />
-            <figcaption>
-              A clear view for the people at the front desk.
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section
-        className="meta-flagship__schedule-booking"
-        id="schedule-booking"
-      >
-        <div className="meta-flagship__container">
-          <div className="meta-flagship__schedule-booking-heading">
-            <p className="meta-flagship__overline">
-              From an open time to a booked visit
-            </p>
-            <h2>Schedule the visit in context.</h2>
-            <p>
-              The synthetic appointment form shows the patient, time, room,
-              clinician, visit type, and visit reason together.
-            </p>
-          </div>
-          <div className="meta-flagship__schedule-booking-layout">
+              <ToggleButton value="day">Day view</ToggleButton>
+              <ToggleButton value="month">Month view</ToggleButton>
+            </ToggleButtonGroup>
             <Screen
-              src="/marketing/captures/schedule-booking-omni-adapted.png"
-              alt="Meta Clinic synthetic appointment form with patient, time, room, clinician, visit type, and visit reason."
-              label="Schedule an appointment"
-              caption="Real app view with synthetic appointment details"
+              src={
+                calendarView === "day"
+                  ? "/marketing/captures/schedule-day-omni-morning.png"
+                  : "/marketing/captures/schedule-month-omni-october.png"
+              }
+              alt={
+                calendarView === "day"
+                  ? "Actual clinic day calendar with sample visits across rooms, clinicians, and appointment times."
+                  : "Actual clinic month calendar showing appointment counts and scheduled time."
+              }
+              label={calendarView === "day" ? "Day calendar" : "Month calendar"}
+              caption="Actual app with sample appointments"
               className="meta-flagship__schedule-screen"
             />
-            <figure>
-              <img
-                src="/marketing/scheduling-team.png"
-                alt="A clinician and coordinator reviewing the clinic calendar together at a desk."
-                loading="lazy"
-              />
-              <figcaption>Planning together, in the same workspace.</figcaption>
-            </figure>
           </div>
         </div>
       </section>
-
-      <section
-        className="meta-flagship__schedule-telehealth"
-        id="schedule-telehealth"
-      >
-        <div className="meta-flagship__container meta-flagship__schedule-telehealth-layout">
-          <figure>
-            <img
-              src="/marketing/scheduling-telehealth.png"
-              alt="A clinician and team member at a clinic desk preparing a virtual appointment using scheduling software."
-              loading="lazy"
-            />
-            <figcaption>Care can begin from the same schedule.</figcaption>
-          </figure>
-          <div className="meta-flagship__schedule-telehealth-copy">
-            <p className="meta-flagship__overline">
-              For visits beyond the room
-            </p>
-            <h2>Make space for virtual care.</h2>
-            <p>
-              A video visit belongs in the day&apos;s plan alongside the rooms
-              and people needed for on-site care. Keep its time visible and its
-              entry point close to the appointment.
-            </p>
-            <div className="meta-flagship__schedule-telehealth-detail">
-              <VideocamOutlinedIcon aria-hidden="true" />
-              <div>
-                <strong>Telehealth room on the calendar</strong>
-                <small>
-                  See the video visit in context with the rest of the day.
-                </small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <ProductWalkthrough tour="scheduling" id="schedule-workflow" />
-      <div className="meta-flagship__container">
+      <div className="meta-flagship__container" id="schedule-telehealth">
         <NextFeature
-          label="Clinical notes"
-          href="/meta-clinic/features/clinical-notes"
-          heading="When the appointment becomes a visit."
+          label="Telehealth setup"
+          href="/meta-clinic/features/telehealth"
+          heading="Planning video visits? Check readiness first."
         />
       </div>
     </main>
@@ -372,10 +220,19 @@ function ClinicalNotesPage() {
               The encounter workspace keeps documentation beside the visit
               context and the work that surrounds it.
             </p>
-            <a className="meta-flagship__notes-link" href="#notes-workflow">
-              See how documentation fits{" "}
-              <ArrowForwardRoundedIcon aria-hidden="true" />
-            </a>
+            <div className="meta-flagship__hero-actions">
+              <Button
+                href="/demo"
+                variant="contained"
+                disableElevation
+                endIcon={<ArrowForwardRoundedIcon />}
+              >
+                Try the demo
+              </Button>
+              <Button href="#notes-workflow" variant="outlined">
+                Explore the steps
+              </Button>
+            </div>
           </div>
           <Screen
             src="/marketing/captures/tutorial-note-history.png"
@@ -389,32 +246,6 @@ function ClinicalNotesPage() {
 
       <ProductWalkthrough tour="notes" id="notes-workflow" />
 
-      <section
-        className="meta-flagship__container meta-flagship__notes-work"
-      >
-        <div className="meta-flagship__notes-statement">
-          <span>Documentation in context</span>
-          <h2>A note belongs to a visit, not a loose document.</h2>
-        </div>
-        <div className="meta-flagship__notes-details">
-          <article>
-            <span>01 / The right encounter</span>
-            <h3>Start from the visit</h3>
-            <p>
-              Open documentation inside the patient encounter, with its
-              surrounding sections and next steps visible.
-            </p>
-          </article>
-          <article>
-            <span>02 / A deliberate handoff</span>
-            <h3>See what is still in progress</h3>
-            <p>
-              Keep draft work and review state explicit so the care team can
-              tell what is ready and what still needs attention.
-            </p>
-          </article>
-        </div>
-      </section>
       <div className="meta-flagship__container">
         <NextFeature
           label="Inventory"

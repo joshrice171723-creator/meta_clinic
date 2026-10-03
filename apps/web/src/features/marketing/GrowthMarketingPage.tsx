@@ -1,13 +1,15 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { Alert, Button, TextField } from "@mui/material";
 import { api } from "../../api/client";
 import { getGrowthPage, type GrowthPage } from "./growthPageContent";
+import { marketingInternalPath, marketingUrl } from "./marketingPaths";
 import {
-  marketingInternalPath,
-  marketingPaths,
-  marketingUrl,
-} from "./marketingPaths";
+  BuyerInformationPage,
+  isBuyerInformationPath,
+} from "./BuyerInformationPages";
+import { useMarketingMetadata } from "./useMarketingMetadata";
+import { InquiryPrivacyPage } from "./InquiryPrivacyPage";
 import { CoreEvaluationPage, isCoreEvaluationPath } from "./CoreEvaluationPage";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
 import { TutorialLibrary } from "./TutorialLibrary";
@@ -68,7 +70,7 @@ function ContactForm({ path }: { path: string }) {
     setPending(true);
     setError("");
     try {
-      await api<{ received: boolean }>("/api/contact_messages", {
+      const result = await api<{ received: boolean }>("/api/contact_messages", {
         method: "POST",
         body: {
           contact_message: {
@@ -79,6 +81,10 @@ function ContactForm({ path }: { path: string }) {
           },
         },
       });
+      if (!result.received)
+        throw new Error(
+          "Your request was not confirmed. Your message is still here; please try again.",
+        );
       setSuccess(true);
     } catch (reason) {
       setError(
@@ -100,14 +106,18 @@ function ContactForm({ path }: { path: string }) {
   return (
     <form className="growth-page__form" onSubmit={submit}>
       <TextField
+        id="inquiry-name"
         label="Your name"
+        autoComplete="name"
         value={name}
         onChange={(event) => setName(event.target.value)}
         required
-        slotProps={{ htmlInput: { maxLength: 120 } }}
+        slotProps={{ htmlInput: { maxLength: 100 } }}
       />
       <TextField
+        id="inquiry-email"
         label="Work email"
+        autoComplete="email"
         type="email"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
@@ -115,13 +125,15 @@ function ContactForm({ path }: { path: string }) {
         slotProps={{ htmlInput: { maxLength: 254 } }}
       />
       <TextField
-        label="Your clinic and what you would like to see"
+        id="inquiry-message"
+        label="How can we help?"
+        helperText="Include your clinic type and one workflow or question. At least 10 characters."
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         required
         multiline
         minRows={4}
-        slotProps={{ htmlInput: { maxLength: 3000 } }}
+        slotProps={{ htmlInput: { minLength: 10, maxLength: 3000 } }}
       />
       <div className="growth-page__honeypot" aria-hidden="true">
         <label htmlFor="growth-website">Website</label>
@@ -134,7 +146,18 @@ function ContactForm({ path }: { path: string }) {
           onChange={(event) => setWebsite(event.target.value)}
         />
       </div>
-      <p>Business inquiries only. Do not include patient information.</p>
+      <p>
+        Business inquiries only. Leave out patient information. Your name,
+        email, and message are sent to the Meta Clinic inquiry inbox for review.{" "}
+        <a href="/meta-clinic/legal/privacy">
+          How inquiry information is handled
+        </a>
+        .
+      </p>
+      <p>
+        Submitting requests a reply by email; it does not reserve a time or
+        create a subscription.
+      </p>
       {error && <Alert severity="error">{error}</Alert>}
       <Button type="submit" variant="contained" disabled={pending}>
         {pending ? "Sending request…" : "Request a conversation"}
@@ -154,7 +177,7 @@ function Footer() {
         <span>Product</span>
         <a href="/meta-clinic/platform">Platform</a>
         <a href="/meta-clinic/ai">AI</a>
-        <a href="/meta-clinic/demo">Demo</a>
+        <a href="/demo">Demo</a>
         <a href="/meta-clinic/pricing">Pricing</a>
       </div>
       <div>
@@ -167,8 +190,8 @@ function Footer() {
       </div>
       <div>
         <span>Resources</span>
-        <a href="/meta-clinic/resources">Guides and templates</a>
-        <a href="/meta-clinic/sandbox">Sandbox</a>
+        <a href="/meta-clinic/resources">Tutorial library</a>
+        <a href="/demo">Try the demo</a>
         <a href="/meta-clinic/site-map">Site map</a>
       </div>
       <div>
@@ -176,6 +199,7 @@ function Footer() {
         <a href="/meta-clinic/about">About</a>
         <a href="/meta-clinic/security">Security</a>
         <a href="/meta-clinic/contact">Contact</a>
+        <a href="/meta-clinic/legal/privacy">Privacy</a>
         <a href="/login">Sign in</a>
       </div>
     </footer>
@@ -238,69 +262,6 @@ function Related({ page }: { page: GrowthPage }) {
 }
 
 function Directory({ page }: { page: GrowthPage }) {
-  if (page.path === marketingUrl("/site-map")) {
-    const groups = new Map<
-      string,
-      { path: string; label: string; phase: string }[]
-    >();
-    for (const item of marketingPaths) {
-      if (item.path.includes("[")) continue;
-      const current = groups.get(item.group) ?? [];
-      current.push({
-        path: marketingUrl(item.path),
-        label: marketingUrl(item.path),
-        phase: item.phase,
-      });
-      groups.set(item.group, current);
-    }
-    return (
-      <section
-        id="directory"
-        className="growth-page__directory growth-page__wrap"
-        aria-label="Marketing page directory"
-      >
-        <h2>Launch candidate pages</h2>
-        <p>
-          These pages are the first publishing candidates after product, claim,
-          and legal review.
-        </p>
-        <ul>
-          {marketingPaths
-            .filter(
-              (item) => item.phase === "launch" && !item.path.includes("["),
-            )
-            .map((item) => (
-              <li key={item.path}>
-                <a href={marketingUrl(item.path)}>{marketingUrl(item.path)}</a>
-              </li>
-            ))}
-        </ul>
-        <details className="growth-page__planned-directory">
-          <summary>Browse all planned page drafts</summary>
-          <p>
-            These routes are available for review. Later, legal, proof, and
-            integration pages should be published only when their content and
-            claims are verified.
-          </p>
-          {[...groups].map(([group, items]) => {
-            const planned = items.filter((item) => item.phase !== "launch");
-            return planned.length ? (
-              <div key={group}>
-                <h3>{group}</h3>
-                <ul>
-                  {planned.map((item) => (
-                    <li key={item.path}>
-                      <a href={marketingUrl(item.path)}>{item.label}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null;
-          })}
-        </details>
-      </section>
-    );
-  }
   if (!page.children.length) return null;
   return (
     <section
@@ -383,7 +344,7 @@ function PageBody({ page }: { page: GrowthPage }) {
     title: "See how this could work for your clinic.",
     body: "Explore the synthetic demo, then talk through your real requirements with the team.",
     primary: { label: "Explore the demo", path: "/demo" },
-    secondary: { label: "Book a demo", path: "/book-demo" },
+    secondary: { label: "Request a demo", path: "/book-demo" },
   };
   if (legal) {
     close = {
@@ -483,7 +444,12 @@ function PageBody({ page }: { page: GrowthPage }) {
               className={`growth-page__hero-image growth-page__hero-image--${heroScreen ? "product" : (page.imageKind ?? "product")}`}
             >
               {heroScreen ? (
-                <a href="#product-walkthrough" aria-label="See the product walkthrough"><img src={heroScreen.image} alt={heroScreen.caption} /></a>
+                <a
+                  href="#product-walkthrough"
+                  aria-label="See the product walkthrough"
+                >
+                  <img src={heroScreen.image} alt={heroScreen.caption} />
+                </a>
               ) : internalPath === "/weight-loss" ? (
                 <WeightLossHeroImage
                   key={page.image}
@@ -497,13 +463,20 @@ function PageBody({ page }: { page: GrowthPage }) {
                 />
               )}
               {(heroScreen || page.imageCaption) && (
-                <figcaption>{heroScreen?.caption ?? page.imageCaption}</figcaption>
+                <figcaption>
+                  {heroScreen?.caption ?? page.imageCaption}
+                </figcaption>
               )}
             </figure>
           ) : null}
         </section>
 
-        {tour && <ProductWalkthrough tour={tour} context="Explore the shared app screens behind this workflow. These examples use sample clinic records; confirm specialty-specific features and setup in a walkthrough." />}
+        {tour && (
+          <ProductWalkthrough
+            tour={tour}
+            context="Explore the shared app screens behind this workflow. These examples use sample clinic records; confirm specialty-specific features and setup in a walkthrough."
+          />
+        )}
 
         {!tour && page.gallery?.length ? (
           <section
@@ -708,50 +681,43 @@ function PageBody({ page }: { page: GrowthPage }) {
 
 export function GrowthMarketingPage({ path }: { path: string }) {
   const page = getGrowthPage(path);
-  useEffect(() => {
-    if (!page) return;
-    const previousTitle = document.title;
-    const description =
-      document.querySelector<HTMLMetaElement>('meta[name="description"]') ??
-      document.head.appendChild(document.createElement("meta"));
-    const previousDescription = description.getAttribute("content");
-    description.setAttribute("name", "description");
-    description.setAttribute("content", page.lead);
-    const robots =
-      document.querySelector<HTMLMetaElement>('meta[name="robots"]') ??
-      document.head.appendChild(document.createElement("meta"));
-    const previousRobots = robots.getAttribute("content");
-    robots.setAttribute("name", "robots");
-    robots.setAttribute("content", "noindex,follow");
-    const canonical =
-      document.querySelector<HTMLLinkElement>('link[rel="canonical"]') ??
-      document.head.appendChild(document.createElement("link"));
-    const previousCanonical = canonical.getAttribute("href");
-    canonical.setAttribute("rel", "canonical");
-    canonical.setAttribute(
-      "href",
-      new URL(page.canonicalPath, window.location.origin).toString(),
-    );
-    document.title = `${page.title} | ${page.eyebrow} | Meta Clinic`;
-    return () => {
-      document.title = previousTitle;
-      if (previousDescription === null) description.remove();
-      else description.setAttribute("content", previousDescription);
-      if (previousRobots === null) robots.remove();
-      else robots.setAttribute("content", previousRobots);
-      if (previousCanonical === null) canonical.remove();
-      else canonical.setAttribute("href", previousCanonical);
-    };
-  }, [page]);
-  if (!page) return null;
   const internalPath = marketingInternalPath(path);
+  useMarketingMetadata({
+    title:
+      internalPath === "/legal/privacy"
+        ? "Inquiry information - Meta Clinic"
+        : page
+          ? `${page.title} — Meta Clinic`
+          : "Meta Clinic",
+    description:
+      internalPath === "/legal/privacy"
+        ? "How Meta Clinic business inquiry forms collect your name, email, message, and submission page."
+        : (page?.lead ?? "Explore the Meta Clinic product."),
+    path: page?.canonicalPath ?? path,
+  });
+  if (!page) return null;
   return (
     <div className="growth-page">
       <a className="growth-page__skip" href="#main">
         Skip to content
       </a>
       <MarketingHeader />
-      {internalPath === "/resources" ? (<><TutorialLibrary /><Footer /></>) : internalPath && isCoreEvaluationPath(internalPath) ? (
+      {internalPath === "/legal/privacy" ? (
+        <>
+          <InquiryPrivacyPage />
+          <Footer />
+        </>
+      ) : internalPath && isBuyerInformationPath(internalPath) ? (
+        <>
+          <BuyerInformationPage path={internalPath} />
+          <Footer />
+        </>
+      ) : internalPath === "/resources" ? (
+        <>
+          <TutorialLibrary />
+          <Footer />
+        </>
+      ) : internalPath && isCoreEvaluationPath(internalPath) ? (
         <>
           <CoreEvaluationPage
             page={page}

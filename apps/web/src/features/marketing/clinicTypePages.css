@@ -1246,3 +1246,12 @@
     margin-top: 36px;
   }
 }
+.meta-type__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.meta-type .meta-type__hero-actions .MuiButton-root {
+  text-transform: none;
+  min-height: 46px;
+}
