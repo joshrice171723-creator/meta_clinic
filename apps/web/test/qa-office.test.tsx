@@ -279,7 +279,7 @@ it("bootstraps Office with one current navigation item and no inferred live pres
         name: "Muse expected check-in: Not connected",
       })
       .waitFor();
-    expect(await page.getByRole("combobox").count()).toBe(0);
+    expect(await floor.getByRole("combobox").count()).toBe(0);
     expect(writes).toEqual([]);
   } finally {
     await page.close();
@@ -884,8 +884,12 @@ it("posts owner Office messages without self-reported identity and puts the full
     expect(posted?.message).not.toHaveProperty("agent");
     expect(posted?.message).not.toHaveProperty("authenticated_actor");
     expect(posted?.message.message_key).toMatch(/^[A-Za-z0-9_-]{8,100}$/);
+    await page
+      .locator(".qa-build")
+      .getByText(revision, { exact: true })
+      .waitFor();
     const banner = await page
-      .getByText("Current build verified", { exact: true })
+      .getByText("DEPLOYMENT BOUNDARY OBSERVED", { exact: true })
       .boundingBox();
     const header = await page
       .getByRole("heading", { level: 2, name: "Office", exact: true })
