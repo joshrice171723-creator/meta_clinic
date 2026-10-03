@@ -1,3 +1,9 @@
+import {
+  QaChangeImpact,
+  QaImpactDetail,
+  useChangeImpact,
+} from "./QaChangeImpact";
+import { impactLabel, impactRow } from "./changeImpact";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -244,6 +250,7 @@ export function QaOfficeQa({
       if (active.current) setBusy(false);
     }
   };
+  const impact = useChangeImpact();
   const build = snapshot?.build;
   const revision = build?.revision;
   const observed = build?.observed_at ? Date.parse(build.observed_at) : NaN;
@@ -520,6 +527,7 @@ export function QaOfficeQa({
                 : "Coverage unavailable"}
             </Typography>
           </Stack>
+          <QaChangeImpact selection={impact} revision={revision} />
           {importedCoverage && (
             <LinearProgress
               variant="determinate"
@@ -560,7 +568,8 @@ export function QaOfficeQa({
                   key={id}
                   size="small"
                   variant="outlined"
-                  aria-label={`${id}: ${label(result)}${stale ? ", stale revision" : ""}`}
+                  aria-label={`${id}: ${label(result)}${stale ? ", stale revision" : ""}; impact: ${impactLabel(impactRow(impact.scope, id))}`}
+                  title={`${id}: ${impactLabel(impactRow(impact.scope, id))}`}
                   onClick={() => setWorkflow({ ...item, id })}
                   sx={{
                     fontSize: 10,
@@ -925,6 +934,9 @@ export function QaOfficeQa({
                 ? " · stale or missing revision"
                 : ""}
             </Typography>
+            {workflow && (
+              <QaImpactDetail scope={impact.scope} workflowId={workflow.id} />
+            )}
             <Typography>
               Last attempted{" "}
               {time(workflow?.last_attempted_at ?? workflow?.last_attempt)}

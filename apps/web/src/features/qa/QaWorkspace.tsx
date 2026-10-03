@@ -1,4 +1,9 @@
 import {
+  QaChangeImpact,
+  QaImpactDetail,
+  useChangeImpact,
+} from "./QaChangeImpact";
+import {
   useCallback,
   useEffect,
   useRef,
@@ -214,6 +219,7 @@ const nav = [
 ];
 
 export function QaWorkspace() {
+  const impact = useChangeImpact();
   const [data, setData] = useState<Workspace>();
   const [live, setLive] = useState<Build>();
   const [buildError, setBuildError] = useState("");
@@ -1270,6 +1276,7 @@ export function QaWorkspace() {
                   Missing workflow exports are unassessed. Historical passes
                   retain their original revision.
                 </p>
+                <QaChangeImpact selection={impact} revision={live?.revision} />
                 <form onSubmit={importCoverage} className="qa-dialog-fields">
                   <TextField
                     type="file"
@@ -1299,6 +1306,7 @@ export function QaWorkspace() {
                         <th>Attempted at</th>
                         <th>Version / revision</th>
                         <th>Evidence reference</th>
+                        <th>Selected release impact</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1328,6 +1336,14 @@ export function QaWorkspace() {
                             </small>
                           </td>
                           <td>{value(item.evidence_ref ?? item.evidence)}</td>
+                          <td>
+                            <QaImpactDetail
+                              scope={impact.scope}
+                              workflowId={String(
+                                item.id ?? item.workflow ?? "",
+                              )}
+                            />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
