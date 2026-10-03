@@ -132,9 +132,13 @@ async function open(mode = "success") {
   let listReads = 0;
   let releaseUnknown = false;
   let startIndividualPatch!: () => void;
-  const individualPatchStarted = new Promise<void>((resolve) => { startIndividualPatch = resolve; });
+  const individualPatchStarted = new Promise<void>((resolve) => {
+    startIndividualPatch = resolve;
+  });
   let releaseIndividualPatch!: () => void;
-  const individualPatchGate = new Promise<void>((resolve) => { releaseIndividualPatch = resolve; });
+  const individualPatchGate = new Promise<void>((resolve) => {
+    releaseIndividualPatch = resolve;
+  });
   let interleavedProjectionSent = false;
   page.on("pageerror", (error) =>
     console.error("Synthetic browser error:", error.message),
@@ -178,7 +182,10 @@ async function open(mode = "success") {
             access_revision: "d".repeat(64),
             status: "inactive",
             active_for_work: false,
-            membership_summary: { ...projected[0].membership_summary, active: false },
+            membership_summary: {
+              ...projected[0].membership_summary,
+              active: false,
+            },
             roles: [
               {
                 role_version_id: 13,
@@ -188,35 +195,48 @@ async function open(mode = "success") {
                 site_id: 2,
               },
             ],
-            sites: [{ ...sites[1], active: true, effective_from: "2026-01-01T00:00:00Z", effective_until: null }],
+            sites: [
+              {
+                ...sites[1],
+                active: true,
+                effective_from: "2026-01-01T00:00:00Z",
+                effective_until: null,
+              },
+            ],
           };
-        }        body = {
+        }
+        body = {
           schema_version: 1,
           employments: projected,
           role_options: roles,
           sites,
           staff_members: [],
           membership_options: [],
-          invitations:
-            ["invitation", "individual-interleaved"].includes(mode)
-              ? [
-                  {
-                    id: 9,
-                    staff_member_id: 109,
-                    display_name: "Synthetic Invitee",
-                    email_address: "invitee@example.invalid",
-                    role_code: "workforce-employee",
-                    expires_at: "2026-12-01T00:00:00Z",
-                  },
-                ]
-              : [],
+          invitations: ["invitation", "individual-interleaved"].includes(mode)
+            ? [
+                {
+                  id: 9,
+                  staff_member_id: 109,
+                  display_name: "Synthetic Invitee",
+                  email_address: "invitee@example.invalid",
+                  role_code: "workforce-employee",
+                  expires_at: "2026-12-01T00:00:00Z",
+                },
+              ]
+            : [],
         } satisfies EmploymentAdminData;
       } else if (
         /\/employments\/\d+$/.test(path) &&
         request.method() === "PATCH"
       ) {
         const id = Number(path.split("/").at(-1));
-        const input = request.postDataJSON().employment as { role_version_id?: number | string; expected_access_revision?: string; site_ids?: unknown; account_action?: string; [key: string]: unknown; };
+        const input = request.postDataJSON().employment as {
+          role_version_id?: number | string;
+          expected_access_revision?: string;
+          site_ids?: unknown;
+          account_action?: string;
+          [key: string]: unknown;
+        };
         writes.push({ id, employment: input });
         const record = records.find((item) => item.id === id)!;
         if (mode === "atomic-stale") {
@@ -272,13 +292,17 @@ async function open(mode = "success") {
                 }));
           }
           const individualUnknown =
-            id === 1 && ["individual-pending", "individual-interleaved"].includes(mode);
+            id === 1 &&
+            ["individual-pending", "individual-interleaved"].includes(mode);
           if (mode === "individual-pending" && id === 1) {
             startIndividualPatch();
             await individualPatchGate;
             status = 503;
             body = { error: "Synthetic individual update response lost" };
-          } else if (individualUnknown || (["unknown", "timeout408"].includes(mode) && id === 2)) {
+          } else if (
+            individualUnknown ||
+            (["unknown", "timeout408"].includes(mode) && id === 2)
+          ) {
             status = mode === "timeout408" ? 408 : 503;
             body = { error: "Synthetic response lost" };
           } else body = { employment: record };
@@ -318,9 +342,17 @@ async function open(mode = "success") {
 }
 async function prepareIndividualEdit(page: Page) {
   await page.getByRole("combobox", { name: "Access role" }).first().click();
-  await page.getByRole("option", { name: "Front Desk Coordinator", exact: true }).click();
-  await page.getByRole("checkbox", { name: "Synthetic West", exact: true }).first().check();
-  await page.getByRole("button", { name: "Save role and sites", exact: true }).first().click();
+  await page
+    .getByRole("option", { name: "Front Desk Coordinator", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", { name: "Synthetic West", exact: true })
+    .first()
+    .check();
+  await page
+    .getByRole("button", { name: "Save role and sites", exact: true })
+    .first()
+    .click();
 }
 async function select(page: Page, ids: number[]) {
   await page
@@ -623,20 +655,46 @@ it("invitation revoke reviews affected identity and consequence before a separat
 });
 
 it("individual access controls stay inert during a delayed write and saved-access check confirms the submitted target", async () => {
-  const { page, writes, individualPatchStarted, releaseIndividualPatch } = await open("individual-pending");
+  const { page, writes, individualPatchStarted, releaseIndividualPatch } =
+    await open("individual-pending");
   try {
     await prepareIndividualEdit(page);
     await individualPatchStarted;
     const role = page.getByRole("combobox", { name: "Access role" }).first();
-    const site = page.getByRole("checkbox", { name: "Synthetic West", exact: true }).first();
+    const site = page
+      .getByRole("checkbox", { name: "Synthetic West", exact: true })
+      .first();
     expect(await role.evaluate((el) => !!el.closest("[inert]"))).toBe(true);
     expect(await site.evaluate((el) => !!el.closest("[inert]"))).toBe(true);
-    expect(await page.evaluate(() => (window as unknown as { readBlockers: () => { blocked: boolean } }).readBlockers().blocked)).toBe(true);
-    expect(writes).toEqual([{ id: 1, employment: { role_version_id: "12", expected_access_revision: employee(1).access_revision, site_ids: [1, 2] } }]);
+    expect(
+      await page.evaluate(
+        () =>
+          (
+            window as unknown as { readBlockers: () => { blocked: boolean } }
+          ).readBlockers().blocked,
+      ),
+    ).toBe(true);
+    expect(writes).toEqual([
+      {
+        id: 1,
+        employment: {
+          role_version_id: "12",
+          expected_access_revision: employee(1).access_revision,
+          site_ids: [1, 2],
+        },
+      },
+    ]);
     releaseIndividualPatch();
-    await page.getByText("Employee access outcome is unconfirmed.", { exact: false }).waitFor();
-    await page.getByRole("button", { name: "Check saved access", exact: true }).first().click();
-    await page.getByText("Employee access confirmed in saved records.", { exact: true }).waitFor();
+    await page
+      .getByText("Employee access outcome is unconfirmed.", { exact: false })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Check saved access", exact: true })
+      .first()
+      .click();
+    await page
+      .getByText("Employee access confirmed in saved records.", { exact: true })
+      .waitFor();
     expect(writes).toHaveLength(1);
   } finally {
     releaseIndividualPatch();
@@ -648,23 +706,55 @@ it("an unrelated invitation refresh preserves an unknown individual access attem
   const { page, writes } = await open("individual-interleaved");
   try {
     await prepareIndividualEdit(page);
-    await page.getByText("Employee access outcome is unconfirmed.", { exact: false }).waitFor();
-    await page.getByRole("button", { name: "Revoke invitation", exact: true }).click();
-    await page.getByRole("checkbox", { name: "I intend to revoke this employee invitation", exact: true }).check();
-    await page.getByRole("button", { name: "Confirm invitation revoke", exact: true }).click();
-    await page.getByText("The employee invitation was revoked.", { exact: false }).waitFor();
-    await page.getByRole("button", { name: "Restore clinic account", exact: true }).first().waitFor();
-    await page.getByText("Employee access outcome is unconfirmed.", { exact: false }).waitFor();
+    await page
+      .getByText("Employee access outcome is unconfirmed.", { exact: false })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Revoke invitation", exact: true })
+      .click();
+    await page
+      .getByRole("checkbox", {
+        name: "I intend to revoke this employee invitation",
+        exact: true,
+      })
+      .check();
+    await page
+      .getByRole("button", { name: "Confirm invitation revoke", exact: true })
+      .click();
+    await page
+      .getByText("The employee invitation was revoked.", { exact: false })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Restore clinic account", exact: true })
+      .first()
+      .waitFor();
+    await page
+      .getByText("Employee access outcome is unconfirmed.", { exact: false })
+      .waitFor();
     const role = page.getByRole("combobox", { name: "Access role" }).first();
-    const west = page.getByRole("checkbox", { name: "Synthetic West", exact: true }).first();
+    const west = page
+      .getByRole("checkbox", { name: "Synthetic West", exact: true })
+      .first();
     expect(await role.innerText()).toContain("Front Desk Coordinator");
     expect(await west.isChecked()).toBe(true);
     expect(await role.evaluate((el) => !!el.closest("[inert]"))).toBe(true);
     expect(await west.evaluate((el) => !!el.closest("[inert]"))).toBe(true);
     expect(writes.map((write) => write.id)).toEqual([1, 9]);
-    expect(await page.evaluate(() => (window as unknown as { readBlockers: () => { blocked: boolean } }).readBlockers().blocked)).toBe(true);
-    await page.getByRole("button", { name: "Check saved access", exact: true }).first().click();
-    await page.getByText("Employee access confirmed in saved records.", { exact: true }).waitFor();
+    expect(
+      await page.evaluate(
+        () =>
+          (
+            window as unknown as { readBlockers: () => { blocked: boolean } }
+          ).readBlockers().blocked,
+      ),
+    ).toBe(true);
+    await page
+      .getByRole("button", { name: "Check saved access", exact: true })
+      .first()
+      .click();
+    await page
+      .getByText("Employee access confirmed in saved records.", { exact: true })
+      .waitFor();
     expect(writes.map((write) => write.id)).toEqual([1, 9]);
   } finally {
     await page.close();
