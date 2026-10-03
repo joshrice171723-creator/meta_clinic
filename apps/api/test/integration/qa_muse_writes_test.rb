@@ -97,7 +97,7 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "failed archive and deployment during archive roll back the entire write" do
+  test "failed archive rolls back but deployment during archive records a boundary" do
     input = verdict("evidence" => [{ "kind" => "screenshot", "url" => "https://files.example.invalid/image.png" }])
     with_build do
       with_qa_method(Qa::MuseEvidence, :download!, ->(_url) { raise Qa::MuseEvidence::ArchiveFailed, "Expired file" }) do
@@ -108,15 +108,22 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
         end
       end
       with_qa_method(Qa::MuseEvidence, :download!, ->(_url) { @build["revision"] = "e" * 40; ["\x89PNG\r\n\x1a\n".b, "image/png"] }) do
-        assert_no_difference ["Qa::Evidence.count", "Qa::Event.count", "Qa::Snapshot.count"] do
+        assert_difference "Qa::Evidence.count", 1 do
           signed_post "/qa/api/verdict", input
-          assert_response :conflict
+          assert_response :created
+          observations = response.parsed_body.fetch("server_build_observations")
+          assert_equal [@revision, "e" * 40, "e" * 40], observations.map { |item| item["revision"] }
+          assert_equal "deployment_changed", observations.last["boundary"]
+          assert_equal @revision, response.parsed_body.fetch("evidence").first.fetch("build_pin")
+          assert_equal true, response.parsed_body["mixed_build"]
+          get "/api/qa/office/qa"
+          assert_equal true, response.parsed_body.dig("coverage", "workflows").first["stale_build"]
         end
       end
     end
   end
 
-  test "every machine action rejects stale pins and unverified synthetic scope" do
+  test "every machine action records stale reported builds but rejects unverified synthetic scope" do
     actions = {
       "/qa/api/workflow/claim" => body("agent" => "Muse"), "/qa/api/verdict" => verdict,
       "/qa/api/defect" => { "build_pin" => @revision, "idempotency_key" => SecureRandom.uuid, "title" => "Synthetic defect", "repro_steps" => ["Open board"], "evidence" => [@observation], "affected_workflow_ids" => ["WF-001"] },
@@ -124,36 +131,59 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
     }
     with_build do
       actions.each do |path, input|
-        assert_no_difference ["Qa::Event.count", "Qa::Snapshot.count", "Qa::Evidence.count"] do
-          signed_post path, input.merge("build_pin" => "e" * 40)
-          assert_response :conflict
-        end
+        signed_post path, input.merge("build_pin" => "e" * 40)
+        assert_response :created
+        observation = response.parsed_body.fetch("server_build_observations").first
+        assert_equal @revision, observation["revision"]
+        assert_equal "e" * 40, observation["reported_revision"]
+        assert_equal "deployment_changed", observation["boundary"]
       end
       Qa::Event.create!(user: @owner, event_key: "muse-fixture-revoked", kind: "workflow_fixture_revoked", summary: "Revoke synthetic registry", payload: { fixture_receipt_id: @registry.id })
       actions.each do |path, input|
         assert_no_difference ["Qa::Event.count", "Qa::Snapshot.count", "Qa::Evidence.count"] do
-          signed_post path, input
+          signed_post path, input.merge("idempotency_key" => SecureRandom.uuid)
           assert_response :forbidden
         end
       end
     end
   end
 
-  test "dirty missing or unapproved owner build pins fail closed" do
+  test "dirty absent metadata and absent legacy pins do not block authenticated verdicts" do
     with_build do
+      Qa::Snapshot.find_by!(key: "pin").destroy!
       [true, nil].each do |dirty|
         @build["dirty"] = dirty
         signed_post "/qa/api/verdict", verdict
-        assert_response :conflict
+        assert_response :created
+        assert_equal dirty, response.parsed_body.dig("server_build_observations", 0, "dirty")
       end
-      @build["dirty"] = false
-      Qa::Snapshot.put("pin", { "revision" => @revision, "confirmed_by" => "missing-owner@example.invalid" })
-      signed_post "/qa/api/verdict", verdict
-      assert_response :conflict
+      @build["revision"] = nil
+      signed_post "/qa/api/verdict", verdict("build_pin" => nil)
+      assert_response :created
+      assert_equal "unobserved", response.parsed_body["build_pin"]
+      assert_equal "unavailable", response.parsed_body.dig("server_build_observations", 0, "status")
     end
   end
 
-  test "old claims expire and seal under their original pin on one grid poll" do
+  test "historical screenshot reuse cannot imply current build acceptance" do
+    with_build do
+      artifact = Qa::Evidence.create!(user: @owner, issue_number: nil, workflow_ids: ["WF-001"], revision: @revision,
+        caption: "Synthetic older screenshot", content_type: "image/png", phase: "observation",
+        image: "\x89PNG\r\n\x1a\n".b, digest: "e" * 64,
+        context: { "fixture_scopes" => [Qa::MuseWrites.send(:fixture_scope!, "WF-001", @credential)] })
+      @build["revision"] = "e" * 40
+      signed_post "/qa/api/verdict", verdict("build_pin" => "e" * 40, "evidence" => [{ "kind" => "qa_evidence_id", "id" => artifact.id }])
+      assert_response :created
+      assert_equal @revision, response.parsed_body.fetch("evidence").first.fetch("build_pin")
+      assert_equal true, response.parsed_body["mixed_build"]
+      assert_equal [@revision], response.parsed_body["evidence_revisions"]
+      get "/api/qa/office/qa"
+      assert_equal true, response.parsed_body.dig("coverage", "workflows").first["stale_build"]
+      assert_equal @revision, artifact.reload.revision
+    end
+  end
+
+  test "deployment retains an active claim and records subsequent verdict observations" do
     with_build do
       signed_post "/qa/api/workflow/claim", body("agent" => "Muse")
       assert_response :created
@@ -162,17 +192,33 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
       get "/api/qa/office/qa"
       assert_response :success
       row = response.parsed_body.dig("coverage", "workflows").first
-      assert_equal "expired", row["status"]
+      assert_equal "in_progress", row["status"]
       assert_equal @revision, row["revision"]
-      assert_equal "build_changed", row.dig("seal", "reason")
-      seal = Qa::Event.find_by!(event_key: "muse:claim-expired:#{claim['receipt_id']}")
-      assert_equal @revision, seal.revision
-      assert_no_difference "Qa::Event.count" do
+      assert_nil Qa::Event.find_by(event_key: "muse:claim-expired:#{claim['receipt_id']}")
+      signed_post "/qa/api/workflow/claim", body("agent" => "Muse", "build_pin" => "e" * 40)
+      assert_response :conflict
+      signed_post "/qa/api/verdict", verdict
+      assert_response :created
+      assert_equal "e" * 40, response.parsed_body.dig("server_build_observations", 0, "revision")
+      assert_equal @revision, response.parsed_body["build_pin"]
+    end
+  end
+
+  test "only an elapsed lease expires a claim while retaining its original revision" do
+    freeze_time do
+      with_build do
+        signed_post "/qa/api/workflow/claim", body("agent" => "Muse")
+        assert_response :created
+        claim = response.parsed_body
+        travel 16.minutes
         get "/api/qa/office/qa"
         assert_response :success
+        row = response.parsed_body.dig("coverage", "workflows").first
+        assert_equal "expired", row["status"]
+        assert_equal @revision, row["revision"]
+        assert_equal "lease_expired", row.dig("seal", "reason")
+        assert_equal @revision, Qa::Event.find_by!(event_key: "muse:claim-expired:#{claim['receipt_id']}").revision
       end
-      signed_post "/qa/api/verdict", verdict
-      assert_response :conflict
     end
   end
 
@@ -238,7 +284,7 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
       assert_response :created
       assert_equal receipt, response.parsed_body
       get "/api/qa/office/qa"
-      assert_equal false, response.parsed_body["retest_requests"].first["ready"]
+      assert_equal true, response.parsed_body["retest_requests"].first["ready"]
       @build["revision"] = "e" * 40
       Qa::Snapshot.put("pin", { "revision" => @build["revision"], "confirmed_by" => @owner.email_address })
       get "/api/qa/office/qa"

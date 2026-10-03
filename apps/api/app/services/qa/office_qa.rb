@@ -24,9 +24,9 @@ module Qa
       { build:, pin:, diff_url: diff,
         ledger: { source: mirror ? mirror.fetch("source_label", "Muse KNOWN_ISSUES.md") : "Historical import; fresh Muse ledger unavailable", imported_at: mirror&.fetch("imported_at", nil),
           counts:, defects:, pending_requests: Task.where(kind: "coordination").where("payload ->> 'office_action' = 'file_defect'").where.not(id: recorded_tasks).order(created_at: :desc).limit(100).map { |task| OfficeWork.task_json(task, principal:) } },
-        coverage: { workflows: coverage.map { |item| item.merge("stale_build" => item["revision"].blank? || item["revision"] != revision || build["dirty"] == true) },
+        coverage: { workflows: coverage.map { |item| item.merge("stale_build" => item["historical"] == true || item["mixed_build"] == true || item["metadata_unavailable"] == true || item["revision"].blank? || item["revision"] != revision || build["dirty"] == true) },
           pointer: mirror ? mirror["pointer"] : state["coverage_pointer"], imported_at: mirror&.fetch("imported_at", nil), source: mirror ? mirror.fetch("source_label", "Muse COVERAGE_STATE.json / WORKFLOWS.md") : "Historical import", expected_total: 116 },
-        retest_requests: (Snapshot.find_by(key: MuseWrites::RETEST_SNAPSHOT)&.data&.fetch("requests", []) || []).map { |item| item.merge("ready" => item["requested_on_build"] != revision && revision.present? && build["dirty"] == false && old == revision) },
+        retest_requests: (Snapshot.find_by(key: MuseWrites::RETEST_SNAPSHOT)&.data&.fetch("requests", []) || []).map { |item| item.merge("ready" => true) },
         batches: batches.map { |batch| batch.merge("poll" => Snapshot.find_by(key: "office:batch:#{batch['id']}")&.data) },
         active_batch: batches.find { |batch| !%w[completed closed retested cancelled].include?(batch["status"]) },
         capabilities: { file_defect: principal.present?, request_retest: principal.present?, poll_batch: principal.present?, import_ledger: principal&.fetch(:name) == "muse" } }
@@ -93,12 +93,12 @@ module Qa
       raise ArgumentError, "Choose a severity." unless %w[critical high medium low].include?(input["severity"])
       workflow!(input["workflow"])
       %w[repro_steps expected actual].each { |field| AgentRoom.text!(input, field, 4000) }
-      build = clean_build!
-      report = input.except("request_key").merge("revision" => build["revision"], "version" => build["version"])
-      operation(user, token, input, "defect_submitted", report) do |identity, receipt_id|
+      operation(user, token, input, "defect_submitted", input.except("request_key")) do |identity, receipt_id|
+        build = clean_build!
+        report = input.except("request_key").merge("revision" => build["revision"], "version" => build["version"], "submission_build_observation" => build)
         title = "File defect: #{input['title']}".truncate(200)
         task = Task.create!(user:, kind: "coordination", recipient: "muse", title:, revision: build["revision"], request_key: "office-defect-#{receipt_id}", request_digest: Task.fingerprint(report),
-          payload: { office_action: "file_defect", report:, description: "Write this exact-build report to KNOWN_ISSUES.md, then import the full ledger with this task's originating_task_id. Do not run QA.",
+          payload: { office_action: "file_defect", report:, description: "Write this observed-build report to KNOWN_ISSUES.md, then import the full ledger with this task's originating_task_id. Do not run QA.",
             office_status: "queued", requester_principal: identity[:key], requester_actor: identity[:name], assigned_actor: "muse" })
         { "task" => OfficeWork.task_json(task, principal: identity), "receipt_id" => receipt_id, "delivery" => "submitted", "ledger_recorded" => false }
       end
@@ -109,15 +109,15 @@ module Qa
       raise ArgumentError, "defect_id must be a positive ledger id." unless input["defect_id"].is_a?(Integer) && input["defect_id"].positive?
       defect = Snapshot.find_by(key: KEY)&.data&.fetch("defects", [])&.find { |item| item["id"] == input["defect_id"] }
       raise ArgumentError, "Import the current Muse ledger before requesting this retest." unless defect
-      build = clean_build!
-      raise OfficeWork::Conflict, "Confirm the current exact-build pin before queuing a retest." unless Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == build["revision"]
-      report = { "defect_id" => defect["id"], "revision" => build["revision"] }
-      operation(user, token, input, "retest_submitted", report) do |identity, receipt_id|
-        # One retest per defect/build; an explicit new build is the retry boundary.
-        key = "office-retest-#{defect['id']}-#{build['revision']}"
+      operation(user, token, input, "retest_submitted", { "defect_id" => defect["id"] }) do |identity, receipt_id|
+        build = clean_build!
+        report = { "defect_id" => defect["id"], "revision" => build["revision"] }
+        # Known build deduplication does not require pin approval. Unknown
+        # metadata uses this persisted operation receipt as its boundary.
+        key = "office-retest-#{defect['id']}-#{build['revision'] || receipt_id}"
         task = Task.create_or_find_by!(request_key: key) do |record|
           record.assign_attributes(user:, kind: "retest", title: "Retest ##{defect['id']}: #{defect['title']}".truncate(200), recipient: "muse", revision: build["revision"], request_digest: Task.fingerprint(report),
-            payload: report.merge("version" => build["version"], "office_status" => "submitted", "requested_by_actor" => identity[:name]))
+            payload: report.merge("version" => build["version"], "office_status" => "submitted", "requested_by_actor" => identity[:name], "submission_build_observation" => build))
         end
         raise OfficeWork::Conflict, "Canonical retest key records different work." unless task.kind == "retest" && task.request_digest == Task.fingerprint(report)
         Workspace.event(user:, kind: "task_queued", summary: task.title, revision: task.revision, payload: { task_id: task.id }, event_key: "queued:#{task.id}")
@@ -156,9 +156,7 @@ module Qa
     end
 
     def self.clean_build!
-      build = Workspace.build
-      raise OfficeWork::Conflict, "A fresh clean exact build is required." unless build["revision"].is_a?(String) && build["revision"].match?(SHA) && build["version"].present? && !build["dirty"]
-      build
+      Workspace.build_observation
     end
 
     def self.workflow!(id)

@@ -42,15 +42,16 @@ module Qa
             Evidence.create!(user: credential.user, issue_number: nil, workflow_ids:, revision: build_pin,
               caption: "Muse screenshot: #{workflow_ids.join(', ')}".truncate(500), phase: "observation",
               image:, content_type:, digest: Digest::SHA256.hexdigest(image), created_at: Time.current,
-              context: { "fixture_scopes" => fixture_scopes })
+              context: { "fixture_scopes" => fixture_scopes, "submission_build_observation" => Workspace.build_observation(reported_revision: build_pin) })
           end
-          unless artifact && artifact.user_id == credential.user_id && artifact.revision == build_pin &&
+          unless artifact && artifact.user_id == credential.user_id &&
               (workflow_ids - artifact.workflow_ids).empty? && fixture_scopes.all? { |scope| artifact.context.fetch("fixture_scopes", []).include?(scope) }
-            raise MuseWrites::Denied, "Stored evidence does not match the exact build and verified workflow scope."
+            raise MuseWrites::Denied, "Stored evidence does not match the authenticated owner and verified workflow scope."
           end
           { "kind" => "screenshot", "id" => artifact.id, "url" => "/api/qa/evidence/#{artifact.id}",
             "sha256" => artifact.digest, "content_type" => artifact.content_type, "bytes" => artifact.image.bytesize,
-            "build_pin" => artifact.revision, "workflow_ids" => artifact.workflow_ids }
+            "build_pin" => artifact.revision, "workflow_ids" => artifact.workflow_ids,
+            "submission_build_observation" => Workspace.build_observation(reported_revision: artifact.revision) }
         end
       end
     rescue Timeout::Error
