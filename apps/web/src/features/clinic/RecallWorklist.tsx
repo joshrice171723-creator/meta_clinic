@@ -24,7 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import type { Patient } from "../../api/contracts";
 import { businessTimeAfter } from "../../shared/businessDate";
-import { useResource } from "../../shared/ui";
+import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { patientReferenceLabel } from "./patientReference";
 import { useClinicNavigation } from "./clinicNavigation";
@@ -146,9 +146,98 @@ export function RecallWorklist() {
   return <RecallWorklistContent />;
 }
 
+export function PatientCareGaps({ patientId }: { patientId: number }) {
+  const { capabilities } = useClinic();
+  const canRead =
+    capabilities.patients === true && capabilities.encounters === true;
+  const resource = useResource<RecallListResponse>(
+    `/api/clinic/recalls?status=all&patient_id=${patientId}`,
+    { enabled: canRead },
+  );
+  const data = resource.data;
+  const openCount = data
+    ? data.summary.due + data.summary.upcoming + data.summary.snoozed
+    : null;
+  const open =
+    data?.recalls.filter((recall) =>
+      ["due", "upcoming", "snoozed"].includes(recall.status),
+    ) ?? [];
+  const href = `/clinic/recalls?patient_id=${patientId}&status=all`;
+  return (
+    <Paper component="section" variant="outlined" sx={{ p: 1.5 }}>
+      <Stack spacing={1}>
+        <Typography component="h3" variant="h6">
+          Care gaps
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Recorded encounter follow-ups and recall worklist status.
+        </Typography>
+        {!canRead ? (
+          <Typography>
+            Recall records are not available for your account.
+          </Typography>
+        ) : resource.error || !data ? (
+          <LoadState error={resource.error} onRetry={resource.refresh} />
+        ) : (
+          <>
+            {openCount === 0 ? (
+              <Typography>
+                No open care gaps in the recorded recall worklist.
+              </Typography>
+            ) : (
+              <Typography>
+                {data.summary.due} due now · {data.summary.upcoming} upcoming ·{" "}
+                {data.summary.snoozed} snoozed
+              </Typography>
+            )}
+            {open.map((recall) => (
+              <Box key={recall.id}>
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                  {recall.plan}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {statusLabels[recall.status]} · Worklist due:{" "}
+                  {formatDateTime(recall.effective_due_at)}
+                </Typography>
+                <Button size="small" href={recall.encounter.href}>
+                  Review encounter follow-up
+                </Button>
+              </Box>
+            ))}
+            {data.summary.excluded > 0 && (
+              <Typography variant="body2">
+                {data.summary.excluded} excluded from the active worklist;
+                follow-up remains in the encounter.
+              </Typography>
+            )}
+            {data.truncated && (
+              <Alert severity="info">
+                Only the first 200 recall records are shown. The counts include
+                all authorized records.
+              </Alert>
+            )}
+            <Button size="small" href={href}>
+              Review patient recalls
+            </Button>
+            <Button size="small" onClick={resource.refresh}>
+              Refresh care gaps
+            </Button>
+          </>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
 function RecallWorklistContent() {
   const { current_site } = useClinic();
-  const [status, setStatus] = useState<RecallStatus>("due");
+  const search = new URLSearchParams(window.location.search);
+  const patientId = search.get("patient_id");
+  const selectedPatientId =
+    patientId && /^[1-9]\d*$/.test(patientId) ? patientId : null;
+  const [status, setStatus] = useState<RecallStatus>(() =>
+    selectedPatientId && search.get("status") === "all" ? "all" : "due",
+  );
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<RecallDetailResponse | null>(null);
   const [detailError, setDetailError] = useState("");
@@ -158,6 +247,7 @@ function RecallWorklistContent() {
   const [notice, setNotice] = useState("");
   const query = new URLSearchParams({ status });
   if (current_site?.id) query.set("site_id", String(current_site.id));
+  if (selectedPatientId) query.set("patient_id", selectedPatientId);
   const resource = useResource<RecallListResponse>(
     `/api/clinic/recalls?${query.toString()}`,
   );
@@ -209,6 +299,14 @@ function RecallWorklistContent() {
       </Box>
 
       {notice && <Alert severity="success">{notice}</Alert>}
+      {selectedPatientId && (
+        <Alert
+          severity="info"
+          action={<Button href="/clinic/recalls">Show all patients</Button>}
+        >
+          Showing recalls for the selected patient.
+        </Alert>
+      )}
       {resource.data && (
         <Stack
           direction="row"

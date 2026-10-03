@@ -222,6 +222,14 @@ const nav = [
 export function QaWorkspace() {
   const impact = useChangeImpact();
   const [data, setData] = useState<Workspace>();
+  const [coverageLedger, setCoverageLedger] = useState<{
+    coverage: {
+      workflows: RecordData[];
+      source: string;
+      expected_total: number;
+    };
+  }>();
+  const [coverageError, setCoverageError] = useState("");
   const [live, setLive] = useState<Build>();
   const [buildError, setBuildError] = useState("");
   const [error, setError] = useState("");
@@ -262,6 +270,26 @@ export function QaWorkspace() {
     async (github = false) => {
       await Promise.all([
         refreshOffice(),
+        (async () => {
+          try {
+            const ledger = await api<{
+              coverage: {
+                workflows: RecordData[];
+                source: string;
+                expected_total: number;
+              };
+            }>("/api/qa/office/qa");
+            setCoverageLedger(ledger);
+            setCoverageError("");
+          } catch (reason) {
+            setCoverageLedger(undefined);
+            setCoverageError(
+              reason instanceof Error
+                ? reason.message
+                : "Workflow coverage is unavailable.",
+            );
+          }
+        })(),
         (async () => {
           try {
             const workspace = await api<Workspace>(
@@ -321,6 +349,7 @@ export function QaWorkspace() {
   const perform = async (action: () => Promise<unknown>, message: string) => {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       await action();
       setNotice(message);
@@ -382,12 +411,15 @@ export function QaWorkspace() {
   );
   const pending = retests.filter((item) => !verdictDone(item.status));
   const completed = retests.filter((item) => verdictDone(item.status)).length;
-  const coverage: RecordData[] = Array.isArray(data?.state.coverage)
-    ? data.state.coverage
-    : Object.entries(data?.state.coverage ?? {}).map(([id, item]) => ({
-        id,
-        ...item,
-      }));
+  const coverage = coverageLedger?.coverage.workflows ?? [];
+  const recordedVerdicts = coverage.filter(
+    (item) =>
+      item.historical === false &&
+      ["pass", "fail", "blocked"].includes(
+        String(item.result ?? item.status),
+      ) &&
+      typeof item.revision === "string",
+  ).length;
   const scheduler = data?.state.scheduler;
   const schedulerStale = Boolean(
     scheduler &&
@@ -1279,12 +1311,17 @@ export function QaWorkspace() {
                 <PanelTitle
                   tag="WORKFLOWS"
                   title="Coverage ledger"
-                  detail={`${coverage.length} supplied workflow records · total catalog ${data.state.coverage_total ?? 116}`}
+                  detail={`${recordedVerdicts} recorded Muse verdicts · ${coverage.length} workflow records · total catalog ${coverageLedger?.coverage.expected_total ?? 116}`}
                 />
                 <p>
-                  Missing workflow exports are unassessed. Historical passes
-                  retain their original revision.
+                  {coverageLedger?.coverage.source ??
+                    "Coverage source unavailable"}
+                  . Verdicts retain their original revision. Imported rows and
+                  expired claims do not establish current-build acceptance.
                 </p>
+                {coverageError && (
+                  <Alert severity="error">{coverageError}</Alert>
+                )}
                 <QaChangeImpact selection={impact} revision={live?.revision} />
                 <form onSubmit={importCoverage} className="qa-dialog-fields">
                   <TextField
@@ -1299,7 +1336,7 @@ export function QaWorkspace() {
                         (event.target as HTMLInputElement).files?.[0],
                       )
                     }
-                    helperText="Upload the expanded export. Importing preserves historical results and does not record a live-build verdict."
+                    helperText="Imports preserve history. The authenticated Muse ledger takes precedence and does not require an export."
                     required
                   />
                   <Button type="submit" disabled={busy || !coverageFile}>
@@ -1326,6 +1363,9 @@ export function QaWorkspace() {
                             <Status
                               status={value(item.result ?? item.status)}
                             />
+                            {item.stale_build === true && (
+                              <small>Historical · stale build</small>
+                            )}
                           </td>
                           <td>
                             {stamp(
@@ -1344,7 +1384,24 @@ export function QaWorkspace() {
                               <code>{value(item.revision)}</code>
                             </small>
                           </td>
-                          <td>{value(item.evidence_ref ?? item.evidence)}</td>
+                          <td>
+                            {value(
+                              item.evidence_ref ??
+                                (Array.isArray(item.evidence)
+                                  ? item.evidence
+                                      .map((entry) => {
+                                        const evidence = entry as RecordData;
+                                        return (
+                                          evidence.text ??
+                                          evidence.url ??
+                                          evidence.id ??
+                                          "Archived evidence"
+                                        );
+                                      })
+                                      .join(" · ")
+                                  : item.evidence),
+                            )}
+                          </td>
                           <td>
                             <QaImpactDetail
                               scope={impact.scope}
@@ -1358,10 +1415,11 @@ export function QaWorkspace() {
                     </tbody>
                   </table>
                 </div>
-                {!coverage.length && (
+                {!coverage.length && !coverageError && (
                   <p className="qa-empty">
-                    The supplied text contains collapsed workflow data. Import
-                    Muse's full COVERAGE_STATE.json to fill this ledger.
+                    No workflow records are available yet. Recorded Muse
+                    verdicts appear here automatically; older exports can be
+                    imported as history.
                   </p>
                 )}
               </section>
@@ -1604,24 +1662,37 @@ export function QaWorkspace() {
           onSubmit={(event) => {
             event.preventDefault();
             const form = new FormData(event.currentTarget);
-            void perform(
-              () =>
-                api("/api/qa/pin", {
-                  method: "POST",
-                  body: {
-                    revision: live?.revision,
-                    reason: form.get("reason"),
-                  },
-                }),
-              "Live build pinned. QA requests can now be queued.",
-            ).then((saved) => {
-              if (saved) setPinDialog(false);
-            });
+            void perform(async () => {
+              const result = await api<{
+                status?: string;
+                revision: string;
+                confirmed_at?: string;
+              }>("/api/qa/pin", {
+                method: "POST",
+                body: {
+                  revision: live?.revision,
+                  reason: form.get("reason"),
+                },
+              });
+              if (result.status === "proposed")
+                throw new Error(
+                  "Pin proposal recorded. Sign in with an owner account to confirm it; QA remains paused.",
+                );
+              if (result.revision !== live?.revision || !result.confirmed_at)
+                throw new Error(
+                  "The build pin was not confirmed. Refresh the workspace before trying again.",
+                );
+            }, "Live build pinned. QA requests can now be queued.").then(
+              (saved) => {
+                if (saved) setPinDialog(false);
+              },
+            );
           }}
         >
           <DialogTitle>Confirm the build for QA</DialogTitle>
           <DialogContent className="qa-dialog-fields">
             <code>{live?.revision}</code>
+            {error && <Alert severity="error">{error}</Alert>}
             <TextField
               name="reason"
               label="Why is this the build to review?"

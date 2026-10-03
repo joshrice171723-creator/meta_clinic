@@ -405,6 +405,8 @@ function ConfigurationManifestDownload() {
     generatedAt: string;
   } | null>(null);
   const [comparisonError, setComparisonError] = useState("");
+  const [downloadNotice, setDownloadNotice] = useState("");
+  const [downloadError, setDownloadError] = useState("");
   const comparisonGeneration = useRef(0);
   const [mappingGeneration, setMappingGeneration] = useState(0);
   const compareFile = async (file?: File) => {
@@ -515,22 +517,40 @@ function ConfigurationManifestDownload() {
     comparisonGeneration.current += 1;
     setComparison(null);
     setComparisonError("");
+    setDownloadNotice("");
+    setDownloadError("");
     result.refresh();
   };
   const download = () => {
     if (!manifest) return;
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(manifest, null, 2)], {
-        type: "application/json",
-      }),
-    );
+    setDownloadNotice("");
+    setDownloadError("");
+    let url: string | undefined;
     const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `clinic-configuration-${manifest.configuration.practice.features.revision}.json`;
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    try {
+      url = URL.createObjectURL(
+        new Blob([JSON.stringify(manifest, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      anchor.href = url;
+      anchor.download = `clinic-configuration-${manifest.configuration.practice.features.revision}.json`;
+      document.body.append(anchor);
+      anchor.click();
+      setDownloadNotice(
+        `Download requested: ${anchor.download}. Check your browser downloads for the file.`,
+      );
+    } catch {
+      setDownloadError(
+        "The configuration download could not be started. Try again from this snapshot.",
+      );
+    } finally {
+      anchor.remove();
+      if (url) {
+        const downloadUrl = url;
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+      }
+    }
   };
 
   return (
@@ -561,6 +581,8 @@ function ConfigurationManifestDownload() {
           >
             Download configuration JSON
           </Button>
+          {downloadNotice && <Alert severity="info">{downloadNotice}</Alert>}
+          {downloadError && <Alert severity="error">{downloadError}</Alert>}
           <Button
             size="small"
             sx={{ alignSelf: "flex-start" }}

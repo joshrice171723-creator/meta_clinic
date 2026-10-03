@@ -3,6 +3,10 @@ module Clinic
     before_action -> { require_capability("reminders.read") }, only: %i[index show batch_preview]
     before_action -> { require_capability("reminders.write") }, only: %i[create batch_schedule pause cancel retry dispatch_reminder record_delivery recover staff_handoff]
 
+    rescue_from ArgumentError do |error|
+      render json: { error: error.message, code: "invalid_request" }, status: :unprocessable_entity
+    end
+
     def recover
       render json: Clinic::Reminders::RecoverJob.perform_now(
         practice_id: current_practice.id, actor_id: current_user.id

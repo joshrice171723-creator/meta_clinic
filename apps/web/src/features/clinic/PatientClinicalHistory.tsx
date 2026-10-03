@@ -22,6 +22,7 @@ import {
 import { api, ApiError } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinicNavigation } from "./clinicNavigation";
+import { PatientCareGaps } from "./RecallWorklist";
 import {
   HISTORY_LABELS,
   humanize,
@@ -609,6 +610,7 @@ export function PatientClinicalHistory({
       sx={{ p: { xs: 1.5, md: 2 } }}
     >
       <Stack spacing={1.5}>
+        <PatientCareGaps key={patientId} patientId={patientId} />
         <Box>
           <Typography variant="h6">Clinical history</Typography>
           <Typography variant="body2" color="text.secondary">
