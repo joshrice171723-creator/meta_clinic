@@ -1079,7 +1079,7 @@ export function Reminders() {
           {notice}
         </Alert>
       )}
-      {error && (
+      {error && !(tab === 0 && selected) && (
         <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
           {error}
         </Alert>
@@ -1406,6 +1406,11 @@ export function Reminders() {
                     Sandbox mode — no real SMS is sent. A verified mobile number
                     and reminder consent are still rechecked by the server.
                   </Alert>
+                  {error && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {error}
+                    </Alert>
+                  )}
                   <Button
                     fullWidth
                     variant="contained"
