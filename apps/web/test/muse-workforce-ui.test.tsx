@@ -679,3 +679,96 @@ it.each([
     }
   },
 );
+
+it("Muse247 retains the newly created draft when older demo shifts exist", async () => {
+  const page = await browser.newPage();
+  const oldDraft = {
+    id: "247-old",
+    site_id: "1",
+    week_start_on: "2026-09-21",
+    timezone: "UTC",
+    status: "draft",
+    revision: 3,
+    schedule_template_id: null,
+    shifts: [
+      {
+        id: "247-old-shift",
+        employment_id: "1",
+        employee_name: "Old synthetic shift",
+        starts_at: "2026-09-22T09:00:00Z",
+        ends_at: "2026-09-22T13:00:00Z",
+        local_start: "2026-09-22T09:00",
+        local_end: "2026-09-22T13:00",
+        timezone: "UTC",
+        role_name: null,
+        break_minutes: 0,
+      },
+    ],
+  };
+  let created: typeof oldDraft | undefined;
+  const loadedDrafts: string[] = [];
+  try {
+    await page.route(
+      (url) => url.pathname.startsWith("/api/"),
+      (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        let body: unknown;
+        let status = 200;
+        if (path === "/api/csrf") body = { csrf_token: "synthetic-only" };
+        else if (path === "/api/clinic/workforce/schedules")
+          body = {
+            schema_version: "workforce-schedule.v1",
+            site: { id: "1", name: "Synthetic One", timezone: "UTC" },
+            settings: {},
+            templates: [],
+            publications: [],
+            employments: [],
+            drafts: created ? [created, oldDraft] : [oldDraft],
+          };
+        else if (
+          path === "/api/clinic/workforce/schedule-drafts" &&
+          request.method() === "POST"
+        ) {
+          const input = request.postDataJSON().draft;
+          created = {
+            ...oldDraft,
+            id: "247-new",
+            week_start_on: input.week_start_on,
+            revision: 1,
+            shifts: [],
+          };
+          status = 201;
+          body = { draft: created };
+        } else if (path.startsWith("/api/clinic/workforce/schedule-drafts/")) {
+          const id = path.split("/").at(-1)!;
+          loadedDrafts.push(id);
+          body = { draft: id === oldDraft.id ? oldDraft : created };
+        } else {
+          status = 404;
+          body = { error: "Unexpected synthetic request" };
+        }
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify(body),
+        });
+      },
+    );
+    await page.goto(base + "qa-workforce?mode=schedule");
+    await page.getByText("Old synthetic shift", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "New current-week draft", exact: true })
+      .click();
+    await expect.poll(() => loadedDrafts.at(-1)).toBe("247-new");
+    await expect
+      .poll(() => page.getByLabel("Draft week").textContent())
+      .toContain(created!.week_start_on);
+    expect(
+      await page.getByText("Old synthetic shift", { exact: true }).count(),
+    ).toBe(0);
+    // Mounted selection proof only; real validation/publication is a separate API check.
+  } finally {
+    await page.close();
+  }
+});

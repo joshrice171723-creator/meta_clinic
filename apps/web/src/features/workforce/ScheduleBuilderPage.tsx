@@ -84,7 +84,7 @@ export function ScheduleBuilderPage() {
     return next;
   };
 
-  const load = async () => {
+  const load = async (preferredDraftId?: string) => {
     if (!currentSiteId) return;
     const revision = ++loadRevision.current;
     const expectedSiteId = currentSiteId;
@@ -109,10 +109,12 @@ export function ScheduleBuilderPage() {
       )
         return;
       setData(next);
-      const openDraft =
-        draft?.site_id === expectedSiteId
-          ? next.drafts.find((item) => item.id === draft.id)
-          : next.drafts[0];
+      const selectedDraftId =
+        preferredDraftId ??
+        (draft?.site_id === expectedSiteId ? draft.id : undefined);
+      const openDraft = selectedDraftId
+        ? next.drafts.find((item) => item.id === selectedDraftId)
+        : next.drafts[0];
       if (openDraft) {
         const nextDraft = await loadDraft(openDraft.id, expectedSiteId);
         if (nextDraft) setDraft(nextDraft);
@@ -189,7 +191,7 @@ export function ScheduleBuilderPage() {
       );
       setDraft(result.draft);
       setNotice("Draft created and saved.");
-      await load();
+      await load(result.draft.id);
     } catch (reason) {
       setError(
         reason instanceof Error
