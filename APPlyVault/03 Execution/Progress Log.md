@@ -1438,3 +1438,8 @@ Joshua requested direct editable workflow controls. Added local-key signing cont
 
 
 Published clickable Muse QA controls as 0.2.6 at aab93057 on aimetaclinic.com after pushing main. Exact clean-build readback, hosted release checks and live route/auth checks passed. Live Muse key approval, verified fixture registration and screenshot hostname setup remain pending; no live verdict acceptance is claimed. See the delivery record above.
+
+
+### 2026-10-03 - Muse fixture registry activated
+
+Registered a server-generated empty QA result fixture scope for Muse's approved key, covering WF-001 through WF-116 on the existing 0.2.6 / aab93057 build. Live registry resolution passed for all 116 IDs; rerunning registration reused receipt 529 and provenance receipt 528 without duplication. Muse's actual verdict submission remains pending. See [the QA delivery record](../../records/progress/2026/10/2026-10-03-muse-qa-write-api.md) for the operator procedure and scope limits.
