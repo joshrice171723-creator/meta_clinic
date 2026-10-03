@@ -145,10 +145,7 @@ export function SlotProvenance({ booking }: { booking?: CalendarBooking }) {
         . Availability is checked again when booking.
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        Capacity source:{" "}
-        {provenance.source_rules
-          .map((rule) => `rule #${rule.id}, version ${rule.version}`)
-          .join("; ")}
+        {`Capacity calculated from ${provenance.source_rules.length} saved availability ${provenance.source_rules.length === 1 ? "rule" : "rules"}.`}
       </Typography>
     </Stack>
   );

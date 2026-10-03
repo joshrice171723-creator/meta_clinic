@@ -40,7 +40,13 @@ module Clinic
           authorization: -> { authorize_write!(practice, actor, patient, encounter) },
           result_resource: ->(event) { event },
           resource_resolver: ->(practice:, receipt:) {
-            PatientEducationEvent.where(practice:, patient:, encounter:).find_by(id: receipt.resource_id)
+            if receipt.outcome_outcome_unconfirmed?
+              if receipt.resource_type == encounter.class.name && receipt.resource_id == encounter.id
+                encounter
+              end
+            else
+              PatientEducationEvent.where(practice:, patient:, encounter:).find_by(id: receipt.resource_id)
+            end
           }
         ) do
           locked_encounter = practice.encounters.where(patient:).lock.find(encounter.id)

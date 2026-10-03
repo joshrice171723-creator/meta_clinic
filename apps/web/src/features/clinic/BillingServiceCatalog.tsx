@@ -277,8 +277,7 @@ export function BillingServiceCatalog() {
                       {service.name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Service #{service.id} · Catalog version{" "}
-                      {service.lock_version}
+                      Price catalog entry
                     </Typography>
                     {service.description && (
                       <Typography variant="body2" color="text.secondary">
@@ -288,7 +287,7 @@ export function BillingServiceCatalog() {
                   </TableCell>
                   <TableCell>{service.code || "—"}</TableCell>
                   <TableCell>
-                    {service.currency} {service.unit_amount}
+                    {`${service.currency === "USD" ? "$" : `${service.currency} `}${service.unit_amount.split(".")[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(service.unit_amount.split(".")[1] ?? "").padEnd(2, "0")}`}
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -315,9 +314,9 @@ export function BillingServiceCatalog() {
           </Table>
         </TableContainer>
         <Typography variant="body2" color="text.secondary">
-          Invoice lines selected from this catalog use the selected service
-          version. Catalog edits do not rewrite recorded invoice descriptions or
-          charges.
+          {
+            "Invoice lines use the selected service price. Catalog edits do not rewrite recorded invoice descriptions or charges."
+          }
         </Typography>
         {result && (
           <Pager

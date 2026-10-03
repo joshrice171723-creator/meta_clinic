@@ -136,7 +136,7 @@ function ReminderPolicyForm({
       }}
     >
       <Typography variant="body2" color="text.secondary">
-        Saved reminder policy revision {saved.revision}
+        Reminder policy saved.
         {saved.effective_from
           ? ` · Effective ${new Date(saved.effective_from).toLocaleString()}`
           : ""}

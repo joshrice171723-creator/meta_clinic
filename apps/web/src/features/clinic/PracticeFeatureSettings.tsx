@@ -616,18 +616,16 @@ export function PracticeFeatureSettings({
             <Typography variant="h2">
               {siteId ? "Location" : "Clinic"} profile
             </Typography>
-            <Chip
-              size="small"
-              color="success"
-              label={`Finalized ┬╖ revision ${features.revision}`}
-            />
+            <Chip size="small" color="success" label="Setup finalized" />
           </Stack>
           <Alert severity="info">
             Setup finalized
-            {features.finalized_at ? ` ${features.finalized_at}` : ""}. Clinic
-            type and insurance workflow remain protected. Authorized service and
-            assessment changes remain available through the supported change
-            review below.
+            {features.finalized_at
+              ? ` ${new Date(features.finalized_at).toLocaleString()}`
+              : ""}
+            . Clinic type and insurance workflow remain protected. Authorized
+            service and assessment changes remain available through the
+            supported change review below.
           </Alert>
 
           <Stack spacing={1.5}>
@@ -723,6 +721,19 @@ export function PracticeFeatureSettings({
       ));
   const currentPreview = preview?.signature === signature ? preview.data : null;
   const editingLocked = saving || uncertain !== null;
+  const saveDisabledReason = !canWrite
+    ? "Your access does not allow location profile changes."
+    : !clinicType
+      ? "Choose a clinic type before saving."
+      : saving
+        ? "The profile is saving."
+        : uncertain
+          ? "Reconcile the original profile save before making another change."
+          : disabling && currentPreview?.review_complete !== true
+            ? "Review scope consequences below before saving removed services or assessment categories. You can also restore the removed selections."
+            : !changed && features.configured
+              ? "Make a profile change to enable Save."
+              : null;
   const reviewConsequences = async () => {
     const generation = ++previewGeneration.current;
     setPreview(null);
@@ -983,8 +994,7 @@ export function PracticeFeatureSettings({
             />
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            This panel saves the {siteId ? "location" : "clinic"} profile.
-            Service offerings are configured separately.
+            {`This panel saves the ${siteId ? "location" : "clinic"} profile. Service offerings are configured separately below.`}
           </Typography>
           <Typography color="text.secondary">
             An Implementation Specialist (FDE) starts with the Meta Clinic base
@@ -1010,7 +1020,7 @@ export function PracticeFeatureSettings({
           {feedback && <Alert severity={feedback.tone}>{feedback.text}</Alert>}
           {features.finalized && (
             <Alert severity="info">
-              Setup finalized {features.finalized_at}. {features.change_handoff}
+              {`Setup finalized ${features.finalized_at ? new Date(features.finalized_at).toLocaleString() : ""}. ${features.change_handoff ?? ""}`}
             </Alert>
           )}
           {clinicType === "weight_loss" && (
@@ -1040,7 +1050,7 @@ export function PracticeFeatureSettings({
           >
             <Typography variant="subtitle1">Setup progress</Typography>
             <Typography color="text.secondary" variant="body2">
-              {completedSetupSteps} of {setupSteps.length} steps complete
+              {`${completedSetupSteps} of ${setupSteps.length} steps complete`}
             </Typography>
           </Stack>
           <LinearProgress
@@ -1452,15 +1462,17 @@ export function PracticeFeatureSettings({
           spacing={1}
           sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
         >
-          <Button
-            type="button"
-            color="inherit"
-            startIcon={<AutoFixHighOutlinedIcon />}
-            disabled={!canWrite || editingLocked || features.finalized}
-            onClick={applyRecommendation}
-          >
-            Use recommended starting scope
-          </Button>
+          {!features.finalized && (
+            <Button
+              type="button"
+              color="inherit"
+              startIcon={<AutoFixHighOutlinedIcon />}
+              disabled={!canWrite || editingLocked || features.finalized}
+              onClick={applyRecommendation}
+            >
+              Use recommended starting scope
+            </Button>
+          )}
           {!features.finalized && features.configured && (
             <Button
               id="clinic-setup-finalize"
@@ -1476,13 +1488,8 @@ export function PracticeFeatureSettings({
             variant="contained"
             data-demo-next
             startIcon={<SaveOutlinedIcon />}
-            disabled={
-              !canWrite ||
-              !clinicType ||
-              editingLocked ||
-              (!changed && features.configured) ||
-              (disabling && currentPreview?.review_complete !== true)
-            }
+            disabled={saveDisabledReason !== null}
+            aria-describedby="profile-save-status"
             onClick={() => void save()}
           >
             {saving
@@ -1490,6 +1497,16 @@ export function PracticeFeatureSettings({
               : `Save ${siteId ? "location" : "clinic"} profile`}
           </Button>
         </Stack>
+        {saveDisabledReason && (
+          <Typography
+            id="profile-save-status"
+            variant="body2"
+            color="text.secondary"
+            role="status"
+          >
+            {saveDisabledReason}
+          </Typography>
+        )}
         {canWrite && !editingLocked && features.revision > 1 && (
           <FeatureHistory
             key={siteId ?? "clinic"}

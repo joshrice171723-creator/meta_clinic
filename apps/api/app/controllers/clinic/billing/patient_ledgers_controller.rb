@@ -6,6 +6,7 @@ module Clinic
         request.content_security_policy_nonce_directives = %w[script-src style-src]
         policy.script_src :self
         policy.style_src :self
+        policy.frame_ancestors :self
       end
 
       before_action -> { require_capability_with_legacy("billing.read", "billing.write") }

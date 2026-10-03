@@ -186,6 +186,9 @@ function EncounterFollowUpEditor({
   const [notice, setNotice] = useState("");
   const [restored, setRestored] = useState(false);
   const [pending, setPending] = useState(false);
+  const [needsVersionRefresh, setNeedsVersionRefresh] = useState(false);
+  const [serverConflict, setServerConflict] =
+    useState<EncounterFollowUpRecord | null>(null);
   const pendingDraftRef = useRef<FollowUpDraft | null>(null);
   const baseVersionRef = useRef(0);
   const busyRef = useRef(false);
@@ -340,6 +343,8 @@ function EncounterFollowUpEditor({
     baseVersionRef.current = record.version;
     pendingDraftRef.current = null;
     setPending(false);
+    setNeedsVersionRefresh(false);
+    setServerConflict(null);
     setStatus(record.status === "completed" ? "not_required" : record.status);
     setStatusConfirmed(true);
     setPlan(record.plan);
@@ -387,6 +392,7 @@ function EncounterFollowUpEditor({
         return;
       }
       adoptConfirmed(result.follow_up);
+      setNeedsVersionRefresh(false);
       setNotice(
         request.kind === "record"
           ? "Follow-up plan saved."
@@ -401,14 +407,25 @@ function EncounterFollowUpEditor({
         reason.status === 408 ||
         reason.status >= 500 ||
         reason.code === "outcome_unconfirmed";
-      if (!unknown) await releasePending();
+      const staleConflict =
+        reason instanceof ApiError &&
+        reason.status === 409 &&
+        reason.code === "stale_record";
+      // A stale-version rejection does not refresh the
+      // version held by the recovered draft. Keep the exact attempt pending so
+      // the explicit reconciliation action can load the current record and
+      // rebase the user's edits before a new request key is created.
+      if (!unknown && !staleConflict) await releasePending();
+      if (staleConflict) setNeedsVersionRefresh(true);
       if (!active.current) return;
       setError(
         unknown
           ? "The follow-up outcome is unknown. Check the current record or retry this exact request."
-          : reason instanceof Error
-            ? reason.message
-            : "The follow-up could not be saved.",
+          : staleConflict
+            ? "The follow-up changed before this save. Check the current record to refresh its version before saving again."
+            : reason instanceof Error
+              ? reason.message
+              : "The follow-up could not be saved.",
       );
     }
   };
@@ -603,6 +620,8 @@ function EncounterFollowUpEditor({
       ) {
         await releasePending(current.follow_up.version);
         if (!active.current) return;
+        setNeedsVersionRefresh(false);
+        setServerConflict(current.follow_up);
         setNotice(
           "The follow-up changed while this request was unresolved. Your local edits were kept; review them before saving a new request.",
         );
@@ -685,15 +704,26 @@ function EncounterFollowUpEditor({
         )}
         {pending && (
           <Alert
-            severity="warning"
+            severity={needsVersionRefresh ? "error" : "warning"}
             action={
               <Button onClick={() => void checkPendingStatus()} disabled={busy}>
                 Check current status
               </Button>
             }
           >
-            This exact follow-up request is retained. Check its status or retry
-            it without changing the fields.
+            {needsVersionRefresh
+              ? "This save was rejected because the follow-up changed. Check current status to refresh its version and keep your edits before saving again."
+              : "This exact follow-up request is retained. Check its status or retry it without changing the fields."}
+          </Alert>
+        )}
+        {serverConflict && (
+          <Alert severity="info">
+            Latest saved follow-up (version {serverConflict.version}):{" "}
+            {serverConflict.recorded_status.replaceAll("_", " ")} —{" "}
+            {serverConflict.plan || "No plan recorded"}
+            {serverConflict.due_at
+              ? ` · Due ${dateLabel(serverConflict.due_at, timezone)}`
+              : ""}
           </Alert>
         )}
         {followUp?.status === "completed" ? (
@@ -812,14 +842,19 @@ function EncounterFollowUpEditor({
                 variant="contained"
                 onClick={() => void save()}
                 disabled={
-                  busy || !recovery.ready || recovery.status === "saving"
+                  busy ||
+                  needsVersionRefresh ||
+                  !recovery.ready ||
+                  recovery.status === "saving"
                 }
                 sx={{ alignSelf: "flex-start" }}
               >
                 {busy
                   ? "Saving…"
                   : pending
-                    ? "Retry same save"
+                    ? needsVersionRefresh
+                      ? "Save follow-up"
+                      : "Retry same save"
                     : "Save follow-up"}
               </Button>
             )}

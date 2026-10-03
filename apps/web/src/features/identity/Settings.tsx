@@ -316,7 +316,7 @@ export function Settings({ user }: { user: User }) {
           sx={{ mt: 4 }}
         >
           <h2 id="clinic-settings-heading">Clinic settings</h2>
-          <p className="clinic-lead">Settings for {clinic.practice.name}.</p>
+          <p className="clinic-lead">{`Settings for ${clinic.practice.name}.`}</p>
           {clinic.capabilities.telehealth_configure && (
             <Button
               href="/clinic/settings/telehealth"

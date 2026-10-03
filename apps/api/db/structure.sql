@@ -8240,7 +8240,7 @@ CREATE TABLE public.clinic_patient_education_events (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT patient_education_codes CHECK ((((topic_code)::text = ANY ((ARRAY['medication'::character varying, 'diagnosis'::character varying, 'self_care'::character varying, 'warning_signs'::character varying, 'procedure'::character varying, 'device'::character varying, 'follow_up'::character varying, 'prevention'::character varying, 'other'::character varying])::text[])) AND ((delivery_method)::text = ANY ((ARRAY['discussion'::character varying, 'handout'::character varying, 'portal'::character varying, 'demonstration'::character varying])::text[])) AND ((recipient)::text = ANY ((ARRAY['patient'::character varying, 'caregiver'::character varying, 'both'::character varying])::text[])) AND ((teach_back_status)::text = ANY ((ARRAY['demonstrated'::character varying, 'needs_reteaching'::character varying, 'declined'::character varying, 'unable'::character varying, 'not_applicable'::character varying])::text[])))),
-    CONSTRAINT patient_education_evidence CHECK ((((char_length(TRIM(BOTH FROM topic_title)) >= 1) AND (char_length(TRIM(BOTH FROM topic_title)) <= 240)) AND ((char_length(TRIM(BOTH FROM language)) >= 1) AND (char_length(TRIM(BOTH FROM language)) <= 80)) AND (((delivery_method)::text <> ALL ((ARRAY['handout'::character varying, 'portal'::character varying])::text[])) OR (material_title IS NOT NULL)) AND (((teach_back_status)::text <> 'demonstrated'::text) OR (patient_response IS NOT NULL)) AND (((teach_back_status)::text <> 'needs_reteaching'::text) OR ((reteaching_summary IS NOT NULL) AND follow_up_needed)) AND ((NOT follow_up_needed) OR (follow_up_plan IS NOT NULL))))
+    CONSTRAINT patient_education_evidence CHECK (((char_length(TRIM(BOTH FROM topic_title)) > 0) AND ((char_length(TRIM(BOTH FROM language)) >= 1) AND (char_length(TRIM(BOTH FROM language)) <= 80)) AND (((delivery_method)::text <> ALL ((ARRAY['handout'::character varying, 'portal'::character varying])::text[])) OR (material_title IS NOT NULL)) AND (((teach_back_status)::text <> 'demonstrated'::text) OR (patient_response IS NOT NULL)) AND (((teach_back_status)::text <> 'needs_reteaching'::text) OR ((reteaching_summary IS NOT NULL) AND follow_up_needed)) AND ((NOT follow_up_needed) OR (follow_up_plan IS NOT NULL))))
 );
 
 
@@ -36146,6 +36146,7 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261003171100'),
 ('20261003171000'),
 ('20261003170000'),
 ('20261002003000'),

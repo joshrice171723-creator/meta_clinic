@@ -3893,6 +3893,10 @@ export function templateWouldOverwrite(
   );
 }
 
+function hasTemplatePrompts(template: NoteTemplate) {
+  return SOAP_SECTION_LABELS.some(([key]) => template.sections[key].trim());
+}
+
 export function applySoapTemplate(
   sections: SoapNoteSections,
   template: NoteTemplate,
@@ -4028,6 +4032,12 @@ export function SoapNoteForm({
       : "";
 
   const applyTemplate = (template: NoteTemplate) => {
+    if (!hasTemplatePrompts(template)) {
+      setNotice(
+        `${template.label} contains no prompt text. Select it without prompts; your note text is unchanged.`,
+      );
+      return;
+    }
     setSections((current) => applySoapTemplate(current, template));
     setAppliedTemplate({ id: template.id, version: template.version });
     setNotice(
@@ -5022,11 +5032,20 @@ export function SoapNoteForm({
               <Button
                 variant="outlined"
                 sx={{ alignSelf: "flex-start" }}
-                disabled={!selectedTemplate || editorDisabled}
+                disabled={
+                  !selectedTemplate ||
+                  editorDisabled ||
+                  !hasTemplatePrompts(selectedTemplate)
+                }
                 onClick={requestTemplateApplication}
               >
                 Apply template prompts
               </Button>
+              {selectedTemplate && !hasTemplatePrompts(selectedTemplate) && (
+                <Typography variant="body2" color="text.secondary">
+                  This template has no prompt text. Select it without prompts.
+                </Typography>
+              )}
             </Stack>
           </Paper>
         )}

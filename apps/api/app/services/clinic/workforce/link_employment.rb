@@ -67,7 +67,7 @@ module Clinic
               end
               current_scopes = locked.membership.role_grants.active(now).where(source_employment_id: locked.id)
                 .pluck(:scope_kind, :site_id).uniq
-              unless intended_scopes.sort == current_scopes.sort
+              unless current_scopes.empty? || intended_scopes.sort == current_scopes.sort
                 raise ActiveRecord::StaleObjectError.new(locked, "change employee access scope")
               end
             end

@@ -52,21 +52,25 @@ export function sameRoleScope(employee: WorkforceEmployment, role: Role) {
   const scope =
     role.role_code === "workforce-location-manager" ? "site" : "practice";
   const activeSites = employee.sites.filter((site) => site.active);
+  const existingRolesMatchScope = employee.roles.every(
+    (grant) =>
+      grant.scope_kind === scope &&
+      (scope === "practice"
+        ? grant.site_id === null
+        : activeSites.some((site) => site.id === grant.site_id)),
+  );
+  const siteScopeReady =
+    scope !== "site" ||
+    (activeSites.length > 0 &&
+      (employee.roles.length === 0 ||
+        activeSites.every((site) =>
+          employee.roles.some((grant) => grant.site_id === site.id),
+        )));
   return (
     employee.active_for_work &&
     employee.membership_summary.active &&
-    employee.roles.length > 0 &&
-    employee.roles.every(
-      (grant) =>
-        grant.scope_kind === scope &&
-        (scope === "practice"
-          ? grant.site_id === null
-          : activeSites.some((site) => site.id === grant.site_id)),
-    ) &&
-    (scope !== "site" ||
-      activeSites.every((site) =>
-        employee.roles.some((grant) => grant.site_id === site.id),
-      ))
+    existingRolesMatchScope &&
+    siteScopeReady
   );
 }
 
@@ -85,6 +89,7 @@ export function roleChangeSaved(
     employee.status !== change.before.status ||
     employee.effective_from !== change.before.effective_from ||
     employee.effective_until !== change.before.effective_until ||
+    employee.roles.length === 0 ||
     !sameRoleScope(employee, change.role)
   )
     return false;
@@ -116,6 +121,17 @@ export function BulkRoleEditor({
   const locked = disabled || saving || unknown;
   const role = data.role_options.find((option) => String(option.id) === roleId);
   const dirty = selected.length > 0 || review !== null;
+  useEffect(() => {
+    if (data.role_options.some((option) => String(option.id) === roleId))
+      return;
+    const defaultRole =
+      data.role_options.find(
+        (option) => option.role_code === "workforce-employee",
+      ) ?? data.role_options[0];
+    setRoleId(defaultRole ? String(defaultRole.id) : "");
+    setSelected([]);
+    setReview(null);
+  }, [data.role_options, roleId]);
   useEffect(() => {
     onBlockingChange(dirty || saving || unknown);
   }, [dirty, saving, unknown, onBlockingChange]);
@@ -178,7 +194,7 @@ export function BulkRoleEditor({
         .filter((change) => !roleChangeSaved(change, change.before));
       if (!changes.length)
         throw new Error(
-          "Selected accounts already have this role version. No changes will be sent.",
+          "Selected accounts already have this role. No changes will be sent.",
         );
       setReview(changes);
     } catch (reason) {
@@ -246,7 +262,7 @@ export function BulkRoleEditor({
         results[index] = {
           change,
           state: "saved",
-          message: `Saved role version ${change.role.version} (ID ${change.role.id})`,
+          message: `Saved role: ${change.role.label}`,
         };
         setSelected((ids) => ids.filter((id) => id !== change.before.id));
       } catch (reason) {
@@ -298,7 +314,7 @@ export function BulkRoleEditor({
         return {
           ...result,
           state: "saved",
-          message: "Reviewed role version confirmed in saved access",
+          message: "Saved access confirmed",
         };
       });
       setOutcomes(checked);
@@ -327,9 +343,12 @@ export function BulkRoleEditor({
   return (
     <Stack spacing={1.5}>
       <Typography variant="h3">Bulk role editor</Typography>
-      <Typography variant="body2">
-        Select individual active accounts. Work sites and existing access scope
-        stay unchanged. Revoking accounts is a separate action below.
+      <Typography
+        variant="body2"
+        sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}
+      >
+        Select active accounts individually. Their work sites stay the same. Use
+        the separate account action below to turn off clinic access.
       </Typography>
       <Typography variant="caption" color="text.secondary">
         Inactive accounts and accounts with a different access scope cannot be
@@ -351,7 +370,7 @@ export function BulkRoleEditor({
         >
           {data.role_options.map((option) => (
             <MenuItem key={option.id} value={String(option.id)}>
-              {option.label} · version {option.version}
+              {option.label}
             </MenuItem>
           ))}
         </Select>
@@ -436,21 +455,12 @@ export function BulkRoleEditor({
                   {change.before.membership_summary.email_address}
                 </Typography>
                 <Typography>
-                  Employee {change.before.id} · account{" "}
-                  {change.before.membership_summary.id}
+                  Current roles:{" "}
+                  {change.before.roles.map((grant) => grant.label).join(", ") ||
+                    "None"}
                 </Typography>
                 <Typography>
-                  Replace employment roles:{" "}
-                  {change.before.roles
-                    .map(
-                      (grant) =>
-                        `${grant.label} (version ID ${grant.role_version_id}; ${grant.scope_kind}${grant.site_id === null ? "" : ` ${grant.site_id}`})`,
-                    )
-                    .join(", ")}
-                </Typography>
-                <Typography>
-                  With: {change.role.label} · version {change.role.version} (ID{" "}
-                  {change.role.id}) ·{" "}
+                  With: {change.role.label} ·{" "}
                   {change.role.role_code === "workforce-location-manager"
                     ? "existing work sites"
                     : "clinic scope"}
@@ -459,7 +469,7 @@ export function BulkRoleEditor({
                   Work sites unchanged:{" "}
                   {change.before.sites
                     .filter((site) => site.active)
-                    .map((site) => `${site.name} (${site.id})`)
+                    .map((site) => site.name)
                     .join(", ") || "None"}
                 </Typography>
                 <Typography variant="body2">

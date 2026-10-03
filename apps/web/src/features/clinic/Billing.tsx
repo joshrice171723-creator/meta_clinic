@@ -41,6 +41,7 @@ import type {
   Patient,
 } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
+import { isDemoFrame } from "../demo/frame";
 import { LoadState, useResource } from "../../shared/ui";
 import {
   CashDrawerOperations,
@@ -529,6 +530,83 @@ export function Billing() {
   );
 }
 
+function PatientStatementPreview({
+  patientId,
+  onClose,
+}: {
+  patientId: number;
+  onClose: () => void;
+}) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [printRequested, setPrintRequested] = useState(false);
+  const print = () => {
+    if (!ready || !frame.current?.contentWindow) return;
+    try {
+      frame.current.contentWindow.focus();
+      frame.current.contentWindow.print();
+      setPrintRequested(true);
+    } catch {
+      setError(
+        "The browser could not open printing. Reopen the statement and try again.",
+      );
+    }
+  };
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"
+      aria-labelledby="patient-statement-title"
+    >
+      <DialogTitle id="patient-statement-title">Patient statement</DialogTitle>
+      <DialogContent dividers>
+        {!ready && !error && (
+          <Typography role="status">Loading patient statement…</Typography>
+        )}
+        {error && <Alert severity="error">{error}</Alert>}
+        {printRequested && (
+          <Alert severity="info">
+            Printing was requested. Choose a printer or Save as PDF in the
+            browser dialog.
+          </Alert>
+        )}
+        <Box
+          component="iframe"
+          ref={frame}
+          title="Patient statement preview"
+          src={`${isDemoFrame() ? "/api/demo-workspace" : "/api"}/clinic/patients/${patientId}/billing_statement`}
+          sandbox="allow-same-origin allow-modals"
+          onLoad={() => {
+            const loaded =
+              frame.current?.contentDocument?.querySelector("#print-statement");
+            if (loaded) loaded.closest(".actions")?.setAttribute("hidden", "");
+            setReady(Boolean(loaded));
+            if (!loaded)
+              setError(
+                "The patient statement could not be loaded. Check your session and billing access, then reopen it.",
+              );
+          }}
+          onError={() =>
+            setError(
+              "The patient statement could not be loaded. Reopen it to try again.",
+            )
+          }
+          sx={{ border: 0, display: "block", height: 560, width: "100%" }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+        <Button variant="contained" disabled={!ready} onClick={print}>
+          Print / save PDF
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 function LedgerDetails({
   ledger,
   selectedInvoice,
@@ -566,6 +644,8 @@ function LedgerDetails({
   onFinancialChange: (invoiceId?: number) => void;
 }) {
   const clinic = useClinic();
+  const [statementOpen, setStatementOpen] = useState(false);
+  useEffect(() => setStatementOpen(false), [ledger.patient.id]);
   const [pendingCashState, setPendingCashState] = useState(() => {
     const invoiceId = pendingCashAttemptInvoiceId(clinic);
     return { pending: invoiceId !== null, invoiceId };
@@ -581,15 +661,16 @@ function LedgerDetails({
         <Typography component="h2" variant="h2">
           {ledger.patient.display_name}
         </Typography>
-        <Button
-          component="a"
-          href={`/api/clinic/patients/${ledger.patient.id}/billing_statement`}
-          target="_blank"
-          rel="noopener noreferrer"
-          size="small"
-        >
+        <Button onClick={() => setStatementOpen(true)} size="small">
           Print patient statement
         </Button>
+        {statementOpen && (
+          <PatientStatementPreview
+            key={ledger.patient.id}
+            patientId={ledger.patient.id}
+            onClose={() => setStatementOpen(false)}
+          />
+        )}
         {referenceLabel && (
           <Typography color="text.secondary" variant="body2">
             Clinic reference · {referenceLabel}

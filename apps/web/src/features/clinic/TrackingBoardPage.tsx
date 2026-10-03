@@ -1703,7 +1703,7 @@ export function TrackingBoardView({
               All authorized locations
             </span>
             {" · "}
-            All times shown in {timezone}
+            {`All times shown in ${timezone}`}
           </Typography>
         </div>
         <div className="tracking-header-actions">

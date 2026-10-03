@@ -119,8 +119,7 @@ module Clinic
       def employee_role_version(value)
         if value.present?
           role_version = RoleVersion.includes(:permissions).find(integer_id!(value, field: :role_version_id))
-          return role_version if role_version.role_code.start_with?("workforce-") ||
-            Clinic::Authorization::PilotRoleCatalog.assignable?(role_version)
+          return role_version if RoleAssignment.catalogued_role?(role_version)
         else
           role_version = latest_workforce_role_versions.find { |role| role.role_code == "workforce-employee" }
           return role_version if role_version

@@ -32,7 +32,6 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { ClinicianSetup } from "./ClinicianSetup";
 import { SiteSchedulingPolicySettings } from "./SiteSchedulingPolicy";
 import { OperationalPolicySettings } from "./OperationalPolicySettings";
-import { isDemoFrame } from "../demo/frame";
 
 const days = [
   [0, "Sunday"],
@@ -173,8 +172,13 @@ export function Facilities() {
     if (!data) return;
     if (creating) return;
     if (selectedId !== null) return;
+    const requestedSiteId = Number(
+      new URLSearchParams(window.location.search).get("site_id"),
+    );
     const selectedSite =
-      data.sites.find((site) => site.id === currentSite?.id) ?? data.sites[0];
+      data.sites.find((site) => site.id === requestedSiteId) ??
+      data.sites.find((site) => site.id === currentSite?.id) ??
+      data.sites[0];
     if (selectedSite) {
       setSelectedId(selectedSite.id);
       setDraft(siteForm(selectedSite));
@@ -280,14 +284,6 @@ export function Facilities() {
     }
   };
 
-  if (isDemoFrame())
-    return (
-      <PracticeFeatureSettings
-        key={currentSite?.id ?? "clinic"}
-        canWrite={capabilities.clinic_setup_write === true}
-        siteId={currentSite?.id ?? null}
-      />
-    );
   return (
     <div className="facilities-page">
       <Stack spacing={1} sx={{ mb: 3 }}>
@@ -297,6 +293,11 @@ export function Facilities() {
           types, locations, and operating hours for implementation handoff.
           Storage cabinets, quarantine, and returns remain in Inventory.
         </Typography>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+          <Button href="#location-setup">Location profile</Button>
+          <Button href="#visit-type-setup">Visit types</Button>
+          <Button href="#service-offering-setup">Service offerings</Button>
+        </Stack>
         {capabilities.workforce_admin && (
           <Button
             href="/clinic/workforce/employees"
@@ -332,13 +333,15 @@ export function Facilities() {
           />
         </div>
       )}
-      <VisitTypeSettings
-        key={`visit-type-catalog:${selected?.id ?? "clinic"}`}
-        canWrite={canWrite}
-        refreshKey={visitTypeRefreshKey}
-        siteId={creating ? undefined : selected?.id}
-        siteName={selected?.name ?? selected?.code}
-      />
+      <div id="visit-type-setup">
+        <VisitTypeSettings
+          key={`visit-type-catalog:${selected?.id ?? "clinic"}`}
+          canWrite={canWrite}
+          refreshKey={visitTypeRefreshKey}
+          siteId={creating ? undefined : selected?.id}
+          siteName={selected?.name ?? selected?.code}
+        />
+      </div>
       {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
         <Paper variant="outlined" className="facilities-list">
@@ -584,7 +587,7 @@ export function Facilities() {
                   color="text.secondary"
                   sx={{ mt: 1 }}
                 >
-                  Delivery address preview: {address(draft)}
+                  {`Delivery address preview: ${address(draft)}`}
                 </Typography>
               )}
             </section>
@@ -865,7 +868,9 @@ export function Facilities() {
         </Paper>
       )}
       {selected?.finalized === true && !creating && (
-        <ServiceOfferingSettings canWrite={canWrite} />
+        <div id="service-offering-setup">
+          <ServiceOfferingSettings canWrite={canWrite} />
+        </div>
       )}
       {selected?.finalized === true && !creating && (
         <SiteSchedulingPolicySettings

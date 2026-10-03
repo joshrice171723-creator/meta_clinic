@@ -759,7 +759,10 @@ export function EmploymentAdminPage() {
           <Typography sx={{ fontWeight: 700 }}>
             Share this activation link securely now.
           </Typography>
-          <Typography variant="body2" sx={{ mb: 1 }}>
+          <Typography
+            variant="body2"
+            sx={{ mb: 1, whiteSpace: "normal", overflowWrap: "anywhere" }}
+          >
             It is shown only in this response. Meta Clinic does not send it by
             email. The employee will use it to set a password and activate their
             clinic login.
@@ -1123,7 +1126,7 @@ export function EmploymentAdminPage() {
                     {roleLabel(invitation.role_code)}
                   </Typography>
                   <Typography variant="body2">
-                    Expires {new Date(invitation.expires_at).toLocaleString()}
+                    {`Expires ${new Date(invitation.expires_at).toLocaleString()}`}
                   </Typography>
                 </Stack>
                 <Button

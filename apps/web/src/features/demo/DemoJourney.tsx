@@ -833,7 +833,7 @@ export function DemoJourney() {
               )}
               {!preparingSandbox && lastSandboxDuration !== null && (
                 <Typography variant="caption" color="text.secondary">
-                  Last opening took {durationLabel(lastSandboxDuration)}
+                  {`Last opening took ${durationLabel(lastSandboxDuration)}`}
                 </Typography>
               )}
               <Button

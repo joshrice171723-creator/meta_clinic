@@ -12,6 +12,7 @@ import {
   FormControl,
   FormHelperText,
   InputLabel,
+  Link,
   MenuItem,
   Paper,
   Select,
@@ -1117,6 +1118,11 @@ export function ClinicalPlanWorkspace({
     kind,
     pendingAttempt !== null,
   );
+  const canReviewSetup =
+    clinic.capabilities.facilities_read === true &&
+    Boolean(encounter.site_id) &&
+    (data.new_work?.[kind] === false ||
+      (kind === "assessments" && data.assessment_scope.length === 0));
   const carePlanCreateBlockedReason =
     encounter.status !== "open" || encounter.ended_at !== null
       ? "Reopen the encounter before creating a care plan or adding a care goal."
@@ -1353,6 +1359,14 @@ export function ClinicalPlanWorkspace({
           >
             Add {meta.singular}
           </Button>
+          {canReviewSetup && (
+            <Link
+              href={`/clinic/setup?site_id=${encodeURIComponent(String(encounter.site_id))}`}
+              underline="hover"
+            >
+              Review clinic setup
+            </Link>
+          )}
           {Object.entries(statusCounts).map(([status, count]) => (
             <Chip
               key={status}

@@ -169,6 +169,7 @@ export function PatientEducationPanel({
     } catch (reason) {
       const unknown =
         !(reason instanceof ApiError) ||
+        reason.status === 408 ||
         reason.status >= 500 ||
         reason.code === "outcome_unconfirmed";
       if (!unknown) attempt.current = null;
