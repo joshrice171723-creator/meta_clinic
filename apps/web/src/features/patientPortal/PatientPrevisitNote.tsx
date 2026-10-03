@@ -675,8 +675,9 @@ export function PatientPrevisitNote({
                   </Box>
                 )}
                 {data.intake_form && questionParts.map((part, partIndex) => {
+                  const form = data.intake_form!;
                   const shown = part.fields.filter((field) =>
-                    intakeFieldVisible(field, answers, data.intake_form!.fields),
+                    intakeFieldVisible(field, answers, form.fields),
                   );
                   const responded = shown.filter((field) =>
                     answerState(answers[field.id]) !== "unanswered",
@@ -707,11 +708,11 @@ export function PatientPrevisitNote({
                     <AccordionDetails>
                     <IntakeQuestions
                     fields={part.fields}
-                    definitions={data.intake_form!.fields}
+                    definitions={form.fields}
                     answers={answers}
-                    medicationOptions={data.intake_form.medication_options}
+                    medicationOptions={form.medication_options}
                     medicationReferences={
-                      data.intake_form.medication_references
+                      form.medication_references
                     }
                     disabled={loading || busy || outcomeUnknown || conflict}
                     onChange={(next) => {

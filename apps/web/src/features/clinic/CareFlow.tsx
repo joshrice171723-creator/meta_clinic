@@ -5631,8 +5631,8 @@ export function EncounterSectionRail({
       ["Chart", "#chart-access"],
       ...(chartConfirmed
         ? [
-            ["Documentation", "#chart-documentation"],
-            ["Completion", "#chart-completion"],
+            ["Documentation", "#chart-documentation"] as [string, string],
+            ["Completion", "#chart-completion"] as [string, string],
           ]
         : []),
     ],

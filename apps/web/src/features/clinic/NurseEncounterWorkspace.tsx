@@ -952,7 +952,7 @@ export function NurseEncounterWorkspaceContent({
               {handoffAttention.join(" · ")}.
             </Typography>
           </Alert>
-        )}
+        ) : null}
         {intakeConflict && (
           <Alert
             severity="warning"
