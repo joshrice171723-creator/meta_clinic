@@ -157,9 +157,11 @@ export function TelehealthQueue() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [drawerVisitId, setDrawerVisitId] = useState<string | null>(null);
-  const requestRef = useRef<AbortController | null>(null);
+  const requestRef = useRef<{
+    scope: string;
+    refresh: () => Promise<void>;
+  } | null>(null);
   const responseScopeRef = useRef<string | null>(null);
-  const generationRef = useRef(0);
   const query = useMemo(() => {
     const params = new URLSearchParams({ date, limit: "100" });
     if (siteId) params.set("site_id", siteId);
@@ -168,60 +170,90 @@ export function TelehealthQueue() {
     return params;
   }, [clinicianId, date, siteId, status]);
   const requestScope = `${clinic.user_id}:${clinic.membership_id}:${clinic.practice.id}:${query.toString()}`;
+  const latestScopeRef = useRef(requestScope);
+  latestScopeRef.current = requestScope;
   const response =
     responseScopeRef.current === requestScope ? cachedResponse : null;
 
   const refresh = useCallback(async () => {
-    const generation = ++generationRef.current;
-    requestRef.current?.abort();
-    const controller = new AbortController();
-    requestRef.current = controller;
-    setLoading(true);
-    try {
-      const next = await loadTelehealthQueue(query, controller.signal);
-      if (generation !== generationRef.current) return;
-      responseScopeRef.current = requestScope;
-      setResponse(next);
-      setError(null);
-    } catch (reason) {
-      if (generation !== generationRef.current) return;
-      if (
-        reason instanceof ApiError &&
-        [401, 403, 404].includes(reason.status)
-      ) {
-        setResponse(null);
-        setDrawerVisitId(null);
-        if (reason.status === 401) {
-          window.location.replace(
-            `/login?next=${encodeURIComponent(loginDestination(window.location.pathname))}`,
-          );
-          return;
-        }
-      }
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to load the virtual waiting room.",
-      );
-    } finally {
-      if (generation === generationRef.current) setLoading(false);
+    const request = requestRef.current;
+    if (
+      request?.scope === requestScope &&
+      latestScopeRef.current === requestScope
+    ) {
+      await request.refresh();
     }
-  }, [query, requestScope]);
+  }, [requestScope]);
 
   useEffect(() => {
+    let active = true;
+    let controller: AbortController | null = null;
+    let pendingRefresh = false;
+    const isCurrent = () =>
+      active && latestScopeRef.current === requestScope;
+    const runRefresh = async () => {
+      if (!isCurrent()) return;
+      if (controller) {
+        pendingRefresh = true;
+        return;
+      }
+      controller = new AbortController();
+      setLoading(true);
+      let succeeded = false;
+      try {
+        const next = await loadTelehealthQueue(query, controller.signal);
+        if (!isCurrent()) return;
+        responseScopeRef.current = requestScope;
+        setResponse(next);
+        setError(null);
+        succeeded = true;
+      } catch (reason) {
+        if (!isCurrent()) return;
+        if (
+          reason instanceof ApiError &&
+          [401, 403, 404].includes(reason.status)
+        ) {
+          setResponse(null);
+          setDrawerVisitId(null);
+          if (reason.status === 401) {
+            window.location.replace(
+              `/login?next=${encodeURIComponent(loginDestination(window.location.pathname))}`,
+            );
+            return;
+          }
+        }
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load the virtual waiting room.",
+        );
+      } finally {
+        controller = null;
+        if (isCurrent()) {
+          const runTrailingRefresh = succeeded && pendingRefresh;
+          pendingRefresh = false;
+          if (runTrailingRefresh) void runRefresh();
+          else setLoading(false);
+        }
+      }
+    };
+    const request = { scope: requestScope, refresh: runRefresh };
+    requestRef.current = request;
     setResponse(null);
     setError(null);
     setDrawerVisitId(null);
-    void refresh();
+    void runRefresh();
     return () => {
-      generationRef.current += 1;
-      requestRef.current?.abort();
+      active = false;
+      pendingRefresh = false;
+      controller?.abort();
+      if (requestRef.current === request) requestRef.current = null;
     };
-  }, [refresh]);
+  }, [query, requestScope]);
 
   useClinicRealtimeTopic("telehealth_queue", refresh, {
     fallbackIntervalMs: error ? 15_000 : 5_000,
-    freshnessIntervalMs: 5_000,
+    freshnessIntervalMs: 60_000,
   });
 
   const clinicianLabel = (

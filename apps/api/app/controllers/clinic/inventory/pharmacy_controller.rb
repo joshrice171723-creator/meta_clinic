@@ -37,7 +37,7 @@ module Clinic
 
       def import
         product = ndc_catalog.import(params[:reference_token])
-        render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user), id: product.id }, status: :created
+        render json: { acknowledged: true, id: product.id }, status: :created
       end
 
       def create
@@ -57,7 +57,7 @@ module Clinic
             Clinic::Inventory::Access.with(current_practice.id, current_user, "catalog") { product.save! }
           end
         end
-        render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user), id: @product.id }, status: :created
+        render json: { acknowledged: true, id: @product.id }, status: :created
       end
 
       def show
@@ -105,7 +105,7 @@ module Clinic
 
       def configure
         Profile.revise!(practice: current_practice, actor: current_user, status: params[:status], reason: params[:reason], operator_reference: params[:operator_reference])
-        render json: { data: Clinic::Inventory::InventoryWire.call(practice: current_practice, actor: current_user) }
+        render json: { acknowledged: true }
       end
 
       def demo

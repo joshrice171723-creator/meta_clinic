@@ -449,6 +449,8 @@ export type InventoryReadContext = Pick<
   | "capabilities"
 >;
 
+export type InventorySetupData = InventoryReadContext & { setup_page: true };
+
 export type InventoryActivityData = InventoryReadContext & {
   activity_page: {
     query: string;

@@ -37,6 +37,8 @@ import type {
   BillingInvoiceDetail,
   BillingInvoiceSummary,
   BillingPatientLedger,
+  BillingHistoryKind,
+  BillingHistoryPage,
   ClinicWorkspaceContext,
   Patient,
 } from "../../api/contracts";
@@ -273,7 +275,8 @@ function stateColor(state: ReturnType<typeof invoiceState>) {
 }
 
 export function Billing() {
-  const { capabilities } = useClinic();
+  const clinic = useClinic();
+  const { capabilities } = clinic;
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     () => queryId("patient_id"),
   );
@@ -289,6 +292,20 @@ export function Billing() {
     data?: BillingPatientLedger;
     error?: string;
   }>({});
+  const [historyLoading, setHistoryLoading] = useState({
+    invoices: false,
+    payments: false,
+  });
+  const [historyErrors, setHistoryErrors] = useState({
+    invoices: "",
+    payments: "",
+  });
+  const historyRequests = useRef<
+    Partial<Record<BillingHistoryKind, AbortController>>
+  >({});
+  const ledgerGeneration = useRef(0);
+  const ledgerScope = cashRefundScopeKey(clinic);
+  const previousLedgerScope = useRef(ledgerScope);
   const [checkoutInvoice, setCheckoutInvoice] = useState<{
     active?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
     voided?: Pick<BillingInvoiceDetail, "id" | "encounter_id" | "status">;
@@ -297,6 +314,16 @@ export function Billing() {
   }>(() => ({ checking: checkoutEncounterId !== null }));
 
   useEffect(() => {
+    ledgerGeneration.current += 1;
+    Object.values(historyRequests.current).forEach((request) => request?.abort());
+    historyRequests.current = {};
+    setHistoryErrors({ invoices: "", payments: "" });
+    setHistoryLoading({
+      invoices: !!selectedPatientId,
+      payments: !!selectedPatientId,
+    });
+    const sameScope = previousLedgerScope.current === ledgerScope;
+    previousLedgerScope.current = ledgerScope;
     if (!selectedPatientId) {
       setLedger({});
       setSelectedInvoiceId(null);
@@ -305,15 +332,35 @@ export function Billing() {
     let active = true;
     const controller = new AbortController();
     setLedger((current) =>
-      current.data?.patient.id === selectedPatientId ? current : {},
+      sameScope && current.data?.patient.id === selectedPatientId ? current : {},
     );
+    const focus = new URLSearchParams();
+    const retainedRefund = pendingCashRefundAttempts.get(ledgerScope);
+    const focusIds = {
+      invoice_id: selectedInvoiceId ?? pendingCashAttemptInvoiceId(clinic),
+      payment_id:
+        selectedPatientId === queryId("patient_id") ? queryId("payment_id") : null,
+      refund_id:
+        selectedPatientId === queryId("patient_id") ? queryId("refund_id") : null,
+      encounter_id: checkoutEncounterId,
+    };
+    if (!focusIds.payment_id && retainedRefund?.patientId === selectedPatientId)
+      focusIds.payment_id = retainedRefund.paymentId;
+    Object.entries(focusIds).forEach(([field, id]) => {
+      if (id) focus.set(field, String(id));
+    });
     api<BillingPatientLedger>(
-      `/api/clinic/patients/${selectedPatientId}/billing_ledger`,
+      `/api/clinic/patients/${selectedPatientId}/billing_ledger?${focus}`,
       { signal: controller.signal },
     )
       .then((data) => {
         if (active && !controller.signal.aborted) {
+          if (data.patient.id !== selectedPatientId)
+            throw new Error(
+              "The patient ledger response did not match this patient.",
+            );
           setLedger({ data });
+          setHistoryLoading({ invoices: false, payments: false });
           setSelectedInvoiceId((current) => {
             if (
               current &&
@@ -328,7 +375,8 @@ export function Billing() {
         }
       })
       .catch((error: unknown) => {
-        if (active && !controller.signal.aborted)
+        if (active && !controller.signal.aborted) {
+          setHistoryLoading({ invoices: false, payments: false });
           setLedger((current) => ({
             ...(current.data?.patient.id === selectedPatientId
               ? { data: current.data }
@@ -338,12 +386,79 @@ export function Billing() {
                 ? error.message
                 : "Unable to load this patient ledger.",
           }));
+        }
       });
     return () => {
       active = false;
       controller.abort();
+      Object.values(historyRequests.current).forEach((request) => request?.abort());
     };
-  }, [reloadLedger, selectedPatientId]);
+  }, [reloadLedger, selectedPatientId, ledgerScope]);
+
+  const loadHistory = async (kind: BillingHistoryKind) => {
+    const data = ledger.data;
+    const before = data?.pagination?.[kind].next_cursor;
+    if (!data || !before || historyLoading[kind] || historyRequests.current[kind])
+      return;
+    const generation = ledgerGeneration.current;
+    const controller = new AbortController();
+    historyRequests.current[kind] = controller;
+    setHistoryLoading((current) => ({ ...current, [kind]: true }));
+    setHistoryErrors((current) => ({ ...current, [kind]: "" }));
+    try {
+      const page = await api<
+        BillingHistoryPage<"invoices"> | BillingHistoryPage<"payments">
+      >(
+        `/api/clinic/patients/${data.patient.id}/billing_ledger?kind=${kind}&before=${before}`,
+        { signal: controller.signal },
+      );
+      if (controller.signal.aborted || ledgerGeneration.current !== generation) return;
+      if (
+        page.schema_version !== "clinic-billing-history-v1" ||
+        page.patient_id !== data.patient.id ||
+        page.kind !== kind
+      )
+        throw new Error(
+          "The billing history response did not match this patient and history.",
+        );
+      setLedger((current) => {
+        if (!current.data || current.data.patient.id !== page.patient_id) return current;
+        const merged = { ...current.data };
+        if (page.kind === "invoices")
+          merged.invoices = [
+            ...new Map(
+              [...merged.invoices, ...page.items].map((item) => [item.id, item]),
+            ).values(),
+          ].sort((a, b) => b.id - a.id);
+        else
+          merged.payments = [
+            ...new Map(
+              [...merged.payments, ...page.items].map((item) => [item.id, item]),
+            ).values(),
+          ].sort((a, b) => b.id - a.id);
+        merged.pagination = {
+          invoices: { next_cursor: merged.pagination?.invoices.next_cursor ?? null },
+          payments: { next_cursor: merged.pagination?.payments.next_cursor ?? null },
+          [kind]: { next_cursor: page.next_cursor },
+        };
+        return { ...current, data: merged };
+      });
+    } catch (error) {
+      if (!controller.signal.aborted && ledgerGeneration.current === generation)
+        setHistoryErrors((current) => ({
+          ...current,
+          [kind]:
+            error instanceof Error
+              ? error.message
+              : "Unable to load older billing history.",
+        }));
+    } finally {
+      if (ledgerGeneration.current === generation) {
+        delete historyRequests.current[kind];
+        setHistoryLoading((current) => ({ ...current, [kind]: false }));
+      }
+    }
+  };
 
   useEffect(() => {
     if (!selectedPatientId || !checkoutEncounterId) {
@@ -500,6 +615,9 @@ export function Billing() {
               )}
               <LedgerDetails
                 ledger={ledger.data}
+                historyLoading={historyLoading}
+                historyErrors={historyErrors}
+                loadHistory={loadHistory}
                 selectedInvoice={selectedInvoice}
                 selectInvoice={setSelectedInvoiceId}
                 selectPatient={setSelectedPatientId}
@@ -535,6 +653,9 @@ export function Billing() {
 
 function LedgerDetails({
   ledger,
+  historyLoading,
+  historyErrors,
+  loadHistory,
   selectedInvoice,
   selectInvoice,
   selectPatient,
@@ -550,6 +671,9 @@ function LedgerDetails({
   onFinancialChange,
 }: {
   ledger: BillingPatientLedger;
+  historyLoading: Record<BillingHistoryKind, boolean>;
+  historyErrors: Record<BillingHistoryKind, string>;
+  loadHistory: (kind: BillingHistoryKind) => void;
   selectedInvoice?: BillingPatientLedger["invoices"][number];
   selectInvoice: (id: number) => void;
   selectPatient: (id: number) => void;
@@ -810,6 +934,22 @@ function LedgerDetails({
             </Table>
           </TableContainer>
         )}
+        {(ledger.pagination?.invoices.next_cursor || historyErrors.invoices) && (
+          <Stack spacing={1} sx={{ p: 2.5 }}>
+            {historyErrors.invoices && (
+              <Alert severity="error">{historyErrors.invoices}</Alert>
+            )}
+            {ledger.pagination?.invoices.next_cursor && (
+              <Button
+                disabled={historyLoading.invoices}
+                onClick={() => loadHistory("invoices")}
+                variant="outlined"
+              >
+                {historyLoading.invoices ? "Loading invoices..." : "Load older invoices"}
+              </Button>
+            )}
+          </Stack>
+        )}
       </Paper>
       {selectedInvoice && (
         <Accordion
@@ -890,6 +1030,22 @@ function LedgerDetails({
         onFinancialChange={onFinancialChange}
         onSelectPatient={checkoutEncounterId ? undefined : selectPatient}
       />
+      {(ledger.pagination?.payments.next_cursor || historyErrors.payments) && (
+        <Stack spacing={1}>
+          {historyErrors.payments && (
+            <Alert severity="error">{historyErrors.payments}</Alert>
+          )}
+          {ledger.pagination?.payments.next_cursor && (
+            <Button
+              disabled={historyLoading.payments}
+              onClick={() => loadHistory("payments")}
+              variant="outlined"
+            >
+              {historyLoading.payments ? "Loading payments..." : "Load older payments"}
+            </Button>
+          )}
+        </Stack>
+      )}
     </Stack>
   );
 }

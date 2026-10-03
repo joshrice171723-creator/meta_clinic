@@ -3,12 +3,12 @@ module Clinic
     class PatientLedger
       HISTORY_LIMIT = 20
 
-      def self.call(practice:, patient:, include_adjustment_evidence: false, history_limit: nil)
-        new(practice:, patient:, include_adjustment_evidence:, history_limit:).call
+      def self.call(practice:, patient:, include_adjustment_evidence: false, history_limit: nil, focus: {})
+        new(practice:, patient:, include_adjustment_evidence:, history_limit:).call(focus:)
       end
 
-      def self.history_page(practice:, patient:, kind:, before: nil)
-        new(practice:, patient:, include_adjustment_evidence: false, history_limit: HISTORY_LIMIT)
+      def self.history_page(practice:, patient:, kind:, before: nil, include_adjustment_evidence: false)
+        new(practice:, patient:, include_adjustment_evidence:, history_limit: HISTORY_LIMIT)
           .history_page(kind:, before:)
       end
 
@@ -19,9 +19,13 @@ module Clinic
         @history_limit = history_limit
       end
 
-      def call
+      def call(focus: {})
         invoices, invoice_cursor = invoice_page
         payments, payment_cursor = payment_page
+        if @history_limit && focus.any?
+          invoices = focused_invoices(invoices, focus)
+          payments = focused_payments(payments, focus, invoices)
+        end
         preload_adjustment_memberships(invoices) if @include_adjustment_evidence
 
         {
@@ -43,9 +47,10 @@ module Clinic
         when "payments" then payment_page(before:)
         else raise ArgumentError, "History kind must be invoices or payments."
         end
+        preload_adjustment_memberships(records) if kind == "invoices" && @include_adjustment_evidence
         items = kind == "invoices" ? records.map { |invoice| invoice_payload(invoice) } : records.map { |payment| payment_payload(payment) }
         {
-          schema_version: "patient-portal-billing-history-v1",
+          schema_version: @include_adjustment_evidence ? "clinic-billing-history-v1" : "patient-portal-billing-history-v1",
           patient_id: @patient.id,
           kind: kind,
           items: items,
@@ -85,16 +90,39 @@ module Clinic
         end
       end
 
-      def invoice_page(before: nil)
-        relation = @patient.invoices.where(practice: @practice)
+      def invoice_relation
+        @patient.invoices.where(practice: @practice)
           .includes(:lines, :payment_allocations, :credit_notes, encounter: :site, invoice_stripe_checkouts: :collection_intent)
-        bounded_page(relation, before:)
+      end
+
+      def payment_relation
+        Clinic::PaymentEvent.where(practice: @practice, patient: @patient)
+          .includes(:refund_events, :billing_receipts, allocations: { invoice: { encounter: :site } }, cash_tender: :cash_drawer_session)
+      end
+
+      def invoice_page(before: nil)
+        bounded_page(invoice_relation, before:)
       end
 
       def payment_page(before: nil)
-        relation = Clinic::PaymentEvent.where(practice: @practice, patient: @patient)
-          .includes(:refund_events, :billing_receipts, allocations: { invoice: { encounter: :site } }, cash_tender: :cash_drawer_session)
-        bounded_page(relation, before:)
+        bounded_page(payment_relation, before:)
+      end
+
+      def focused_invoices(invoices, focus)
+        linked = invoice_relation.where(id: focus[:invoice_id]).to_a if focus[:invoice_id]
+        checkout = invoice_relation.where(encounter_id: focus[:encounter_id])
+          .where.not(status: "void").order(id: :desc).limit(1).to_a if focus[:encounter_id]
+        (invoices + Array(linked) + Array(checkout)).uniq(&:id).sort_by(&:id).reverse
+      end
+
+      def focused_payments(payments, focus, invoices)
+        linked = payment_relation.where(id: focus[:payment_id]).to_a if focus[:payment_id]
+        refund = payment_relation.where(id: Clinic::RefundEvent.where(id: focus[:refund_id]).select(:payment_event_id)).to_a if focus[:refund_id]
+        checkout_invoice = invoices.find { |invoice| invoice.encounter_id == focus[:encounter_id] && invoice.status != "void" } if focus[:encounter_id]
+        invoice = checkout_invoice || invoices.find { |item| item.id == focus[:invoice_id] }
+        settlement = payment_relation.where(id: Clinic::PaymentAllocation.where(invoice_id: invoice.id).select(:payment_event_id))
+          .order(id: :desc).limit(1).to_a if invoice
+        (payments + Array(linked) + Array(refund) + Array(settlement)).uniq(&:id).sort_by(&:id).reverse
       end
 
       def bounded_page(relation, before:)

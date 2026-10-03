@@ -29,6 +29,7 @@ import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type {
   InventoryBalance,
   InventoryData,
+  InventorySetupData,
   InventoryActivityData,
   InventoryCatalogData,
   InventoryCatalogRead,
@@ -863,7 +864,7 @@ function CatalogCreateScreen({
   busy,
   run,
 }: {
-  data: InventoryData;
+  data: InventorySetupData;
   busy: boolean;
   run: InventoryRun;
 }) {
@@ -2403,7 +2404,7 @@ function InventoryConfigureScreen({
   busy,
   run,
 }: {
-  data: InventoryData;
+  data: InventorySetupData;
   busy: boolean;
   run: InventoryRun;
 }) {
@@ -2510,6 +2511,7 @@ export function InventoryApp({ path }: { path: string }) {
   const screen = screenForPath(path);
   const [data, setData] = useState<
     | InventoryData
+    | InventorySetupData
     | InventoryActivityData
     | InventoryCatalogData
     | InventoryPlanData
@@ -2557,6 +2559,7 @@ export function InventoryApp({ path }: { path: string }) {
   useEffect(() => {
     if (
       !data ||
+      "setup_page" in data ||
       "activity_page" in data ||
       "catalog_page" in data ||
       "supplier_page" in data ||
@@ -2839,10 +2842,11 @@ export function InventoryApp({ path }: { path: string }) {
                                   ? `/api/clinic/inventory/receiving?${query}`
                                   : needsPurchaseOrderFacility
                                     ? `/api/clinic/inventory/replenishment?${query}`
-                                    : "/api/clinic/inventory/bootstrap";
+                                    : "/api/clinic/inventory/bootstrap?view=setup";
         const payload = await api<{
           data:
             | InventoryData
+            | InventorySetupData
             | InventoryActivityData
             | InventoryCatalogData
             | InventoryPlanData
@@ -2860,6 +2864,8 @@ export function InventoryApp({ path }: { path: string }) {
         if (version !== readVersion.current) return;
         if (
           !payload.data ||
+          ["catalog_new", "configure"].includes(screen) !==
+            "setup_page" in payload.data ||
           (screen === "activity") !== "activity_page" in payload.data ||
           (screen === "catalog") !== "catalog_page" in payload.data ||
           (screen === "supplier_pricing") !== "supplier_page" in payload.data ||
@@ -2943,57 +2949,15 @@ export function InventoryApp({ path }: { path: string }) {
         }
       });
       const payload = await api<
-        {
-          data?: InventoryData;
-          acknowledged?: boolean;
-        } & InventoryMutationResult
-      >(
-        [
-          "lots",
-          "purchasing",
-          "receiving",
-          "replenishment",
-          "purchase_order_new",
-          "shipment_new",
-          "exceptions",
-          "recalls",
-          "counts",
-          "controlled",
-          "activity",
-        ].includes(screen)
-          ? `${endpoint}?response=ack`
-          : endpoint,
-        {
-          method: "POST",
-          body: requestBody,
-        },
-      );
-      if (
-        [
-          "lots",
-          "purchasing",
-          "receiving",
-          "replenishment",
-          "purchase_order_new",
-          "shipment_new",
-          "exceptions",
-          "recalls",
-          "counts",
-          "controlled",
-          "activity",
-        ].includes(screen)
-      ) {
-        if (payload.acknowledged !== true)
-          throw new Error(
-            "The inventory action response could not be confirmed.",
-          );
-      } else {
-        if (!payload.data)
-          throw new Error(
-            "The inventory action response could not be confirmed.",
-          );
-        setData(payload.data);
-      }
+        { acknowledged?: boolean } & InventoryMutationResult
+      >(endpoint, {
+        method: "POST",
+        body: requestBody,
+      });
+      if (payload.acknowledged !== true)
+        throw new Error(
+          "The inventory action response could not be confirmed.",
+        );
       setUncertainMutation(null);
       setNotice({
         tone: "success",
@@ -3004,22 +2968,7 @@ export function InventoryApp({ path }: { path: string }) {
             : successDetail,
       });
       afterSuccess?.(payload);
-      if (
-        [
-          "lots",
-          "purchasing",
-          "receiving",
-          "replenishment",
-          "purchase_order_new",
-          "shipment_new",
-          "exceptions",
-          "recalls",
-          "counts",
-          "controlled",
-          "activity",
-        ].includes(screen)
-      )
-        await load();
+      await load();
     } catch (reason) {
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
@@ -3065,6 +3014,7 @@ export function InventoryApp({ path }: { path: string }) {
 
   if (
     needsPurchaseOrderFacility &&
+    !("setup_page" in data) &&
     !("activity_page" in data) &&
     !("catalog_page" in data) &&
     !("supplier_page" in data) &&
@@ -3325,10 +3275,10 @@ export function InventoryApp({ path }: { path: string }) {
               />
             ) : (
               <>
-                {screen === "catalog_new" && (
+                {screen === "catalog_new" && "setup_page" in data && (
                   <CatalogCreateScreen data={data} busy={busy} run={run} />
                 )}
-                {screen === "configure" && (
+                {screen === "configure" && "setup_page" in data && (
                   <InventoryConfigureScreen data={data} busy={busy} run={run} />
                 )}
               </>

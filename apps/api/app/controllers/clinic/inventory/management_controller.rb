@@ -21,6 +21,10 @@ module Clinic
       end
 
       def bootstrap
+        if params[:view] == "setup"
+          return render json: { data: InventoryWire.context(practice: current_practice, actor: current_user).merge(setup_page: true) }
+        end
+
         render json: { data: InventoryWire.call(practice: current_practice, actor: current_user) }
       end
 
@@ -61,13 +65,13 @@ module Clinic
 
       def create_location
         location = ManageLocation.call(practice: current_practice, actor: current_user, attributes: location_attributes)
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(id: location.id.to_s), status: :created
       end
 
       def update_location
         location = ManageLocation.call(practice: current_practice, actor: current_user, location_id: params[:id], attributes: location_attributes)
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(id: location.id.to_s)
       end
 
@@ -94,7 +98,7 @@ module Clinic
         cart.with_draft_lock do
           cart.update!(destination_site: cart_destination(input[:destination_site_id]), reason: input[:reason].to_s.strip.presence)
         end
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
       def purchase_orders
         return bootstrap unless params[:view] == "batches"
@@ -178,7 +182,7 @@ module Clinic
       def demo
         raise ArgumentError, "Synthetic inventory demo data is only available in the local development session." unless development_demo?
         Development::InventoryScenario.populate!(practice: current_practice, actor: current_user)
-        bootstrap
+        render json: { acknowledged: true }
       end
 
       def purchase_order
@@ -261,7 +265,7 @@ module Clinic
             order
           end
         end
-        render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), id: order.id }, status: :created
+        render json: { acknowledged: true, id: order.id }, status: :created
       end
 
       def add_purchase_cart_item
@@ -317,7 +321,7 @@ module Clinic
         end
         raise Clinic::Idempotency::OutcomeUnconfirmed if outcome.receipt.outcome_outcome_unconfirmed?
 
-        response = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        response = { acknowledged: true }
         render json: response.merge(replayed: outcome.replayed), status: :created
       end
 
@@ -333,14 +337,14 @@ module Clinic
             selected_unit_price: offer.supplier_product.wholesale_unit_cost, selected_currency: offer.supplier_product.currency, selected_package_quantity: offer.supplier_product.package_quantity,
             price_snapshot_at: offer.captured_at, price_snapshot_digest: offer.digest)
         end
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def remove_purchase_cart_item
         Authorization.authorize!(actor: current_user, practice: current_practice, action: "procurement.create")
         item = PurchaseCartItem.where(practice_id: current_practice.id).joins(:cart).where(clinic_inventory_purchase_carts: { actor_id: current_user.id, status: "draft" }).find(params[:id])
         item.cart.with_draft_lock { item.reload.destroy! }
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def checkout_purchase_cart
@@ -348,7 +352,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         cart, orders = PurchaseCartCheckout.call(practice: current_practice, actor: current_user, cart_id: input.require(:cart_id), request_key: request_key)
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(checkout_group_id: cart.checkout_group_id, purchase_order_ids: orders.map(&:id)), status: :created
       end
 
@@ -357,7 +361,7 @@ module Clinic
         request_key = params.require(:request_key).to_s
         validate_request_key!(request_key)
         order.transition!(to: params.require(:status), actor: current_user, reason: params.require(:reason), request_key: request_key)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def cancel_remainder
@@ -407,7 +411,7 @@ module Clinic
             shipment
           end
         end
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(id: shipment.id), status: :created
       end
 
@@ -422,7 +426,7 @@ module Clinic
           ShipmentEvent.record!(shipment:, actor: current_user, status: input.require(:status),
             note: input.require(:note), request_key:)
         end
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(id: event.id), status: :created
       end
 
@@ -470,7 +474,7 @@ module Clinic
           raise ArgumentError, "A recall can only be supplied for a recalled lot."
         end
         receipt = Receiving.call(practice: current_practice, actor: current_user, supplier: order.supplier&.name, invoice_reference: input[:invoice_reference], reason: input.require(:reason), request_key: request_key, purchase_order: order, shipment: shipment, recall: recall, reconciliation: reconciliation, status: recall ? "quarantined" : "received", lines: [ { product_id: product.id, lot_number: input[:lot_number], location_id: input[:destination_location_id].present? ? destination&.id : nil, location: destination&.name, expires_on: input[:expiration_date], amount: packages, input_unit: InventoryWire::PACKAGE_INPUT_UNIT, area_id: input[:area_id], temperature_c: input[:temperature_c], exception: input[:exception], disposition: input[:disposition], purchase_order_line_id: line.id } ])
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(receipt_id: receipt.is_a?(Receipt) ? receipt.id : nil)
       end
 
@@ -479,7 +483,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         TransferStock.call(practice: current_practice, actor: current_user, source_batch_id: input.require(:source_batch_id), destination_location_id: input.require(:destination_location_id), amount: input.require(:quantity), reason: input.require(:reason), request_key: request_key)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def create_adjustment
@@ -510,11 +514,7 @@ module Clinic
           resulting_on_hand_units: batch.quantity.to_d.to_s("F"),
           stock_unit: batch.product.stock_unit
         }
-        if params[:response] == "ack"
-          render json: { acknowledged: true, adjustment: adjustment }
-        else
-          render json: { data: InventoryWire.call(practice: current_practice, actor: current_user), adjustment: adjustment }
-        end
+        render json: { acknowledged: true, adjustment: adjustment }
       end
 
       def create_count
@@ -522,7 +522,7 @@ module Clinic
         validate_request_key!(input.require(:request_key).to_s)
         batch = batch_for(input)
         Count.observe!(batch: batch, actor: current_user, observed: input.require(:counted_units), reason: input.require(:reason), request_key: input[:request_key].to_s)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def approve_count
@@ -530,7 +530,7 @@ module Clinic
         request_key = params.require(:request_key).to_s
         validate_request_key!(request_key)
         count.approve!(actor: current_user, request_key: request_key)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def create_recall
@@ -546,7 +546,7 @@ module Clinic
         recall = legacy || RecallCase.create!(practice: current_practice, actor: current_user,
           lot_ids: input.key?(:lot_ids) ? input[:lot_ids] : [ batch_for(input).lot_id ],
           reference: input.require(:reference), reason: input.require(:reason), required_disposition: input[:required_disposition].presence || "return_to_supplier", request_key: request_key)
-        payload = params[:response] == "ack" ? { acknowledged: true } : { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        payload = { acknowledged: true }
         render json: payload.merge(id: recall.id.to_s), status: :created
       end
 
@@ -570,7 +570,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         RecallDisposition.execute!(recall: recall, actor: current_user, batch_id: input.require(:batch_id), quantity: input.require(:quantity_units), method: input[:method].presence || "return_to_supplier", evidence_reference: input.require(:evidence_reference), reason: input.require(:reason), request_key: request_key)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def investigate_control
@@ -579,7 +579,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         ControlReview.investigate!(count: count, actor: current_user, reason: input.require(:reason), request_key: request_key)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       def certify_control
@@ -588,7 +588,7 @@ module Clinic
         request_key = input.require(:request_key).to_s
         validate_request_key!(request_key)
         ControlReview.record!(count: count, actor: current_user, kind: "certification", reason: input.require(:reason), request_key: request_key)
-        params[:response] == "ack" ? render(json: { acknowledged: true }) : bootstrap
+        render json: { acknowledged: true }
       end
 
       private
