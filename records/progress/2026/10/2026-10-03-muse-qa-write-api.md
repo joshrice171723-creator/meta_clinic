@@ -24,3 +24,5 @@ Failed attempts are retained in this record: the scratch concurrency runner inte
 ## Operational boundary
 
 Publication proof is recorded below after the authorized release. Muse's actual public key/fingerprint is not supplied, so no live key is enrolled. Its screenshot hostnames are pending; default empty allowlist rejects external screenshots. Each workflow also needs an existing server-authored synthetic fixture receipt and active membership. No owner-confirmed pin or synthetic verification is manufactured by this release. Local passing cases do not claim actual unattended Muse acceptance or all 116 workflows passing. Exact request/response/signing schemas and the local-key client are in [MUSE_API.md](../../../../ops/qa/MUSE_API.md).
+
+Release source review found that both web image paths omitted the clean-build flag from published build.json. The first packaging attempt was stopped before image transfer/deployment. Both generation paths now emit dirty:false from the guarded clean release source; the Muse gate still requires an explicit false value.

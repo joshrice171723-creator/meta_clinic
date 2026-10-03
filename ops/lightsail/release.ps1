@@ -88,7 +88,7 @@ if ($ImageSource -eq 'local') {
           New-Item -ItemType Directory -Path $webContext | Out-Null
           Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
           $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
-          @{ revision = $revision; version = $version } | ConvertTo-Json -Compress |
+          @{ revision = $revision; version = $version; dirty = $false } | ConvertTo-Json -Compress |
             Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
           Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
           Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
