@@ -70,3 +70,11 @@ Source anchors: PRODUCT.md and company/pricing vault notes; application session/
 - Representative screenshots inspected for homepage, scheduling, AI, About, and mobile request page. Calendar day/month control changed its selected state and image. Insurance URL redirected to cash billing.
 - Forms were not submitted; server receipt and email delivery are not established by these checks. Hosted/demo journeys, keyboard/screen-reader audit, every deep draft route, conversion measurement, and deployment acceptance remain outside this bounded review.
 - Original dirty checkout preserved. Work prepared in codex/marketing-quality and synchronized with origin/main; origin has no master branch. No deployment authorized or performed.
+
+## Authorized publication - 2026-10-03
+
+Joshua explicitly requested committing/pushing the marketing work to main and publishing to aimetaclinic.com. Revision `3da3ca67355f45d10cf4980ca9c1e492dd393534` was pushed to origin/main and deployed with the canonical `ops/lightsail/release.ps1 -BuildWebOnHost` flow from a clean main checkout. The original dirty checkout was not altered.
+
+Matched API/web images built successfully. Preparation passed revision and Nginx checks, backed up and restore-checked both ordinary and guided-demo databases, and completed the encrypted Windows DPAPI recovery round trip before rollout. The encrypted recovery artifact remains in the owner's Secure Files directory; host recovery and prior-image material remain retained. No rollback was needed.
+
+All 26 hosted verifier checks passed, including HTTPS/API health, anonymous and CSRF denial, password and owner-PIN boundaries, concurrent context reads, organization/location persistence, Sandbox availability, location switching, and second-visitor reuse. Public build.json independently reported the exact revision, version 0.2.6, dirty=false; /up returned HTTP 200. Browser reload showed the new homepage heading, and the old insurance URL redirected to cash billing. These are scoped release/browser observations, not a complete clinical or whole-app acceptance review. The earlier local scoring and deep-route limitations remain unchanged.
