@@ -453,13 +453,20 @@ it("uses current collection records and clears context for unavailable identity,
       ]);
       await refresh.click();
       await reads;
-      await page.waitForFunction(
-        (reason) =>
-          document
-            .querySelector("[data-projection]")
-            ?.getAttribute("data-projection") === reason,
-        reason,
-      );
+      if (state.invoiceId !== 13552) {
+        // A mismatched saved invoice must expose no actionable checkout controls.
+        await expect
+          .poll(() => page.locator("[data-projection]").count())
+          .toBe(0);
+      } else {
+        await page.waitForFunction(
+          (reason) =>
+            document
+              .querySelector("[data-projection]")
+              ?.getAttribute("data-projection") === reason,
+          reason,
+        );
+      }
     };
     state.pending = true;
     await refreshProjection();
