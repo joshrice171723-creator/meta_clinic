@@ -1492,3 +1492,7 @@ Registered a server-generated empty QA result fixture scope for Muse's approved 
 ## 2026-10-03 - Standalone worker boot integration checkpoint
 
 Separable existing-Bundler-before-JSON fix and three standalone CLI regressions integrated into the repair branch; cloud3cases/18assertions reused for exact source. Lifecycle proposal remains unapplied pending zombie PID-record checkout/role validation. Exact2396 lab23tests and formatting receipts are hash-verified; full mainCI failures/cancellations remain separate. Canonical start/stop and combined publication pending; originalQA and fixed modernization counts unchanged. See [[Meta Clinic Implementation Tracker]] and the owning cash/inventory repair audit for evidence limits.
+
+## 2026-10-03 - Lifecycle bounded recovery source checkpoint
+
+Final two-file zombie/probe/listener/record-metadata repair is hash-verified and integrated with exact cloud15cases/67assertions focused POSIX proof. Earlier failed proposals remain history. Existing worker boot stays unchanged; configured lint31baselineoffenses remains failing. Canonical application start/stop/storage acceptance awaits resulting immutable candidate; Windows/whole-candidate/main/hosted acceptance is not claimed. OriginalQA and fixed modernization counts unchanged. See [[Meta Clinic Implementation Tracker]] and owning repair audit.

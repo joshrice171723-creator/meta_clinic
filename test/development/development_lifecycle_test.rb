@@ -357,6 +357,189 @@ class DevelopmentLifecycleTest < Minitest::Test
     refute lifecycle.send(:process_alive?, 2_147_483_647)
   end
 
+  def test_exited_unreaped_process_is_not_alive_and_its_owned_record_is_cleaned
+    with_unreaped_process do |pid|
+      lifecycle = build_lifecycle
+      lifecycle.send(:write_pid_record, "worker", pid)
+      refute lifecycle.send(:process_alive?, pid)
+      lifecycle.send(:stop_role, "worker")
+      refute File.exist?(File.join(@temporary_directory, "tmp/dev/pids/worker.pid"))
+    end
+  end
+
+  def test_failed_or_malformed_process_state_inspection_remains_alive
+    lifecycle = build_lifecycle
+    [["Z", false], ["", true], ["invalid", true], ["Z foreign", true], ["Z\nS", true], ["ZA", true], ["ps unavailable", false]].each do |output, success|
+      lifecycle.define_singleton_method(:capture_process_state) { |_pid| [output, success] }
+      assert lifecycle.send(:process_alive?, Process.pid), [output, success].inspect
+    end
+  end
+
+  def test_failed_process_state_inspection_still_refuses_a_live_foreign_directory
+    skip "POSIX working-directory inspection required" if Gem.win_platform?
+
+    lifecycle = build_lifecycle
+    lifecycle.define_singleton_method(:capture_process_state) { |_pid| ["ps unavailable", false] }
+    lifecycle.send(:write_pid_record, "worker", Process.pid)
+    lifecycle.define_singleton_method(:port_in_use?) { |_port| false }
+
+    error = assert_raises(Apply::DevelopmentLifecycle::Failure) do
+      lifecycle.send(:require_stoppable_scope!)
+    end
+    assert_includes error.message, "not rooted in this checkout"
+    assert File.exist?(File.join(@temporary_directory, "tmp/dev/pids/worker.pid"))
+    assert lifecycle.send(:process_alive?, Process.pid)
+  end
+
+  def test_hung_process_state_probe_is_bounded_reaped_and_conservatively_alive
+    skip "POSIX process inspection required" if Gem.win_platform?
+
+    probe_directory = File.join(@temporary_directory, "probe-bin")
+    probe_pid_path = File.join(@temporary_directory, "probe.pid")
+    FileUtils.mkdir_p(probe_directory)
+    probe = File.join(probe_directory, "ps")
+    File.write(probe, <<~RUBY)
+      #!#{RbConfig.ruby}
+      File.write(#{probe_pid_path.inspect}, Process.pid.to_s)
+      STDOUT.sync = true
+      STDOUT.write("Z")
+      sleep 5
+    RUBY
+    File.chmod(0o755, probe)
+    previous_path = ENV.fetch("PATH", "")
+    ENV["PATH"] = [probe_directory, previous_path].join(File::PATH_SEPARATOR)
+    lifecycle = build_lifecycle
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    alive = lifecycle.send(:process_alive?, Process.pid)
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    assert_operator elapsed, :<, 3
+    assert alive
+    probe_pid = Integer(File.read(probe_pid_path), 10)
+    assert_raises(Errno::ESRCH) { Process.kill(0, probe_pid) }
+    assert_equal 1, Process.kill(0, Process.pid)
+  ensure
+    ENV["PATH"] = previous_path if previous_path
+  end
+
+  def test_live_listener_is_refused_even_when_its_recorded_parent_is_a_zombie
+    listener = TCPServer.new("127.0.0.1", 0)
+    with_unreaped_process do |pid|
+      lifecycle = build_lifecycle
+      lifecycle.instance_variable_get(:@ports)[:api] = listener.addr[1]
+      lifecycle.send(:write_pid_record, "api", pid)
+
+      error = assert_raises(Apply::DevelopmentLifecycle::Failure) do
+        lifecycle.send(:require_stoppable_scope!)
+      end
+      assert_includes error.message, "refusing to stop api"
+      assert File.exist?(File.join(@temporary_directory, "tmp/dev/pids/api.pid"))
+      socket = TCPSocket.new("127.0.0.1", listener.addr[1])
+      socket.close
+    end
+  ensure
+    listener&.close
+  end
+
+  def test_direct_and_startup_cleanup_preserve_record_for_a_live_listener_with_a_dead_parent
+    listener = TCPServer.new("127.0.0.1", 0)
+    with_unreaped_process do |pid|
+      lifecycle = build_lifecycle
+      lifecycle.instance_variable_get(:@ports)[:api] = listener.addr[1]
+      lifecycle.send(:write_pid_record, "api", pid)
+      path = File.join(@temporary_directory, "tmp/dev/pids/api.pid")
+      original = File.read(path)
+
+      error = assert_raises(Apply::DevelopmentLifecycle::Failure) { lifecycle.send(:stop_role, "api") }
+      assert_includes error.message, "still listening"
+      assert_equal original, File.read(path)
+      lifecycle.send(:cleanup_started_roles, ["api"])
+      assert_includes @error.string, "still listening"
+      assert_equal original, File.read(path)
+      TCPSocket.new("127.0.0.1", listener.addr[1]).close
+    end
+  ensure
+    listener&.close
+  end
+
+  def test_record_survives_term_when_an_owned_child_listener_outlives_the_parent_group
+    with_detached_listener_parent do |pid, child|
+      lifecycle = build_lifecycle
+      lifecycle.instance_variable_get(:@ports)[:api] = child.fetch("port")
+      lifecycle.send(:write_pid_record, "api", pid)
+      path = File.join(@temporary_directory, "tmp/dev/pids/api.pid")
+      original = File.read(path)
+
+      error = assert_raises(Apply::DevelopmentLifecycle::Failure) { lifecycle.send(:stop_role, "api") }
+      assert_includes error.message, "still listening"
+      refute lifecycle.send(:process_alive?, pid)
+      assert_equal original, File.read(path)
+      assert_equal 1, Process.kill(0, child.fetch("pid"))
+      TCPSocket.new("127.0.0.1", child.fetch("port")).close
+    end
+  end
+
+  def test_failed_pid_record_write_preserves_record_when_unrecorded_cleanup_leaves_a_listener
+    skip "POSIX process groups required" unless Process.respond_to?(:fork)
+
+    api = File.join(@temporary_directory, "apps/api")
+    FileUtils.mkdir_p(File.join(api, "bin"))
+    FileUtils.mkdir_p(File.join(@temporary_directory, "tmp/dev/logs"))
+    ready = File.join(@temporary_directory, "child-ready.json")
+    File.write(File.join(api, "bin/postgres"), detached_listener_program(ready))
+    lifecycle = build_lifecycle
+    original_write = lifecycle.method(:write_pid_record)
+    original_record = nil
+    record_path = File.join(@temporary_directory, "tmp/dev/pids/api.pid")
+    lifecycle.define_singleton_method(:write_pid_record) do |role, pid|
+      original_write.call(role, pid)
+      original_record = File.read(record_path)
+      Timeout.timeout(3) { sleep 0.01 until File.file?(ready) }
+      child = JSON.parse(File.read(ready))
+      @ports[:api] = child.fetch("port")
+      raise Apply::DevelopmentLifecycle::Failure, "Synthetic PID record failure"
+    end
+
+    error = assert_raises(Apply::DevelopmentLifecycle::Failure) { lifecycle.send(:spawn_role, "api") }
+    assert_includes error.message, "still listening"
+    assert_equal original_record, File.read(record_path)
+    record = JSON.parse(File.read(record_path))
+    refute lifecycle.send(:process_alive?, record.fetch("pid"))
+    child = JSON.parse(File.read(ready))
+    assert_equal 1, Process.kill(0, child.fetch("pid"))
+    TCPSocket.new("127.0.0.1", child.fetch("port")).close
+  ensure
+    if ready && File.file?(ready)
+      child = JSON.parse(File.read(ready))
+      kill_test_process(child.fetch("pid"))
+    end
+    Process.wait(record.fetch("pid")) if record
+  end
+
+  def test_foreign_root_zombie_record_is_preserved
+    with_unreaped_process do |pid|
+      assert_dead_record_identity_refused(pid, "root", File.join(@temporary_directory, "foreign-checkout"), "another checkout")
+    end
+  end
+
+  def test_wrong_role_zombie_record_is_preserved
+    with_unreaped_process do |pid|
+      assert_dead_record_identity_refused(pid, "role", "web", "role does not match")
+    end
+  end
+
+  def test_foreign_root_missing_pid_record_is_preserved
+    assert_dead_record_identity_refused(2_147_483_647, "root", File.join(@temporary_directory, "foreign-checkout"), "another checkout")
+  end
+
+  def test_dead_record_without_checkout_metadata_is_preserved
+    assert_dead_record_identity_refused(2_147_483_647, "root", nil, "lacks checkout/role metadata")
+  end
+
+  def test_wrong_role_missing_pid_record_is_preserved
+    assert_dead_record_identity_refused(2_147_483_647, "role", "web", "role does not match")
+  end
+
   def test_windows_process_liveness_rejects_an_exited_process_with_an_open_handle
     skip unless Gem.win_platform?
 
@@ -411,6 +594,77 @@ class DevelopmentLifecycleTest < Minitest::Test
   end
 
   private
+
+  def assert_dead_record_identity_refused(pid, field, value, expected_error)
+    lifecycle = build_lifecycle
+    lifecycle.send(:write_pid_record, "worker", pid)
+    path = File.join(@temporary_directory, "tmp/dev/pids/worker.pid")
+    record = JSON.parse(File.read(path))
+    record[field] = value
+    File.write(path, JSON.generate(record))
+    original = File.read(path)
+
+    error = assert_raises(Apply::DevelopmentLifecycle::Failure) { lifecycle.send(:stop_role, "worker") }
+    assert_includes error.message, expected_error
+    assert_equal original, File.read(path)
+  end
+
+  def kill_test_process(pid)
+    Process.kill("KILL", pid)
+  rescue Errno::ESRCH
+    nil
+  end
+
+  def detached_listener_program(ready)
+    <<~RUBY
+      require "json"
+      require "socket"
+      fork do
+        Process.setsid
+        listener = TCPServer.new("127.0.0.1", 0)
+        File.write(#{ready.inspect}, JSON.generate(pid: Process.pid, port: listener.addr[1]))
+        loop { sleep 1 }
+      end
+      loop { sleep 1 }
+    RUBY
+  end
+
+  def with_detached_listener_parent
+    skip "POSIX process groups required" unless Process.respond_to?(:fork)
+
+    api = File.join(@temporary_directory, "apps/api")
+    FileUtils.mkdir_p(api)
+    ready = File.join(@temporary_directory, "detached-child.json")
+    program = detached_listener_program(ready)
+    pid = Process.spawn(RbConfig.ruby, "-e", program, chdir: api, pgroup: true)
+    Timeout.timeout(3) { sleep 0.01 until File.file?(ready) }
+    child = JSON.parse(File.read(ready))
+    yield pid, child
+  ensure
+    if child
+      kill_test_process(child.fetch("pid"))
+    end
+    if pid
+      kill_test_process(pid)
+      Process.wait(pid)
+    end
+  end
+
+  def with_unreaped_process
+    skip "POSIX fork required" unless Process.respond_to?(:fork)
+
+    pid = fork { exit! 0 }
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 3
+    loop do
+      output, status = Open3.capture2("ps", "-o", "stat=", "-p", pid.to_s)
+      break if status.success? && output.strip.start_with?("Z")
+      raise "Exited child did not become observable as a zombie" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+      sleep 0.01
+    end
+    yield pid
+  ensure
+    Process.wait(pid) if pid
+  end
 
   def build_lifecycle(environment = {})
     Apply::DevelopmentLifecycle.new(

@@ -816,7 +816,7 @@ module Apply
       log&.close
       if pid && !recorded
         cleanup_unrecorded_process(pid)
-        File.delete(pid_path(role)) if File.file?(pid_path(role))
+        remove_stopped_role_record(role, pid)
       end
     end
 
@@ -896,7 +896,7 @@ module Apply
       return unless record
       pid = record.fetch("pid")
       unless process_alive?(pid)
-        File.delete(pid_path(role)) if File.file?(pid_path(role))
+        remove_stopped_role_record(role, pid)
         return
       end
 
@@ -930,20 +930,39 @@ module Apply
           fail_with("could not stop #{role} PID #{pid}") unless wait_until(2) { !process_alive?(pid) }
         end
       end
-      File.delete(pid_path(role)) if File.file?(pid_path(role))
+      remove_stopped_role_record(role, pid)
     rescue Errno::ESRCH
-      File.delete(pid_path(role)) if File.file?(pid_path(role))
+      remove_stopped_role_record(role, pid)
       nil
     end
 
-    def validate_record_for_stop!(role, record)
-      pid = record.fetch("pid")
+    def remove_stopped_role_record(role, pid)
+      if File.file?(pid_path(role))
+        record = read_pid_record(role)
+        unless record && record["root"] && record["role"]
+          fail_with("refusing to forget #{role}: PID record lacks checkout/role metadata")
+        end
+        validate_record_metadata!(role, record)
+      end
+      fail_with("refusing to forget #{role}: PID #{pid} is still running") if process_alive?(pid)
+      port = process_port(PROCESS_ROLES.fetch(role))
+      fail_with("refusing to forget #{role}: port #{port} is still listening") if port && port_in_use?(port)
+
+      File.delete(pid_path(role)) if File.file?(pid_path(role))
+    end
+
+    def validate_record_metadata!(role, record)
       if record["root"] && File.expand_path(record.fetch("root")) != @root
         fail_with("refusing to stop #{role}: PID record belongs to another checkout")
       end
       if record["role"] && record.fetch("role") != role
         fail_with("refusing to stop #{role}: PID record role does not match")
       end
+    end
+
+    def validate_record_for_stop!(role, record)
+      validate_record_metadata!(role, record)
+      pid = record.fetch("pid")
       unless process_directory_matches?(pid, role)
         fail_with("refusing to stop #{role}: recorded process is not rooted in this checkout")
       end
@@ -961,9 +980,12 @@ module Apply
     end
 
     def cleanup_unrecorded_process(pid)
+      return unless process_alive?(pid)
+
       if Gem.win_platform?
         system("taskkill", "/PID", pid.to_s, "/T", "/F", out: File::NULL, err: File::NULL)
       else
+        fail_with("refusing to clean up an unrecorded process in an unsafe process group") if unsafe_process_group?(pid)
         process_group = Process.getpgid(pid)
         Process.kill("TERM", -process_group)
         Process.kill("KILL", -process_group) unless wait_until(2) { !process_alive?(pid) }
@@ -1066,11 +1088,34 @@ module Apply
       return windows_process_alive?(pid) if Gem.win_platform?
 
       Process.kill(0, pid)
-      true
+      state, inspected = capture_process_state(pid)
+      !inspected || !state.strip.match?(/\AZ[<NLsl+]*\z/)
     rescue Errno::ESRCH
       false
     rescue Errno::EPERM
       true
+    end
+
+    def capture_process_state(pid)
+      input, output, waiter = Open3.popen2e("ps", "-o", "stat=", "-p", pid.to_s)
+      input.close
+      Timeout.timeout(1) do
+        state = output.read(64).to_s
+        [state, waiter.value.success? && state.bytesize < 64]
+      end
+    rescue Timeout::Error, SystemCallError, IOError
+      ["", false]
+    ensure
+      if waiter&.alive?
+        begin
+          Process.kill("KILL", waiter.pid)
+        rescue Errno::ESRCH, Errno::EPERM
+          nil
+        end
+        waiter.join(0.2)
+      end
+      input&.close unless input&.closed?
+      output&.close unless output&.closed?
     end
 
     def windows_process_alive?(pid)
