@@ -8,7 +8,7 @@ module Qa
         workflow_ids.uniq == workflow_ids && (workflow_ids - WorkflowContract::IDS).empty? && (issue_number.present? || workflow_ids.present?)
     end
     validates :caption, presence: true, length: { maximum: 500 }
-    validates :revision, format: { with: /\A[0-9a-f]{40}\z/ }
+    validates :revision, format: { with: /\A(?:[0-9a-f]{40}|unobserved)\z/ }
     validates :content_type, inclusion: { in: %w[image/png image/jpeg] }
     validates :phase, inclusion: { in: %w[before after observation] }
     def readonly? = persisted?

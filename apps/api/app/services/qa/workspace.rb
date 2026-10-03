@@ -15,7 +15,7 @@ module Qa
       "Use synthetic fixtures in the dedicated QA clinic only.",
       "Do not finalize clinical, financial, prescribing, or outbound actions.",
       "Read-only exploration unless a QA batch is active.",
-      "Verify build.json before and after each run. Stop and re-pin if the full revision changes.",
+      "Observe build.json per finding and evidence. Continue across deployments with recorded boundaries and scoped follow-up.",
       "Queued is not dispatched. An agent must claim work and attach its result.",
       "One browser run at a time. Preserve the existing three-repair-attempt limit."
     ].freeze
@@ -33,6 +33,35 @@ module Qa
 
     def self.state
       Snapshot.find_by(key: "state")&.data || JSON.parse(Rails.root.join("config/qa_state.json").read)
+    end
+
+    # Reported/captured revision and submission-time observation are distinct.
+    # Unavailable metadata is explicit; it never invents a commit identity.
+    def self.build_observation(reported_revision: nil)
+      data = build
+      revision = data["revision"].to_s.match?(/\A[0-9a-f]{40}\z/) ? data["revision"] : nil
+      boundary = if reported_revision.nil?
+        "observed_at_submission"
+      elsif !revision || reported_revision == "unobserved"
+        "metadata_unavailable"
+      elsif reported_revision == revision
+        "same_observed_revision"
+      else
+        "deployment_changed"
+      end
+      data.slice("version", "environment", "dirty", "error").merge(
+        "revision" => revision, "observed_at" => Time.current.iso8601(6),
+        "status" => revision ? "observed" : "unavailable", "reported_revision" => reported_revision, "boundary" => boundary)
+    end
+
+    def self.reported_revision(value)
+      return nil if value.nil? || value == ""
+      raise ArgumentError, "Revision must be a full SHA or explicitly unobserved." unless value.is_a?(String) && (value == "unobserved" || value.match?(/\A[0-9a-f]{40}\z/))
+      value
+    end
+
+    def self.record_revision(reported, observation)
+      reported || observation["revision"] || "unobserved"
     end
 
     def self.coverage_export(data)

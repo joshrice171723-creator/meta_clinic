@@ -54,7 +54,8 @@ module Qa
         counts: { open: issues.fetch("issues", []).count { |issue| issue["state"] == "open" },
           closed: issues.fetch("issues", []).count { |issue| issue["state"] == "closed" },
           historical_passed: state.fetch("retest", []).count { |issue| issue["status"] == "passed" },
-          current_build_completed_tasks: build["revision"] ? Task.where(status: "completed", revision: build["revision"]).count : nil,
+          # Task start revision alone cannot establish latest-build acceptance.
+          current_build_completed_tasks: nil,
           queued: task_scope.where(status: "queued").count }, github_status: issues["status"], guardrails: Workspace::GUARDRAILS }
     end
 
@@ -133,25 +134,25 @@ module Qa
     def create_task
       input = object!(:task)
       kind = string!(input, "kind", 30)
-      revision = revision!(input["revision"])
-      raise ArgumentError, "Live revision changed; refresh before queuing." unless verified_build!["revision"] == revision
+      reported_revision = Workspace.reported_revision(input["revision"])
+      observation = Workspace.build_observation(reported_revision:)
+      revision = Workspace.record_revision(reported_revision, observation)
       if kind == "coordination"
         return render json: OfficeWork.create(user: actor, token: @service_token, input:, revision:), status: :created
       end
       raise OfficeActorPolicy::Denied, "Office credentials cannot queue QA runs." if @service_token&.office?
       trusted = @service_token.present? || current_user&.platform_owner?
-      raise ArgumentError, "Confirm the live build pin before queuing work." if trusted && Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
       payload = input.fetch("payload", {})
       unless @service_token || current_user&.platform_owner? || %w[retest qa_run].include?(kind)
         return render json: { error: "Only a platform owner can queue this task kind." }, status: :forbidden
       end
       raise ArgumentError, "Task payload must be an object." unless payload.is_a?(Hash) && payload.to_json.bytesize < 30_000
       attributes = { "kind" => kind, "title" => string!(input, "title", 200), "recipient" => input.fetch("recipient", "muse"), "revision" => revision, "payload" => payload }
-      digest = Task.fingerprint(attributes)
+      digest = Task.fingerprint(attributes.merge("revision" => reported_revision))
       task = Task.create_or_find_by!(request_key: string!(input, "request_key", 100)) do |record|
-        record.assign_attributes(attributes.merge(user: actor, status: trusted ? "queued" : "proposed", request_digest: digest))
+        record.assign_attributes(attributes.merge("payload" => payload.merge("submission_build_observation" => observation)).merge(user: actor, status: trusted ? "queued" : "proposed", request_digest: digest))
       end
-      previous = task.attributes.slice(*attributes.keys).merge("payload" => task.payload.except("qa_baseline"))
+      previous = task.attributes.slice(*attributes.keys).merge("payload" => task.payload.except("qa_baseline", "submission_build_observation", "qa_claim_build_observation"))
       unless task.user_id == actor.id && (task.request_digest || Task.fingerprint(previous)) == digest
         raise OfficeWork::Conflict, "Request key already records different content or another actor."
       end
@@ -167,27 +168,21 @@ module Qa
 
     def transition
       run_id = string!(params.to_unsafe_h, "run_id", 120)
-      revision = revision!(params[:revision])
+      reported_revision = Workspace.reported_revision(params[:revision])
       outcome = params[:status].to_s
       task = task_scope.find(params[:id])
       raise OfficeActorPolicy::Denied, "Use the Office work transition endpoint." if task.kind == "coordination"
       conflict = nil
       actor.with_lock do
         task.lock!
-        build = Workspace.build
-        live = build["revision"]
-        if build["dirty"] || live != revision || task.revision != revision || Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) != revision
-          if task.status == "claimed" && task.claim_run_id == run_id && task.claimed_by_id == actor.id && task.claim_principal == OfficeActors.principal_key(actor, @service_token)
-            task.update!(status: "queued", claimed_by: nil, claim_principal: nil, lease_expires_at: nil, claim_run_id: nil, claimed_at: nil)
-            Workspace.event(user: actor, kind: "run_aborted", summary: "Build changed during #{run_id}; task returned to queue.", revision: live, payload: { task_id: task.id, run_id:, pinned_revision: task.revision })
-          end
-          conflict = "Build identity changed, unavailable, or has uncommitted changes; use a committed pinned build."
-        elsif outcome == "claimed"
+        observation = Workspace.build_observation(reported_revision:)
+        revision = Workspace.record_revision(reported_revision, observation)
+        if outcome == "claimed"
           if task.status != "queued" || Event.exists?(event_key: "claim:#{run_id}")
             conflict = "Task already claimed, or this run has already claimed its one task."
           else
             task.update!(status: "claimed", claimed_by: actor, claim_principal: OfficeActors.principal_key(actor, @service_token), claim_run_id: run_id, claimed_at: Time.current, lease_expires_at: 15.minutes.from_now,
-              payload: task.payload.merge("qa_baseline" => Snapshot.find_by(key: "baseline")&.data))
+              payload: task.payload.merge("qa_baseline" => Snapshot.find_by(key: "baseline")&.data, "qa_claim_build_observation" => observation))
             Workspace.event(user: actor, kind: "run_started", summary: "#{run_id} claimed #{task.title}", revision:, payload: { task_id: task.id, run_id: }, event_key: "claim:#{run_id}")
           end
         elsif %w[completed failed aborted].include?(outcome)
@@ -199,7 +194,8 @@ module Qa
             if outcome == "completed" && result.fetch("defects").any? { |defect| defect["verdict"] != "passed" }
               raise ArgumentError, "A completed run requires every defect to pass. Submit failed for a mixed or blocked verdict."
             end
-            task.update!(status: outcome == "aborted" ? "queued" : outcome, result: result || {},
+            result = (result || {}).merge("server_build_observations" => [task.payload["qa_claim_build_observation"], observation, Workspace.build_observation(reported_revision: task.revision)].compact)
+            task.update!(status: outcome == "aborted" ? "queued" : outcome, result: result,
               **(outcome == "aborted" ? { claimed_by: nil, claim_principal: nil, lease_expires_at: nil, claim_run_id: nil, claimed_at: nil } : { lease_expires_at: nil }))
             Workspace.event(user: actor, kind: outcome == "aborted" ? "run_aborted" : "retest_#{outcome == 'completed' ? 'passed' : 'failed'}",
               summary: "#{run_id}: #{task.title} â€” #{outcome}", revision:, payload: { task_id: task.id, run_id:, result: result || {} })
@@ -222,11 +218,16 @@ module Qa
       payload = input.fetch("payload", {})
       raise ArgumentError, "Event payload must be an object of 8 KB or less." unless payload.is_a?(Hash) && payload.to_json.bytesize <= 8000
       AgentRoom.reject_credentials!(input)
-      fields = { "kind" => "reported_#{kind}", "summary" => string!(input, "summary", 500), "revision" => revision!(input["revision"]), "payload" => payload }
+      reported_revision = Workspace.reported_revision(input["revision"])
+      fields = { "kind" => "reported_#{kind}", "summary" => string!(input, "summary", 500), "revision" => reported_revision, "payload" => payload }
+      digest = Task.fingerprint(fields)
       key = string!(input.merge("event_key" => input.fetch("event_key", SecureRandom.uuid)), "event_key", 100)
       actor.with_lock do
-        event = Workspace.event(user: actor, **fields.symbolize_keys, event_key: "reported:event:#{key}")
-        unless event.user_id == actor.id && event.attributes.slice(*fields.keys) == fields
+        observation = Workspace.build_observation(reported_revision:)
+        stored_fields = fields.merge("revision" => Workspace.record_revision(reported_revision, observation),
+          "payload" => payload.merge("submission_build_observation" => observation, "request_digest" => digest))
+        event = Workspace.event(user: actor, **stored_fields.symbolize_keys, event_key: "reported:event:#{key}")
+        unless event.user_id == actor.id && (event.payload["request_digest"] == digest || event.attributes.slice(*fields.keys) == fields)
           raise OfficeWork::Conflict, "Event key records different content or another actor."
         end
         render json: event, status: :created
@@ -238,10 +239,10 @@ module Qa
       task = Task.find(params[:id])
       task.with_lock do
         raise OfficeWork::Conflict, "Only proposed work can be accepted." unless task.status == "proposed"
-        revision = verified_build!["revision"]
-        raise OfficeWork::Conflict, "Refresh the live build and trusted pin before accepting." unless task.revision == revision && Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == revision
+        observation = Workspace.build_observation(reported_revision: task.revision)
+        revision = task.revision
         task.update!(status: "queued")
-        Workspace.event(user: actor, kind: "task_accepted", summary: task.title, revision:, payload: { task_id: task.id })
+        Workspace.event(user: actor, kind: "task_accepted", summary: task.title, revision:, payload: { task_id: task.id, submission_build_observation: observation })
       end
       render json: task_json(task)
     end
@@ -304,9 +305,11 @@ module Qa
       type = input["content_type"]
       valid = type == "image/png" ? data.start_with?("\x89PNG\r\n\x1a\n".b) : type == "image/jpeg" && data.start_with?("\xff\xd8\xff".b)
       raise ArgumentError, "Upload a PNG or JPEG of 4 MB or less." unless valid && data.bytesize.between?(1, 4.megabytes)
-      item = Evidence.create!(user: actor, issue_number: Integer(input["issue"]), revision: revision!(input["revision"]),
+      reported_revision = Workspace.reported_revision(input["revision"])
+      observation = Workspace.build_observation(reported_revision:)
+      item = Evidence.create!(user: actor, issue_number: Integer(input["issue"]), revision: Workspace.record_revision(reported_revision, observation),
         caption: string!(input, "caption", 500), content_type: type, image: data, digest: Digest::SHA256.hexdigest(data),
-        phase: input.fetch("phase", "observation"), context: evidence_context!(input.fetch("context", {})))
+        phase: input.fetch("phase", "observation"), context: evidence_context!(input.fetch("context", {})).merge("submission_build_observation" => observation))
       Workspace.event(user: actor, kind: "evidence_saved", summary: item.caption, revision: item.revision, payload: { evidence_id: item.id, issue: item.issue_number })
       render json: evidence_json(item), status: :created
     end
@@ -318,8 +321,9 @@ module Qa
     end
 
     def baseline
-      revision = revision!(params[:revision])
-      raise ArgumentError, "Live build changed." unless verified_build!["revision"] == revision
+      reported_revision = Workspace.reported_revision(params[:revision])
+      observation = Workspace.build_observation(reported_revision:)
+      revision = Workspace.record_revision(reported_revision, observation)
       raise ArgumentError, "Finish the active run before preparing fixtures." if Task.where(status: "claimed").exists?
       actor.with_lock do
         Current.workspace_tools_owner_session = true
@@ -332,26 +336,17 @@ module Qa
         Development::TestClinic.create!(actor, permissions: Development::GuidedClinicDemo::OPERATOR_PERMISSIONS, practice: membership.practice, seed_fixtures: false)
         session[:clinic_practice_id] = membership.practice_id unless @service_token
         data = { practice_id: membership.practice_id, operator_id: operator.id, prepared_at: Time.current.iso8601, revision:,
-          route: "/clinic", note: "Dedicated QA clinic prepared. Existing demo clinics remain available." }
+          route: "/clinic", submission_build_observation: observation, note: "Dedicated QA clinic prepared. Existing demo clinics remain available." }
         Snapshot.put("baseline", data)
         Workspace.event(user: actor, kind: "baseline_prepared", summary: "Dedicated QA baseline clinic #{membership.practice_id} prepared.", revision:, payload: data)
       end
       render json: Snapshot.find_by!(key: "baseline").data
     end
 
+    # Compatibility route is observation-only; it no longer confirms a campaign.
     def pin
-      revision = revision!(params[:revision])
-      build = verified_build!
-      raise ArgumentError, "Live build differs from the requested pin." unless build["revision"] == revision
-      reason = string!(params.to_unsafe_h, "reason", 500)
-      unless @service_token || current_user&.platform_owner?
-        event = Workspace.event(user: actor, kind: "build_pin_proposed", summary: reason, revision:)
-        return render json: { status: "proposed", proposal_id: event.id, revision:, reason: }, status: :accepted
-      end
-      data = { revision:, version: build["version"], confirmed_at: Time.current.iso8601, confirmed_by: actor.email_address, reason: }
-      Snapshot.put("pin", data)
-      Workspace.event(user: actor, kind: "build_pinned", summary: reason, revision:, payload: data)
-      render json: data
+      reported_revision = Workspace.reported_revision(params[:revision])
+      render json: Workspace.build_observation(reported_revision:).merge("coordination_gate" => false)
     end
 
     def approval
@@ -367,9 +362,8 @@ module Qa
         validate_result!(task.result)
         if outcome == "approved"
           raise ArgumentError, "Every defect must pass with stored evidence before approval." unless task.status == "completed" && task.result.fetch("defects").all? { |defect| defect["verdict"] == "passed" }
-          raise ArgumentError, "Review the current pinned live revision." unless verified_build!["revision"] == task.revision && Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil) == task.revision
         end
-        decision = { outcome:, note:, reviewer: actor.email_address, reviewed_at: Time.current.iso8601, revision: task.revision }
+        decision = { outcome:, note:, reviewer: actor.email_address, reviewed_at: Time.current.iso8601, revision: task.revision, submission_build_observation: Workspace.build_observation(reported_revision: task.revision) }
         task.update!(human_decision: decision)
         Workspace.event(user: actor, kind: "human_reviewed", summary: "#{task.title}: #{outcome}", revision: task.revision, payload: { task_id: task.id, decision: })
       end
@@ -397,7 +391,7 @@ module Qa
     private
 
     def record_observation(input)
-      revision = revision!(input["revision"])
+      reported_revision = Workspace.reported_revision(input["revision"])
       summary = string!(input, "summary", 500)
       supplied = input["payload"]
       raise ArgumentError, "Provide observation details and provenance." unless supplied.is_a?(Hash)
@@ -406,27 +400,25 @@ module Qa
       payload = { "provenance" => provenance, "details" => string!(supplied, "details", 5_000), "tester" => actor.email_address }
       if supplied["task_id"].present?
         task = task_scope.find(Integer(supplied["task_id"]))
-        raise ArgumentError, "The task belongs to a different revision." unless task.revision == revision
         payload["task_id"] = task.id
+        payload["task_revision"] = task.revision
       end
+      AgentRoom.reject_credentials!(input)
+      digest = Task.fingerprint({ "summary" => summary, "revision" => reported_revision, "payload" => payload.except("task_revision") })
       key = "observation:#{string!(input, 'event_key', 100)}"
-      item = Snapshot.transaction do
-        pin = Snapshot.find_by(key: "pin")
-        raise ArgumentError, "Confirm the live build pin before recording an observation." unless pin
-        pin.with_lock do
-          build = verified_build!
-          unless build["revision"] == revision && pin.data["revision"] == revision
-            raise ArgumentError, "Live revision or confirmed pin changed; refresh before recording."
-          end
-          receipt = Workspace.event(user: actor, kind: "observation_recorded", summary:, revision:, payload:, event_key: key)
-          unless receipt.user_id == actor.id && receipt.kind == "observation_recorded" && receipt.summary == summary &&
-              receipt.revision == revision && receipt.payload == payload
+      item = actor.with_lock do
+        if (prior = Event.find_by(event_key: key))
+          legacy = prior.revision == reported_revision && prior.payload == payload.except("task_revision")
+          unless prior.user_id == actor.id && prior.kind == "observation_recorded" && prior.summary == summary && (prior.payload["request_digest"] == digest || legacy)
             raise ArgumentError, "This observation key already records different content."
           end
-          after = verified_build!
-          raise ArgumentError, "Live revision changed while recording; refresh before retrying." unless after["revision"] == revision
-          receipt
+          next prior
         end
+        before = Workspace.build_observation(reported_revision:)
+        after = Workspace.build_observation(reported_revision: before["revision"] || "unobserved")
+        Workspace.event(user: actor, kind: "observation_recorded", summary:,
+          revision: Workspace.record_revision(reported_revision, before),
+          payload: payload.merge("request_digest" => digest, "server_build_observations" => [before, after]), event_key: key)
       end
       render json: item, status: :created
     end
@@ -462,12 +454,6 @@ module Qa
       raise ArgumentError, "Public QA attribution is unavailable." if visitor.active? || visitor.admin? || visitor.platform_owner?
       @actor = visitor
     end
-    def verified_build!
-      build = Workspace.build
-      raise ArgumentError, "Commit source changes before pinning or running exact-build QA." if build["dirty"]
-      raise ArgumentError, "Live build identity is unavailable." unless build["revision"]
-      build
-    end
     def task_scope
       scope = @service_token ? Task.where(recipient: @service_token.recipient) : Task.all
       @service_token&.office? ? scope.where(kind: "coordination") : scope
@@ -482,22 +468,24 @@ module Qa
       raise ArgumentError, "#{key} is required (maximum #{maximum} characters)." unless value.is_a?(String) && value.strip.present? && value.length <= maximum
       value.strip
     end
-    def revision!(value)
-      raise ArgumentError, "A full 40-character revision is required." unless value.to_s.match?(/\A[0-9a-f]{40}\z/)
-      value
-    end
     def validate_result!(result)
       raise ArgumentError, "Provide a verdict, summary, and evidence references." unless result.is_a?(Hash) && result["summary"].to_s.present? && result["defects"].is_a?(Array) && result["defects"].any?
       result["defects"].each do |defect|
         raise ArgumentError, "Each defect requires an id, pass/fail verdict, positive observed evidence, and stored evidence references." unless
           defect.is_a?(Hash) && defect["id"].present? && %w[passed failed blocked expected-config].include?(defect["verdict"]) &&
           defect["observed"].to_s.present? && defect["evidence_refs"].is_a?(Array) && defect["evidence_refs"].any? &&
-          defect["evidence_refs"].all? { |id| Evidence.exists?(id:) } &&
-          Evidence.where(id: defect["evidence_refs"], revision: params[:revision]).exists?
+          defect["evidence_refs"].all? { |id| Evidence.exists?(id:) }
+        evidence = Evidence.where(id: defect["evidence_refs"])
+        reported_revision = Workspace.reported_revision(defect["revision"])
+        if reported_revision && !evidence.where(revision: reported_revision).exists?
+          raise ArgumentError, "The defect's reported revision must identify its stored evidence."
+        end
+        defect["evidence_revisions"] = evidence.distinct.pluck(:revision).sort
         if defect["verdict"] == "passed"
-          evidence = Evidence.where(id: defect["evidence_refs"])
-          raise ArgumentError, "A passed fix requires a before screenshot and an after screenshot on this revision." unless
-            evidence.where(phase: "before").exists? && evidence.where(phase: "after", revision: params[:revision]).exists?
+          after = evidence.where(phase: "after")
+          after = after.where(revision: reported_revision) if reported_revision
+          raise ArgumentError, "A passed fix requires stored before and after screenshots with their original revisions." unless
+            evidence.where(phase: "before").exists? && after.exists?
         end
       end
     end

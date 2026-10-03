@@ -125,36 +125,49 @@ class QaObservationTest < ActionDispatch::IntegrationTest
     assert_equal "reported", response.parsed_body.dig("payload", "provenance")
   end
 
-  test "missing or mismatched pin and stale dirty or unavailable builds cannot save" do
+  test "missing or mismatched legacy pin and changed dirty or unavailable metadata do not block observations" do
     sign_in
     Qa::Snapshot.find_by!(key: "pin").destroy!
-    assert_denied(:unprocessable_entity)
+    record
+    assert_response :created
     Qa::Snapshot.put("pin", { "revision" => "b" * 40 })
-    assert_denied(:unprocessable_entity)
+    record
+    assert_response :created
     Qa::Snapshot.put("pin", { "revision" => REVISION })
     [ { "revision" => "b" * 40 }, { "revision" => REVISION, "dirty" => true }, { "revision" => nil } ].each do |build|
       @build = build
-      assert_denied(:unprocessable_entity)
+      @input[:event_key] = SecureRandom.uuid
+      record
+      assert_response :created
+      assert_equal REVISION, response.parsed_body.fetch("revision")
+      observation = response.parsed_body.dig("payload", "server_build_observations", 0)
+      assert_equal build["revision"], observation.fetch("revision")
+      assert_equal(build["revision"] ? "observed" : "unavailable", observation.fetch("status"))
     end
   end
 
-  test "a build change during the write rolls back the receipt" do
+  test "a build change during recording preserves the receipt and records its boundary" do
     sign_in
     builds = [ @build, { "revision" => "b" * 40 } ]
-    assert_no_difference "Qa::Event.count" do
+    assert_difference "Qa::Event.count", 1 do
       record(csrf_headers, -> { builds.shift })
-      assert_response :unprocessable_entity
+      assert_response :created
+      observations = response.parsed_body.dig("payload", "server_build_observations")
+      assert_equal [REVISION, "b" * 40], observations.map { |item| item["revision"] }
+      assert_equal "deployment_changed", observations.last["boundary"]
+      assert_equal REVISION, response.parsed_body.fetch("revision")
     end
   end
 
-  test "surrounding whitespace cannot route observations around exact-build validation" do
+  test "surrounding whitespace still routes through observation provenance validation" do
     sign_in
     @input[:kind] = " observation_recorded "
     Qa::Snapshot.find_by!(key: "pin").destroy!
+    @input[:payload][:provenance] = "passed"
     assert_denied(:unprocessable_entity)
   end
 
-  test "invalid provenance details revision and unrelated task revisions are rejected" do
+  test "invalid provenance details and revision are rejected while task history remains separate" do
     sign_in
     @input[:payload][:provenance] = "passed"
     assert_denied(:unprocessable_entity)
@@ -168,7 +181,29 @@ class QaObservationTest < ActionDispatch::IntegrationTest
     assert_denied(:unprocessable_entity)
     @input[:revision] = REVISION
     @task.update!(revision: "b" * 40)
-    assert_denied(:unprocessable_entity)
+    record
+    assert_response :created
+    assert_equal REVISION, response.parsed_body.fetch("revision")
+    assert_equal "b" * 40, response.parsed_body.dig("payload", "task_revision")
+  end
+
+  test "automatic stamping and absent metadata preserve original idempotent receipts" do
+    sign_in
+    Qa::Snapshot.find_by!(key: "pin").destroy!
+    @input.delete(:revision)
+    record
+    assert_response :created
+    original = response.parsed_body
+    assert_equal REVISION, original.fetch("revision")
+    record(csrf_headers, { "revision" => "b" * 40 })
+    assert_response :created
+    assert_equal original, response.parsed_body
+
+    @input[:event_key] = SecureRandom.uuid
+    record(csrf_headers, { "revision" => nil })
+    assert_response :created
+    assert_equal "unobserved", response.parsed_body.fetch("revision")
+    assert_nil response.parsed_body.dig("payload", "server_build_observations", 0, "revision")
   end
 
   test "same receipt key replays once and rejects changed content or another owner" do
@@ -204,5 +239,71 @@ class QaObservationTest < ActionDispatch::IntegrationTest
       end
     end
     assert_equal "claimed", @task.reload.status
+  end
+
+  test "queued task retries keep the original observation when metadata changes" do
+    sign_in
+    Qa::Snapshot.find_by!(key: "pin").destroy!
+    input = { kind: "qa_run", title: "Synthetic automatic build task", request_key: SecureRandom.uuid, payload: {} }
+    with_build(@build) { post "/api/qa/tasks", params: { task: input }, headers: csrf_headers, as: :json }
+    assert_response :created
+    original = response.parsed_body
+    with_build({ "revision" => "b" * 40 }) { post "/api/qa/tasks", params: { task: input }, headers: csrf_headers, as: :json }
+    assert_response :created
+    assert_equal original.fetch("id"), response.parsed_body.fetch("id")
+    assert_equal REVISION, response.parsed_body.fetch("revision")
+    assert_equal original.fetch("payload"), response.parsed_body.fetch("payload")
+    input[:title] = "Changed work"
+    with_build({ "revision" => nil }) { post "/api/qa/tasks", params: { task: input }, headers: csrf_headers, as: :json }
+    assert_response :conflict
+  end
+
+  test "evidence preserves reported revision and records unknown metadata separately" do
+    sign_in
+    input = { issue: 1, caption: "Synthetic image", content_type: "image/png", phase: "observation",
+      data_base64: Base64.strict_encode64("\x89PNG\r\n\x1a\n".b), revision: REVISION,
+      context: { steps: "Synthetic steps", expected: "Synthetic expected", actual: "Synthetic observed",
+        viewport: "800x600", timezone: "UTC", observed_at: Time.current.iso8601 } }
+    with_build({ "revision" => "b" * 40 }) { post "/api/qa/evidence", params: { evidence: input }, headers: csrf_headers, as: :json }
+    assert_response :created
+    assert_equal REVISION, response.parsed_body.fetch("revision")
+    assert_equal "b" * 40, response.parsed_body.dig("context", "submission_build_observation", "revision")
+    input.delete(:revision)
+    with_build({ "revision" => nil }) { post "/api/qa/evidence", params: { evidence: input }, headers: csrf_headers, as: :json }
+    assert_response :created
+    assert_equal "unobserved", response.parsed_body.fetch("revision")
+    assert_equal "unavailable", response.parsed_body.dig("context", "submission_build_observation", "status")
+  end
+
+  test "deployment does not abort a claim and mixed build evidence retains its revisions" do
+    sign_in
+    Qa::Snapshot.find_by!(key: "pin").destroy!
+    run_id = "synthetic-build-boundary-run"
+    with_build(@build) do
+      post "/api/qa/tasks/#{@task.id}/transition", headers: csrf_headers, as: :json,
+        params: { revision: REVISION, run_id:, status: "claimed" }
+    end
+    assert_response :success
+    evidence = %w[before after].each_with_index.map do |phase, index|
+      Qa::Evidence.create!(user: @owner, issue_number: 1, revision: index.zero? ? REVISION : "b" * 40,
+        caption: "Synthetic #{phase}", content_type: "image/png", phase:, image: "\x89PNG\r\n\x1a\n".b,
+        digest: Digest::SHA256.hexdigest(phase), context: {})
+    end
+    result = { summary: "Synthetic scoped pass", defects: [{ id: 1, verdict: "passed", revision: "b" * 40,
+      observed: "Synthetic after readback", evidence_refs: evidence.map(&:id) }] }
+    with_build({ "revision" => "b" * 40 }) do
+      post "/api/qa/tasks/#{@task.id}/transition", headers: csrf_headers, as: :json,
+        params: { revision: "b" * 40, run_id: "another-run", status: "completed", result: }
+      assert_response :conflict
+      assert_equal "claimed", @task.reload.status
+      post "/api/qa/tasks/#{@task.id}/transition", headers: csrf_headers, as: :json,
+        params: { revision: "b" * 40, run_id:, status: "completed", result: }
+    end
+    assert_response :success
+    assert_equal "completed", @task.reload.status
+    assert_equal REVISION, @task.revision
+    assert_equal [REVISION, "b" * 40], @task.result.fetch("defects").first.fetch("evidence_revisions")
+    assert_equal [REVISION, "b" * 40, "b" * 40], @task.result.fetch("server_build_observations").map { |item| item["revision"] }
+    assert_empty Qa::Event.where(kind: "run_aborted")
   end
 end
