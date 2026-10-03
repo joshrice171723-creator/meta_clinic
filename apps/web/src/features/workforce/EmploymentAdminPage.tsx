@@ -456,6 +456,7 @@ export function EmploymentAdminPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
   const [bulkAccessBlocked, setBulkAccessBlocked] = useState(false);
   const [invitationToRevoke, setInvitationToRevoke] = useState<
     EmploymentAdminData["invitations"][number] | null
@@ -727,6 +728,19 @@ export function EmploymentAdminPage() {
       setSaving(false);
     }
   };
+  const searchTerm = employeeSearch.trim().toLocaleLowerCase();
+  const visibleEmployments = data.employments.filter((employment) =>
+    [
+      employment.staff_member.display_name,
+      employment.membership_summary.email_address,
+      ...employment.roles.map((role) => roleLabel(role.role_code)),
+      ...employment.sites.filter((site) => site.active).map((site) => site.name),
+      employment.active_for_work ? "active" : "inactive",
+    ]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(searchTerm),
+  );
 
   return (
     <Stack spacing={3}>
@@ -822,24 +836,30 @@ export function EmploymentAdminPage() {
         <Typography variant="h2" sx={{ mb: 2 }}>
           Current employees
         </Typography>
-        <BulkRoleEditor
-          data={data}
-          refresh={refresh}
-          disabled={
-            saving ||
-            unconfirmed !== null ||
-            dirty ||
-            Object.values(individualAccessBlocked).some(Boolean)
-          }
-          onBlockingChange={setBulkAccessBlocked}
+        <TextField
+          label="Search employees"
+          size="small"
+          value={employeeSearch}
+          onChange={(event) => setEmployeeSearch(event.target.value)}
+          placeholder="Name, email, role, site, status"
+          slotProps={{ htmlInput: { maxLength: 120 } }}
+          sx={{ width: "min(100%, 420px)", mb: 1 }}
         />
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          role="status"
+          sx={{ mb: 1 }}
+        >
+          {visibleEmployments.length} of {data.employments.length} employees
+        </Typography>
         <Divider sx={{ my: 2 }} />
         <Stack
           spacing={0}
           divider={<Divider flexItem />}
           inert={bulkAccessBlocked}
         >
-          {data.employments.map((employment) => (
+          {visibleEmployments.map((employment) => (
             <Stack
               key={employment.id}
               direction={{ xs: "column", md: "row" }}
@@ -898,7 +918,47 @@ export function EmploymentAdminPage() {
               No employees have workforce access yet.
             </Typography>
           )}
+          {data.employments.length > 0 && visibleEmployments.length === 0 && (
+            <Stack spacing={1} sx={{ py: 2 }}>
+              <Typography>No employees match this search.</Typography>
+              <Button
+                size="small"
+                onClick={() => setEmployeeSearch("")}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Clear search
+              </Button>
+            </Stack>
+          )}
         </Stack>
+        <Divider sx={{ my: 2 }} />
+        <Accordion disableGutters variant="outlined">
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            id="bulk-role-editor-heading"
+            aria-controls="bulk-role-editor-content"
+          >
+            <Stack spacing={0.25}>
+              <Typography variant="h3">Bulk role changes</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Select active employees, then review role changes before saving.
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails id="bulk-role-editor-content">
+            <BulkRoleEditor
+              data={data}
+              refresh={refresh}
+              disabled={
+                saving ||
+                unconfirmed !== null ||
+                dirty ||
+                Object.values(individualAccessBlocked).some(Boolean)
+              }
+              onBlockingChange={setBulkAccessBlocked}
+            />
+          </AccordionDetails>
+        </Accordion>
       </Paper>
 
       <Accordion

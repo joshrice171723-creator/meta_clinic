@@ -201,6 +201,9 @@ export function PatientPortal({
   );
   const [activeSection, setActiveSection] =
     useState<PortalSection>(sectionFromLocation);
+  const [billingSupportOpen, setBillingSupportOpen] = useState(
+    () => window.location.hash.slice(1) === "billing-support",
+  );
   const [showPlanPicker, setShowPlanPicker] = useState(planPickerFromLocation);
   const [catalogTarget, setCatalogTarget] = useState<Element | null>(null);
   const [upcomingAppointments, setUpcomingAppointments] = useState<
@@ -276,6 +279,9 @@ export function PatientPortal({
     const syncSection = () => {
       setActiveSection(sectionFromLocation());
       setShowPlanPicker(planPickerFromLocation());
+      setBillingSupportOpen(
+        window.location.hash.slice(1) === "billing-support",
+      );
     };
     window.addEventListener("hashchange", syncSection);
     window.addEventListener("popstate", syncSection);
@@ -391,6 +397,8 @@ export function PatientPortal({
     window.history.pushState(window.history.state, "", nextUrl);
     setActiveSection(section);
     setShowPlanPicker(section === "billing" && target === "memberships");
+    if (section === "billing" && target === "billing-support")
+      setBillingSupportOpen(true);
     window.setTimeout(() => {
       const destination = document.getElementById(target);
       destination?.scrollIntoView({ block: "start" });
@@ -995,7 +1003,7 @@ export function PatientPortal({
                               <Alert severity="info">
                                 {context.capabilities.payment_collection
                                   ? "Online payment or payment-status review is available for the invoices shown below. Expand an invoice to use its secure checkout controls."
-                                  : "Online payment is unavailable for the current invoices. Any outstanding balance remains due. Ask the clinic about supported payment options using billing support below."}
+                                  : "Online payment is unavailable for the current invoices. Any outstanding balance remains due. Ask about supported payment options below."}
                                 <Stack
                                   direction="row"
                                   spacing={1}
@@ -1020,16 +1028,12 @@ export function PatientPortal({
                                       navigateTo("billing", "billing-support")
                                     }
                                   >
-                                    Contact clinic billing
+                                    Ask about billing
                                   </Button>
                                 </Stack>
                               </Alert>
                             </Stack>
                           </Paper>
-
-                          <PatientBillingSupport
-                            key={`billing-support-${context.practice.id}-${context.patient.id}`}
-                          />
 
                           <Paper
                             component="section"
@@ -1239,6 +1243,30 @@ export function PatientPortal({
                               )}
                             </Stack>
                           </Paper>
+                          <Accordion
+                            id="billing-support"
+                            variant="outlined"
+                            disableGutters
+                            expanded={billingSupportOpen}
+                            onChange={(_, expanded) =>
+                              setBillingSupportOpen(expanded)
+                            }
+                          >
+                            <AccordionSummary
+                              expandIcon={<ExpandMoreIcon />}
+                              id="billing-support-heading"
+                              aria-controls="billing-support-content"
+                            >
+                              <Typography sx={{ fontWeight: 650 }}>
+                                Ask about billing
+                              </Typography>
+                            </AccordionSummary>
+                            <AccordionDetails id="billing-support-content">
+                              <PatientBillingSupport
+                                key={`billing-support-${context.practice.id}-${context.patient.id}`}
+                              />
+                            </AccordionDetails>
+                          </Accordion>
                           <Box
                             component="section"
                             sx={{

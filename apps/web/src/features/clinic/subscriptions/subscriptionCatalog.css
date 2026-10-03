@@ -41,8 +41,8 @@
   overflow-x: auto;
   margin-bottom: 24px;
   padding: 18px 20px;
-  background: var(--clinic-sidebar-ground, #196cd2);
-  color: var(--clinic-sidebar-on, #f2f7fb);
+  background: var(--clinic-accent, #1f5c4d);
+  color: var(--clinic-on-accent, #fff);
   border-radius: 14px;
   scrollbar-color: var(--clinic-sidebar-muted, #b5c9d7) transparent;
 }
@@ -62,7 +62,7 @@
 }
 
 .clinic-theme .subscription-catalog__flow span {
-  color: var(--clinic-sidebar-muted, #b5c9d7);
+  color: inherit;
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.055em;
@@ -80,7 +80,7 @@
 }
 
 .clinic-theme .subscription-catalog__flow-live strong {
-  color: #bfdbfe;
+  color: var(--clinic-on-accent, #fff);
 }
 
 .clinic-theme .subscription-catalog__template {
@@ -175,7 +175,7 @@
 .clinic-theme .subscription-catalog__row-main,
 .clinic-theme .subscription-catalog__tier-summary {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: minmax(112px, max-content) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -190,6 +190,7 @@
   margin-bottom: 3px;
   color: #1c2d26;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .clinic-theme .subscription-catalog__row-main p,
@@ -204,8 +205,9 @@
 .clinic-theme .subscription-catalog__status {
   display: inline-flex;
   justify-content: center;
-  width: max-content;
-  min-width: 72px;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
   padding: 4px 9px;
   color: #3d4d46;
   background: #edf1ef;
@@ -214,6 +216,7 @@
   font-weight: 750;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: normal;
 }
 
 .clinic-theme .subscription-catalog__status[data-status="published"],
@@ -223,7 +226,6 @@
 }
 
 .clinic-theme .subscription-catalog__status[data-status="changed"] {
-  min-width: 132px;
   color: #654f19;
   background: #f6edcd;
 }
