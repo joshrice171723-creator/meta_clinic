@@ -223,6 +223,15 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         setBlockedLink(true);
         return;
       }
+      const destination = new URL(anchor.href, window.location.origin);
+      if (
+        sandboxRun(run) &&
+        anchor.hasAttribute("download") &&
+        !anchor.target &&
+        destination.protocol === "blob:" &&
+        destination.origin === window.location.origin
+      )
+        return;
       if (
         !demoRouteAllowed(anchor.href, run, window.location.origin) ||
         anchor.target ||
