@@ -179,6 +179,9 @@ module Development
     end
 
     def self.record_completion!(run, at: Time.current)
+      # Sandboxes never complete. Status reads must not wait on preparation's lock.
+      return run if DemoLessonCatalog.sandbox?(run.lesson_key)
+
       run.with_lock do
         return run unless run.active? && run.completed_at.nil?
         run.update!(completed_at: at) if DemoLessonCatalog.complete?(run)
