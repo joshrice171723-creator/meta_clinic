@@ -45,7 +45,11 @@ import type {
 import { businessNow } from "../../shared/businessDate";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
-import { BulkRoleEditor, sameRoleScope } from "./BulkRoleEditor";
+import {
+  BulkRoleEditor,
+  clinicAccountStatus,
+  sameRoleScope,
+} from "./BulkRoleEditor";
 
 function localDateTime() {
   const current = businessNow();
@@ -81,6 +85,7 @@ function EmploymentAccessEditor({
   onBlockingChange: (id: number, blocked: boolean) => void;
 }) {
   const activeRole = employment.roles[0];
+  const accountStatus = clinicAccountStatus(employment);
   const [roleVersionId, setRoleVersionId] = useState(
     activeRole ? String(activeRole.role_version_id) : "",
   );
@@ -164,7 +169,7 @@ function EmploymentAccessEditor({
       const confirmed =
         unknownAction === "revoke"
           ? saved &&
-            !saved.membership_summary.active &&
+            clinicAccountStatus(saved) === "inactive" &&
             saved.status === "inactive" &&
             saved.roles.length === 0
           : role &&
@@ -343,23 +348,29 @@ function EmploymentAccessEditor({
         <Divider />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
           <Button
-            color={employment.membership_summary.active ? "warning" : "primary"}
+            color={accountStatus === "active" ? "warning" : "primary"}
             disabled={
               saving ||
-              (!employment.membership_summary.active &&
+              accountStatus === "unknown" ||
+              (accountStatus === "inactive" &&
                 (!roleVersionId || siteIds.length === 0))
             }
-            onClick={() =>
-              employment.membership_summary.active
-                ? (setRevokeAcknowledged(false), setRevokeOpen(true))
-                : void update("restore")
-            }
+            onClick={() => {
+              if (accountStatus === "active") {
+                setRevokeAcknowledged(false);
+                setRevokeOpen(true);
+              } else if (accountStatus === "inactive") {
+                void update("restore");
+              }
+            }}
           >
-            {employment.membership_summary.active
+            {accountStatus === "active"
               ? "Revoke clinic account"
-              : "Restore clinic account"}
+              : accountStatus === "inactive"
+                ? "Restore clinic account"
+                : "Clinic account status unavailable"}
           </Button>
-          {!employment.membership_summary.active &&
+          {accountStatus === "inactive" &&
             employment.active_work_by_site.some(({ count }) => count > 0) && (
               <Button
                 href="/clinic/work?assignment=offboarded"
@@ -457,6 +468,12 @@ export function EmploymentAdminPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [directorySelection, setDirectorySelection] = useState<number[]>([]);
+  const [bulkRoleOpen, setBulkRoleOpen] = useState(false);
+  const [bulkSelectionRequest, setBulkSelectionRequest] = useState<{
+    sequence: number;
+    ids: number[];
+  } | null>(null);
   const [bulkAccessBlocked, setBulkAccessBlocked] = useState(false);
   const [invitationToRevoke, setInvitationToRevoke] = useState<
     EmploymentAdminData["invitations"][number] | null
@@ -485,6 +502,7 @@ export function EmploymentAdminPage() {
     previousIds: number[];
   } | null>(null);
   const { registerBlocker } = useClinicNavigation();
+  const bulkSelectionSequence = useRef(0);
   const defaultRoleId = data?.role_options.find(
     (role) => role.role_code === "workforce-employee",
   )?.id;
@@ -530,6 +548,10 @@ export function EmploymentAdminPage() {
   const frontDeskRole = data.role_options.find(
     (role) => role.role_code === "front-desk-coordinator",
   );
+  const defaultBulkRole =
+    data.role_options.find(
+      (role) => role.role_code === "workforce-employee",
+    ) ?? data.role_options[0];
   const clinicianSetupNeeded =
     setupRoleCode === "clinician" ||
     data.role_options.find((role) => String(role.id) === roleVersionId)
@@ -729,18 +751,67 @@ export function EmploymentAdminPage() {
     }
   };
   const searchTerm = employeeSearch.trim().toLocaleLowerCase();
-  const visibleEmployments = data.employments.filter((employment) =>
-    [
+  const visibleEmployments = data.employments.filter((employment) => {
+    const accountStatus = clinicAccountStatus(employment);
+    if (searchTerm === "active" || searchTerm === "inactive")
+      return employment.active_for_work === (searchTerm === "active");
+    if (
+      ["login active", "account active", "clinic access active"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "active";
+    if (
+      ["login inactive", "account inactive", "clinic access inactive"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "inactive";
+    if (
+      ["login unknown", "account unknown", "clinic access unknown"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "unknown";
+    return [
       employment.staff_member.display_name,
       employment.membership_summary.email_address,
       ...employment.roles.map((role) => roleLabel(role.role_code)),
       ...employment.sites.filter((site) => site.active).map((site) => site.name),
-      employment.active_for_work ? "active" : "inactive",
+      employment.active_for_work
+        ? "work active active for work"
+        : "work inactive inactive for work",
+      accountStatus === "active"
+        ? "login active account active clinic access active"
+        : accountStatus === "inactive"
+          ? "login inactive account inactive clinic access inactive"
+          : "login unknown account unknown clinic access unknown",
     ]
       .join(" ")
       .toLocaleLowerCase()
-      .includes(searchTerm),
-  );
+      .includes(searchTerm);
+  });
+  const selectionActionsBlocked =
+    saving ||
+    unconfirmed !== null ||
+    dirty ||
+    bulkAccessBlocked ||
+    Object.values(individualAccessBlocked).some(Boolean);
+  const beginBulkRoleChange = () => {
+    if (
+      !defaultBulkRole ||
+      !directorySelection.length ||
+      selectionActionsBlocked
+    )
+      return;
+    bulkSelectionSequence.current += 1;
+    setBulkSelectionRequest({
+      sequence: bulkSelectionSequence.current,
+      ids: [...directorySelection],
+    });
+    setDirectorySelection([]);
+    setBulkRoleOpen(true);
+  };
 
   return (
     <Stack spacing={3}>
@@ -840,8 +911,9 @@ export function EmploymentAdminPage() {
           label="Search employees"
           size="small"
           value={employeeSearch}
+          disabled={selectionActionsBlocked}
           onChange={(event) => setEmployeeSearch(event.target.value)}
-          placeholder="Name, email, role, site, status"
+          placeholder="Name, email, role, site, work or login status"
           slotProps={{ htmlInput: { maxLength: 120 } }}
           sx={{ width: "min(100%, 420px)", mb: 1 }}
         />
@@ -853,66 +925,176 @@ export function EmploymentAdminPage() {
         >
           {visibleEmployments.length} of {data.employments.length} employees
         </Typography>
+        {directorySelection.length > 0 && (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{
+              alignItems: { sm: "center" },
+              justifyContent: "space-between",
+              p: 1.5,
+              mb: 1,
+              backgroundColor: "action.hover",
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+            }}
+          >
+            <Typography variant="body2" role="status">
+              {directorySelection.length} employees selected for{" "}
+              {defaultBulkRole?.label ?? "a role change"}.
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                disabled={selectionActionsBlocked || !defaultBulkRole}
+                onClick={beginBulkRoleChange}
+              >
+                Open role editor
+              </Button>
+              <Button
+                onClick={() => setDirectorySelection([])}
+              >
+                Clear selection
+              </Button>
+            </Stack>
+          </Stack>
+        )}
         <Divider sx={{ my: 2 }} />
         <Stack
           spacing={0}
           divider={<Divider flexItem />}
           inert={bulkAccessBlocked}
         >
-          {visibleEmployments.map((employment) => (
-            <Stack
-              key={employment.id}
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              sx={{
-                py: 2,
-                alignItems: { md: "center" },
-                justifyContent: "space-between",
-              }}
-            >
-              <Stack spacing={0.5}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: "center", flexWrap: "wrap" }}
-                >
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {employment.staff_member.display_name}
-                  </Typography>
-                  <Chip
-                    size="small"
-                    color={employment.active_for_work ? "success" : "default"}
-                    label={employment.active_for_work ? "Active" : "Inactive"}
-                  />
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {employment.membership_summary.email_address}
-                </Typography>
-                <Typography variant="body2">
-                  {Array.from(
-                    new Set(
-                      employment.roles.map((role) => roleLabel(role.role_code)),
-                    ),
-                  ).join(", ") || "Employee"}
-                </Typography>
-                <Typography variant="body2">
-                  {employment.sites
-                    .filter((site) => site.active)
-                    .map((site) => site.name)
-                    .join(", ") || "No eligible sites"}
-                </Typography>
-              </Stack>
-              <EmploymentAccessEditor
+          {visibleEmployments.map((employment) => {
+            const accountStatus = clinicAccountStatus(employment);
+            const alreadyHasDefaultRole =
+              Boolean(defaultBulkRole) &&
+              employment.roles.length > 0 &&
+              employment.roles.every(
+                (grant) => grant.role_version_id === defaultBulkRole?.id,
+              );
+            const bulkUnavailableReason = !employment.active_for_work
+              ? "Inactive employee"
+              : accountStatus === "inactive"
+                ? "Clinic account inactive"
+                : accountStatus === "unknown"
+                  ? "Clinic account status unavailable"
+                  : !defaultBulkRole || !sameRoleScope(employment, defaultBulkRole)
+                    ? "Different access scope for the default role"
+                    : alreadyHasDefaultRole
+                      ? "Default role is already saved"
+                      : null;
+            return (
+              <Stack
                 key={employment.id}
-                employment={employment}
-                roles={data.role_options}
-                sites={data.sites}
-                refresh={refresh}
-                setFeedback={setFeedback}
-                onBlockingChange={accessBlockingChanged}
-              />
-            </Stack>
-          ))}
+                direction={{ xs: "column", md: "row" }}
+                spacing={2}
+                sx={{
+                  py: 2,
+                  alignItems: { md: "center" },
+                  justifyContent: "space-between",
+                }}
+              >
+                <Stack spacing={0.5}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: "center", flexWrap: "wrap" }}
+                  >
+                    <FormControlLabel
+                      sx={{
+                        m: 0,
+                        mr: 0.25,
+                        alignItems: "center",
+                        "& .MuiCheckbox-root": {
+                          minWidth: 44,
+                          minHeight: 44,
+                        },
+                      }}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={directorySelection.includes(employment.id)}
+                          disabled={
+                            selectionActionsBlocked ||
+                            Boolean(bulkUnavailableReason)
+                          }
+                          onChange={(_, checked) =>
+                            setDirectorySelection((ids) =>
+                              checked
+                                ? [...ids, employment.id]
+                                : ids.filter((id) => id !== employment.id),
+                            )
+                          }
+                        />
+                      }
+                      label="Select"
+                      aria-label={`Select ${employment.staff_member.display_name} for bulk role changes`}
+                    />
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {employment.staff_member.display_name}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      color={employment.active_for_work ? "success" : "default"}
+                      label={
+                        employment.active_for_work
+                          ? "Work active"
+                          : "Work inactive"
+                      }
+                    />
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={
+                        accountStatus === "active" ? "success" : "default"
+                      }
+                      label={
+                        accountStatus === "active"
+                          ? "Clinic login active"
+                          : accountStatus === "inactive"
+                            ? "Clinic login inactive"
+                            : "Clinic login status unknown"
+                      }
+                    />
+                  </Stack>
+                  {bulkUnavailableReason && (
+                    <Typography variant="caption" color="text.secondary">
+                      Bulk change unavailable: {bulkUnavailableReason}
+                    </Typography>
+                  )}
+                  <Typography variant="body2" color="text.secondary">
+                    {employment.membership_summary.email_address}
+                  </Typography>
+                  <Typography variant="body2">
+                    {Array.from(
+                      new Set(
+                        employment.roles.map((role) =>
+                          roleLabel(role.role_code),
+                        ),
+                      ),
+                    ).join(", ") || "Employee"}
+                  </Typography>
+                  <Typography variant="body2">
+                    {employment.sites
+                      .filter((site) => site.active)
+                      .map((site) => site.name)
+                      .join(", ") || "No eligible sites"}
+                  </Typography>
+                </Stack>
+                <EmploymentAccessEditor
+                  key={employment.id}
+                  employment={employment}
+                  roles={data.role_options}
+                  sites={data.sites}
+                  refresh={refresh}
+                  setFeedback={setFeedback}
+                  onBlockingChange={accessBlockingChanged}
+                />
+              </Stack>
+            );
+          })}
           {data.employments.length === 0 && (
             <Typography color="text.secondary">
               No employees have workforce access yet.
@@ -932,7 +1114,12 @@ export function EmploymentAdminPage() {
           )}
         </Stack>
         <Divider sx={{ my: 2 }} />
-        <Accordion disableGutters variant="outlined">
+        <Accordion
+          expanded={bulkRoleOpen}
+          onChange={(_, expanded) => setBulkRoleOpen(expanded)}
+          disableGutters
+          variant="outlined"
+        >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             id="bulk-role-editor-heading"
@@ -941,7 +1128,7 @@ export function EmploymentAdminPage() {
             <Stack spacing={0.25}>
               <Typography variant="h3">Bulk role changes</Typography>
               <Typography variant="body2" color="text.secondary">
-                Select active employees, then review role changes before saving.
+                Review the selected employees and role before saving changes.
               </Typography>
             </Stack>
           </AccordionSummary>
@@ -949,6 +1136,7 @@ export function EmploymentAdminPage() {
             <BulkRoleEditor
               data={data}
               refresh={refresh}
+              selectionRequest={bulkSelectionRequest}
               disabled={
                 saving ||
                 unconfirmed !== null ||

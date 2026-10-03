@@ -26,11 +26,21 @@ import type {
 
 type Role = EmploymentAdminData["role_options"][number];
 type Change = { before: WorkforceEmployment; role: Role };
+type SelectionRequest = { sequence: number; ids: number[] };
 type Outcome = {
   change: Change;
   state: "saved" | "failed" | "unknown" | "pending";
   message: string;
 };
+
+export function clinicAccountStatus(
+  employee: Pick<WorkforceEmployment, "membership_summary">,
+): "active" | "inactive" | "unknown" {
+  const active: unknown = employee.membership_summary?.active;
+  if (active === true) return "active";
+  if (active === false) return "inactive";
+  return "unknown";
+}
 
 export function accessSnapshot(employee: WorkforceEmployment) {
   return JSON.stringify({
@@ -69,7 +79,7 @@ export function sameRoleScope(employee: WorkforceEmployment, role: Role) {
         )));
   return (
     employee.active_for_work &&
-    employee.membership_summary.active &&
+    clinicAccountStatus(employee) === "active" &&
     existingRolesMatchScope &&
     siteScopeReady
   );
@@ -104,11 +114,13 @@ export function BulkRoleEditor({
   refresh,
   disabled = false,
   onBlockingChange,
+  selectionRequest = null,
 }: {
   data: EmploymentAdminData;
   refresh: () => void;
   disabled?: boolean;
   onBlockingChange: (blocked: boolean) => void;
+  selectionRequest?: SelectionRequest | null;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
   const [query, setQuery] = useState("");
@@ -123,18 +135,47 @@ export function BulkRoleEditor({
   const locked = disabled || saving || unknown;
   const role = data.role_options.find((option) => String(option.id) === roleId);
   const dirty = selected.length > 0 || review !== null;
-  const matchingEmployees = data.employments.filter((employee) =>
-    [
+  const searchTerm = query.trim().toLocaleLowerCase();
+  const matchingEmployees = data.employments.filter((employee) => {
+    const accountStatus = clinicAccountStatus(employee);
+    if (searchTerm === "active" || searchTerm === "inactive")
+      return employee.active_for_work === (searchTerm === "active");
+    if (
+      ["login active", "account active", "clinic access active"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "active";
+    if (
+      ["login inactive", "account inactive", "clinic access inactive"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "inactive";
+    if (
+      ["login unknown", "account unknown", "clinic access unknown"].includes(
+        searchTerm,
+      )
+    )
+      return accountStatus === "unknown";
+    return [
       employee.staff_member.display_name,
       employee.membership_summary.email_address,
       ...employee.roles.map((grant) => grant.label),
-      ...employee.sites.filter((site) => site.active).map((site) => site.name),
-      employee.active_for_work ? "active" : "inactive",
+      ...employee.sites
+        .filter((site) => site.active)
+        .map((site) => site.name),
+      employee.active_for_work ? "work active" : "work inactive",
+      accountStatus === "active"
+        ? "login active account active clinic access active"
+        : accountStatus === "inactive"
+          ? "login inactive account inactive clinic access inactive"
+          : "login unknown account unknown clinic access unknown",
     ]
       .join(" ")
       .toLocaleLowerCase()
-      .includes(query.trim().toLocaleLowerCase()),
-  );
+      .includes(searchTerm);
+  });
   useEffect(() => {
     if (data.role_options.some((option) => String(option.id) === roleId))
       return;
@@ -149,6 +190,12 @@ export function BulkRoleEditor({
   useEffect(() => {
     onBlockingChange(dirty || saving || unknown);
   }, [dirty, saving, unknown, onBlockingChange]);
+  useEffect(() => {
+    if (!selectionRequest) return;
+    setSelected(selectionRequest.ids);
+    setReview(null);
+    setError(null);
+  }, [selectionRequest]);
   useDemoNavigationBlocker(() => ({
     blocked: saving || unknown,
     message: dirty ? "Discard your selected employee role changes?" : null,
@@ -387,14 +434,15 @@ export function BulkRoleEditor({
         size="small"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Name, email, role, site or status"
+        placeholder="Name, email, role, site, work or login status"
         slotProps={{ htmlInput: { maxLength: 120 } }}
         sx={{ maxWidth: 480 }}
       />
       <Typography variant="caption" color="text.secondary" role="status">
         {matchingEmployees.length} of {data.employments.length} employees shown.
         {role
-          ? " Inactive accounts and accounts with a different access scope cannot be selected."
+          ? " Inactive employees, inactive or unknown clinic accounts, and " +
+            "accounts with a different access scope cannot be selected."
           : " Select a role after choosing employees."}
       </Typography>
       {matchingEmployees.map((employee) => {
@@ -404,15 +452,18 @@ export function BulkRoleEditor({
             result.state === "saved" &&
             result.change.role.id === role?.id,
         );
+        const accountStatus = clinicAccountStatus(employee);
         const unavailableReason = !employee.active_for_work
           ? "Inactive employee"
-          : !employee.membership_summary.active
-            ? "Inactive account"
-            : role && !sameRoleScope(employee, role)
-              ? "Different access scope for this role"
-              : alreadySaved
-                ? "This role is already saved"
-                : null;
+          : accountStatus === "inactive"
+            ? "Clinic account inactive"
+            : accountStatus === "unknown"
+              ? "Clinic account status unavailable"
+              : role && !sameRoleScope(employee, role)
+                ? "Different access scope for this role"
+                : alreadySaved
+                  ? "This role is already saved"
+                  : null;
         return (
           <FormControlLabel
             key={employee.id}
@@ -442,7 +493,14 @@ export function BulkRoleEditor({
                   {employee.membership_summary.email_address}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {employee.active_for_work ? "Active" : "Inactive"} ·{" "}
+                  {employee.active_for_work
+                    ? "Work active"
+                    : "Work inactive"} ·{" "}
+                  {accountStatus === "active"
+                    ? "Clinic login active"
+                    : accountStatus === "inactive"
+                      ? "Clinic login inactive"
+                      : "Clinic login status unknown"} ·{" "}
                   {employee.roles.map((grant) => grant.label).join(", ") ||
                     "No role recorded"} ·{" "}
                   {employee.sites
