@@ -76,6 +76,7 @@ export function WaitlistAvailability({
               slotProps={{ inputLabel: { shrink: true } }}
             />
             <Button
+              variant="outlined"
               disabled={disabled || !validMonth || !validDuration}
               onClick={calendar.refresh}
             >
@@ -131,6 +132,7 @@ export function WaitlistAvailability({
                   <Button
                     key={`${slot.clinician_id}:${slot.starts_at}`}
                     disabled={disabled}
+                    variant="outlined"
                     onClick={() => onChoose(slot.starts_at)}
                   >
                     Draft offer:{" "}
