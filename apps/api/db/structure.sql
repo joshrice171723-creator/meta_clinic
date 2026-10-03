@@ -104,6 +104,19 @@ $$;
 
 
 --
+-- Name: clinic_insurance_event_immutable(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.clinic_insurance_event_immutable() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION 'Insurance preparation history is append-only';
+END;
+$$;
+
+
+--
 -- Name: clinic_invoice_line_editable_draft(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3737,6 +3750,9 @@ CREATE TABLE public.clinic_coverage_versions (
     encrypted_coverage_evidence text NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    coverage_details text,
+    site_id bigint,
+    recorded_by_id bigint,
     CONSTRAINT clinic_coverage_versions_version_positive CHECK ((version > 0))
 );
 
@@ -4705,6 +4721,51 @@ CREATE SEQUENCE public.clinic_insurance_claims_id_seq
 --
 
 ALTER SEQUENCE public.clinic_insurance_claims_id_seq OWNED BY public.clinic_insurance_claims.id;
+
+
+--
+-- Name: clinic_insurance_workflow_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_insurance_workflow_events (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    coverage_version_id bigint NOT NULL,
+    recorded_by_id bigint NOT NULL,
+    invoice_id bigint,
+    insurance_claim_id bigint,
+    request_event_id bigint,
+    prior_event_id bigint,
+    kind character varying NOT NULL,
+    state character varying NOT NULL,
+    source character varying NOT NULL,
+    request_key character varying NOT NULL,
+    details text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT insurance_events_state_contract CHECK ((((kind)::text = ANY ((ARRAY['eligibility'::character varying, 'authorization'::character varying, 'claim'::character varying, 'reconciliation'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['prepared'::character varying, 'pending'::character varying, 'approved'::character varying, 'denied'::character varying, 'unknown'::character varying, 'cancelled'::character varying])::text[])) AND ((source)::text = ANY ((ARRAY['local'::character varying, 'manual'::character varying, 'simulation'::character varying])::text[])) AND (((request_event_id IS NULL) AND (prior_event_id IS NULL) AND ((state)::text = 'prepared'::text) AND ((source)::text = 'local'::text)) OR ((request_event_id IS NOT NULL) AND (prior_event_id IS NOT NULL) AND ((state)::text <> 'prepared'::text) AND ((source)::text <> 'local'::text))) AND (((kind)::text <> ALL ((ARRAY['claim'::character varying, 'reconciliation'::character varying])::text[])) OR (invoice_id IS NOT NULL))))
+);
+
+
+--
+-- Name: clinic_insurance_workflow_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_insurance_workflow_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_insurance_workflow_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_insurance_workflow_events_id_seq OWNED BY public.clinic_insurance_workflow_events.id;
 
 
 --
@@ -9729,6 +9790,48 @@ ALTER SEQUENCE public.clinic_referral_exchange_events_id_seq OWNED BY public.cli
 
 
 --
+-- Name: clinic_referral_receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_referral_receipts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    service_offering_id bigint NOT NULL,
+    recorded_by_id bigint NOT NULL,
+    prior_receipt_id bigint,
+    state character varying NOT NULL,
+    request_key character varying NOT NULL,
+    received_on date,
+    valid_until date,
+    details text NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT referral_receipt_state CHECK ((((state)::text = ANY ((ARRAY['received'::character varying, 'withdrawn'::character varying])::text[])) AND (((state)::text <> 'received'::text) OR (received_on IS NOT NULL)) AND ((valid_until IS NULL) OR ((received_on IS NOT NULL) AND (valid_until >= received_on))) AND (((state)::text <> 'withdrawn'::text) OR (prior_receipt_id IS NOT NULL))))
+);
+
+
+--
+-- Name: clinic_referral_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_referral_receipts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_referral_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_referral_receipts_id_seq OWNED BY public.clinic_referral_receipts.id;
+
+
+--
 -- Name: clinic_refill_response_deliveries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -10822,9 +10925,10 @@ CREATE TABLE public.clinic_service_offerings (
     public_visible boolean DEFAULT false NOT NULL,
     contact_instructions text,
     referral_instructions text,
+    referral_required boolean DEFAULT false NOT NULL,
     CONSTRAINT clinic_service_offerings_code_value CHECK (((code IS NULL) OR (length(TRIM(BOTH FROM code)) > 0))),
     CONSTRAINT clinic_service_offerings_duration CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 5) AND (duration_minutes <= 1440)))),
-    CONSTRAINT clinic_service_offerings_values CHECK (((length(TRIM(BOTH FROM name)) > 0) AND ((modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying, 'either'::character varying])::text[])) AND ((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'retired'::character varying])::text[])) AND (lock_version >= 0))),
+    CONSTRAINT clinic_service_offerings_values CHECK (((length(TRIM(BOTH FROM name)) > 0) AND ((modality)::text = ANY (ARRAY[('in_person'::character varying)::text, ('video'::character varying)::text, ('either'::character varying)::text])) AND ((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('published'::character varying)::text, ('retired'::character varying)::text])) AND (lock_version >= 0))),
     CONSTRAINT service_offering_contact_instructions_length CHECK (((contact_instructions IS NULL) OR (char_length(contact_instructions) <= 500))),
     CONSTRAINT service_offering_referral_instructions_length CHECK (((referral_instructions IS NULL) OR (char_length(referral_instructions) <= 500)))
 );
@@ -15128,6 +15232,13 @@ ALTER TABLE ONLY public.clinic_insurance_claims ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: clinic_insurance_workflow_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_insurance_workflow_events_id_seq'::regclass);
+
+
+--
 -- Name: clinic_intake_consent_revisions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -15930,6 +16041,13 @@ ALTER TABLE ONLY public.clinic_recall_events ALTER COLUMN id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.clinic_referral_exchange_events ALTER COLUMN id SET DEFAULT nextval('public.clinic_referral_exchange_events_id_seq'::regclass);
+
+
+--
+-- Name: clinic_referral_receipts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts ALTER COLUMN id SET DEFAULT nextval('public.clinic_referral_receipts_id_seq'::regclass);
 
 
 --
@@ -17266,6 +17384,14 @@ ALTER TABLE ONLY public.clinic_insurance_claims
 
 
 --
+-- Name: clinic_insurance_workflow_events clinic_insurance_workflow_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT clinic_insurance_workflow_events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: clinic_intake_consent_revisions clinic_intake_consent_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -18191,6 +18317,14 @@ ALTER TABLE ONLY public.clinic_recall_events
 
 ALTER TABLE ONLY public.clinic_referral_exchange_events
     ADD CONSTRAINT clinic_referral_exchange_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_referral_receipts clinic_referral_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts
+    ADD CONSTRAINT clinic_referral_receipts_pkey PRIMARY KEY (id);
 
 
 --
@@ -22102,6 +22236,13 @@ CREATE UNIQUE INDEX idx_on_practice_id_visit_id_sequence_f654bdfb4d ON public.cl
 
 
 --
+-- Name: idx_on_request_event_id_id_1cbc730a21; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_request_event_id_id_1cbc730a21 ON public.clinic_insurance_workflow_events USING btree (request_event_id, id);
+
+
+--
 -- Name: idx_on_resource_compatibility_id_c2b41367f4; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -22526,6 +22667,13 @@ CREATE INDEX index_clinic_encounter_follow_ups_on_practice_id ON public.clinic_e
 --
 
 CREATE INDEX index_clinic_insurance_claims_on_practice_id_and_invoice_id ON public.clinic_insurance_claims USING btree (practice_id, invoice_id);
+
+
+--
+-- Name: index_clinic_insurance_workflow_events_on_prior_event_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_insurance_workflow_events_on_prior_event_id ON public.clinic_insurance_workflow_events USING btree (prior_event_id) WHERE (prior_event_id IS NOT NULL);
 
 
 --
@@ -23156,6 +23304,13 @@ CREATE INDEX index_clinic_practice_feature_versions_on_practice_id ON public.cli
 --
 
 CREATE INDEX index_clinic_practices_on_organization_id ON public.clinic_practices USING btree (organization_id);
+
+
+--
+-- Name: index_clinic_referral_receipts_on_prior_receipt_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_referral_receipts_on_prior_receipt_id ON public.clinic_referral_receipts USING btree (prior_receipt_id) WHERE (prior_receipt_id IS NOT NULL);
 
 
 --
@@ -24010,6 +24165,20 @@ CREATE UNIQUE INDEX index_users_on_email_address ON public.users USING btree (em
 --
 
 CREATE UNIQUE INDEX index_users_on_single_platform_owner ON public.users USING btree (platform_owner) WHERE (platform_owner = true);
+
+
+--
+-- Name: insurance_events_patient_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX insurance_events_patient_identity ON public.clinic_insurance_workflow_events USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: insurance_events_request_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX insurance_events_request_identity ON public.clinic_insurance_workflow_events USING btree (practice_id, recorded_by_id, request_key);
 
 
 --
@@ -25035,6 +25204,27 @@ CREATE INDEX referral_exchange_events_timeline ON public.clinic_referral_exchang
 
 
 --
+-- Name: referral_receipt_history; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX referral_receipt_history ON public.clinic_referral_receipts USING btree (practice_id, patient_id, site_id, service_offering_id, id);
+
+
+--
+-- Name: referral_receipt_patient_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX referral_receipt_patient_identity ON public.clinic_referral_receipts USING btree (practice_id, patient_id, id);
+
+
+--
+-- Name: referral_receipt_request_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX referral_receipt_request_identity ON public.clinic_referral_receipts USING btree (practice_id, recorded_by_id, request_key);
+
+
+--
 -- Name: resource_compatibility_revision; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -25935,6 +26125,20 @@ CREATE TRIGGER clinic_immunization_revisions_protect BEFORE DELETE OR UPDATE ON 
 --
 
 CREATE TRIGGER clinic_insurance_claims_immutable BEFORE DELETE OR UPDATE ON public.clinic_insurance_claims FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_insurance_workflow_events clinic_insurance_events_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_insurance_events_immutable BEFORE DELETE OR UPDATE ON public.clinic_insurance_workflow_events FOR EACH ROW EXECUTE FUNCTION public.clinic_insurance_event_immutable();
+
+
+--
+-- Name: clinic_insurance_workflow_events clinic_insurance_events_no_truncate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER clinic_insurance_events_no_truncate BEFORE TRUNCATE ON public.clinic_insurance_workflow_events FOR EACH STATEMENT EXECUTE FUNCTION public.clinic_insurance_event_immutable();
 
 
 --
@@ -27072,6 +27276,20 @@ CREATE TRIGGER qa_evidence_immutable BEFORE DELETE OR UPDATE ON public.qa_eviden
 
 
 --
+-- Name: clinic_referral_receipts referral_receipt_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER referral_receipt_immutable BEFORE DELETE OR UPDATE ON public.clinic_referral_receipts FOR EACH ROW EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
+-- Name: clinic_referral_receipts referral_receipt_no_truncate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER referral_receipt_no_truncate BEFORE TRUNCATE ON public.clinic_referral_receipts FOR EACH STATEMENT EXECUTE FUNCTION public.erd_immutable_record();
+
+
+--
 -- Name: clinic_appointments release_resource_reservations; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -27367,6 +27585,14 @@ ALTER TABLE ONLY public.clinic_resource_compatibilities
 
 ALTER TABLE ONLY public.clinic_resource_compatibilities
     ADD CONSTRAINT compatibility_site_tenant FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_coverage_versions coverage_preparation_site_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_coverage_versions
+    ADD CONSTRAINT coverage_preparation_site_fk FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
 
 
 --
@@ -32994,6 +33220,14 @@ ALTER TABLE ONLY public.clinic_telehealth_commands
 
 
 --
+-- Name: clinic_insurance_workflow_events fk_rails_9def39200a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT fk_rails_9def39200a FOREIGN KEY (insurance_claim_id) REFERENCES public.clinic_insurance_claims(id);
+
+
+--
 -- Name: clinic_workforce_availability_versions fk_rails_9f1c6209c8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -33191,6 +33425,14 @@ ALTER TABLE ONLY public.clinic_prescription_response_events
 
 ALTER TABLE ONLY public.clinic_operational_policy_versions
     ADD CONSTRAINT fk_rails_aa2e48a9bc FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_coverage_versions fk_rails_aacf7fc85d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_coverage_versions
+    ADD CONSTRAINT fk_rails_aacf7fc85d FOREIGN KEY (recorded_by_id) REFERENCES public.users(id);
 
 
 --
@@ -34218,6 +34460,14 @@ ALTER TABLE ONLY public.clinic_cash_pay_estimate_lines
 
 
 --
+-- Name: clinic_referral_receipts fk_rails_e9af7b870d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts
+    ADD CONSTRAINT fk_rails_e9af7b870d FOREIGN KEY (recorded_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_telehealth_wrap_ups fk_rails_e9e2e652e2; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -34439,6 +34689,14 @@ ALTER TABLE ONLY public.platform_review_decisions
 
 ALTER TABLE ONLY public.clinic_inventory_hold_releases
     ADD CONSTRAINT fk_rails_fac1019ef5 FOREIGN KEY (practice_id, actor_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_insurance_workflow_events fk_rails_facea5be38; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT fk_rails_facea5be38 FOREIGN KEY (recorded_by_id) REFERENCES public.users(id);
 
 
 --
@@ -35498,6 +35756,54 @@ ALTER TABLE ONLY public.clinic_workforce_shift_swap_requests
 
 
 --
+-- Name: clinic_insurance_workflow_events insurance_events_coverage_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT insurance_events_coverage_fk FOREIGN KEY (practice_id, patient_id, coverage_version_id) REFERENCES public.clinic_coverage_versions(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_workflow_events insurance_events_invoice_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT insurance_events_invoice_fk FOREIGN KEY (practice_id, patient_id, invoice_id) REFERENCES public.clinic_invoices(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_workflow_events insurance_events_patient_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT insurance_events_patient_fk FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_insurance_workflow_events insurance_events_prior_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT insurance_events_prior_event_id_fk FOREIGN KEY (practice_id, patient_id, prior_event_id) REFERENCES public.clinic_insurance_workflow_events(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_workflow_events insurance_events_request_event_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT insurance_events_request_event_id_fk FOREIGN KEY (practice_id, patient_id, request_event_id) REFERENCES public.clinic_insurance_workflow_events(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_insurance_workflow_events insurance_events_site_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_insurance_workflow_events
+    ADD CONSTRAINT insurance_events_site_fk FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_inventory_shipment_events inventory_shipment_event_actor; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -35730,6 +36036,38 @@ ALTER TABLE ONLY public.clinic_psychotherapy_notes
 
 
 --
+-- Name: clinic_referral_receipts referral_receipt_offering_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts
+    ADD CONSTRAINT referral_receipt_offering_fk FOREIGN KEY (practice_id, service_offering_id) REFERENCES public.clinic_service_offerings(practice_id, id);
+
+
+--
+-- Name: clinic_referral_receipts referral_receipt_patient_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts
+    ADD CONSTRAINT referral_receipt_patient_fk FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_referral_receipts referral_receipt_prior_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts
+    ADD CONSTRAINT referral_receipt_prior_fk FOREIGN KEY (practice_id, patient_id, prior_receipt_id) REFERENCES public.clinic_referral_receipts(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_referral_receipts referral_receipt_site_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_referral_receipts
+    ADD CONSTRAINT referral_receipt_site_fk FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
 -- Name: clinic_resource_reservations reservation_appointment_tenant; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -35808,8 +36146,10 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20261002000100'),
+('20261003171000'),
+('20261003170000'),
 ('20261002003000'),
+('20261002000100'),
 ('20261001000300'),
 ('20261001000200'),
 ('20261001000100'),

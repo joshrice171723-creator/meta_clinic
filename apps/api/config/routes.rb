@@ -185,6 +185,13 @@ Rails.application.routes.draw do
     resources :day_end_reviews, controller: "reports/day_end_reviews", only: %i[index create] do
       get :preview, on: :collection
     end
+    get "patients/:patient_id/insurance", to: "billing/insurance_preparations#index"
+    get "patients/:patient_id/referral_receipts", to: "scheduling/referral_receipts#index"
+    post "patients/:patient_id/referral_receipts", to: "scheduling/referral_receipts#create"
+    post "patients/:patient_id/insurance/coverage", to: "billing/insurance_preparations#create_coverage"
+    post "patients/:patient_id/insurance/requests", to: "billing/insurance_preparations#create"
+    get "patients/:patient_id/insurance/requests/:id", to: "billing/insurance_preparations#show"
+    post "patients/:patient_id/insurance/requests/:id/responses", to: "billing/insurance_preparations#record_response"
     get "reports/scribe_activity", to: "reports/scribe_activity#show"
     namespace :operations do
       get "follow_ups", to: "follow_ups#index"
@@ -199,7 +206,7 @@ Rails.application.routes.draw do
     patch "reminder_policy", to: "reminder_policies#update"
     get "offering_text_batches/catalog", to: "offering_text_batches#catalog"
     resources :offering_text_batches, only: %i[index show create], param: :id do
-      post "items/:item/:operation", on: :member, to: "offering_text_batches#change", constraints: { operation: /prepare|reconcile|apply/ }
+      post "items/:item/:operation", on: :member, to: "offering_text_batches#change", constraints: { operation: /prepare|reconcile|apply|rollback/ }
     end
     resources :encounters, controller: "scheduling/encounters", only: %i[index show] do
       get :completion, on: :member

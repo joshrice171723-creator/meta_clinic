@@ -4,6 +4,8 @@
 # Use this to limit dissemination of sensitive information.
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
+  :insurance, # Protected coverage, policyholder and request/response preparation details.
+  :referral, # Supplied referral source, reference and receipt details.
   :evidence, # Signed screenshot source URLs may contain short-lived credentials.
   :payload, # Encrypted working-copy values and pending operation bodies.
   :metadata, # Supplied document source/issuer/dates and correction text are encrypted separately from file bytes.

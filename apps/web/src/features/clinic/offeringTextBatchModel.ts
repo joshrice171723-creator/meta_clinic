@@ -20,6 +20,7 @@ export type OfferingTextBatchItem = {
   attempt: ReturnType<typeof offeringFieldImportAttempt>;
   status: "ready" | "sending" | "applied" | "failed" | "unknown";
   message: string;
+  rolledBack?: boolean;
 };
 
 export function offeringTextBatchPlan(
@@ -112,13 +113,17 @@ export function offeringTextBatchFailure(
 }
 
 export function offeringTextBatchSummary(items: OfferingTextBatchItem[]) {
-  const applied = items.filter((item) => item.status === "applied").length;
+  const applied = items.filter(
+    (item) => item.status === "applied" && !item.rolledBack,
+  ).length;
+  const restored = items.filter((item) => item.rolledBack).length;
   const unknown = items.filter((item) => item.status === "unknown").length;
   const failed = items.filter((item) => item.status === "failed").length;
   const ready = items.filter((item) => item.status === "ready").length;
   const sending = items.filter((item) => item.status === "sending").length;
   return {
     applied,
+    restored,
     unknown,
     failed,
     ready,

@@ -53,6 +53,8 @@ import { useClinicNavigation } from "./clinicNavigation";
 import { patientReferenceLabel } from "./patientReference";
 import { PatientLabReports } from "./PatientLabReports";
 import { PatientDocumentProvenance } from "./PatientDocumentProvenance";
+import { PatientInsurance } from "./PatientInsurance";
+import { PatientReferralReceipts } from "./PatientReferralReceipts";
 import { ClinicViewLoading } from "./ClinicViewLoading";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { registrationLanguageSuggestions } from "./registrationLanguageSuggestions";
@@ -1208,6 +1210,8 @@ function PatientRecord({
         </AccordionDetails>
       </Accordion>
       <PatientDocumentProvenance patientId={patient.id} />
+      <PatientInsurance patientId={patient.id} />
+      <PatientReferralReceipts patientId={patient.id} />
       <PatientSupport patientId={patient.id} />
       <Card title="Legacy unsigned drafts">
         <p>These drafts are not encounter notes and cannot be signed.</p>

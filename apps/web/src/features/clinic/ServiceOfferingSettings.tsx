@@ -43,6 +43,7 @@ type ServiceOffering = {
   description: string | null;
   contact_instructions: string | null;
   referral_instructions: string | null;
+  referral_required: boolean;
   visit_type_id: number | null;
   billing_service_id: number | null;
   duration_minutes: number | null;
@@ -71,6 +72,7 @@ function emptyForm(visitType?: VisitType, siteIds: number[] = []): FormState {
     description: null,
     contact_instructions: null,
     referral_instructions: null,
+    referral_required: false,
     visit_type_id: visitType?.id ?? null,
     billing_service_id: null,
     duration_minutes: null,
@@ -205,6 +207,7 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
       description: form.description?.trim() || null,
       contact_instructions: form.contact_instructions?.trim() || null,
       referral_instructions: form.referral_instructions?.trim() || null,
+      referral_required: form.referral_required,
       visit_type_id: form.visit_type_id,
       billing_service_id: form.billing_service_id,
       duration_minutes: form.duration_minutes,
@@ -630,6 +633,18 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
                 }
                 helperText="Optional service-specific contact steps. Published with this service when public visibility is enabled."
                 slotProps={{ htmlInput: { maxLength: 500 } }}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.referral_required}
+                    disabled={controlsDisabled}
+                    onChange={(event) =>
+                      update({ referral_required: event.target.checked })
+                    }
+                  />
+                }
+                label="Require a recorded referral before booking or rescheduling this service"
               />
               <TextField
                 label="Referral instructions"

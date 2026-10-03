@@ -125,6 +125,7 @@ module Clinic
         values[:booking_required] = boolean(attributes[:booking_required], field: "booking_required") if attributes.key?(:booking_required)
         values[:requires_room] = boolean(attributes[:requires_room], field: "requires_room") if attributes.key?(:requires_room)
         values[:public_visible] = boolean(attributes[:public_visible], field: "public_visible") if attributes.key?(:public_visible)
+        values[:referral_required] = boolean(attributes[:referral_required], field: "referral_required") if attributes.key?(:referral_required)
         if attributes.key?(:status) && (!creating || attributes[:status] != "draft")
           raise ArgumentError, "Use the publish or retire action to change service offering status."
         end

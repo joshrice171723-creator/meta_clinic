@@ -81,7 +81,7 @@ module Clinic
               raise ArgumentError, "Choose a clinician for a video visit."
             end
             snapshot = next_offering && BookAppointment.offering_snapshot!(offering: next_offering,
-              practice: appointment.practice, site: next_site, clinician: next_clinician, room: next_room, visit_type: next_visit_type,
+              practice: appointment.practice, patient: appointment.patient, site: next_site, clinician: next_clinician, room: next_room, visit_type: next_visit_type,
               visit_modality: modality, starts_at: starts_at, ends_at: ends_at, appointment_id: appointment.id,
               expected_resource_revision: expected_resource_revision)
             if overbook

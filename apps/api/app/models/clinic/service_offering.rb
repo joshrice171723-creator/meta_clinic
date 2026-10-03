@@ -19,7 +19,7 @@ module Clinic
     validates :duration_minutes, numericality: { only_integer: true, in: 5..1440 }, allow_nil: true
     validates :modality, inclusion: { in: %w[in_person video either] }
     validates :status, inclusion: { in: %w[draft published retired] }
-    validates :booking_required, :requires_room, :public_visible, inclusion: { in: [ true, false ] }
+    validates :booking_required, :requires_room, :public_visible, :referral_required, inclusion: { in: [ true, false ] }
     validates :lock_version, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
     validate :related_records_belong_to_practice
     validate :published_configuration, if: :published?

@@ -77,6 +77,8 @@ module Clinic
               raise Clinic::Idempotency::OutcomeUnconfirmed unless item["retryPermitted"]
               perform!(item)
             end
+          elsif action == "rollback"
+            rollback!(item)
           else
             raise ArgumentError, "Unsupported batch action."
           end
@@ -99,7 +101,7 @@ module Clinic
           context: { actor_id: batch.actor_id, actor_membership_id: batch.actor_membership_id,
             practice_id: batch.practice_id, site_id: batch.site_id, authorization_generation: batch.authorization_generation },
           source: data["source"], items: data["items"], retention_policy: data["retentionPolicy"],
-          complete: data["items"].all? { |item| item["status"] == "applied" } }
+          complete: data["items"].all? { |item| item["status"] == "applied" && !item["rolledBack"] } }
       end
 
       private
@@ -157,6 +159,7 @@ module Clinic
       end
 
       def reconcile!(item)
+        return if item["rolledBack"]
         authorize_item!(item)
         body = item.dig("attempt", "body", "service_offering")
         receipt = Clinic::Idempotency.reconcile(practice: @practice, actor: @actor,
@@ -173,6 +176,40 @@ module Clinic
         elsif item["status"] == "unknown"
           item.merge!("retryPermitted" => true, "message" => "No receipt found under the exact request lock. Outcome remains unknown; an explicit exact repeat is available.")
         end
+      end
+
+      def rollback!(item)
+        return if item["rolledBack"]
+        raise ArgumentError, "Only a confirmed applied item can restore its previous draft values." unless item["status"] == "applied"
+        authorize_item!(item)
+        original = item.dig("attempt", "body", "service_offering")
+        receipt = Clinic::Idempotency.reconcile(practice: @practice, actor: @actor,
+          operation_code: ManageServiceOffering::UPDATE_OPERATION, request_key: original.fetch("request_key"),
+          payload: { service_offering_id: item["plan"]["targetId"], lock_version: original.fetch("lock_version"), attributes: canonical_attributes(original) },
+          authorization: -> { authorize!; authorize_item!(item) })
+        unless receipt&.outcome_committed? && receipt.resource_type == "Clinic::ServiceOffering" && receipt.resource_id == item["plan"]["targetId"]
+          raise Clinic::Idempotency::OutcomeUnconfirmed
+        end
+        @practice.lock!
+        offering = @practice.service_offerings.lock.find(item["plan"]["targetId"])
+        unless offering.status == "draft" && offering.lock_version.to_s == receipt.resource_version
+          raise ArgumentError, "This offering was changed or published after import. Review a new correction; earlier values cannot overwrite later work."
+        end
+        changes = item["plan"].fetch("changes")
+        unless changes.all? { |change| import_fields.current(offering, change["field"]) == change["after"] }
+          raise ArgumentError, "The imported values no longer match this draft. Review a new correction."
+        end
+        previous = changes.to_h { |change| [ change["field"], change["before"] ] }
+        # Existing empty/absent references may be restored; nonempty references
+        # must still be eligible. The normal offering operation validates scope.
+        references = previous.select { |field, value| OfferingImportFields::REFERENCES.include?(field) && value.present? }
+        import_fields.validate_destination_references!(references)
+        key = "offering-restore.#{Digest::SHA256.hexdigest(original.fetch('request_key'))}"
+        result = ManageServiceOffering.update(practice: @practice, actor: @actor, offering:,
+          request_key: key, lock_version: offering.lock_version, attributes: previous.symbolize_keys)
+        item.merge!("rolledBack" => true, "rollbackRequestKey" => key,
+          "rollbackVersion" => result.offering.lock_version, "rolledBackAt" => Time.current.iso8601(6),
+          "retryPermitted" => false, "message" => "Previous draft values restored through a new recorded revision. Original import history retained.")
       end
 
       def perform!(item)

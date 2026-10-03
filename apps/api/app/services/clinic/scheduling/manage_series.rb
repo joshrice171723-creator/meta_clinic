@@ -18,7 +18,7 @@ module Clinic
           if instant
             begin
               if appointment.service_offering
-                BookAppointment.offering_snapshot!(offering: appointment.service_offering, practice: series.practice,
+                BookAppointment.offering_snapshot!(offering: appointment.service_offering, practice: series.practice, patient: series.patient,
                   site: series.site, clinician: series.booked_clinician, room: room || appointment.room,
                   visit_type: appointment.visit_type, visit_modality: appointment.visit_modality,
                   starts_at: instant, ends_at: finish, appointment_id: appointment.id)

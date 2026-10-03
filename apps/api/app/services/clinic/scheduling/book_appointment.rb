@@ -119,7 +119,7 @@ module Clinic
               raise ArgumentError, "The selected hold is no longer available for this appointment."
             end
           end
-          snapshot = service_offering && offering_snapshot!(offering: service_offering, practice: practice,
+          snapshot = service_offering && offering_snapshot!(offering: service_offering, practice: practice, patient: patient,
             site: site, clinician: booked_clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
             starts_at: starts_at, ends_at: ends_at, expected_resource_revision: expected_resource_revision)
           Configuration::StarterProfile.require_service!(practice: practice, site:, service: "telehealth") if visit_modality == "video"
@@ -168,7 +168,7 @@ module Clinic
       end
       private_class_method :create_appointment
 
-      def self.offering_snapshot!(offering:, practice:, site:, clinician:, room:, visit_type:, visit_modality:, starts_at:, ends_at:, appointment_id: nil, expected_resource_revision: nil, validate_resources: true)
+      def self.offering_snapshot!(offering:, practice:, site:, clinician:, room:, visit_type:, visit_modality:, starts_at:, ends_at:, patient:, appointment_id: nil, expected_resource_revision: nil, validate_resources: true)
         offering = practice.service_offerings.lock.find(offering.id)
         raise ArgumentError, "Choose a published service offering." unless offering.published?
         raise ArgumentError, "The service offering is unavailable at this site." unless offering.sites.exists?(id: site.id)
@@ -192,6 +192,7 @@ module Clinic
           "requires_room" => offering.requires_room, "eligible_clinician_ids" => eligible_clinician_ids,
           "published_at" => offering.published_at&.iso8601(6),
           "revision" => offering.lock_version,
+          "referral" => ReferralReceipts.booking_snapshot!(practice:, patient:, site:, offering:, starts_at:),
           "resource_compatibility" => (validate_resources ? ResourceAllocation.snapshot!(practice: practice, site: site, offering: offering, room: room,
             starts_at: starts_at, ends_at: ends_at, appointment_id: appointment_id, expected_revision: expected_resource_revision) : nil) }
       end

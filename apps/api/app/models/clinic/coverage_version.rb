@@ -4,6 +4,14 @@ module Clinic
     include TenantScoped
     include AppendOnly
 
+    encrypts :coverage_details
+    belongs_to :site, class_name: "Clinic::Site", optional: true
+    belongs_to :recorded_by, class_name: "User", optional: true
+
+    def preparation_details
+      coverage_details.present? ? JSON.parse(coverage_details) : nil
+    end
+
     belongs_to :patient, class_name: "Clinic::Care::Patient"
     has_many :insurance_claims, class_name: "Clinic::InsuranceClaim", dependent: :restrict_with_error
 

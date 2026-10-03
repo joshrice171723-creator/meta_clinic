@@ -28,6 +28,7 @@ module Clinic
               public_visible: offering.public_visible, visit_type_id: offering.visit_type_id,
               description: offering.description, billing_service_id: offering.billing_service_id,
               contact_instructions: offering.contact_instructions, referral_instructions: offering.referral_instructions,
+              referral_required: offering.referral_required,
               duration_minutes: offering.duration_minutes, modality: offering.modality,
               booking_required: offering.booking_required, requires_room: offering.requires_room,
               site_ids: offering.sites.map(&:id).sort, clinician_ids: offering.clinicians.map(&:id).sort

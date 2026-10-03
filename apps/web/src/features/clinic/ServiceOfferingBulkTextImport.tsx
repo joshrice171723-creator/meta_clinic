@@ -369,6 +369,48 @@ export function ServiceOfferingBulkTextImport({
     }
   };
 
+  const restorePrevious = async (index: number) => {
+    if (
+      !saved ||
+      running.current ||
+      !permitted.current ||
+      saved.items[index].rolledBack
+    )
+      return;
+    if (
+      !window.confirm(
+        "Restore the previous values shown in this review for this draft offering? This creates a new revision and is refused if the offering changed or was published after import.",
+      )
+    )
+      return;
+    running.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await changeSavedTextBatch(saved, index, "rollback");
+      if (!result.items[index].rolledBack)
+        throw new Error(
+          "Restoration was not confirmed. Reload this saved review before another change.",
+        );
+      if (alive.current) {
+        setSaved(result);
+        setItems(result.items);
+      }
+    } catch (reason) {
+      loseContext(reason);
+      if (alive.current)
+        setError(
+          (reason instanceof Error
+            ? reason.message
+            : "Restoration outcome is unconfirmed.") +
+            " Reload the saved review to reconcile this exact restoration.",
+        );
+    } finally {
+      running.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+
   return (
     <Dialog open onClose={close} fullWidth maxWidth="lg">
       <DialogTitle>Import selected fields into drafts</DialogTitle>
@@ -719,7 +761,7 @@ export function ServiceOfferingBulkTextImport({
               >
                 {summary.complete
                   ? "All reviewed items are confirmed applied. Review the drafts before publishing."
-                  : `${summary.applied} of ${items.length} confirmed applied; ${summary.unknown} unknown, ${summary.failed} rejected, ${summary.ready} not attempted, ${summary.sending} awaiting confirmation.`}
+                  : `${summary.applied} of ${items.length} confirmed applied; ${summary.restored} restored to previous draft values, ${summary.unknown} unknown, ${summary.failed} rejected, ${summary.ready} not attempted, ${summary.sending} awaiting confirmation.`}
               </Alert>
               <Typography variant="body2">
                 Save this review before applying. Saved requests and outcomes
@@ -768,11 +810,17 @@ export function ServiceOfferingBulkTextImport({
                                 change.field,
                                 referenceCatalog ?? undefined,
                               )}
-                              <Typography variant="caption" sx={{ display: "block" }}>
+                              <Typography
+                                variant="caption"
+                                sx={{ display: "block" }}
+                              >
                                 Exact value: {JSON.stringify(change.before)}
                               </Typography>
                               {change.beforeLabel && (
-                                <Typography variant="caption" sx={{ display: "block" }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ display: "block" }}
+                                >
                                   Saved reference label: {change.beforeLabel}
                                 </Typography>
                               )}
@@ -788,11 +836,17 @@ export function ServiceOfferingBulkTextImport({
                                 change.field,
                                 referenceCatalog ?? undefined,
                               )}
-                              <Typography variant="caption" sx={{ display: "block" }}>
+                              <Typography
+                                variant="caption"
+                                sx={{ display: "block" }}
+                              >
                                 Exact value: {JSON.stringify(change.after)}
                               </Typography>
                               {change.afterLabel && (
-                                <Typography variant="caption" sx={{ display: "block" }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ display: "block" }}
+                                >
                                   Saved reference label: {change.afterLabel}
                                 </Typography>
                               )}
@@ -814,9 +868,18 @@ export function ServiceOfferingBulkTextImport({
                     </Typography>
                   ))}
                   <Typography role="status">
-                    Destination #{item.plan.targetId}: {item.status} —{" "}
-                    {item.message}
+                    Destination #{item.plan.targetId}:{" "}
+                    {item.rolledBack ? "previous values restored" : item.status}{" "}
+                    — {item.message}
                   </Typography>
+                  {item.status === "applied" && !item.rolledBack && saved && (
+                    <Button
+                      disabled={busy || !canApply || contextLost}
+                      onClick={() => void restorePrevious(index)}
+                    >
+                      Restore previous draft values for #{item.plan.targetId}
+                    </Button>
+                  )}
                   {item.status === "unknown" && saved && (
                     <Button
                       disabled={busy || !canApply || contextLost}

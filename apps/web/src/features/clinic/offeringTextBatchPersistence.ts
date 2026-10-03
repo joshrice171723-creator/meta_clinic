@@ -86,6 +86,9 @@ export function validateSavedTextBatch(
         attempt.method !== "PATCH" ||
         attempt.path !== `/api/clinic/service_offerings/${plan.targetId}` ||
         !["ready", "unknown", "failed", "applied"].includes(item.status) ||
+        (item.rolledBack !== undefined &&
+          typeof item.rolledBack !== "boolean") ||
+        (item.rolledBack === true && item.status !== "applied") ||
         !positive(plan.targetId) ||
         !positive(plan.sourceOfferingId) ||
         !Number.isSafeInteger(plan.expectedVersion) ||
@@ -242,7 +245,7 @@ export async function readSavedTextBatch(key: string, context: BatchContext) {
 export async function changeSavedTextBatch(
   batch: SavedTextBatch,
   index: number,
-  operation: "prepare" | "apply" | "reconcile",
+  operation: "prepare" | "apply" | "reconcile" | "rollback",
 ) {
   return validateSavedTextBatch(
     await api<SavedTextBatch>(

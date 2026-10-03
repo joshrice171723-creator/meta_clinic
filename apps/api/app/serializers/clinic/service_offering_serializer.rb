@@ -9,6 +9,7 @@ module Clinic
         description: offering.description,
         contact_instructions: offering.contact_instructions,
         referral_instructions: offering.referral_instructions,
+        referral_required: offering.referral_required,
         visit_type_id: offering.visit_type_id,
         billing_service_id: offering.billing_service_id,
         duration_minutes: offering.duration_minutes,
