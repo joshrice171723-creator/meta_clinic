@@ -1,5 +1,6 @@
 module Workforce
   class KioskClockController < ApplicationController
+    # Physical terminal credential and punch times do not follow a tutorial date.
     KIOSK_COOKIE = :workforce_kiosk
 
     before_action :require_kiosk_availability
@@ -24,7 +25,7 @@ module Workforce
     end
 
     def enroll
-      result = Clinic::Workforce::EnrollKiosk.call(enrollment_token: params.require(:enrollment_token))
+      result = Clinic::Workforce::EnrollKiosk.call(enrollment_token: params.require(:enrollment_token), now: Time.current)
       cookies.encrypted[KIOSK_COOKIE] = {
         value: result.token,
         httponly: true,
@@ -37,7 +38,7 @@ module Workforce
 
     def show
       kiosk = current_kiosk_session!
-      settings = Clinic::Workforce::EffectiveSettings.call(practice: kiosk.practice, site: kiosk.site)
+      settings = Clinic::Workforce::EffectiveSettings.call(practice: kiosk.practice, site: kiosk.site, at: Time.current)
       render json: {
         enrolled: true,
         site_id: kiosk.site_id,
@@ -56,7 +57,8 @@ module Workforce
         kiosk_session: kiosk,
         badge_token: params.require(:badge),
         pin: params[:pin],
-        input_method: params[:input_method].presence || "scanner"
+        input_method: params[:input_method].presence || "scanner",
+        now: Time.current
       )
       render json: {
         challenge: result.token,
@@ -82,7 +84,8 @@ module Workforce
         kiosk_session: kiosk,
         challenge_token: params.require(:challenge),
         event_type: params.require(:event_type),
-        request_key: request_key
+        request_key: request_key,
+        now: Time.current
       )
       render json: Clinic::Workforce::ClockSerializer.punch(result.punch, replayed: result.replayed), status: result.replayed ? :ok : :created
     ensure
@@ -105,14 +108,18 @@ module Workforce
     private
 
     def require_kiosk_availability
-      head :not_found if Rails.env.production?
+      return unless Rails.env.production?
+
+      head :not_found unless GuidedDemoAccess.hosted? && GuidedDemoAccess.allowed?(request)
     end
 
     def current_kiosk_session!
       token = cookies.encrypted[KIOSK_COOKIE]
-      record = token.present? && Clinic::Workforce::KioskSession.includes(:practice, :site, :kiosk_enrollment)
-        .find_by(session_digest: Clinic::Workforce::IssueBadge.digest(token))
-      raise Clinic::Workforce::EnrollKiosk::Rejected, "This kiosk is not enrolled" unless record&.active?
+      record = if token.present?
+        Clinic::Workforce::KioskSession.includes(:practice, :site, :kiosk_enrollment)
+          .find_by(session_digest: Clinic::Workforce::IssueBadge.digest(token))
+      end
+      raise Clinic::Workforce::EnrollKiosk::Rejected, "This kiosk is not enrolled" unless record&.active?(at: Time.current)
       record
     end
   end

@@ -15,7 +15,7 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
     employment = Clinic::Workforce::Employment.create!(practice: practice, staff_member: staff, membership: membership, effective_from: 1.day.ago)
     Clinic::Workforce::EmploymentSite.create!(practice: practice, employment: employment, site: site, effective_from: 1.day.ago)
     Clinic::Workforce::SettingsVersion.create!(practice: practice, scope_kind: "practice", revision: 1,
-      effective_from: 1.day.ago, created_by_membership: manager_membership, values: settings)
+      effective_from: 10.days.ago, created_by_membership: manager_membership, values: settings)
     @badge = Clinic::Workforce::IssueBadge.call(employment: employment, actor_membership: manager_membership)
     @enrollment_token = SecureRandom.urlsafe_base64(32, false)
     Clinic::Workforce::KioskEnrollment.create!(practice: practice, site: site,
@@ -73,6 +73,40 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
     assert_equal "enrolled", enrollment.reload.status
   end
 
+  test "kiosk enrollment lifetime is independent of a simulated issuer date" do
+    now = Time.current.change(usec: 0)
+    travel_to now do
+      grant_permissions!(@manager_membership, "workforce.settings", effective_from: now - 10.days)
+      post "/api/session", params: { email_address: @manager.email_address, password: "Manager-password-123!" },
+        headers: csrf_headers, as: :json
+      assert_response :success
+      token = nil
+      enrollment = nil
+      with_business_time(now - 3.days) do
+        post "/api/clinic/workforce/kiosks", params: { site_id: @site.id }, headers: csrf_headers, as: :json
+        assert_response :created
+        token = response.parsed_body.fetch("enrollment_token")
+        enrollment = Clinic::Workforce::KioskEnrollment.find(response.parsed_body.fetch("kiosk").fetch("id"))
+        assert_equal now + 24.hours, enrollment.expires_at
+      end
+      with_business_time(now + 40.days) do
+        post "/api/workforce/kiosk/enroll", params: { enrollment_token: token }, headers: csrf_headers, as: :json
+        assert_response :created
+        assert_equal true, response.parsed_body.fetch("enrolled")
+        session_record = enrollment.kiosk_sessions.sole
+        assert_equal now + 30.days, session_record.expires_at
+        assert session_record.active?(at: now)
+        get "/api/workforce/kiosk", headers: @headers
+        assert_response :success
+      end
+      assert_equal "enrolled", enrollment.reload.status
+      assert_no_difference("Clinic::Workforce::KioskSession.count") do
+        post "/api/workforce/kiosk/enroll", params: { enrollment_token: token }, headers: csrf_headers, as: :json
+        assert_response :unauthorized
+      end
+    end
+  end
+
   test "enrolled kiosk resolves a badge and replays one saved punch" do
     post "/api/workforce/kiosk/enroll", params: { enrollment_token: @enrollment_token }, headers: csrf_headers, as: :json
     assert_response :created
@@ -97,6 +131,14 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def with_business_time(time)
+    original = Current.method(:business_time)
+    Current.define_singleton_method(:business_time) { time }
+    yield
+  ensure
+    Current.define_singleton_method(:business_time, original) if original
+  end
 
   def csrf_headers
     get "/api/csrf", headers: @headers

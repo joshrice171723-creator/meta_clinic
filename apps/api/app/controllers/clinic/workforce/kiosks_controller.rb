@@ -24,7 +24,7 @@ module Clinic
           site: site,
           token_digest: IssueBadge.digest(token),
           issued_by_membership: clinic_membership,
-          expires_at: Current.business_time + ENROLLMENT_LIFETIME
+          expires_at: Time.current + ENROLLMENT_LIFETIME
         )
         render json: { kiosk: ClockSerializer.kiosk(enrollment), enrollment_token: token }, status: :created
       end
