@@ -1,0 +1,1256 @@
+{
+  "event": "cloud-all-branches-consolidation-20261003",
+  "source_commit": "2878baa2279e97e10b1830443077cddc90fc6233",
+  "main_before_push": "1b5ed425c7853752c453c062b1603dab9302e9e8",
+  "exact_initial_candidate": "aed60ea6f7bcaa605a1a29f0b1b83a723ccf27ae",
+  "frozen_repair": "ce0d246db198ab850bb1f96fe9fa4e6b9e34dbe6",
+  "frozen_visual": "a38bfd1d35115cd6d05affab2d4638c44a364f25",
+  "live_remote_heads_in_inventory": 154,
+  "branches": [
+    {
+      "branch": "codex/020-pr15-carryforward",
+      "remote_sha": "825e08f871849d8864e19f3a96aefa0d8025faa1",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/020-release-receipt",
+      "remote_sha": "196483fa415f2e6d86b5fadd59e9d960b51c3a46",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/atlas-progress-019",
+      "remote_sha": "37d900eff8c343bd9d3a4dfeb10e950cbe088526",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/beacon-browser-office-20260930",
+      "remote_sha": "4eed814c524449bb6c0b0b5948d2b4f37c565e7a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/cash-inventory-slice-20261003",
+      "remote_sha": "ce0d246db198ab850bb1f96fe9fa4e6b9e34dbe6",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Started from exact frozen repair ce0d246d; preserved auth, identity, recovery and automatic QA provenance."
+    },
+    {
+      "branch": "codex/clinic-component-repairs-20260930",
+      "remote_sha": "9a66917125e2bd5598230a1b925b0307252025da",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/clinic-design-audit",
+      "remote_sha": "a826c56265f09bc24f8045b62c69da5028a64ba9",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged dated audit and screenshots; no new UX acceptance."
+    },
+    {
+      "branch": "codex/clinic-polish",
+      "remote_sha": "7cfa22e9980cd6b4105c1ad4bfe30863a6cdb9ac",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged timestamps and responsive controls; kept kiosk namespace repair."
+    },
+    {
+      "branch": "codex/cloud-all-branches-20261003",
+      "remote_sha": "2df62d4b760efc33ad0e093d9f92937b9a82165a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Previously pushed checkpoint of this combined candidate."
+    },
+    {
+      "branch": "codex/cloud-runtime-fixtures-20260930",
+      "remote_sha": "dcc45608443d20a081a33dc8414564e1077a68ac",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/desktop-next-20261002",
+      "remote_sha": "1c86f94fc1359d69726f16d999161f69ea957233",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/desktop-remaining-20261002",
+      "remote_sha": "150ada4d56a6d96fb8fa11ab2bad6684969e7a69",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/dot-qa-unavailable-count",
+      "remote_sha": "0493d781789c6b0eb48eb3197732ca4b4a7a15c0",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-8-issues-in-meta_clinic-qa-batch-2",
+      "remote_sha": "8e0dc9cacb89ba35f8daeaec7b729899aa10b322",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-8-qa-defects-in-meta_clinic",
+      "remote_sha": "d2b03cbc4ba38f55e860fa0f63f50eef97ed4def",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-8-qa-defects-in-meta_clinic-d8m87p",
+      "remote_sha": "cd1a2ef1f43363b0ebca8b3ce240356999c8423d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Recorded ancestry without replay: current saved-draft selection, stale-draft handling, signing wrapper, guarded cancellation and storage links supersede these patches."
+    },
+    {
+      "branch": "codex/fix-booking-dialog-default-date-issue",
+      "remote_sha": "1f721cbd5c7f16b04a56892f1437e46e15e03ab5",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-cancel-action-in-appointment-dialog-and-add-demo-entry",
+      "remote_sha": "afa058d0d440becaba9ac177e2e007b2b0c87043",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-nginx-preflight-hostname",
+      "remote_sha": "fa3689ae6ea621da48ba2823318964c82a7c4cdc",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-reset-sandbox-backend-issue",
+      "remote_sha": "371e57c21547e13c06f283421d5145d3cd18ffd9",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-visitor-sandbox-reset-issue-and-restore-transmission-are",
+      "remote_sha": "8b54414531db4d99eef207e837d7646ad1f4ee88",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-waitlist-publish-issue-and-cancel-action",
+      "remote_sha": "8fe90d51d113730385467b6d9bf5ec1513697bdb",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/fix-web-build-hostname",
+      "remote_sha": "523fa4462bda915cd9518eaa69c2783edbf94072",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/joshua-modern-portfolio",
+      "remote_sha": "d252bbde2d85e04f85bbfe460413aa339c6c42bc",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged independent portfolio files."
+    },
+    {
+      "branch": "codex/journey-connected-proof",
+      "remote_sha": "07894374db1fedcd10f24c7f657cc7a362b754d7",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/journey-two-fixes",
+      "remote_sha": "987aab2541142952a187f921a39d3719b9ff9340",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/journey-ui-audit",
+      "remote_sha": "b016a95983505b180dd6651ab1dcb4bacd22f11f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/location-specialty-tracker",
+      "remote_sha": "329298133e28ee0b4781a825d83ec839044dd06f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/marketing-quality",
+      "remote_sha": "3da3ca67355f45d10cf4980ca9c1e492dd393534",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/marketing-specialty-architecture",
+      "remote_sha": "41dd615f821ff5c9aa265b9668c6dbc8fe7ce462",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc01-complete-service-impact",
+      "remote_sha": "07f9ed9d896449363727a0075517183bc40a0793",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc01-preset-disable-recovery",
+      "remote_sha": "357ccf0d8ed953324e5bec82374ac58f729ed27c",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc02-paid-conversion-atomicity-20260930",
+      "remote_sha": "445a8a2607f44011a877e7bf2ff3c111dbccd4a3",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc02-staff-conversion-atomicity-20260930",
+      "remote_sha": "b3a9197b75bc0f34bcb51238fe8dbd04f8cf10a5",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc03-identity-correction-review",
+      "remote_sha": "fd3e7c322e549cf84b589b54b77fd4cd21661e21",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc03-language-suggestions",
+      "remote_sha": "e6e6535a73fb4a4343bd2681f831e33273261426",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc03-requirement-source-matrix",
+      "remote_sha": "226e1214005552a7552c0a8ff85e66bf78c99952",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged dated requirement classification correction."
+    },
+    {
+      "branch": "codex/mc04-operational-policy",
+      "remote_sha": "8d9a0bbe98cbf7c7e7c199889485f102cf8ba4ec",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc04-overbook-reschedule-20260930",
+      "remote_sha": "a98cd14fa845169823acad39649e3ca13f99d046",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Patch-equivalent implementation already in main; recorded ancestry through compatibility branch."
+    },
+    {
+      "branch": "codex/mc04-resource-compatibility-20260930",
+      "remote_sha": "080f183f1a5c5afe7e08d3da66d8ac795e74535a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Patch-equivalent implementation already in main; recorded ancestry, no stale source replay."
+    },
+    {
+      "branch": "codex/mc04-slot-gap-20260930",
+      "remote_sha": "2d96bed50ea815e294e3e80aea246926136d94bc",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc05-document-provenance",
+      "remote_sha": "d1e96341f6af80395cf3310f79b8222085ab0ac8",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc05-intake-transition-contract-20260930",
+      "remote_sha": "a82540157066ec7262b7eea6970be234043a6f7a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Patch-equivalent source record already integrated; recorded ancestry."
+    },
+    {
+      "branch": "codex/mc05-original-field-allergy-search-20260930",
+      "remote_sha": "0dc95c5299a0f3aac76fce275747293631f1c17c",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc05-provenance-jsx-repair",
+      "remote_sha": "bee7f8ef228c28715b977db17baaa8fc4b3e540e",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc06-fulfillment-source-coverage",
+      "remote_sha": "dbef8e30918c054132d35ef87fcdaf7d01958b16",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc06-guard-repair-source",
+      "remote_sha": "a0326be8ad494a40e9d260eeb226fd038bb2d957",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc07-local-session-fencing-20260930",
+      "remote_sha": "a1c118ac15fed8f78bb977334a77f66ed6e1231c",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc08-date-context-20260930",
+      "remote_sha": "d9082a1f63b39b963be63d5a277c320267339a20",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc08-price-provenance-schema-review-20260930",
+      "remote_sha": "51111f92e2eca3ef0b9c65130cf51e43d8e8ebff",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Current schema already contains source_price_revision, constraint and migration; retained superset schema."
+    },
+    {
+      "branch": "codex/mc08-source-gap-20260930",
+      "remote_sha": "d19c90a86fd94d1998c17dbfcdf9054643b99d66",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc09-entitlement-staff-ui-20260930",
+      "remote_sha": "6ee0f3cc6c2ff8656dbec1fd7b24c54bf193f240",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc09-missing-source-cloud-20260930",
+      "remote_sha": "50ee80805fedfdb6981d33b0c82df5a33f544c2f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc09-paid-period-resolution-20260930",
+      "remote_sha": "c779f9cf1459f0d6e8e9cb4630d815dbd314472b",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc09-recurring-accounting-20260930",
+      "remote_sha": "17f7ee60e6a029a11eed3c0498294ee760324c84",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc09-source-matrix-20260930",
+      "remote_sha": "6f75995ad5eb1593e966863796de371b8cfcf64e",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged dated source inventory; no new acceptance."
+    },
+    {
+      "branch": "codex/mc10-attempt-provenance",
+      "remote_sha": "10afe86357f94dc3c3d979647ccd809328005e8d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc10-durable-preparation",
+      "remote_sha": "f0269c37c61798bf3f3d8c896ee769592264d6fe",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc10-response-lifecycle",
+      "remote_sha": "54319ae428a030f6f273141710669ce274102af6",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc10-substitution-choice",
+      "remote_sha": "a3254806d7d8425cf6a65482f0b1c9d535d4e603",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc11-carrier-tracking",
+      "remote_sha": "0634158e7bd5bebf5f2bd0fc7329dc208e9d0c7e",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc11-delivery-preparation-20260930",
+      "remote_sha": "07121a53607f0176cf503deee635cf5ab351622d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc11-quote-fee-provenance-20260930",
+      "remote_sha": "ba08d520fdb0705aaf7e157afe0c65f824801d87",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc11-supplier-quote-request-20260928",
+      "remote_sha": "71137d7d57a0530b26c5ed1476a8f20335260328",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc12-waitlist-exact-retry",
+      "remote_sha": "7e58880a3cbfeaaec84d861254ffb0b355c66a75",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc13-policy-gaps-20260930",
+      "remote_sha": "667338bdc74a984e27d9611732b9e5d04ffb1d3f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc14-complete-filtered-export-20260930",
+      "remote_sha": "1cfab28ea4143998812e323c7c1abe41ef3baa98",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc14-export-issuance-20260930",
+      "remote_sha": "5c82d1761e3f87729d2b1d0bf9f6015e10940ec2",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc15-bulk-manual-text-import",
+      "remote_sha": "f38cfea3e0a94c74b1fbfd11f31211d5cca709f8",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc15-durable-text-continuation",
+      "remote_sha": "1bde8909b4f19ca47f8311df81414a146e2c3ba4",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc15-explicit-draft-field-mapping",
+      "remote_sha": "f6c3a906311c52f334032611785a8379e2b08669",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc15-import-recovery-20260930",
+      "remote_sha": "da5eaefe784e62bee3e276bc6ff9c009bb43a844",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/mc15-import-uncertainty-repair",
+      "remote_sha": "6c81eaf09cff499a73be66867e96af1b880381ef",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/muse-qa-21-schedule-booking-defaults",
+      "remote_sha": "e345acb8eb9dfc1222011323e4f89f0abf09ab56",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/muse-qa-watch",
+      "remote_sha": "75b5be46699445d986aaea5593872ce318d3d3b6",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/muse-qa-write-api",
+      "remote_sha": "1b5ed425c7853752c453c062b1603dab9302e9e8",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/muse-room-exchange-contract",
+      "remote_sha": "576a4ff3c06f4e98e67d2b4ba0c6fec6906b7097",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged source-bound contract and prepared regressions; historical revision metadata retained."
+    },
+    {
+      "branch": "codex/office-identities-countdown",
+      "remote_sha": "b0c980d833d586954d6ad6732133cf6324c88032",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/performance-bottlenecks",
+      "remote_sha": "63efbfa377dd69d9ac19b098e87211363ec3f738",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged scoped reads, history cursors/focus and acknowledgement-only mutations. Preserved patient-ledger per-invoice flooring and mutation ownership fences."
+    },
+    {
+      "branch": "codex/persistent-engineering-pilot",
+      "remote_sha": "d93e9790751ad42897b7cc824ca0fa7cb595c5a0",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-baseline-frontend-tests",
+      "remote_sha": "ea9a8e552f16b596ef50703428af29d9808d997a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-carrier-tracking-preparation",
+      "remote_sha": "c1b2aea0fae6dc8966438b709047a6193cdf454a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Patch-equivalent code already integrated; recorded ancestry."
+    },
+    {
+      "branch": "codex/pilot-configured-lab-unit-mappings",
+      "remote_sha": "d40d584aa55b7ef3cc68facbc91ee89eb0555501",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-continuation-acceptance-packets",
+      "remote_sha": "2af63b7a0352f752c12796e75b34184e3e96644c",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-document-provenance-scope",
+      "remote_sha": "96ce511f22282c7ad11b32a5d385e673c8b055a2",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged dated plan and added tracker navigation link."
+    },
+    {
+      "branch": "codex/pilot-estimate-invoice-comparison",
+      "remote_sha": "35285e33b5317b50e85fc6a6ddc783107061e68f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-follow-up-reconciliation",
+      "remote_sha": "d79c56316a38cd77d089c418aea9a265e80a0446",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-intake-answer-provenance",
+      "remote_sha": "1f81a07ed04ef7d7f41034c10167a67634318884",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-intake-review-continuity",
+      "remote_sha": "085fe9a5582119fc538b2cbe4b55ad03ec56b36b",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-inventory-catalog-actions",
+      "remote_sha": "42b47bb5d33eb608c981c8dd6d4fc3417a806a0d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-lab-source-provenance",
+      "remote_sha": "0bf6584dd9a5d68c20692dbac63ca91d09b07c4f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-patient-membership-history",
+      "remote_sha": "117d1adbb9952ed05dad6e844b4e05f4f4b62427",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-prescription-reconciliation-worklist",
+      "remote_sha": "ebd4bd170530e5e52078f33d7b6eb700b10441da",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-prescription-worklist-pages",
+      "remote_sha": "60158efd5f934c3f62d0e2af9873c6cc13579dc0",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-provider-navigation-contract",
+      "remote_sha": "3a01b1a1d3b61255111d60b70fd33820ff3160e8",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-recurring-renewal-regression",
+      "remote_sha": "f86df0a551f6a1f41cb84dbf8133f5021e888def",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-registration-reload-retry",
+      "remote_sha": "acf11885a558aeef2b6e830f993a39d297d92985",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-saved-day-end-reconciliation",
+      "remote_sha": "a11c737c67388860289782933594a66ba71829ea",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-scribe-recovery-pages",
+      "remote_sha": "06a08ab6c6ceb095e7aac763d4bf581b0896e098",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-service-inquiry-instructions",
+      "remote_sha": "5c7dc8c72529695fa5f461bc6b9dc5231c909b8a",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-setup-history-recovery",
+      "remote_sha": "05e50909d4d7bd56a3b40b3f5123d7670da82fea",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-supplier-request-pages",
+      "remote_sha": "d3f7778f574611d1a79ece37aaf6c896c255d7c2",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-timecard-attention",
+      "remote_sha": "6b8dcc526ad12ba89052034dba6df7be579939c1",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pilot-ucum-dimensional-validation",
+      "remote_sha": "8b5c69b0d4d377e95fe0337ded8c8f262b2e138d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/pr36-snapshot-file-race",
+      "remote_sha": "2f25d85ae57e0bc77a858b20fa4d67bd99406e1d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Superseded by newer ready snapshot-race/download implementation; retained current files and recorded ancestry."
+    },
+    {
+      "branch": "codex/pr36-snapshot-file-race-ready",
+      "remote_sha": "26d24d47d63741d65fc7b2409047a377819c5cdb",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-247-253",
+      "remote_sha": "82289e8f014fc54ddc613a537749e83676df7fe0",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-build-access-feedback",
+      "remote_sha": "0f1e0bb75536279c085e1ec5d68f4e2454972309",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-care-needs-review-control",
+      "remote_sha": "00e61d83fbb13811f58e2f54736875a153ba6cff",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-completion-dialog-fresh-error",
+      "remote_sha": "9e752dc5292018fa32a9a74f2449d9c68aa0e719",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-completion-modal-error-20260930",
+      "remote_sha": "acb99334c058a7cbd86a08beb697855170ca07a7",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-current-view-accessibility",
+      "remote_sha": "303caa2e2114b2d2c4f20e7037e69e4f38411971",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-desk-integration",
+      "remote_sha": "c352d2a4923ab05b5537fd410afeb40309726a24",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-invoice-details-identity",
+      "remote_sha": "a01db8f00dd6bc2538e7209a9a980c2a6502bc97",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-login-destination",
+      "remote_sha": "1959d860bad7ac6daa0871c0fec1496744bdbf3f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-muse-bridge-20260930",
+      "remote_sha": "6d20a486de06495097dcf9be9696002a7c8853f3",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-public-access",
+      "remote_sha": "e2934e93de0e8b41a1ab54f539589effd8e86379",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-release-automation-20260928",
+      "remote_sha": "5ca4266f1a758d084d9a30c6d1eca601161ea20b",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-sync-stale-head",
+      "remote_sha": "574a8284771a9e8eafc00a4f3966e1b51932f56d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/qa-text-observations-20260930",
+      "remote_sha": "45735299935bcc73e6dad526a52ed01e6ba84b50",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/reconciliation-closeout",
+      "remote_sha": "cf8c54d28ff92f390f9a7fb3755c902071193c3e",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/reduce-verification-churn-20261003",
+      "remote_sha": "ddacba6625b82a1c771a86a83917156b89adf209",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-combined-release-20260930",
+      "remote_sha": "d957313b4ea2a9873d61142f060a59c34260d644",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-mc09-combined-candidate-20260930",
+      "remote_sha": "76d3b08f16fded524b0ac3921b0a18ecedcf2ada",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-pr36-repair-base-20260930",
+      "remote_sha": "29601ee0caea7361b531206362015db61a09e078",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-product-source-20260930",
+      "remote_sha": "99a613a6d96ed38425b241e6f24054f868209d86",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-qa-combined-20261001",
+      "remote_sha": "e5d065fe550350c934274391da46abfdb7325250",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-release-ui-20261001",
+      "remote_sha": "db9ab0b4ce3e061c95c79b38a9e0e9a87f069a4f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-sprint-next-candidate-20260930",
+      "remote_sha": "1b9d90e13dd3a6ab2a0f396d6e2ae87aa9881f33",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-sprint-three-candidate-20260930",
+      "remote_sha": "6099fc5523b5d82ac2437767bec10f168aceeafd",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/relay-waitlist-candidate-20260930",
+      "remote_sha": "1fb61df393fb42e8987bfb459704af39c300c58e",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/release-020-status",
+      "remote_sha": "9de20dcad29b617fd45833c17a119b5585d542bd",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/release-receipt-150ada4d",
+      "remote_sha": "e4aca027cb6e57d7a574c64cc99d04c1d6ac8ac3",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/remaining-diff-reconciliation",
+      "remote_sha": "d3eda03b66a1461482adc2b5537634416d9aaecf",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/reminder-delivery-inventory",
+      "remote_sha": "f3d90d6728031085164da222780947f8f66ed13e",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/sage-23d1-generated-schema-20260930",
+      "remote_sha": "7149b7c77d6f25e6a0702e33c3bc2a226acd581d",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Patch-equivalent schema already integrated; retained superset."
+    },
+    {
+      "branch": "codex/sage-fa967-generated-schema-20260930",
+      "remote_sha": "8170390d1cf1cd1de1d4910b58c915ae017dfef7",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Patch-equivalent schema already integrated; retained superset."
+    },
+    {
+      "branch": "codex/sage-mc09-schema-20260930",
+      "remote_sha": "291357879e2a678143279eaa802d4ff713a54c28",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged unique review records; patch-equivalent scoped-entitlement schema retained from current superset."
+    },
+    {
+      "branch": "codex/sage-mc13-migration-version-20260930",
+      "remote_sha": "460caf7d486ebc53ec9254088021be48e13facc9",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/sandbox-focused-entry-20261001",
+      "remote_sha": "487c1508d7b7639c2c68f2fb3737a6b000a1dd5f",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/tracker-estimate-correction-fe6",
+      "remote_sha": "b40e1c02132bfb55f08af2feee33e93bae348d67",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged dated correction records and append-only progress; current canonical estimates retained."
+    },
+    {
+      "branch": "codex/tracker-mc14-mc15-evidence-sync-20260927",
+      "remote_sha": "d2ae8f8d2d9aaa5ce1cb419e8f77e81f00c1f5e0",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Superseded historical tracker prose; current evidence retained and ancestry recorded."
+    },
+    {
+      "branch": "codex/tracker-reconciliation-20260930",
+      "remote_sha": "419b822fbe5ac8ca0ba16ae67f52d14982a47391",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/tracker-reconciliation-20261003",
+      "remote_sha": "45ccf2e1988d06cb83037bb1652181f9308cec58",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Historical released checkpoint retained in Git ancestry; progress append retained; current QA policy/estimates retained with restored historical heading."
+    },
+    {
+      "branch": "codex/tracker-score-batch-6099fc55",
+      "remote_sha": "c18d37fa44a1de4efffeca47e5241bd330cb38cf",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/tracker-score-batch-c1646838",
+      "remote_sha": "b768dec2fa0125af9be301303462cc56aed2153c",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/tracker-score-batch-fe6db4c0",
+      "remote_sha": "9f296127b7c7acd1659fe0befbb9db051502a14b",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Included through correction branch; historical scores are not new completion awards."
+    },
+    {
+      "branch": "codex/tracker-sprint-source-checklist-20260930",
+      "remote_sha": "e33648c278ca8d7c7abe0ad0d662f9560e806894",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/update-atlas-accuracy",
+      "remote_sha": "a22b078728d10e847f4386f411636791e7c35596",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "codex/visual-quality-audit",
+      "remote_sha": "a38bfd1d35115cd6d05affab2d4638c44a364f25",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged a6d78907 and exact frozen a38bfd1d. Four formatted booking hunks transferred to extracted CareBookingForm; chart accordion/CSS kept together."
+    },
+    {
+      "branch": "docs/mc01-mc02-mc04-source-coverage",
+      "remote_sha": "df1dfec3fc9eb14b859b98bdf186d29fee1e18e9",
+      "included_in_candidate_ancestry": true,
+      "disposition": "Merged historical source coverage record."
+    },
+    {
+      "branch": "docs/mc08-mc11-mc13-source-coverage-20260930",
+      "remote_sha": "d3c8de26580879bcb70abbc5f30cccfd91b50d53",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "main",
+      "remote_sha": "1b5ed425c7853752c453c062b1603dab9302e9e8",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    },
+    {
+      "branch": "nova/mc12-patient-return-20260930",
+      "remote_sha": "25f296a83a09739dc5c5c29ed0a24dd5104528fa",
+      "included_in_candidate_ancestry": true,
+      "disposition": "already_in_main"
+    }
+  ],
+  "clarification": "Initial 154 tracking entries included symbolic origin/HEAD: 153 real remote branches. Review-branch creation raises live total to 154.",
+  "parent_to_result_review": [
+    "CareFlow facade/export boundaries retained; visual booking blocks transferred into extracted module.",
+    "Inventory purchasing/navigation helpers retained; unused duplicate screens not restored.",
+    "Full CareFlow/Inventory/Badge files reconstructed from merge parents after a conflict-parser defect; final full files and parent diffs reviewed.",
+    "Kiosk wall-clock, staging-origin and demo namespace fixes retained.",
+    "Current schema retained when older generated patches were equivalent or superseded.",
+    "Current QA automatic observations retained; no manual pin/campaign-match gates reinstated."
+  ],
+  "simulator_repair": {
+    "commit": "7ebc3b0bdf2b61f49545f6224252ae39c5e0b735",
+    "mechanism": "Encrypted server checkout working draft in dedicated synthetic_payment scope; exact invoice/endpoint/payload/key saved before POST. Restored uncertain attempts require explicit identical retry. New synthetic/hosted intent blocked until recovery/clear succeeds. Late responses fenced.",
+    "authorization": "Existing practice/membership draft scope and invoice/patient association checks retained. Synthetic scope requires invoice and matches official billing.payment_record / legacy billing.write authorization. No migration, provider connection or credentials.",
+    "original_simulator_blob": "c366025de29f3f3c70eabac888e65b558e109268",
+    "original_caller_blob": "ee618035282fa75bc46637826903ae913356fae5",
+    "regression": "Pre-existing byte-identical 94f9ceeb defect, not introduced by consolidation. No external charge or duplicate allocation demonstrated."
+  },
+  "passed": [
+    "Combined TypeScript and main/Office bundles: final command results separately inspected.",
+    "Five mounted simulator transport regressions: A-B-A, reload, exact retry, late reply, unavailable/mismatched recovery, clear failure, unknown 409.",
+    "Final billing navigation: 4 passed, 1 pre-existing conditional skip.",
+    "Inventory ownership/configuration races: 38 passed before final import-only repair; latest candidate batch retains 38 passes.",
+    "Booking/context/module boundaries: 37 passed, 1 skip on frozen final UI.",
+    "Office 16 cases and kiosk 4 cases passed earlier scoped source; not whole final candidate acceptance.",
+    "Changed Ruby syntax: 83 files; scoped performance lint 7 files; working-draft controller syntax/lint."
+  ],
+  "failed_and_resolved": [
+    "Initial marker-state typecheck; corrected parser reconstruction before first push.",
+    "Final-UI imports and four route-variable acknowledgement guard type errors corrected; passing final TypeScript is separate.",
+    "Stale Front Desk label/bootstrap/download-role assertions aligned with current contracts.",
+    "Fixture Chromium-path and dependency-optimizer defects corrected.",
+    "New simulator fixture script/middleware prefix collision corrected.",
+    "Navigation stale marker and removed refresh seam corrected with read-only mismatched-invoice refresh."
+  ],
+  "failed_remaining": [
+    "Prior full baseline lint has 31 offenses; not rerun or represented as passing."
+  ],
+  "not_run": [
+    "Database-backed server working-draft/simulator integration; no new database credentials or storage created.",
+    "Canonical startup readiness including actual worker execution and subsequent guarded stop/storage snapshots: still unaccepted, cloud-local setup approval pending. This is not a proven hosted configuration defect.",
+    "Broad clinical/UI workflows, Windows verification, provider/Stripe integrations and deployment."
+  ],
+  "gaps": [
+    "Unavailable codex/publish-five-pr-review / supplied 51a2e9836cbe948f473cb98670060aa0ed6d7e82 object; no local-only unfinished work inferred.",
+    "Unidentified dirty QA work excluded and preserved by its owner; accessible commits all accounted for."
+  ],
+  "commands": [
+    "git fetch origin +refs/heads/*:refs/remotes/origin/*",
+    "git merge --no-ff <reviewed frozen branch>; duplicate/superseded source dispositions recorded separately",
+    "python bin/agent-resources run -- docker exec -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm exec tsc --noEmit",
+    "python bin/agent-resources run -- docker exec -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm run build:bundle",
+    "python bin/agent-resources run -- docker exec -e BROWSER_EXECUTABLE_PATH=/runtime/chromium/chromium -e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/runtime/chromium/chromium -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm exec vitest run test/invoice-simulator-recovery.test.tsx test/billing-history-collection-navigation.test.tsx test/inventory-domain-policy.test.ts test/operations-configuration-file-race.test.tsx --maxWorkers=1",
+    "python bin/agent-resources run -- docker exec -e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/runtime/chromium/chromium -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm exec vitest run test/billing-history-collection-navigation.test.tsx --maxWorkers=1",
+    "python -B bin/verify-vault",
+    "python -B bin/verify-agent-harness",
+    "git diff --check"
+  ],
+  "evidence": [
+    {
+      "log": "/workspace/scratch/main-candidate-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_tail": ""
+    },
+    {
+      "log": "/workspace/scratch/main-candidate-build.log",
+      "sha256": "9232ed812ecd56b6c2feb4751af2a2300ff4221e61a4d348756a70b8f0297926",
+      "raw_tail": "\n\u2713 built in 571ms\nvite v8.2.2 building client environment for production...\ntransforming...\n\u2713 1082 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/assets/office-plugin.html  972.10 kB \u2502 gzip: 269.02 kB\n\n\u2713 built in 327ms"
+    },
+    {
+      "log": "/workspace/scratch/simulator-repair-tests-second.log",
+      "sha256": "f9ffc007e67f1ef32c099aaa6234bf427ca2e5a81f00e2df964c6264740bb5ab",
+      "raw_tail": "   \u2713 retains an abandoned in-flight attempt without applying its late acknowledgement to another invoice  904ms\n   \u2713 blocks collection when recovery cannot load or its saved invoice identity does not match  853ms\n   \u2713 does not enable a new intent when clearing a confirmed attempt fails  1036ms\n   \u2713 retains an explicit outcome_unconfirmed 409 for identical retry  1227ms\n\n Test Files  1 passed (1)\n      Tests  5 passed (5)\n   Start at  23:23:34\n   Duration  6.37s (transform 31ms, setup 0ms, import 337ms, tests 5.90s, environment 0ms)\n"
+    },
+    {
+      "log": "/workspace/scratch/simulator-repair-navigation-reconciled.log",
+      "sha256": "43e337c7ddd001d01c3e2b6837a7e080ad99515e57b6634700edeb3f7ae9c5cf",
+      "raw_tail": "   \u2713 controlled collection93 to invoice13552 preview: after  1409ms\n   \u2713 humanizes confirmed history codes without assigning outcomes or actors, preserving accessible raw details  2202ms\n   \u2713 uses current collection records and clears context for unavailable identity, uncertainty, removal and ordinary opens  3395ms\n   \u2713 shows explicit unavailable context when collection93 disappears during the invoice query refetch  1128ms\n\n Test Files  1 passed (1)\n      Tests  4 passed | 1 skipped (5)\n   Start at  23:32:56\n   Duration  8.93s (transform 38ms, setup 0ms, import 344ms, tests 8.45s, environment 0ms)\n"
+    },
+    {
+      "log": "/workspace/scratch/consolidation-release-candidate-tests.log",
+      "sha256": "faee2bda85f5f0666d17a2e071d8c690b98ad36328b8f99ddaac6ca558141cbe",
+      "raw_tail": " \u276f test/billing-history-collection-navigation.test.tsx:517:5\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af\n\n\n Test Files  1 failed | 3 passed (4)\n      Tests  1 failed | 46 passed | 1 skipped (48)\n   Start at  23:28:19\n   Duration  53.95s (transform 140ms, setup 0ms, import 1.39s, tests 52.07s, environment 0ms)\n"
+    },
+    {
+      "log": "/workspace/scratch/consolidation-final-recovery.log",
+      "sha256": "86c8134070531deba675307510131b7297d0b1dd13ef613eabf9049e294af4a3",
+      "raw_tail": "     \u2713 late success cannot add an old comparison beside the latest malformed-file error  1083ms\n     \u2713 late failure cannot add an old error beside the latest valid-file comparison  780ms\n     \u2713 refresh invalidates a pending successful read even when manifest provenance remains identical  918ms\n     \u2713 refresh invalidates a pending rejected read while the current snapshot stays usable  831ms\n\n Test Files  2 passed (2)\n      Tests  38 passed (38)\n   Start at  23:10:33\n   Duration  9.47s (transform 95ms, setup 0ms, import 750ms, tests 8.45s, environment 0ms)\n"
+    },
+    {
+      "log": "/workspace/scratch/consolidation-final-booking.log",
+      "sha256": "cc675d7c700b722232d98e6e2c646982a240e2fea1fb52b200c78ee55609524c",
+      "raw_tail": " \u2713 test/booking-draft-recovery.test.tsx (25 tests | 1 skipped) 281ms\n \u2713 test/booking-defaults-regression.test.tsx (3 tests) 136ms\n \u2713 test/care-flow-module-boundaries.test.tsx (4 tests) 5ms\n \u2713 test/booking-context-defaults.test.ts (6 tests) 5ms\n\n Test Files  4 passed (4)\n      Tests  37 passed | 1 skipped (38)\n   Start at  23:11:29\n   Duration  5.42s (transform 910ms, setup 0ms, import 4.47s, tests 427ms, environment 0ms)\n"
+    },
+    {
+      "log": "/workspace/scratch/simulator-repair-controller-lint-final.log",
+      "sha256": "337db7d94de6abea29bfc23f4ab61f83f4dd40b9daedc5c3877f0e4541ed40ae",
+      "raw_tail": "Inspecting 1 file\n.\n\n1 file inspected, no offenses detected"
+    },
+    {
+      "log": "/workspace/scratch/simulator-repair-controller-syntax-final.log",
+      "sha256": "bbafef10c22b9323fa5589564990f57fbf57f9a632381d5e765dc5a3b25b4a1b",
+      "raw_tail": "Syntax OK"
+    },
+    {
+      "log": "/workspace/scratch/consolidation-performance-lint.log",
+      "sha256": "dbf8fb0eb8261e8feedb39fec68d275ae2a33bc73b444852d99baacb5a90467d",
+      "raw_tail": "Inspecting 7 files\n.......\n\n7 files inspected, no offenses detected"
+    },
+    {
+      "log": "/workspace/scratch/consolidation-ruby-syntax.log",
+      "sha256": "97de3dd237214d9e40a864103c13c03a70a6dae04b81e4b4a767b07fb738fa04",
+      "raw_tail": "Syntax OK\nSyntax OK\nSyntax OK\nSyntax OK\nSyntax OK\nSyntax OK\nSyntax OK\nSyntax OK\nSyntax OK\nSyntax OK"
+    }
+  ],
+  "changed_source_sha256": {
+    "apps/api/app/controllers/clinic/billing/cash_drawers_controller.rb": "8bb88598a52d6f1f4709a0123c633901eaf81a13fbed2591f2da657029eaea38",
+    "apps/api/app/controllers/clinic/billing/patient_ledgers_controller.rb": "5ebef9dbbe02e94b5e04f44ca6fed54d0f504757149945dfe53263c36187ca19",
+    "apps/api/app/controllers/clinic/billing/payment_events_controller.rb": "c1bd82ca14254901d948a230d483f5f374406cd80ad1e42fa17348e9036056ea",
+    "apps/api/app/controllers/clinic/care/lab_reports_controller.rb": "2ac012436b28feb1f51d32dc0a406534ab517a1bdb8bd2f46c886ccb1736790a",
+    "apps/api/app/controllers/clinic/care/patients_controller.rb": "ce6186fa92d949d244c79e1ecd48b5aaa41c8f88dd72d93331f2b97adc8e9e01",
+    "apps/api/app/controllers/clinic/inventory/management_controller.rb": "b9ac872870d7e911649fef4c57bee0d26c37510168066c3a9655853b80c6ca8f",
+    "apps/api/app/controllers/clinic/inventory/pharmacy_controller.rb": "461b2b468841bdf1097ab4c342d4a76988cedb3ea5dbaa445137ff02edd6f3d3",
+    "apps/api/app/controllers/clinic/inventory/supplier_pricing_controller.rb": "199a9793ca250aac0272670a356e7fe9c2b980af38f83aee94eca22b8cd3f7d7",
+    "apps/api/app/controllers/clinic/messaging/staff_controller.rb": "8bbe4edbea48cf97104c084a51d73f5e84fc7f877d96b9f17f3059e2396f7fbf",
+    "apps/api/app/controllers/clinic/patient_portal/appointment_requests_controller.rb": "5fdb0c6477a0e264b588ff9f3e6103d49208c7cff3e04dd9a307f0a3043ec0b6",
+    "apps/api/app/controllers/clinic/patient_portal/invitations_controller.rb": "c0ac2e6130bb25737165290a3fe956d2c53cc9ac6168d09e1f7a9ad05c058553",
+    "apps/api/app/controllers/clinic/patient_portal/requests_controller.rb": "3c7225f97df6605cfcf8ff4838e5157f866617830a3f56133002a97c175660ef",
+    "apps/api/app/controllers/clinic/scheduling/calendar_controller.rb": "d9626724f967a868ac032e1af55700d8fcf125872824666b9ee2e11c8eb73427",
+    "apps/api/app/controllers/clinic/workforce/kiosks_controller.rb": "48be9cab7389a2f3f5ef4f49d82edafbc14442c226001eaed9399a65b4a332e3",
+    "apps/api/app/controllers/clinic/working_drafts_controller.rb": "c9a66b371ea62a937f81ca88606e34bc78dd87510bcd892625a198fd86242a01",
+    "apps/api/app/controllers/qa/workspace_controller.rb": "cde88861e4515eca82f3f685a98d7d165a2b4d4c69c3f04f68a9cb3f4c770af4",
+    "apps/api/app/controllers/workforce/kiosk_clock_controller.rb": "c8cc6ee462af3f9e9f6d8824a633247159912309c59cf5a5f28110f5a9bdb561",
+    "apps/api/app/models/clinic/inventory/purchase_order.rb": "a099121fa904851427c9214b6db30a0e89eadbf3d1b14627aed17c55b49d8647",
+    "apps/api/app/models/qa/evidence.rb": "5dd218824de2ee903ad9008af1d4b029ec2188f7df57fd589dbc1487e392896d",
+    "apps/api/app/queries/clinic/billing/income_outlook.rb": "2bc22e14458c6d8a494956ab7ea545d7de868c8b0086804197aea3e5996815da",
+    "apps/api/app/queries/clinic/billing/patient_ledger.rb": "99ebb26c42b9713fb79af3ea95cc969930aad10c034fd9b60c66cb62a7274b04",
+    "apps/api/app/queries/clinic/scheduling/calendar.rb": "6637300454677bc4d3d5bcdd5adbb9799169bcfab4b1922fc6b2996374d9105e",
+    "apps/api/app/serializers/clinic/care/patient_serializer.rb": "18999812729b550a8e6f6b54204cdd27ecfde84572ecde5a016a31eab8c91cb8",
+    "apps/api/app/serializers/clinic/staff_messaging_serializer.rb": "34546047fb26c9e29dc85b307f936cbc07a678eb7ae0ae0e778bf316a6e0a335",
+    "apps/api/app/services/clinic/billing/allocate_payment.rb": "9c66e7c14fb47b9e8f32ee63e366fb383c1643061345f6dc467fb7f1e9e6837b",
+    "apps/api/app/services/clinic/care/current_patient_contact.rb": "8c6da9cfab9569c24c3263c82b1260069ac826aca6ebd2af971f1e224a94f2a6",
+    "apps/api/app/services/clinic/care/lab_reports.rb": "ab62133a05392bb4b0c43f1fd1e58248e4fdc5ea78e52715a31608989c74cadc",
+    "apps/api/app/services/clinic/care/lab_result_follow_ups.rb": "3bb8b9c79c666fbaf9c72016722679f51c33c6ca51883dcd1c16c05037ee85a5",
+    "apps/api/app/services/clinic/care/patient_identity_search.rb": "607c997a863497578b38a67750cfffa3856361ef361fdcbe9dd104bc0d699ac4",
+    "apps/api/app/services/clinic/care/staff_request_task_projection.rb": "a4e497bebeb6b893fdd4796d773c6164a34db85660a79de2df3d1b9b09c93004",
+    "apps/api/app/services/clinic/care/task_continuity.rb": "633d7a427606e727772eaec221b03be687de67697490113fbbbec108a210d76c",
+    "apps/api/app/services/clinic/inventory/access.rb": "fa484c56aa5608a6ce748ed0f464792cff92e51e97cdb4c97a420d623a8352e3",
+    "apps/api/app/services/clinic/inventory/prepare_order_delivery.rb": "ad6e5b7650bb4382ec282e01188eafbea512665591b64ed5a7c4e954a1786876",
+    "apps/api/app/services/clinic/patient_portal/create_request.rb": "bca215051b52fd3dbf91f295cb2eee1ff8751c45a7df3a7dadc1557b16ddf9dc",
+    "apps/api/app/services/clinic/patient_portal/dispatch_recovery_sms.rb": "d83d7990b109b83676bd23d412c016ad71f2cfffda7fd7955bc4d1a5f0029716",
+    "apps/api/app/services/clinic/patient_portal/invite_identity.rb": "1a1e289cb5a8b622ee879a0b25178af51cbf63c9338db6a7e9ccb3372f0adbc6",
+    "apps/api/app/services/clinic/patient_portal/request_access.rb": "2c204145b18d048872f0c483e54565391a187c6a3afe8b9af8ce400fcec7533f",
+    "apps/api/app/services/clinic/patient_portal/request_recovery.rb": "b46e285b0f33b65f837a9a3ac5f7aa97dec867e7a35a80dd8c5382d2e7dd621c",
+    "apps/api/app/services/clinic/reminders/create.rb": "c037b9d6b246fef845d700d2e74d21fa32293ea85b7c60c08aada41d1c0e9ab6",
+    "apps/api/app/services/clinic/scheduling/book_appointment.rb": "80eda756a59effe4e0e28a6dd36e47f361417ceca12972def82df4ce47cb9300",
+    "apps/api/app/services/clinic/scheduling/capacity_guard.rb": "f83dcf99f03f7c962e867bac41ac4f081f458a4dfd019c80335c054dea5f42ed",
+    "apps/api/app/services/clinic/scheduling/manage_series.rb": "4050c2d93171824ff0311e821ac6fa6b07a0aa6b9245051c7f2088b9dd58cc63",
+    "apps/api/app/services/clinic/workforce/resolve_badge_challenge.rb": "289af74e6cc8df66190cc42e590d07086981fec317418c15652ed9734ecbcced",
+    "apps/api/app/services/development/shared_demo_lesson.rb": "14915313698f32647a7307444652a2f70923307a47f3a93c0305578f0364c226",
+    "apps/api/app/services/qa/WORKFLOW_CENTER.md": "ce5015d8d8d29ecb5de5dc937e7eb99cecc397885bd520a6faa49cc60f9a7025",
+    "apps/api/app/services/qa/muse_evidence.rb": "6af34aeac044789074bfc954d9157d6d521576588e19d39ff5ad1f0ce1912253",
+    "apps/api/app/services/qa/muse_writes.rb": "1f73ef57531137cf482f9fb40e77d21aead479551a99cf39b5bd8028a662cbde",
+    "apps/api/app/services/qa/office_qa.rb": "b01f879eae91988bc8a0cf98e8116746ca9663bffaabbf9bfe5577443448957e",
+    "apps/api/app/services/qa/workflow_center.rb": "21d071cb287c98876e42ff62dbb8f72f2a82bb00f6959c5b53d7feefee22f60b",
+    "apps/api/app/services/qa/workflow_claim_contract.rb": "6d65368291ebb00dc03447d47333a4feeafec1161dcd8fc4c8632cef7ad422c8",
+    "apps/api/app/services/qa/workflow_evidence_contract.rb": "86f23d88f6c95a5048fc3868a495d9d1a8158446c4919aca8e9cfc453d28e193",
+    "apps/api/app/services/qa/workspace.rb": "7897421e156c8e48c81484278a8d46ad169a1b6215f08fe9a8a69220c0b91a3e",
+    "apps/api/bin/clinic-worker": "8a5ab73daab2b4fff2958e329b11efc5b92a0760000f9f0c0f825369b6878dd4",
+    "apps/api/test/integration/asq_adult_persistence_test.rb": "a6efb0e0a885c197cf7c68d6eff8af57c3b2b06fb20df79014e38f810e5129bc",
+    "apps/api/test/integration/clinic_billing_receipt_lookup_test.rb": "6f0c5e38bc9d46d0b4d1106b05206b9b721999870578709c5e6362d4cf1fda65",
+    "apps/api/test/integration/clinic_follow_ups_test.rb": "e70972dd7eabe448123ddf970803a4bb8c907dba0a532f571d9c265106da8732",
+    "apps/api/test/integration/clinic_lab_reports_test.rb": "97c99e33137c646ee924b2bc3bb9ffbcb42117759b7bfeafe823da4e3f5ddbcb",
+    "apps/api/test/integration/clinic_patient_name_lookup_s1_test.rb": "7105d52b10f9832891dce13ddab3e1345cfcdd9e45904b22c94f61bc1d4bb3b4",
+    "apps/api/test/integration/clinic_scheduling_policy_series_test.rb": "bf4d9c0bff833d9945530d9caadc4c200c56607dc35660ccd8fafb0e6554e246",
+    "apps/api/test/integration/inventory_delivery_preparations_test.rb": "57aecce417cbb41c00b9148aa4a6ba0e71741dc08eb591ae11a7536471f72800",
+    "apps/api/test/integration/lab_result_provenance_test.rb": "3c421d5a209ec768d8de3e720d444ffd61d7faaa379670332a7e67a1f7767b48",
+    "apps/api/test/integration/merged_patient_new_work_test.rb": "baaf44d52004231e14bc16bbaec79f319dd1d492dafb26b410aa47bf1194c9bb",
+    "apps/api/test/integration/patient_portal_appointment_request_revocation_test.rb": "bf24ada6e7874b31be345b70ada0ddb894348a307f7a8b6756bf06de96946a2f",
+    "apps/api/test/integration/patient_portal_lifecycle_test.rb": "19296526ed4bf44b123359db1c7cb7b080ecebd1b23a51f8090570af96ea0499",
+    "apps/api/test/integration/patient_portal_request_revocation_test.rb": "4ac84d890cb0e07cc784cd7d981073d0743ee991c2e328da1f874502de8d3cad",
+    "apps/api/test/integration/patient_portal_walk_in_return_test.rb": "b6aff2509e1f4730748aa159eaf8dd5315239f52e88b81fb0bf4916942be8bb0",
+    "apps/api/test/integration/patient_reminders_security_test.rb": "d08cc8611273d4a9244931d8f8d1e14f8b241d41963dd77c6d614431a88bb8a1",
+    "apps/api/test/integration/qa_muse_writes_test.rb": "725725fafc435ae870f29cc3cf3db87d03dbfd2bd38a87692f11b4cbff26af18",
+    "apps/api/test/integration/qa_observation_test.rb": "3db5e06ed44c8d29728044e12c63f7285584ececf74ded15e01ee8f00f2c615b",
+    "apps/api/test/integration/qa_room_exchange_contract_test.rb": "d85591cabe9eebe9c0836732e2abf345c2dfcf93d368c45bbe8f0d15f2e6cb81",
+    "apps/api/test/integration/reminder_exception_queue_test.rb": "02401148111a12cab70c7721943b831c8362b03479bba47100112dc8c5ede070",
+    "apps/api/test/integration/workforce_clock_api_test.rb": "ff05ec77db2d116aa9e2d1459d5677a120276439e76b3a6a6f258823ac0e80fa",
+    "apps/api/test/models/clinic/inventory/purchase_order_test.rb": "e663aa2dfd4c7c8796651644367d83d2cd878ea3ade423677cc27eb4ef0880dc",
+    "apps/api/test/services/clinic/billing/allocate_payment_test.rb": "1c10979c5e99d8513de6ccf7d54b48c9dea1739c207b9bb3c0de14430709360b",
+    "apps/api/test/services/clinic/billing/outstanding_projection_test.rb": "cbc4ee825ff837bdfca252b850b0d7fea98c0209dc3551ac57c664c9b00ec167",
+    "apps/api/test/services/clinic/scheduling/first_available_capacity_test.rb": "136eb37bd157073a5f7b7a0b97754411689c29cb8eadfe34786a86f7d8f7ca10",
+    "apps/api/test/services/clinic/workforce_clock_test.rb": "04d0f42d211c101f0995846a888db1d7e06f02a65143064e44ec5d6bdc4bcad3",
+    "apps/api/test/services/qa_office_qa_test.rb": "31fa0598a9c769b21326c542eb5e686356a9167cc00e92b9edd9a4177d2135a2",
+    "apps/api/test/services/qa_workflow_center_test.rb": "980806cb3f94add22bfe6110d3193dc0fa5924022c1e4a99c2f6fd42fdde1404",
+    "apps/api/test/verification/backend_races.rb": "874af3459931329a7bd29cf4ee88de710343980b1f17c45b398091dcdabb7947",
+    "apps/api/test/verification/qa_workflow_claim_test.rb": "725112acb5eb8674bbdd85f56434966c443077b74787f28a11a545370b305ca5",
+    "apps/api/test/verification/qa_workflow_contract_test.rb": "c2e9e7ebc2a72951f64a6d29cacd34df00573fc9d3e27ab04508a84694640ec0",
+    "apps/web/src/App.tsx": "b669494844e328b328d98184b3bfec306f8954e73925d64962f4d56c07383c04",
+    "apps/web/src/api/client.ts": "ab04f9f168ac16ac3815adc15dd13d7c1d5d4d31df7bed00103f2e0ecf72d339",
+    "apps/web/src/api/contracts.ts": "110b42218b536ab64f5c4a87b0ad82e5251296e5109664ce153ca1d01c70410f",
+    "apps/web/src/features/clinic/Appearance.tsx": "b0c193ae30c5a9d516320c719aa12e3e9f3b27b9d05b777631da01c88e956ae1",
+    "apps/web/src/features/clinic/AsqAdultAssessmentFields.tsx": "212d479f617f29923a9617d92652b8d95a0863a40fe717d5a7d2043cd24d25db",
+    "apps/web/src/features/clinic/AuditEvents.tsx": "cb5fd7cddd97626c0aeb4393d7a2bcea85c4badfba54ee533ebc1d60b9f4e57b",
+    "apps/web/src/features/clinic/Billing.tsx": "b02067c03b89154ed086065b5b198bd4cc78c23c7bc4dbc186bdee18a81f5f9e",
+    "apps/web/src/features/clinic/BillingDashboard.tsx": "7d1fc4eccd8d00db023e7f55091c300d620c7362bb32fc9690dc55bb0014fb93",
+    "apps/web/src/features/clinic/CareBookingForm.tsx": "e5f0dba436b7e5f38ef9f5a9f037e46b9cc90ebc3cbdda73d39aed3d04cadc75",
+    "apps/web/src/features/clinic/CareFlow.tsx": "f940e88948a24a52565a955ffcb670b40d3377d5a473ac3b09b0730e99636d4b",
+    "apps/web/src/features/clinic/CarePatientHistory.tsx": "a3a42234138a67bbf86a563a54834e235a59c201fc0d145245625cad0b92be3a",
+    "apps/web/src/features/clinic/CareSoapNoteWorkspace.tsx": "b1a1b4a156f9bf9befa801183b256cd8058fdb3ebc6af81c025ee312fb10a581",
+    "apps/web/src/features/clinic/CashDrawerOperations.tsx": "25d6535c56ca5349b53cf85442c20fb7616ac24847b90873dd68143f6da3b0f4",
+    "apps/web/src/features/clinic/ClinicEmptyState.tsx": "ac004ad10eeff57fdb5b834f27f87a362bee82f48dc0268c99a27e5f7ceb2b99",
+    "apps/web/src/features/clinic/ClinicSchedule.tsx": "78b0c68bc793567f610b2fdf8e934344a03054e8fd0aa74d2e095a696d9335c8",
+    "apps/web/src/features/clinic/DayEndReconciliation.tsx": "96498bc1bf47dd389aa20a5cdb922ffbcf69e826c98d93419d08813f3884a067",
+    "apps/web/src/features/clinic/Facilities.tsx": "ace3adec4af6562b90496be908735951090664dce548e976a0a1ad5d31403f6d",
+    "apps/web/src/features/clinic/FrontDesk.tsx": "d3b7110340273a40556218d50d39cfd7aae24444774c7c9549510469a538a7d4",
+    "apps/web/src/features/clinic/IntakeQuestionTasks.tsx": "219903cd062627d3a825eea43e814cee814dd7b30b0131d57d123470fba38bcd",
+    "apps/web/src/features/clinic/InvoiceCheckoutControls.tsx": "1316e449ec739cd4663f56f76d1f8b137713b5b945cd9e2090b434782bfec1d7",
+    "apps/web/src/features/clinic/InvoicePaymentSimulator.tsx": "957e8275c370cbf9da46b1e19c4795e911f474b9bdb4cb04c8818f982b4da88a",
+    "apps/web/src/features/clinic/LabUnitMappingSettings.tsx": "ac17bd012c9b0a12f36db25b6d649df921fc404841b47436bbf17c09280b7c5e",
+    "apps/web/src/features/clinic/MedicationAdministrations.tsx": "617669e48d2adceb79eaae2453a5bf1db5bd0aadcd049309a149d43e41125c4e",
+    "apps/web/src/features/clinic/NurseEncounterWorkspace.tsx": "6b86098f9a28e2220d05107fd851a0171770d24fd80f10aeca2fc2b98c0b9fc7",
+    "apps/web/src/features/clinic/OperationsProviderReadiness.tsx": "cf7da34bc7f4fb95cf6847cba44d12b94550284a115b4a04f43a5adf83fdd9dd",
+    "apps/web/src/features/clinic/OperationsReportsCatalog.tsx": "943816edc153e2b5d4df6df9eb3d4f436e09cd4b5f65a0cd3af24886afd15fb2",
+    "apps/web/src/features/clinic/OwnerCloseOfDayView.tsx": "dc85f0a11100093443280eacff0d7431e5e2d7779a318e8b6d380a03e4978b7e",
+    "apps/web/src/features/clinic/OwnerMorningView.tsx": "1ef4c1a2e7f9b0c236804e9fc0472192c9ab495d598ab3b39ae567bbd42e4d52",
+    "apps/web/src/features/clinic/PatientCareCoordination.tsx": "ae34146baeabf5e02c3b03001fa44e7ea932bc3dca7afe190bc4716791a84700",
+    "apps/web/src/features/clinic/PatientClinicalHistory.tsx": "f22c4741ffed7aa8caa1c006217a2533b84f445b6f227dc05841f844d73f29f1",
+    "apps/web/src/features/clinic/PatientEducationPanel.tsx": "df11f12b92b40385b6f31db9c5e9fa7478a65b0a46968236fd98d0a8f1dcf38f",
+    "apps/web/src/features/clinic/PatientLabReports.tsx": "b707cde5963a40882b531faa49a8571b10f8fab5805a0ac18ca7ac5daced529d",
+    "apps/web/src/features/clinic/Patients.tsx": "e268f47adb00194185ec021f012cba03b018900ae2938d277b029722d46ffa17",
+    "apps/web/src/features/clinic/RefillRequestQueue.tsx": "738cd04d3d9b7a0bed4ceff100048f26a1da835e42797f7c911b419280459869",
+    "apps/web/src/features/clinic/Reminders.tsx": "b38cdea5b3d592a94bcaa733ee8c32ff0de6b6bbf2e5eeef3e9ad5d9b2c9230b",
+    "apps/web/src/features/clinic/TelehealthBookingFormat.tsx": "95c326c56c7d0a810bdadd444ee12d76a235229a01d4f3bce5ce21887e514f49",
+    "apps/web/src/features/clinic/TrackingBoardPage.tsx": "82a5f188f4d17dfc0b0f89979ba1acfb5314d4bbf53b409b39e87ff4153f384b",
+    "apps/web/src/features/clinic/WaitlistAvailability.tsx": "fd4e26c9c307b1550fe3845989f555e76706277f7b062abb0214c0f654b7c5e6",
+    "apps/web/src/features/clinic/WaitlistWorkspace.tsx": "9d4e7f32e6398d1a9adba2ac76d824950b16125758c0ef944fa5775ad368b7f1",
+    "apps/web/src/features/clinic/WorkInbox.tsx": "7c2a832d4ace313a7e7aa2d386cb6d9e971ecf0a02e72528f5c5862f4ff9130b",
+    "apps/web/src/features/clinic/Workspace.tsx": "425dadfdd2230400b0eb5d5863c6507e0b1e0345ea94f301ecb978d86db4b5ed",
+    "apps/web/src/features/clinic/appearance.css": "8d2478ba9cd56f71874d3cfc3bc0de591953394c066205ae7913a035355f9bc8",
+    "apps/web/src/features/clinic/appearancePreferences.ts": "c8aadaf352871d70b014c98a9b7563700b094dd22839e1242d7681fe7bd01cf4",
+    "apps/web/src/features/clinic/billing.css": "4f105a0a7e240a50ac2deb505420054b3f23a18bf97d5a19e3d7bec7f1d1ee30",
+    "apps/web/src/features/clinic/careFlow.css": "d301ad03df8622c010d4a5c434c0fcb68e0b2473c75dd9e5415ee0086d61424f",
+    "apps/web/src/features/clinic/careFlowState.ts": "b03abe503232cf43595fbda12efe6a894e48f5e56874e6238059c615b372c9c5",
+    "apps/web/src/features/clinic/clinicFrame.css": "b097c0b9060d3be417f730c850ea26aeba9d49bf81a78eb098fecbe694ce60a3",
+    "apps/web/src/features/clinic/clinicNavigation.css": "9d17f2957161e2c958485590a1803b72da08f211e724f54318f5e7bfe63edffb",
+    "apps/web/src/features/clinic/clinicNavigation.tsx": "e702943f9f68f6fe239503ffbaf28ffb6a327b1c3d0231d7d98d9f3079f4e3e4",
+    "apps/web/src/features/clinic/frontDesk.css": "1534f767357e75e0f599100373d8baa50d8088b2099c8ea24dbeedf0acd038a5",
+    "apps/web/src/features/clinic/frontDeskModel.ts": "e7535eead28ded308327d0ad32aacf43473c6d705a94bc4a0966edb96bea63e0",
+    "apps/web/src/features/clinic/subscriptions/SubscriptionCatalog.tsx": "c0755f30181ac737467923000356b2d4c755257a0f5c8628a8a12b6348470767",
+    "apps/web/src/features/clinic/subscriptions/subscriptionCatalog.css": "0b515e0dc7485cc05c705f293445adc15b0f6033e72124ff94212ba5c6a5667a",
+    "apps/web/src/features/clinic/trackingBoard.css": "9ef00d1ec8a3f9b352f8f5c3e065a9a4203ca530cc24d6f03fa808d67e09f105",
+    "apps/web/src/features/clinic/useWorkingDraft.ts": "39ecd8b51d08866bc380eb387eb1e97bf4f4b57ba62f9cfabbca56331b4da3cb",
+    "apps/web/src/features/demo/DemoEntry.tsx": "f13f5edba98b3bbb08b416a409622a17f312a211468d9e9e1b9e1aa217b1205a",
+    "apps/web/src/features/demo/DemoJourney.tsx": "9ee34e1865e454f16ee4f59a4b0a4176777bd3b31a97fecaecb223cda032d956",
+    "apps/web/src/features/demo/demoEntry.css": "1f744d84d771abb36699382ce5c4c9f54cfd5c119c639f45534ae676c37a1c69",
+    "apps/web/src/features/inventory/CarrierTrackingPreparation.tsx": "ff071cd488b3bec9e388f7d625df332c334b3b695ec25822d562d449f9ed5491",
+    "apps/web/src/features/inventory/InventoryApp.tsx": "53866e91d8b857c91c67ffe04587ad7025431eb6d9f4c92d7743fa6789b58d3f",
+    "apps/web/src/features/inventory/OrderDeliveryPreparation.tsx": "65443dea3dfcc287b6b8f8457b739a8ebaaf10841b9dfb85a5f7ba7c1fdf228a",
+    "apps/web/src/features/inventory/OrderReconciliation.tsx": "c039dbf6627164fbc20e68a3f6f34cd4aff9d0eb8ca93b7934aec2ba20589eb9",
+    "apps/web/src/features/inventory/inventory.css": "b82fe6a52055a09453994075f3cc85f9c86891c5a081d9481a8354ed678bafb4",
+    "apps/web/src/features/inventory/inventoryContracts.ts": "38f7b1a552c881802c4c899e9d3cb72f6e6459131725472b84f44af7c98b37b0",
+    "apps/web/src/features/inventory/inventoryMutationRecovery.ts": "aa56006d05bae52c9fda2a3ddf44e3189aae3549d77f74af96a40773b0592fbb",
+    "apps/web/src/features/inventory/inventoryNavigation.ts": "a24bccabf07e469b4bcfaecd971e6dd6fa87ad633892d8319428d1b3adfe648c",
+    "apps/web/src/features/inventory/inventoryPurchasing.ts": "9775b7fd9a139afbee84bb866133e4ba764363345ab6d70e4c6dbad569b04373",
+    "apps/web/src/features/patientPortal/IntakeQuestions.tsx": "8838bf977aefa79dbc9f9a9b80c5a19702988cf76babb47b1a2ef6d61856b0ea",
+    "apps/web/src/features/patientPortal/PatientPortal.tsx": "030222d88afd7bab18a0d0515280c5fc0989d732d0466a0dec8f400c853d005e",
+    "apps/web/src/features/patientPortal/PatientPrevisitNote.tsx": "0e1d5a960a4754a3201048dd4ce704a4d64ed8710369fb8c5ee9554a4567a522",
+    "apps/web/src/features/patientPortal/StructuredIntakeFields.tsx": "29eaf845b503ee8e0a415c1c32bfceaf9bb6a3dd2cbd8564fbc6a2c3e7dcc349",
+    "apps/web/src/features/qa/MuseGridEditor.tsx": "f9ed730d8e8d1e66bedd479b8a9807aefe00656f2bda1a0ca65d7ed603b9d06c",
+    "apps/web/src/features/qa/MuseKeyApproval.tsx": "ee35381a33f85e8663b01e52c24e3488bb4a303b4a328fd3c23e513c1ad84eeb",
+    "apps/web/src/features/qa/QaObservationDialog.tsx": "de862f8f385343b08ff25c0f1f98cb494928026c51fb10104f4476b5d79cc8f3",
+    "apps/web/src/features/qa/QaOfficeQa.tsx": "1a722b88c6f174f2be6b3048a56d6493e143c5e8fc4e7c1f68c852d284ee92dd",
+    "apps/web/src/features/qa/QaWorkspace.tsx": "d3ac2fa4c045bc7f9fd3e691d4c44bc7d90dd403da4e5f53da2970203a28782f",
+    "apps/web/src/features/staff-messaging/LiveStaffMessagingWorkspace.tsx": "2efc29ce3d028949f3f4a99313f858379180242a1280da87bd36e84098d980ea",
+    "apps/web/src/features/staff-messaging/StaffMessagingWorkspace.tsx": "a2c99395c71d2117696aa7f9cc17921a522efddf70ee8b7f29f41284aa7312eb",
+    "apps/web/src/features/telehealth/TelehealthQueue.tsx": "03befc8773313f3e8a9e63a91392f5ff1c660a3f609a847ea63c43c8a5ac23d1",
+    "apps/web/src/features/workforce/BadgeAdminPage.tsx": "1d1c34e87e4e077ca6fba2d12323c71d9f674609c0705d219276e9b1ae75d1e1",
+    "apps/web/src/features/workforce/BulkRoleEditor.tsx": "cdf830e0c2528cc17bd74450716518841ff09b29c209ec362b1ef58769815e8b",
+    "apps/web/src/features/workforce/EmploymentAdminPage.tsx": "5732ae989da623b24b44db085a64cf6547d84a6535bbac163909977de05550ff",
+    "apps/web/src/features/workforce/ScheduleBuilderPage.tsx": "1face3d5dc33cef5c8058d08c2cee1b209d27dec189c0999b120fb1e6c8ee44c",
+    "apps/web/src/features/workforce/TimecardSummary.tsx": "f3a90a0213de5c6ded28486774b34a8eaa0adbc909f4ee4bb4c3beb401924671",
+    "apps/web/src/shared/VisitInstructionHandout.tsx": "c700e6dca5aa136d9d399f622094b32d523981020cc650e8f1da44ad2a452870",
+    "apps/web/src/shared/dateTime.ts": "676339f01a191c3f21a5632d5bc2d072426b2fde4ecf4c2661c722b40e2e0bff",
+    "apps/web/src/shared/ui.tsx": "122109a37dda8814881a658cbd9b354bc012bc2c33da5a130a51ec89a8d9fe6d",
+    "apps/web/test/asq-current-thoughts-recovery.test.tsx": "0ffdbf0cb05e6a4e10430f8ddc84c0ffa8dc6eda64071c5138ba16f4f02f763e",
+    "apps/web/test/billing-dashboard-payment-evidence.test.tsx": "efe758e1a410cc213b2696ebeb7cb39cc0c9ee11502277fdcace1913ca0789e7",
+    "apps/web/test/billing-history-collection-navigation.test.tsx": "ddecab3c04a08c7e4942a43a0c3f437f05573e04739796bce45534b5a5833b92",
+    "apps/web/test/care-flow-module-boundaries.test.tsx": "b52e6cd5c55f07bb2be7c48ab3b86e6bd1076a520cc73b0176246162c4b963ce",
+    "apps/web/test/cash-drawer-count.test.tsx": "331c085e542249b3c880df39f87af09f66f57f925d5b9fa8e84c2e8901981fd8",
+    "apps/web/test/client.test.ts": "9b1117d685cf9ee5ba2fb1147d8bc33d43c14ce828cfda04e00f77bb941dca0f",
+    "apps/web/test/clinic-navigation.test.ts": "68de6c22218813e9b09833f8a367639009166ec90bc9556219e37617dfca3deb",
+    "apps/web/test/front-desk-layout.test.ts": "6fe58162c07d9126a351241b4d6f31058800b754bd041eea4cae2066342d2878",
+    "apps/web/test/front-desk-model.test.ts": "93a897fbd23c9b2fef702c88a4bb861b374f838cda7417c32c8045903add948a",
+    "apps/web/test/inventory-domain-policy.test.ts": "1ad2b9946f74c8fd94b5cffebcbe16b795202a3c4855bddc972cb643f7e79054",
+    "apps/web/test/inventory.test.tsx": "0a5a44a92e10486e4ad68d90250602dd0b38f8530a332eb296400b117be08075",
+    "apps/web/test/invoice-simulator-recovery.test.tsx": "13f47f35c75e9c2ce7446dde49fb4525f47178700a35cd5b618ceae4659be66b",
+    "apps/web/test/kiosk-demo-routing.test.ts": "86f6fc9477294c3812efcf6e8b11542c1d960711f9334796fa422efca92b18f1",
+    "apps/web/test/lab-result-provenance.test.tsx": "957fde7973a986e520f9f4e4a0f1a6cb10f02a5f29ead4b03e8dbace6ca162bf",
+    "apps/web/test/muse-workforce-ui.test.tsx": "bc4ec76c202fb44675773eedd683faf471c9eca7a48fc4bd5c640c7371789351",
+    "apps/web/test/operations-configuration-file-race.test.tsx": "4db2dc10fb378bcc4174ed7d3434e127a76775e306c8ab6778e3e3bb57606f91",
+    "apps/web/test/patient-activity-evidence.test.ts": "af8682b4a50272b5084e6db3448bca0874937a6dc5814412dda9031c99024104",
+    "apps/web/test/patient-flow-actions-recovery.test.tsx": "1732d574d109bf0f07cb209e8e4683786488a3ff3827de328723525c7251d727",
+    "apps/web/test/patient-lab-reports.test.tsx": "1cc1c3f96b3a64d0aaa42bf250e51688be7fddebd91d087d334ef34371546a52",
+    "apps/web/test/patient-lookup-reference.test.tsx": "42a9b5370c0eaa00f80f088e22b1c7cd5f4897ce899bf98b5c85ac1019e30318",
+    "apps/web/test/provider-flow.test.tsx": "d6f0f798b8c9ee3ca6442f27474e8751b962acde5d419632339856580f83cae3",
+    "apps/web/test/qa-observation.test.tsx": "0cfdcaeef4149bce057f31a90b24c8c82b2365b1419489822132a937b9482a07",
+    "apps/web/test/qa-office.test.tsx": "ebde1ec1076e5d76a1d3f1292c5af7364ca82b4360a39926d9c1465943f9369f",
+    "apps/web/test/waitlist-recovery.test.tsx": "96f8bebcff31a86ec592d6ac9f513a681f3b34955c055f5ee56fef15514d8706",
+    "apps/web/test/work-inbox-follow-up-recovery.test.tsx": "c6374ce163733bf4971f7ae94f6efb551b133a2fad0b2a9a50edfc031f6bbd7b",
+    "bin/lib/development_lifecycle.rb": "3610112fdc6924f07a5192f3b74dae8dbb898f71dc2f79d99d5ce963ee04ae59",
+    "ops/qa/MUSE_API.md": "3b8fea3d5222536da39ae225c8b356e6287b462cac7e99524f7d4a202bf2e0ef",
+    "ops/qa/README.md": "688a3ae04396d107cf4270674678878802b52213a6c6c84237d7c4360d5535de",
+    "ops/qa/ROOM_CONTRACT.md": "52b58cc4a6b80be02fe4433f19353c63bf450c329aa10baef3e5adbd8f655792",
+    "ops/qa/WORKSPACE.md": "18ed77d14f9d84de8b435c7c58f8bc8e10306fe53eb299ee52ebfbe7e666af29",
+    "ops/qa/bridge.py": "76378dcf1a5c7ad7e4f7c65581157bd121f85ba292380ebe4757f6ddbba6dafd",
+    "ops/qa/qa_context.md": "acfd655bd9a510d65078d52388fb0f31a26c8b3b145a06a26ad73319d3309dce",
+    "ops/qa/register_muse_fixtures.rb": "2eba01ed7f46c927b9a3d69996e9b06e6733b24434f405f49f9f8d8f1bd2071d",
+    "ops/qa/test_bridge_build.py": "cd96128bbc7142b27516178395b73156909cdb4a0b27fb22aca150892e017b3a",
+    "ops/qa/test_room_exchange_contract.py": "b2ffff7280400329c6a7d8b8d79f68a5b55e33e43d618136974e5274a02a9c4c"
+  },
+  "publication": "No website deployment or scheduler change. Latest explicit request authorizes nonforce Git main push; remote before/after and exact diff counts are recorded by the push handoff."
+}
