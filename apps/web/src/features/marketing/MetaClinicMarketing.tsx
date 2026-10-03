@@ -15,46 +15,8 @@ import {
   clinicTypeToolkits,
 } from "./clinicTypeFeatures";
 import { featureGroups, featureHref, marketingFeatures } from "./features";
+import { ProductWalkthrough } from "./ProductWalkthrough";
 import "./metaClinicMarketing.css";
-
-const workflow = [
-  {
-    number: "01",
-    title: "Inquiry and access",
-    description:
-      "Make the requested service and the next booking step clear to the patient and front desk.",
-  },
-  {
-    number: "02",
-    title: "Intake and preparation",
-    description:
-      "Collect relevant information and show staff what needs review before the appointment.",
-  },
-  {
-    number: "03",
-    title: "Scheduling and arrival",
-    description:
-      "Connect the visit time, team, and resources to the day-of-visit work.",
-  },
-  {
-    number: "04",
-    title: "The clinical visit",
-    description:
-      "Give the authorized care team the patient context and a place to document its decisions.",
-  },
-  {
-    number: "05",
-    title: "Payment and operations",
-    description:
-      "Keep charges, membership questions, or supply work visible to the people who own them.",
-  },
-  {
-    number: "06",
-    title: "Follow-through",
-    description:
-      "Record the next contact and open tasks so the journey does not end at checkout.",
-  },
-];
 
 const priorityClinics = [
   {
@@ -74,42 +36,6 @@ const priorityClinics = [
     href: "/meta-clinic/primary-care/cash-pay",
     detail:
       "Make service terms, booking, the visit, payment questions, and follow-through easier to follow.",
-  },
-];
-
-const productTour = [
-  {
-    name: "Clinic dashboard",
-    detail: "Start with today's work and the items that need an owner.",
-    href: "/meta-clinic/platform/tasks",
-  },
-  {
-    name: "Schedule",
-    detail:
-      "Trace a booking into the people and resources required for the visit.",
-    href: "/meta-clinic/platform/scheduling",
-  },
-  {
-    name: "Patient chart",
-    detail:
-      "Inspect the visit context and the documentation the care team reviews.",
-    href: "/meta-clinic/platform/clinical-documentation",
-  },
-  {
-    name: "Intake",
-    detail: "See what a patient submits and what staff still need to check.",
-    href: "/meta-clinic/platform/patient-intake",
-  },
-  {
-    name: "Inventory",
-    detail: "Follow a supply question into the relevant clinic workflow.",
-    href: "/meta-clinic/platform/inventory",
-  },
-  {
-    name: "Billing",
-    detail:
-      "Review how a charge, invoice, or payment question reaches the right team.",
-    href: "/meta-clinic/platform/billing",
   },
 ];
 
@@ -504,8 +430,8 @@ export function MetaClinicMarketing({
                 aria-label="Open the guided demo after viewing the clinic schedule"
               >
                 <img
-                  src="/marketing/scheduling-month.png"
-                  alt="Meta Clinic month schedule showing remote and in-person synthetic appointments"
+                  src="/marketing/captures/schedule-month-omni-october.png"
+                  alt="Meta Clinic month calendar showing sample appointment counts and scheduled time"
                 />
               </a>
               <figcaption>
@@ -513,6 +439,8 @@ export function MetaClinicMarketing({
               </figcaption>
             </figure>
           </section>
+
+          <ProductWalkthrough tour="day" id="workflow" />
 
           <div
             className="meta-marketing__values"
@@ -522,34 +450,6 @@ export function MetaClinicMarketing({
             <span>Clear next steps</span>
             <span>Connected care work</span>
           </div>
-
-          <section
-            className="meta-marketing__growth-section meta-marketing__section"
-            aria-labelledby="meta-tour-title"
-          >
-            <p className="meta-marketing__eyebrow">Explore the product</p>
-            <h2 id="meta-tour-title">See the work behind a clinic day.</h2>
-            <p className="meta-marketing__growth-intro">
-              Open the guided synthetic demo or explore the areas your team
-              needs to evaluate. Each view should be checked against your
-              clinic's process in a walkthrough.
-            </p>
-            <div className="meta-marketing__growth-grid meta-marketing__growth-grid--three">
-              {productTour.map((screen) => (
-                <article key={screen.name}>
-                  <h3>{screen.name}</h3>
-                  <p>{screen.detail}</p>
-                  <a href={screen.href}>
-                    Explore {screen.name.toLowerCase()}
-                    <ArrowForwardRoundedIcon aria-hidden="true" />
-                  </a>
-                </article>
-              ))}
-            </div>
-            <Button href="/demo" endIcon={<ArrowForwardRoundedIcon />}>
-              Open the guided demo
-            </Button>
-          </section>
 
           <section
             className="meta-marketing__growth-section meta-marketing__section"
@@ -745,25 +645,6 @@ export function MetaClinicMarketing({
               Available workflows and setup depend on the clinic&apos;s actual
               needs.
             </p>
-          </section>
-
-          <section
-            className="meta-marketing__workflow meta-marketing__section"
-            id="workflow"
-          >
-            <div className="meta-marketing__section-heading">
-              <p className="meta-marketing__eyebrow">How it works</p>
-              <h2>From first contact to the next step.</h2>
-            </div>
-            <div className="meta-marketing__workflow-grid">
-              {workflow.map((step) => (
-                <article key={step.number}>
-                  <span>{step.number}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.description}</p>
-                </article>
-              ))}
-            </div>
           </section>
 
           <section

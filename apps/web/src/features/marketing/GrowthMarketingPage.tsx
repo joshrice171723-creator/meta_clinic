@@ -10,6 +10,8 @@ import {
 } from "./marketingPaths";
 import { CoreEvaluationPage, isCoreEvaluationPath } from "./CoreEvaluationPage";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
+import { ProductWalkthrough } from "./ProductWalkthrough";
+import { growthTour, productTours } from "./productWalkthroughs";
 import "./growthMarketingPage.css";
 
 const priority = [
@@ -389,6 +391,7 @@ function Directory({ page }: { page: GrowthPage }) {
 
 function PageBody({ page }: { page: GrowthPage }) {
   const internalPath = marketingInternalPath(page.path) ?? page.path;
+  const tour = growthTour(internalPath);
   const conversion = conversionPaths.has(internalPath);
   const resource = internalPath.startsWith("/resources");
   const company = page.group === "Company";
@@ -506,7 +509,8 @@ function PageBody({ page }: { page: GrowthPage }) {
       secondary: { label: "Explore the demo", path: "/demo" },
     };
   }
-  const heroImage = Boolean(page.image);
+  const heroScreen = tour ? productTours[tour].steps[0] : undefined;
+  const heroImage = Boolean(page.image || heroScreen);
   const inlineProduct = page.gallery?.length ? undefined : page.productVisual;
   return (
     <>
@@ -539,9 +543,11 @@ function PageBody({ page }: { page: GrowthPage }) {
           </div>
           {heroImage ? (
             <figure
-              className={`growth-page__hero-image growth-page__hero-image--${page.imageKind ?? "product"}`}
+              className={`growth-page__hero-image growth-page__hero-image--${heroScreen ? "product" : (page.imageKind ?? "product")}`}
             >
-              {internalPath === "/weight-loss" ? (
+              {heroScreen ? (
+                <a href="#product-walkthrough" aria-label="See the product walkthrough"><img src={heroScreen.image} alt={heroScreen.caption} /></a>
+              ) : internalPath === "/weight-loss" ? (
                 <WeightLossHeroImage
                   key={page.image}
                   src={page.image!}
@@ -553,14 +559,16 @@ function PageBody({ page }: { page: GrowthPage }) {
                   alt={page.imageAlt ?? "Meta Clinic clinic workspace"}
                 />
               )}
-              {page.imageCaption && (
-                <figcaption>{page.imageCaption}</figcaption>
+              {(heroScreen || page.imageCaption) && (
+                <figcaption>{heroScreen?.caption ?? page.imageCaption}</figcaption>
               )}
             </figure>
           ) : null}
         </section>
 
-        {page.gallery?.length ? (
+        {tour && <ProductWalkthrough tour={tour} context="Explore the shared app screens behind this workflow. These examples use sample clinic records; confirm specialty-specific features and setup in a walkthrough." />}
+
+        {!tour && page.gallery?.length ? (
           <section
             className="growth-page__gallery"
             aria-labelledby="gallery-title"
@@ -636,7 +644,7 @@ function PageBody({ page }: { page: GrowthPage }) {
           </section>
         ) : (
           <>
-            {internalPath !== "/platform/memberships" && (
+            {!tour && internalPath !== "/platform/memberships" && (
               <>
                 <section
                   className="growth-page__sequence"

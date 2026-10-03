@@ -9,6 +9,8 @@ import {
 import { marketingFeatures } from "./features";
 import { stories } from "./FeatureStoryPages";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
+import { ProductWalkthrough } from "./ProductWalkthrough";
+import { featureTour } from "./productWalkthroughs";
 import "./clinicTypeFeaturePage.css";
 
 type AppVisual = {
@@ -150,6 +152,8 @@ export function ClinicTypeFeaturePage({
   }
 
   const visual = featureVisuals[slug] ?? supportingVisuals[clinicType];
+  const tour = featureTour(slug);
+  const relatedTour = ["clinical-notes", "intake-forms", "patient-portal", "telehealth", "online-requests"].includes(slug);
   const workflows = stories[slug]?.workflows ?? flagshipWorkflows[slug] ?? [];
   const otherFeatures = toolkit.features
     .filter((entry) => entry.slug !== slug)
@@ -194,8 +198,9 @@ export function ClinicTypeFeaturePage({
       </section>
 
       {slug === "memberships-packages" && <MembershipWalkthrough />}
+      {tour && <ProductWalkthrough tour={tour} id={relatedTour ? "related-product-workflow" : "see-the-workflow"} context={`See the shared tools behind ${clinicTypeLabels[clinicType].toLowerCase()} work. These sample clinic screens illustrate the surrounding workflow; specialty-specific setup can be explored in a walkthrough.`} />}
 
-      {slug !== "memberships-packages" && <><section
+      {(!tour || relatedTour) && slug !== "memberships-packages" && <><section
         className="meta-type-feature__story meta-type-feature__wrap"
         id="see-the-workflow"
       >

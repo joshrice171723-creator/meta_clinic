@@ -1,3 +1,4 @@
+import { ProductWalkthrough } from "./ProductWalkthrough";
 import type { ReactNode } from "react";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import type { GrowthPage } from "./growthPageContent";
@@ -140,6 +141,7 @@ export function isCoreEvaluationPath(path: string): path is CorePath {
 
 export function CoreEvaluationPage({ page, path, form }: { page: GrowthPage; path: CorePath; form?: ReactNode }) {
   const content: CoreContent = coreContent[path];
+  const showTour = ["/platform", "/demo", "/sandbox"].includes(path);
   return <main id="main" className="growth-core">
     <section className="growth-core__hero">
       <div className="growth-core__wrap growth-core__hero-grid">
@@ -161,14 +163,14 @@ export function CoreEvaluationPage({ page, path, form }: { page: GrowthPage; pat
 
     {form && <section className="growth-core__request" id="request"><div className="growth-core__wrap growth-core__request-grid"><div><p className="growth-core__eyebrow">Your next step</p><h2>{content.next}</h2><p>Tell us about the business workflow. Please leave patient information out of your request.</p></div>{form}</div></section>}
 
-    <section className="growth-core__chapter growth-core__wrap" aria-labelledby="core-chapter-title">
+    {showTour && <ProductWalkthrough tour="day" />}
+    {!showTour && <section className="growth-core__chapter growth-core__wrap" aria-labelledby="core-chapter-title">
       <div className="growth-core__chapter-heading"><p className="growth-core__eyebrow">The evaluation path</p><h2 id="core-chapter-title">{content.chapter}</h2><p>{content.introduction}</p></div>
       <div className="growth-core__cards">{content.cards.map((card, index) => <article key={card.title}><span>0{index + 1}</span><h3>{card.title}</h3><p>{card.body}</p><a href={marketingUrl(card.link)}>{card.label}<ArrowForwardRoundedIcon aria-hidden="true" /></a></article>)}</div>
-    </section>
+    </section>}
 
-    {content.scene && <section className="growth-core__scene growth-core__wrap"><figure><img src={content.scene.image} alt={content.scene.alt} loading="lazy" /></figure><div><p className="growth-core__eyebrow">People and process</p><h2>{content.scene.heading}</h2><p>{content.scene.body}</p></div></section>}
+    {!showTour && content.scene && <section className="growth-core__scene growth-core__wrap"><figure><img src={content.scene.image} alt={content.scene.alt} loading="lazy" /></figure><div><p className="growth-core__eyebrow">People and process</p><h2>{content.scene.heading}</h2><p>{content.scene.body}</p></div></section>}
 
-    {path === "/platform" && page.gallery?.length ? <section className="growth-core__gallery" aria-labelledby="core-gallery-title"><div className="growth-core__wrap"><p className="growth-core__eyebrow">Product views</p><h2 id="core-gallery-title">See the screens behind the journey.</h2><div>{page.gallery.map((item) => <figure key={item.image}><img src={item.image} alt={item.imageAlt} loading="lazy" /><figcaption>{item.imageCaption}</figcaption></figure>)}</div></div></section> : null}
 
     <section className="growth-core__decision growth-core__wrap"><div><p className="growth-core__eyebrow">A closer look</p><h2>{content.decisionHeading}</h2></div><p>{content.decision}</p></section>
 

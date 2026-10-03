@@ -6,6 +6,7 @@ import {
 } from "./clinicTypeFeatures";
 import { marketingFeatures } from "./features";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
+import { ProductWalkthrough } from "./ProductWalkthrough";
 import "./clinicTypePages.css";
 
 export type ClinicTypeSlug =
@@ -70,6 +71,8 @@ function ProductImage({
 function ClinicTypeFeatureCatalog({ slug }: { slug: ClinicTypeSlug }) {
   const toolkit = clinicTypeToolkits[slug];
   return (
+    <>
+    {slug !== "membership-care" && <ProductWalkthrough tour={slug === "infusion" || slug === "aesthetics" ? "inventory" : slug === "urgent-care" ? "visits" : "day"} context={`Explore the shared app screens behind ${clinicTypeLabels[slug].toLowerCase()}. These examples use sample clinics; discuss your specialty's configuration in a walkthrough.`} />}
     <section className="meta-type__catalog meta-type__wrap" id="features">
       <div className="meta-type__catalog-heading">
         <p className="meta-type__eyebrow">Explore the tools</p>
@@ -97,6 +100,7 @@ function ClinicTypeFeatureCatalog({ slug }: { slug: ClinicTypeSlug }) {
         })}
       </div>
     </section>
+    </>
   );
 }
 

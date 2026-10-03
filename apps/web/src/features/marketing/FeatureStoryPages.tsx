@@ -2,6 +2,8 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { Button } from "@mui/material";
 import { marketingFeatures } from "./features";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
+import { ProductWalkthrough } from "./ProductWalkthrough";
+import { featureTour } from "./productWalkthroughs";
 import "./featureStoryPages.css";
 
 type Story = {
@@ -458,6 +460,8 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
   const feature = marketingFeatures.find((item) => item.slug === slug);
   if (!story || !feature) return null;
   const related = marketingFeatures.find((item) => item.slug === story.related);
+  const tour = featureTour(slug);
+  const relatedTour = ["clinical-notes", "intake-forms", "patient-portal", "telehealth", "online-requests"].includes(slug);
 
   return (
     <main id="main" className={`meta-story meta-story--${story.layout}`}>
@@ -480,8 +484,9 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
       </section>
 
       {slug === "memberships-packages" && <MembershipWalkthrough />}
+      {tour && <ProductWalkthrough tour={tour} id={relatedTour ? "related-product-workflow" : "feature-workflows"} context={relatedTour ? `These shared workspace screens show the context around ${feature.label.toLowerCase()}. Explore the demo for the feature's full workflow.` : undefined} />}
 
-      {slug !== "memberships-packages" && story.image && (
+      {!tour && slug !== "memberships-packages" && story.image && (
         <figure className="meta-story__product meta-story__wrap">
           <img src={story.image.src} alt={story.image.alt} loading="eager" />
           <figcaption>
@@ -493,7 +498,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </figure>
       )}
 
-      {slug !== "memberships-packages" && <section
+      {(!tour || relatedTour) && slug !== "memberships-packages" && <section
         className="meta-story__work meta-story__wrap"
         id="feature-workflows"
       >
@@ -513,7 +518,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </div>
       </section>}
 
-      {slug !== "memberships-packages" && story.secondaryImage && (
+      {!tour && slug !== "memberships-packages" && story.secondaryImage && (
         <figure className="meta-story__product meta-story__product--secondary meta-story__wrap">
           <img
             src={story.secondaryImage.src}
@@ -529,7 +534,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </figure>
       )}
 
-      {slug !== "memberships-packages" && story.photos && (
+      {!tour && slug !== "memberships-packages" && story.photos && (
         <section
           className="meta-story__people meta-story__wrap"
           aria-label={`${feature.label} in the clinic`}

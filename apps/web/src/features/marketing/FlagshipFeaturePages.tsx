@@ -1,3 +1,4 @@
+import { ProductWalkthrough } from "./ProductWalkthrough";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import { Button } from "@mui/material";
@@ -110,71 +111,7 @@ function InventoryPage() {
         </div>
       </section>
 
-      <section
-        className="meta-flagship__container meta-flagship__inventory-work"
-        id="inventory-workflow"
-      >
-        <div className="meta-flagship__section-intro">
-          <span>What the screen helps you answer</span>
-          <h2>What is here, and what needs attention?</h2>
-        </div>
-        <div className="meta-flagship__inventory-cards">
-          <article>
-            <strong>01</strong>
-            <h3>Stock you can read at a glance</h3>
-            <p>
-              The catalog puts available and on-hand quantities beside each
-              item&apos;s reorder point, so a stock question starts with a clear
-              record.
-            </p>
-          </article>
-          <article>
-            <strong>02</strong>
-            <h3>A visible route to replenishment</h3>
-            <p>
-              Items needing attention show their status alongside actions for
-              lots, purchase orders, and replenishment work.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section className="meta-flagship__inventory-people">
-        <div className="meta-flagship__container">
-          <div className="meta-flagship__inventory-people-heading">
-            <p className="meta-flagship__overline">
-              The team behind the stockroom
-            </p>
-            <h2>Make supply decisions together.</h2>
-            <p>
-              From checking what is on the shelf to deciding what to order next,
-              give the clinical and operations teams a shared starting point.
-            </p>
-          </div>
-          <div className="meta-flagship__inventory-people-grid">
-            <figure>
-              <img
-                src="/marketing/inventory-supplies.png"
-                alt="Clinic teammates checking organized medical supplies together in a bright stockroom."
-                loading="lazy"
-              />
-              <figcaption>
-                Check the shelf before the next clinic day.
-              </figcaption>
-            </figure>
-            <figure>
-              <img
-                src="/marketing/inventory-review.png"
-                alt="A nurse and operations lead reviewing supply needs at a clinic workroom desk."
-                loading="lazy"
-              />
-              <figcaption>
-                Turn a stock question into a replenishment plan.
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-      </section>
+      <ProductWalkthrough tour="inventory" id="inventory-workflow" />
 
       <div className="meta-flagship__container">
         <NextFeature
@@ -410,40 +347,7 @@ function SchedulingPage() {
         </div>
       </section>
 
-      <section className="meta-flagship__schedule-flow" id="schedule-workflow">
-        <div className="meta-flagship__container">
-          <div className="meta-flagship__schedule-flow-heading">
-            <p className="meta-flagship__overline">From booking to visit</p>
-            <h2>Help every handoff feel closer.</h2>
-          </div>
-          <div className="meta-flagship__schedule-flow-cards">
-            <article>
-              <span>01</span>
-              <h3>Plan around the day</h3>
-              <p>
-                Move between calendar views and locations to find the
-                appointment in the right context.
-              </p>
-            </article>
-            <article>
-              <span>02</span>
-              <h3>Book from the schedule</h3>
-              <p>
-                Start a new appointment while keeping the clinic schedule in
-                view.
-              </p>
-            </article>
-            <article>
-              <span>03</span>
-              <h3>Carry the visit forward</h3>
-              <p>
-                Move from the schedule to the tracking board as arrival and
-                encounter work begins.
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
+      <ProductWalkthrough tour="scheduling" id="schedule-workflow" />
       <div className="meta-flagship__container">
         <NextFeature
           label="Clinical notes"
@@ -482,6 +386,8 @@ function ClinicalNotesPage() {
           />
         </div>
       </section>
+
+      <ProductWalkthrough tour="visits" context="These screens show the patient and visit context around documentation. Explore the demo to see the encounter and note editor itself." />
 
       <section
         className="meta-flagship__container meta-flagship__notes-work"
