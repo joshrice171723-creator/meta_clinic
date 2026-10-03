@@ -148,11 +148,13 @@ function mapConversation(
       );
       return {
         id: message.id,
-        sender: sender?.display_name || message.sender_email,
+        senderMembershipId: message.sender_membership_id,
+        sender: sender?.display_name || "",
         senderEmail: message.sender_email,
         body: message.body,
         messageClass: message.message_class,
         createdAt: displayTime(message.created_at),
+        createdAtExact: message.created_at,
         acknowledgementRequired: message.acknowledgement_required,
         acknowledged: message.acknowledged_at !== null,
         request: message.request
