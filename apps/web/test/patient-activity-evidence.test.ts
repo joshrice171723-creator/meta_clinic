@@ -10,7 +10,7 @@ const mocks: Record<string, string> = {
   "./clinicNavigation": `const registerBlocker=()=>()=>{}; export const useClinicNavigation=()=>({registerBlocker});`,
 };
 for (const [file, name] of Object.entries({
-  CareFlow: "PatientSupport",
+  CarePatientHistory: "PatientSupport",
   PatientClinicalHistory: "PatientClinicalHistory",
   IntakeConsentEvidence: "IntakeConsentEvidence",
   PatientLabReports: "PatientLabReports",

@@ -12,7 +12,7 @@ vi.mock("../src/shared/ui", async (original) => ({
   ...(await original<typeof import("../src/shared/ui")>()),
   useResource: lookupResource,
 }));
-vi.mock("../src/features/clinic/CareFlow", () => ({
+vi.mock("../src/features/clinic/CarePatientHistory", () => ({
   PatientSupport: () => null,
 }));
 

@@ -44,7 +44,8 @@ import {
   Pager,
   useResource,
 } from "../../shared/ui";
-import { clinicDateTime, PatientSupport } from "./CareFlow";
+import { clinicDateTime } from "./careFlowState";
+import { PatientSupport } from "./CarePatientHistory";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
 import { PatientCareCoordination } from "./PatientCareCoordination";
 import { IntakeConsentEvidence } from "./IntakeConsentEvidence";
