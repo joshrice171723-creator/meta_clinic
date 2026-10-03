@@ -795,6 +795,11 @@ export function EmploymentAdminPage() {
     dirty ||
     bulkAccessBlocked ||
     Object.values(individualAccessBlocked).some(Boolean);
+  const focusBulkRoleHeading = () => {
+    const heading = bulkRoleSummaryRef.current;
+    heading?.scrollIntoView({ behavior: "auto", block: "start" });
+    heading?.focus({ preventScroll: true });
+  };
   const beginBulkRoleChange = () => {
     if (!directorySelection.length || selectionActionsBlocked)
       return;
@@ -804,8 +809,12 @@ export function EmploymentAdminPage() {
       ids: [...directorySelection],
     });
     setDirectorySelection([]);
-    focusBulkRoleHeadingOnEnter.current = true;
-    setBulkRoleOpen(true);
+    if (bulkRoleOpen) {
+      focusBulkRoleHeading();
+    } else {
+      focusBulkRoleHeadingOnEnter.current = true;
+      setBulkRoleOpen(true);
+    }
   };
 
   return (
@@ -1113,9 +1122,7 @@ export function EmploymentAdminPage() {
               onEntered: () => {
                 if (!focusBulkRoleHeadingOnEnter.current) return;
                 focusBulkRoleHeadingOnEnter.current = false;
-                const heading = bulkRoleSummaryRef.current;
-                heading?.scrollIntoView({ behavior: "smooth", block: "start" });
-                heading?.focus({ preventScroll: true });
+                focusBulkRoleHeading();
               },
             },
           }}

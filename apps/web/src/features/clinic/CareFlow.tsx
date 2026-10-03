@@ -2492,7 +2492,13 @@ function BookingFormEditor({
                     ))}
                 </Select>
                 {visitTypeIssue && (
-                  <FormHelperText error>{visitTypeIssue}</FormHelperText>
+                  <FormHelperText
+                    error={Boolean(visitTypeId) || !visitTypes.data.visit_types.some((type) => !type.retired_at)}
+                  >
+                    {!visitTypeId && visitTypes.data.visit_types.some((type) => !type.retired_at)
+                      ? "Choose a visit type to continue."
+                      : visitTypeIssue}
+                  </FormHelperText>
                 )}
               </FormControl>
             <TelehealthBookingFormat
