@@ -8,6 +8,8 @@ require "securerandom"
 require "fileutils"
 require "net/http"
 
+fingerprint_for = ->(key) { raw = OpenSSL::ASN1.decode(key.public_to_der).value.fetch(1).value; wire = [11].pack("N") + "ssh-ed25519" + [32].pack("N") + raw; "SHA256:#{Base64.strict_encode64(Digest::SHA256.digest(wire)).delete('=')}" }
+
 actions = %w[workflow/claim verdict defect test-data/prepare retest-request]
 case ARGV.shift
 when "keygen"
@@ -19,7 +21,7 @@ when "keygen"
   abort "Key files already exist; use a new directory for rotation." if File.exist?(private_path) || File.exist?(public_path)
   File.write(private_path, key.private_to_pem, mode: "wx", perm: 0o600)
   File.write(public_path, key.public_to_pem, mode: "wx", perm: 0o600)
-  fingerprint = "SHA256:#{Base64.urlsafe_encode64(Digest::SHA256.digest(key.public_to_der), padding: false)}"
+  fingerprint = fingerprint_for.call(key)
   puts JSON.pretty_generate(fingerprint:, public_key: key.public_to_pem, private_key_path: private_path)
 when "post"
   origin, action, key_path, body_path = ARGV
@@ -36,7 +38,7 @@ when "post"
   nonce = SecureRandom.urlsafe_base64(24)
   canonical = ["POST", path, timestamp, nonce, Digest::SHA256.hexdigest(raw)].join("\n")
   request = Net::HTTP::Post.new(path, "Content-Type" => "application/json",
-    "X-Muse-Key-Fingerprint" => "SHA256:#{Base64.urlsafe_encode64(Digest::SHA256.digest(key.public_to_der), padding: false)}",
+    "X-Muse-Key-Fingerprint" => fingerprint_for.call(key),
     "X-Muse-Timestamp" => timestamp, "X-Muse-Nonce" => nonce,
     "X-Muse-Signature" => Base64.urlsafe_encode64(key.sign(nil, canonical), padding: false))
   request.body = raw

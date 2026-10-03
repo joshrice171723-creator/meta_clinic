@@ -23,6 +23,7 @@ import {
 import { api } from "../../api/client";
 import { QaObservationDialog } from "./QaObservationDialog";
 import { QaAgentRoom } from "./QaAgentRoom";
+import { MuseKeyApproval } from "./MuseKeyApproval";
 import { QaOffice } from "./QaOffice";
 import { useSharedOffice } from "./useSharedOffice";
 import { githubOpenDefectCount } from "./qaMetrics";
@@ -643,6 +644,14 @@ export function QaWorkspace() {
             </p>
           )}
         </section>
+        {data?.capabilities.record_observation && (
+          <MuseKeyApproval
+            revision={live?.revision}
+            clean={live?.dirty === false && !buildError}
+            confirmed={data.pin?.revision === live?.revision}
+            onConfirmBuild={() => setPinDialog(true)}
+          />
+        )}
         {!data && !error && (
           <p className="qa-empty">Connecting the QA records…</p>
         )}

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { generateKeyPairSync } from "node:crypto";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { existsSync, mkdirSync } from "node:fs";
@@ -948,3 +949,142 @@ it("locks the original bound Office message after uncertain delivery and retries
     await page.close();
   }
 }, 60_000);
+
+it("edits the coverage grid directly with a local Muse key", async () => {
+  const { page, writes } = await open();
+  try {
+    const coverage = {
+      ...officeQaFixture,
+      coverage: {
+        ...officeQaFixture.coverage,
+        workflows: [{ id: "WF-001", revision, result: "untested" }],
+      },
+    };
+    await page.route("**/api/qa/office/qa", (route) =>
+      route.fulfill({ json: coverage }),
+    );
+    let submitted: Record<string, any> | undefined;
+    await page.route("**/qa/api/verdict", async (route) => {
+      submitted = route.request().postDataJSON();
+      expect(route.request().headers()["x-muse-signature"]).toBeTruthy();
+      coverage.coverage.workflows[0].result = "pass";
+      return route.fulfill({
+        status: 201,
+        json: { receipt_id: "synthetic-receipt" },
+      });
+    });
+    await page.getByRole("button", { name: "Refresh QA desk" }).click();
+    const pair = generateKeyPairSync("ed25519");
+    const raw = pair.publicKey
+      .export({ format: "der", type: "spki" })
+      .subarray(-32);
+    const seed = pair.privateKey
+      .export({ format: "der", type: "pkcs8" })
+      .subarray(-32);
+    const field = (value: Buffer) => {
+      const size = Buffer.alloc(4);
+      size.writeUInt32BE(value.length);
+      return Buffer.concat([size, value]);
+    };
+    const checks = Buffer.alloc(8);
+    checks.writeUInt32BE(42, 0);
+    checks.writeUInt32BE(42, 4);
+    const count = Buffer.alloc(4);
+    count.writeUInt32BE(1);
+    const wire = Buffer.concat([field(Buffer.from("ssh-ed25519")), field(raw)]);
+    const privateBlock = Buffer.concat([
+      checks,
+      field(Buffer.from("ssh-ed25519")),
+      field(raw),
+      field(Buffer.concat([seed, raw])),
+      field(Buffer.from("synthetic")),
+    ]);
+    const localFile = Buffer.concat([
+      Buffer.from("openssh-key-v1\0"),
+      field(Buffer.from("none")),
+      field(Buffer.from("none")),
+      field(Buffer.alloc(0)),
+      count,
+      field(wire),
+      field(privateBlock),
+    ]);
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "synthetic-muse-key",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from(
+        "-----BEGIN OPENSSH PRIVATE KEY-----\n" +
+          localFile.toString("base64") +
+          "\n-----END OPENSSH PRIVATE KEY-----\n",
+      ),
+    });
+    await page.getByText(/Muse connected: SHA256:/).waitFor();
+    await page.getByRole("button", { name: "WF-001: untested" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog
+      .getByLabel("Evidence / observations")
+      .fill("  Verbatim synthetic observation.\nLine two.  ");
+    await dialog.getByRole("button", { name: "pass", exact: true }).click();
+    await dialog.getByText("Saved to the coverage grid.").waitFor();
+    expect(submitted).toMatchObject({
+      workflow_id: "WF-001",
+      verdict: "pass",
+      build_pin: revision,
+      evidence: [
+        {
+          kind: "observation",
+          text: "  Verbatim synthetic observation.\nLine two.  ",
+        },
+      ],
+    });
+    expect(submitted?.idempotency_key).toBeTruthy();
+    await page.keyboard.press("Escape");
+    await page
+      .getByText("1/116 passed on this revision", { exact: true })
+      .waitFor();
+    expect(writes).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("shows the matching fingerprint before owner approval", async () => {
+  const { page } = await open();
+  try {
+    const ownerView = {
+      ...fixture,
+      pin: { revision },
+      capabilities: { ...fixture.capabilities, record_observation: true },
+    };
+    await page.route("**/api/qa", (route) =>
+      route.fulfill({ json: ownerView }),
+    );
+    let approved: Record<string, any> | undefined;
+    await page.route("**/qa/api/enrollment/approve", (route) => {
+      approved = route.request().postDataJSON();
+      expect(route.request().headers()["x-csrf-token"]).toBe(
+        "synthetic-test-only",
+      );
+      return route.fulfill({
+        status: 201,
+        json: { fingerprint: approved!.fingerprint },
+      });
+    });
+    await page.reload({ timeout: 60000 });
+    const card = page.getByRole("region", { name: "Muse key approval" });
+    await card
+      .getByLabel("Muse public key")
+      .fill(
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYZy72OJGCrypyIGsbsN0eqcrjeeqrJ+ZwuCye7+7b3 muse-qa-writer",
+      );
+    const fingerprint = "SHA256:6cyhnqQS0FA8R8kDxav9GUZgijkQx5QRd5DYb+Qs+E4";
+    await card.getByText(fingerprint, { exact: true }).waitFor();
+    await card
+      .getByRole("button", { name: "Approve Muse", exact: true })
+      .click();
+    await card.getByText("Muse approved: " + fingerprint).waitFor();
+    expect(approved).toMatchObject({ fingerprint, build_pin: revision });
+    expect(approved?.idempotency_key).toBeTruthy();
+  } finally {
+    await page.close();
+  }
+}, 60000);

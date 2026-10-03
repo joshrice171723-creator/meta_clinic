@@ -8,7 +8,7 @@ Send `Content-Type: application/json` and these headers:
 
 | Header | Exact value |
 | --- | --- |
-| `X-Muse-Key-Fingerprint` | `SHA256:` plus unpadded base64url SHA-256 of the Ed25519 public key's DER SubjectPublicKeyInfo |
+| `X-Muse-Key-Fingerprint` | `SHA256:` plus unpadded standard base64 SHA-256 of the Ed25519 OpenSSH public-key blob, identical to `ssh-keygen -lf public_key.pub` |
 | `X-Muse-Timestamp` | Unix UTC seconds as a 10-digit decimal string |
 | `X-Muse-Nonce` | Fresh random unpadded base64url string, 22–64 characters |
 | `X-Muse-Signature` | Unpadded base64url Ed25519 signature over the canonical bytes below |
@@ -37,30 +37,34 @@ The helper sends a new timestamp/nonce each time. It does not automatically repl
 
 ## Owner enrollment and revocation
 
-Compare the fingerprint with Muse out of band. The owner submits the public PEM and matching fingerprint once using an active platform-owner browser session and the existing CSRF token from `GET /api/csrf`. Both endpoints require `Content-Type: application/json`, `X-CSRF-Token`, and the existing same-origin session. The Muse key cannot call them. Identity and scopes are fixed by the server; they are never request fields.
+Open `/qa` while signed in as platform owner. In **Approve Muse**, paste Muse's `ssh-ed25519` public key and compare the displayed OpenSSH fingerprint with Muse. Confirm the displayed live build using the existing pin dialog if required, then click **Approve Muse**. No console script is needed. The same fingerprint is used for approval and every signed request.
+
+Muse opens the coverage grid, clicks **Connect Muse key** and selects his local unattended OpenSSH key file. The browser imports it into memory and signs only the five action paths; it never uploads or saves the private key. Click a workflow to claim it, record pass/fail/blocked with evidence, prepare verified data, request retest or save a defect. Writes refresh the grid immediately. Build changes block an open editor until it is reopened.
+
+Compare the fingerprint with Muse out of band. The owner submits the public key (OpenSSH or public PEM) and matching fingerprint once using an active platform-owner browser session and the existing CSRF token from `GET /api/csrf`. Both endpoints require `Content-Type: application/json`, `X-CSRF-Token`, and the existing same-origin session. The Muse key cannot call them. Identity and scopes are fixed by the server; they are never request fields.
 
 `POST /qa/api/enrollment/approve`:
 
 ```json
-{"fingerprint":"SHA256:<43 base64url characters>","public_key":"-----BEGIN PUBLIC KEY-----\n<Ed25519 public PEM>\n-----END PUBLIC KEY-----\n","build_pin":"dddddddddddddddddddddddddddddddddddddddd","idempotency_key":"enroll-muse-001"}
+{"fingerprint":"SHA256:<43 standard base64 characters>","public_key":"-----BEGIN PUBLIC KEY-----\n<Ed25519 public PEM>\n-----END PUBLIC KEY-----\n","build_pin":"dddddddddddddddddddddddddddddddddddddddd","idempotency_key":"enroll-muse-001"}
 ```
 
 201 response:
 
 ```json
-{"identity":"muse","fingerprint":"SHA256:<43 base64url characters>","scopes":["qa.workflow.claim","qa.verdict.write","qa.defect.write","qa.test_data.prepare","qa.retest.request"],"approved_at":"2026-10-02T20:00:00.000000Z","build_pin":"dddddddddddddddddddddddddddddddddddddddd"}
+{"identity":"muse","fingerprint":"SHA256:<43 standard base64 characters>","scopes":["qa.workflow.claim","qa.verdict.write","qa.defect.write","qa.test_data.prepare","qa.retest.request"],"approved_at":"2026-10-02T20:00:00.000000Z","build_pin":"dddddddddddddddddddddddddddddddddddddddd"}
 ```
 
 `POST /qa/api/enrollment/revoke`:
 
 ```json
-{"fingerprint":"SHA256:<43 base64url characters>","build_pin":"dddddddddddddddddddddddddddddddddddddddd","idempotency_key":"revoke-muse-001"}
+{"fingerprint":"SHA256:<43 standard base64 characters>","build_pin":"dddddddddddddddddddddddddddddddddddddddd","idempotency_key":"revoke-muse-001"}
 ```
 
 200 response:
 
 ```json
-{"identity":"muse","fingerprint":"SHA256:<43 base64url characters>","revoked_at":"2026-10-02T20:00:00.000000Z","build_pin":"dddddddddddddddddddddddddddddddddddddddd"}
+{"identity":"muse","fingerprint":"SHA256:<43 standard base64 characters>","revoked_at":"2026-10-02T20:00:00.000000Z","build_pin":"dddddddddddddddddddddddddddddddddddddddd"}
 ```
 
 Only one active Muse key is permitted. Revoke it before approving a replacement with a newly generated keypair. Account deactivation or loss of platform-owner authority also disables its key. Approval/revocation use the same exact-build gate and idempotency rules as machine writes.
@@ -191,3 +195,5 @@ The QA read projection includes `retest_requests`, adding `ready: true` only on 
 | 422 | `screenshot_archive_failed` | Screenshot could not be securely archived |
 
 Deploy the forward migration before serving this release, then apply the existing runtime privileges. Portable Nginx and the development proxy preserve `/qa/api/*` to Rails. Commit/push alone does not deploy, enroll Muse, configure screenshot hosts, confirm a live build, or verify/register synthetic fixture provenance. Review `WORKFLOW_CENTER.md` for the independent registry and legacy executor boundaries.
+
+The former DER/SPKI fingerprint format is withdrawn before any live credential enrollment. The UI, server and helper now consistently use OpenSSH SHA-256 fingerprints. Request signatures and nonces remain base64url; fingerprint values use standard base64 without padding.

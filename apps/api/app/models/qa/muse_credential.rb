@@ -35,13 +35,32 @@ module Qa
       OpenSSL::PKey.read(public_key_pem)
     end
 
-    def self.fingerprint_for(public_key)
-      key = public_key.is_a?(String) ? OpenSSL::PKey.read(public_key) : public_key
-      raise ArgumentError, "An Ed25519 public key is required." unless key.oid == "ED25519"
+    SSH_PREFIX = [11].pack("N") + "ssh-ed25519" + [32].pack("N")
 
-      "SHA256:#{Base64.urlsafe_encode64(Digest::SHA256.digest(key.public_to_der), padding: false)}"
+    def self.public_key_for(value)
+      raise ArgumentError, "Paste a public Ed25519 key." unless value.is_a?(String) && value.bytesize <= 2000 && !value.include?("PRIVATE KEY")
+      text = value.strip
+      if text.start_with?("ssh-ed25519 ")
+        wire = Base64.strict_decode64(text.split(/\s+/)[1])
+        raise ArgumentError, "Invalid Ed25519 public key." unless wire.bytesize == SSH_PREFIX.bytesize + 32 && wire.start_with?(SSH_PREFIX)
+        der = OpenSSL::ASN1::Sequence.new([OpenSSL::ASN1::Sequence.new([OpenSSL::ASN1::ObjectId.new("1.3.101.112")]), OpenSSL::ASN1::BitString.new(wire.byteslice(SSH_PREFIX.bytesize, 32))]).to_der
+        key = OpenSSL::PKey.read(der)
+      else
+        raise ArgumentError, "Paste an ssh-ed25519 or PUBLIC KEY PEM." unless text.start_with?("-----BEGIN PUBLIC KEY-----")
+        key = OpenSSL::PKey.read(text)
+      end
+      raise ArgumentError, "An Ed25519 public key is required." unless key.oid == "ED25519"
+      key
     rescue OpenSSL::PKey::PKeyError
       raise ArgumentError, "An Ed25519 public key is required."
+    end
+
+    def self.fingerprint_for(public_key)
+      key = public_key.is_a?(String) ? public_key_for(public_key) : public_key
+      raise ArgumentError, "An Ed25519 public key is required." unless key.oid == "ED25519"
+      raw = OpenSSL::ASN1.decode(key.public_to_der).value.fetch(1).value
+      raise ArgumentError, "Invalid Ed25519 public key." unless raw.bytesize == 32
+      "SHA256:#{Base64.strict_encode64(Digest::SHA256.digest(SSH_PREFIX + raw)).delete('=')}"
     end
 
     private

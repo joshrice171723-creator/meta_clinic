@@ -139,8 +139,7 @@ module Qa
       WorkflowContract.object!(input, %w[fingerprint public_key build_pin idempotency_key])
       WorkflowContract.match!(input["build_pin"], SHA)
       key_text = input["public_key"]
-      raise ArgumentError, "Only a public Ed25519 PEM key is accepted." unless key_text.is_a?(String) &&
-        key_text.start_with?("-----BEGIN PUBLIC KEY-----") && !key_text.include?("PRIVATE KEY") && key_text.length <= 2000
+      key = MuseCredential.public_key_for(key_text)
       computed = MuseCredential.fingerprint_for(key_text)
       raise ArgumentError, "Fingerprint does not match the submitted public key." unless computed == input["fingerprint"]
       idempotency_key!(input["idempotency_key"])
@@ -161,7 +160,7 @@ module Qa
             raise Conflict, "Revoke the active Muse key before approving a replacement."
           end
           credential = active || MuseCredential.create!(user:, approved_by: user, identity: "muse", fingerprint: computed,
-            public_key_pem: key_text, scopes: MuseCredential::SCOPES)
+            public_key_pem: key.public_to_pem, scopes: MuseCredential::SCOPES)
           raise Conflict, "This fingerprint is already bound to a different Muse owner." if credential.user_id != user.id
           receipt = { "identity" => "muse", "fingerprint" => computed, "scopes" => MuseCredential::SCOPES,
             "approved_at" => Time.current.iso8601(6), "build_pin" => build["revision"] }

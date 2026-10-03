@@ -8,7 +8,7 @@ module Qa
 
     MAX_CLOCK_SKEW = 300
     NONCE_PATTERN = /\A[A-Za-z0-9_-]{22,64}\z/
-    FINGERPRINT_PATTERN = /\ASHA256:[A-Za-z0-9_-]{43}\z/
+    FINGERPRINT_PATTERN = /\ASHA256:[A-Za-z0-9+\/]{43}\z/
 
     def self.authenticate!(request)
       raise Unauthorized, "A Muse signature is required." unless request.request_method == "POST"

@@ -258,6 +258,17 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "OpenSSH and PEM use the same familiar fingerprint" do
+    public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYZy72OJGCrypyIGsbsN0eqcrjeeqrJ+ZwuCye7+7b3 muse-qa-writer"
+    expected = "SHA256:6cyhnqQS0FA8R8kDxav9GUZgijkQx5QRd5DYb+Qs+E4"
+    key = Qa::MuseCredential.public_key_for(public_key)
+    assert_equal expected, Qa::MuseCredential.fingerprint_for(public_key)
+    assert_equal expected, Qa::MuseCredential.fingerprint_for(key.public_to_pem)
+    assert_match Qa::MuseRequestAuthenticator::FINGERPRINT_PATTERN, expected
+    assert_raises(ArgumentError) { Qa::MuseCredential.public_key_for(@key.private_to_pem) }
+    assert_raises(ArgumentError) { Qa::MuseCredential.public_key_for("ssh-ed25519 AAAA") }
+  end
+
   test "enrollment checks the fingerprint owner session fixed scopes and revocation" do
     new_key = OpenSSL::PKey.generate_key("ED25519")
     input = { "fingerprint" => Qa::MuseCredential.fingerprint_for(new_key), "public_key" => new_key.public_to_pem,

@@ -25,6 +25,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { MuseGridEditor, MuseKeyConnection } from "./MuseGridEditor";
+import type { MuseBrowserKey } from "./museBrowserKey";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import { useOfficeRequest, useOfficeLink } from "./officeTransport";
 
@@ -185,6 +187,7 @@ export function QaOfficeQa({
   const pending = useRef<{ content: string; key: string } | undefined>(
     undefined,
   );
+  const [museConnection, setMuseConnection] = useState<MuseBrowserKey>();
   const refresh = useCallback(async () => {
     const request = ++version.current;
     try {
@@ -566,6 +569,10 @@ export function QaOfficeQa({
             failed · amber: expired claim · hatched: older or missing revision ·
             gray: unassessed. No progress is inferred from elapsed time.
           </Typography>
+          <MuseKeyConnection
+            connection={museConnection}
+            onConnect={setMuseConnection}
+          />
           <Box
             sx={{
               display: "grid",
@@ -997,6 +1004,20 @@ export function QaOfficeQa({
                   Archived screenshot #{item.id} · SHA-256 {item.sha256}
                 </a>
               ) : null,
+            )}
+            {workflow && (
+              <MuseGridEditor
+                key={workflow.id}
+                connection={museConnection}
+                workflowId={workflow.id}
+                revision={snapshot?.build.revision ?? undefined}
+                enabled={
+                  snapshot?.build.dirty === false &&
+                  snapshot?.pin?.revision === snapshot?.build.revision &&
+                  !readError
+                }
+                onSaved={refresh}
+              />
             )}
             {secureLink(workflow?.evidence_ref) && (
               <a href={workflow!.evidence_ref} target="_blank" rel="noreferrer">
