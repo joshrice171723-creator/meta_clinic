@@ -37,9 +37,9 @@ The helper sends a new timestamp/nonce each time. It does not automatically repl
 
 ## Owner enrollment and revocation
 
-Open `/qa` while signed in as platform owner. In **Approve Muse**, paste Muse's `ssh-ed25519` public key and compare the displayed OpenSSH fingerprint with Muse. Confirm the displayed live build using the existing pin dialog if required, then click **Approve Muse**. No console script is needed. The same fingerprint is used for approval and every signed request.
+Open `/qa` while signed in as platform owner. In **Approve Muse**, paste Muse's `ssh-ed25519` public key and compare the displayed OpenSSH fingerprint with Muse. Click **Approve Muse**. No console script is needed. The same fingerprint is used for approval and every signed request.
 
-Muse opens the coverage grid, clicks **Connect Muse key** and selects his local unattended OpenSSH key file. The browser imports it into memory and signs only the five action paths; it never uploads or saves the private key. Click a workflow to claim it, record pass/fail/blocked with evidence, prepare verified data, request retest or save a defect. Writes refresh the grid immediately. Build changes block an open editor until it is reopened.
+Muse opens the coverage grid, clicks **Connect Muse key** and selects his local unattended OpenSSH key file. The browser imports it into memory and signs only the five action paths; it never uploads or saves the private key. Click a workflow to claim it, record pass/fail/blocked with evidence, prepare verified data, request retest or save a defect. Writes refresh the grid immediately. Build changes retain the open editor and its draft; automatic observations record the boundary without requiring a reopen.
 
 Compare the fingerprint with Muse out of band. The owner submits the public key (OpenSSH or public PEM) and matching fingerprint once using an active platform-owner browser session and the existing CSRF token from `GET /api/csrf`. Both endpoints require `Content-Type: application/json`, `X-CSRF-Token`, and the existing same-origin session. The Muse key cannot call them. Identity and scopes are fixed by the server; they are never request fields.
 
@@ -67,17 +67,17 @@ Compare the fingerprint with Muse out of band. The owner submits the public key 
 {"identity":"muse","fingerprint":"SHA256:<43 standard base64 characters>","revoked_at":"2026-10-02T20:00:00.000000Z","build_pin":"dddddddddddddddddddddddddddddddddddddddd"}
 ```
 
-Only one active Muse key is permitted. Revoke it before approving a replacement with a newly generated keypair. Account deactivation or loss of platform-owner authority also disables its key. Approval/revocation use the same exact-build gate and idempotency rules as machine writes.
+Only one active Muse key is permitted. Revoke it before approving a replacement with a newly generated keypair. Account deactivation or loss of platform-owner authority also disables its key. Approval/revocation retain owner authorization, CSRF, fingerprint and idempotency checks; automatic build observations do not require manual pin confirmation.
 
 ## Shared validation and retry rules
 
-`build_pin` is a full lowercase 40-character commit SHA. It must equal the owner-confirmed `qa_snapshots.pin.revision` **and** the current live build revision. The live build must explicitly report `dirty: false`, with no build error. The confirmation must identify an active platform owner. Both values are checked under transaction locks before the operation and again before commit, including after screenshot downloads. Missing identities fail closed.
+`build_pin` is a compatibility field for a reported/captured full lowercase40-character SHA, `unobserved`, or null for automatic observation. It is not a campaign authorization gate and need not match an owner snapshot or the live build. The server automatically attaches before/after observations; unknown metadata and deployment boundaries are explicit. Historical artifacts keep their recorded revision. Mixed/unavailable rows remain outside current-build acceptance. Claims, credentials, verified synthetic scopes and leases still control who can write.
 
-Workflow IDs are exactly `WF-001` through `WF-116`. `idempotency_key` is 8–100 ASCII letters, digits, `_` or `-`. Every POST requires one. An identical retry on the still-current pin with a **fresh nonce** returns the original receipt and success status without repeating downloads or effects. Changed content under the same action/key conflicts. Old-pin retries fail the build gate. Reusing a successful request nonce is rejected. Receipts and archived screenshots commit atomically with coverage changes.
+Workflow IDs are exactly `WF-001` through `WF-116`. `idempotency_key` is 8–100 ASCII letters, digits, `_` or `-`. Every POST requires one. An identical retry across deployments with a **fresh nonce** returns the original receipt and success status without repeating downloads or effects. Changed content under the same action/key conflicts. Retries preserve the original immutable receipt and its observations. Reusing a successful request nonce is rejected. Receipts and archived screenshots commit atomically with coverage changes.
 
 Every workflow action resolves an unrevoked, server-authored `workflow_fixture_verified` receipt for principal `muse`, workflow, practice and active membership. This selects **existing independently verified synthetic fixtures**; it does not infer provenance from names or seed/grant/reset clinical records. A missing registry receipt returns 403. Owner enrollment alone does not establish synthetic fixture provenance. The fixture registry's existing schema and producer boundary are documented in `apps/api/app/services/qa/WORKFLOW_CENTER.md`; its trusted registration must exist before Muse can write. No runtime receipt, key or live enrollment is created by shipping this code.
 
-An authorized host operator can run `ops/qa/register_muse_fixtures.rb` through Rails runner. It requires `MUSE_QA_FINGERPRINT`, `MUSE_QA_BUILD_PIN` and `MUSE_QA_DATABASE`, and defaults to a transaction that rolls back. Set `MUSE_QA_REGISTER=yes` to commit the reviewed operation. It verifies the approved public key, database, exact owner/live build pin and fixed five scopes, creates a fresh empty QA result workspace with an immutable server-creation provenance receipt, and registers WF-001 through WF-116 for principal `muse`. It creates no clinical role grants or verdicts. Its registry scope supports QA result writes with the existing empty fixture requirements; it does not establish populated clinical scenarios or copy fixtures from the isolated demo database. Repeated execution reuses the same immutable receipts and verifies all workflow resolutions under the shared Muse lock. A revoked or inconsistent prior registration fails closed; recovery is an append-only `workflow_fixture_revoked` receipt naming the fixture receipt ID, under the same lock, followed by a reviewed replacement. Never rewrite or delete the original history.
+An authorized host operator can run `ops/qa/register_muse_fixtures.rb` through Rails runner. It requires `MUSE_QA_FINGERPRINT`, `MUSE_QA_BUILD_PIN` and `MUSE_QA_DATABASE`, and defaults to a transaction that rolls back. Set `MUSE_QA_REGISTER=yes` to commit the reviewed operation. It verifies the approved public key, database, active approved owner/credential, automatic build observation and fixed five scopes, creates a fresh empty QA result workspace with an immutable server-creation provenance receipt, and registers WF-001 through WF-116 for principal `muse`. It creates no clinical role grants or verdicts. Its registry scope supports QA result writes with the existing empty fixture requirements; it does not establish populated clinical scenarios or copy fixtures from the isolated demo database. Repeated execution reuses the same immutable receipts and verifies all workflow resolutions under the shared Muse lock. A revoked or inconsistent prior registration fails closed; recovery is an append-only `workflow_fixture_revoked` receipt naming the fixture receipt ID, under the same lock, followed by a reviewed replacement. Never rewrite or delete the original history.
 
 ## Evidence items
 
@@ -91,7 +91,7 @@ Verdict and defect requests require 1–20 typed items:
 ]
 ```
 
-Observations contain nonblank text up to 4,000 characters, preserved verbatim. Existing evidence IDs must match the caller, exact pin, workflows and verified fixture receipts. Bare strings, unknown kinds, extra fields, and unrelated historical screenshots are rejected.
+Observations contain nonblank text up to 4,000 characters, preserved verbatim. Existing evidence IDs must match the caller, workflows and verified fixture receipts; original revisions remain intact and are included in mixed-build projection. Bare strings, unknown kinds, extra fields, and unrelated workflow/fixture screenshots are rejected.
 
 Screenshot URLs may include an expiring query. **Upload, then immediately POST.** Configure `QA_MUSE_EVIDENCE_HOSTS` on the API host as comma-separated exact HTTPS hostnames. No hosts are approved by default. Every download and redirect is checked against that list and resolved public addresses; the connection is pinned to a checked address. Userinfo, fragments, non-443 ports, private/reserved destinations and more than three redirects are rejected. Downloads have bounded time/size, require PNG/JPEG content type and matching file signature, and are limited to 4 MiB. Any failed archive rejects the entire write.
 
@@ -122,7 +122,7 @@ All machine success responses are 201, including idempotent replay. Times are UT
 {"workflow_id":"WF-001","agent":"Muse","status":"in_progress","build_pin":"dddddddddddddddddddddddddddddddddddddddd","claimed_at":"2026-10-02T20:00:00.000000Z","receipt_id":"<UUID>"}
 ```
 
-A second distinct claim on the same workflow/build conflicts. On a changed/unavailable/dirty live build, the next grid poll expires the claim and appends an immutable seal under its original pin; it never reattributes that claim. Repeated polls do not duplicate seals. The grid labels build churn **Expired — build changed** in amber, separately from failures. Polling occurs every 15 seconds while the grid is visible; this API does not provide a workflow executor or background scheduling.
+A second distinct claim on the same workflow conflicts during its15-minute lease, including across deployments. Only an elapsed lease expires and seals a claim under its original revision. Unknown legacy lease metadata stays held. Repeated polls do not duplicate seals. Historical build-change seals remain history. Polling occurs every15seconds while the grid is visible; this API does not provide a workflow executor or background scheduling.
 
 ### Verdict — scope `qa.verdict.write`
 
@@ -136,7 +136,7 @@ A second distinct claim on the same workflow/build conflicts. On a changed/unava
 {"workflow_id":"WF-001","verdict":"pass","build_pin":"dddddddddddddddddddddddddddddddddddddddd","evidence":[{"kind":"observation","text":"The saved value persisted after reload."}],"recorded_at":"2026-10-02T20:00:00.000000Z","receipt_id":"<UUID>"}
 ```
 
-Allowed verdicts: `pass`, `fail`, `blocked`. **No prior claim is required.** Synthetic registry, evidence and pin checks still apply. The next existing grid poll reads the committed result without a courier or ledger import.
+Allowed verdicts: `pass`, `fail`, `blocked`. **No prior claim is required.** Synthetic registry, credential, evidence and provenance checks still apply. The next existing grid poll reads the committed result without a courier or ledger import.
 
 ### Defect — scope `qa.defect.write`
 
@@ -178,12 +178,12 @@ This action selects an existing server-verified fixture registry. It grants no c
 {"workflow_id":"WF-001","requested_on_build":"dddddddddddddddddddddddddddddddddddddddd","status":"queued_for_next_build","requested_at":"2026-10-02T20:00:00.000000Z","receipt_id":"<UUID>"}
 ```
 
-The QA read projection includes `retest_requests`, adding `ready: true` only on a different clean, owner-pinned build. This flag requests QA; it does not dispatch an executor.
+The QA read projection includes `retest_requests`, adding `ready: true` without a manual pin or build-match gate. This flag requests QA; it does not dispatch an executor.
 
 ## Errors and shipping boundary
 
 ```json
-{"error":"The exact build pin is stale or the live build is not clean.","code":"muse_conflict"}
+{"error":"This workflow already has an active Muse claim.","code":"muse_conflict"}
 ```
 
 | HTTP | Code | Meaning |
@@ -191,7 +191,7 @@ The QA read projection includes `retest_requests`, adding `ready: true` only on 
 | 401 | `muse_unauthorized` | Signature, timestamp, nonce, key approval/revocation failure |
 | 403 | `muse_scope_denied` | Endpoint scope, account or synthetic fixture denial |
 | 403 | `owner_approval_required` | Enrollment/revocation lacks owner session |
-| 409 | `muse_conflict` | Pin, active claim/key or idempotency conflict |
+| 409 | `muse_conflict` | Active claim/key or idempotency conflict |
 | 422 | `invalid_muse_request` | Invalid machine request fields |
 | 422 | `invalid_enrollment_request` | Invalid enrollment fields/key/fingerprint |
 | 422 | `screenshot_archive_failed` | Screenshot could not be securely archived |

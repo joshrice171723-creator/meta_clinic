@@ -17,7 +17,7 @@ python ops/qa/bridge.py claim TASK-ID --run-id UNIQUE-RUN-ID --prepare-baseline
 python ops/qa/bridge.py complete TASK-ID --run-id UNIQUE-RUN-ID --result work/result.json
 ```
 
-`claim` captures `/build.json` before and after the transition. `complete` and `fail` pin their transition to the live build revision. A queued task is not a dispatch receipt, and a claim is not an authorization to auto-complete it. Result files must describe observed work and remaining gaps.
+`claim` captures `/build.json` before and after the transition. `complete` and `fail` record automatic submission-time build observations. A queued task is not a dispatch receipt, and a claim is not an authorization to auto-complete it. Result files must describe observed work and remaining gaps.
 
 For a cron carrier, first record a heartbeat, then read the inbox:
 
@@ -40,4 +40,4 @@ PNG and JPEG only, maximum 4 MB. Import external QA snapshots without manufactur
 python ops/qa/bridge.py sync --state-dir C:\path\to\qa-state
 ```
 
-The importer redacts credentials, records source hashes, normalizes supplied issue/retest/coverage/batch exports, and preserves existing state when an export is absent. GitHub snapshots are handled by the backend; `--github-file` is intentionally not needed. The committed initial import is historical: the tally has no verdict for #5, #9 and #28, and expanded coverage and active fix-batch exports were not supplied. A queue is not dispatch, a claim is not a pass, and an agent verdict is not human approval. Compare the full live SHA with the confirmed pin before work; see WORKSPACE.md for the contract.
+The importer redacts credentials, records source hashes, normalizes supplied issue/retest/coverage/batch exports, and preserves existing state when an export is absent. GitHub snapshots are handled by the backend; `--github-file` is intentionally not needed. The committed initial import is historical: the tally has no verdict for #5, #9 and #28, and expanded coverage and active fix-batch exports were not supplied. A queue is not dispatch, a claim is not a pass, and an agent verdict is not human approval. Observe build.json automatically per finding/evidence and continue across deployments with recorded boundaries; no manual pin confirmation. Preserve original evidence revision and unknown metadata; see WORKSPACE.md for the contract.

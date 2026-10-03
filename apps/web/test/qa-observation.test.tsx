@@ -26,7 +26,7 @@ describe("QA text observation form", () => {
       />,
     );
 
-  it("offers an exact-build text receipt without a required screenshot", () => {
+  it("offers a build-attributed text receipt without a required screenshot", () => {
     const html = render();
     expect(html).toContain("Record observation");
     expect(html).toContain(revision);
@@ -45,6 +45,22 @@ describe("QA text observation form", () => {
     expect(html).toMatch(
       /<button[^>]*disabled=""[^>]*>Save observation<\/button>/,
     );
+  });
+
+  it("shows unknown metadata without requiring a pin or screenshot", () => {
+    const html = renderToStaticMarkup(
+      <QaObservationDialog
+        open
+        revision="unobserved"
+        tasks={[]}
+        onClose={() => {}}
+        onSaved={async () => {}}
+      />,
+    );
+    expect(html).toContain("unobserved");
+    expect(html).toContain("automatic build observations");
+    expect(html).not.toContain("Confirm pin");
+    expect(html).not.toContain('type="file"');
   });
 
   it("does not render receipt fields when closed", () => {
