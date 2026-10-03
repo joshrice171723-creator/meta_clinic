@@ -1,3 +1,4 @@
+import { lateArrivalMessage } from "./arrivalTiming";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
@@ -632,7 +633,11 @@ export function ClinicSchedule({
     setMutationError("");
     try {
       const result = await api<{
-        encounter: { patient_id: number; appointment_id: number };
+        encounter: {
+          patient_id: number;
+          appointment_id: number;
+          late_arrival_minutes?: number | null;
+        };
       }>(`/api/clinic/patients/${selected.patient_id}/encounters`, {
         method: "POST",
         body: { encounter: { appointment_id: selected.id } },
@@ -646,7 +651,12 @@ export function ClinicSchedule({
         );
       setSelected(undefined);
       setNotice(
-        "Patient checked in. Their visit is now on the Tracking Board.",
+        [
+          "Patient checked in. Their visit is now on the Tracking Board.",
+          lateArrivalMessage(result.encounter.late_arrival_minutes),
+        ]
+          .filter(Boolean)
+          .join(" "),
       );
       calendar.refresh();
     } catch (error) {
@@ -1004,13 +1014,27 @@ export function ClinicSchedule({
           )}
           {(data.policy?.recurrence === "not_configured" ||
             data.policy?.overbook === "not_configured") && (
-            <Alert severity="warning" sx={{ py: 0, alignItems: "center" }}>
-              {data.policy.recurrence === "not_configured" &&
-                "Recurring appointments are off. "}
-              {data.policy.overbook === "not_configured" &&
-                "Overbook exceptions are off. "}
-              An authorized staff member can change this site's scheduling
-              policy in Clinic setup.
+            <Alert severity="warning" sx={{ alignItems: "center" }}>
+              <Typography variant="body2">
+                {[
+                  data.policy.recurrence === "not_configured"
+                    ? "Recurring appointments are off."
+                    : "",
+                  data.policy.overbook === "not_configured"
+                    ? "Overbook exceptions are off."
+                    : "",
+                  "An authorized staff member can change this location's scheduling policy in Clinic setup.",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              </Typography>
+              {context.capabilities.facilities_read && (
+                <Button
+                  href={`/clinic/facilities?site_id=${siteId}#scheduling-policy-setup`}
+                >
+                  Review scheduling policy
+                </Button>
+              )}
             </Alert>
           )}
           {view === "month" ? (
@@ -1654,6 +1678,14 @@ export function ClinicSchedule({
                     Front Desk.
                   </Typography>
                 )}
+                <Typography
+                  id="schedule-cancellation-guidance"
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  Cancel only if this visit will not take place. Review any
+                  patient notifications before confirming cancellation.
+                </Typography>
                 {!selected.encounter_id &&
                   ["scheduled", "confirmed"].includes(selected.status) &&
                   !context.capabilities.encounters && (
@@ -1699,13 +1731,24 @@ export function ClinicSchedule({
                 Open encounter
               </Button>
             )}
+          {selected &&
+            !selected.encounter_id &&
+            ["scheduled", "confirmed"].includes(selected.status) &&
+            canBook && (
+              <Button
+                href={`/clinic/front-desk?action=reschedule&appointment_id=${selected.id}&date=${calendarDate(new Date(selected.starts_at), timezone)}`}
+                disabled={busy}
+              >
+                Reschedule
+              </Button>
+            )}
           {selected && context.capabilities.appointments_status_transition && (
             <Button
               color="error"
               aria-describedby={
                 busy
                   ? "schedule-appointment-busy"
-                  : "schedule-appointment-action-guidance"
+                  : "schedule-cancellation-guidance"
               }
               disabled={
                 busy ||
@@ -1743,6 +1786,7 @@ export function ClinicSchedule({
               <Button
                 variant="contained"
                 disabled={busy}
+                aria-describedby="schedule-appointment-action-guidance"
                 onClick={() => void checkIn()}
               >
                 {busy ? "Checking in…" : "Check in patient"}

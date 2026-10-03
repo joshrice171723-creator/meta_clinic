@@ -53,7 +53,9 @@ export type BoardClinician = {
   locationIds: readonly string[];
 };
 export type BoardVisit = {
-  waitingPolicy?: import("./operationalPolicyContracts").WaitingPolicyProjection | null;
+  lateArrivalMinutes?: number | null;
+  waitingPolicy?:
+    import("./operationalPolicyContracts").WaitingPolicyProjection | null;
   id: string;
   patientId?: number | null;
   encounterId?: number | null;

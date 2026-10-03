@@ -7,7 +7,8 @@ module Clinic
         attr_reader :details
         def initialize(details)
           @details = details
-          super("Schedule validation failed.")
+          message = details.present? ? details.join(" ") : "Schedule validation failed."
+          super(message)
         end
       end
 

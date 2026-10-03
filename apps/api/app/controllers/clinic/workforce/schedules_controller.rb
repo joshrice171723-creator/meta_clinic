@@ -86,6 +86,15 @@ module Clinic
         draft = draft!
         workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
         input = parameter_hash!(:shift, %i[id employment_id local_start local_end start_occurrence end_occurrence role_name break_minutes expected_revision])
+        local_start = ResolveLocalInterval.parse_local(input[:local_start])
+        local_end = ResolveLocalInterval.parse_local(input[:local_end])
+        raise ResolveLocalInterval::InvalidLocalTime, "Shift end must be after its start." unless local_end > local_start
+        unless local_start.to_date.between?(draft.week_start_on, draft.week_start_on + 6.days)
+          raise ResolveLocalInterval::InvalidLocalTime, "Shift start must fall within the selected week."
+        end
+        unless (local_end - Rational(1, 1_000_000)).to_date.between?(draft.week_start_on, draft.week_start_on + 6.days)
+          raise ResolveLocalInterval::InvalidLocalTime, "Shift end must fall within the selected week."
+        end
         interval = ResolveLocalInterval.call(timezone: draft.timezone, local_start: input[:local_start], local_end: input[:local_end],
           start_occurrence: input[:start_occurrence].presence || "only", end_occurrence: input[:end_occurrence].presence || "only")
         shift = nil

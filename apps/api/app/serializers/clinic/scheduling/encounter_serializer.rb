@@ -9,6 +9,7 @@ module Clinic
           site_id: encounter.site_id&.to_s,
           room_id: encounter.room_id,
           started_at: encounter.started_at&.iso8601(6),
+          late_arrival_minutes: encounter.late_arrival_minutes,
           ended_at: encounter.ended_at&.iso8601(6),
           status: encounter.status,
           telehealth: Clinic::Scheduling::AppointmentSerializer.telehealth(encounter.telehealth_visit, actor: actor)

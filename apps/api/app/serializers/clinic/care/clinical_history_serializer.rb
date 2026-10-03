@@ -1,7 +1,9 @@
 module Clinic
   module Care
     module ClinicalHistorySerializer
-      def self.call(patient, encounter:, can_write:, reported_intake_conditions: { state: "not_recorded", source: nil, questions: [] })
+      def self.call(patient, encounter:, can_write:,
+        reported_intake_conditions: { state: "not_recorded", source: nil, questions: [] },
+        reported_intake_history: { state: "not_recorded", source: nil, questions: [] })
         {
           schema_version: "patient-clinical-history-v1",
           patient_id: patient.id,
@@ -11,27 +13,47 @@ module Clinic
           medications: patient.medication_statements.recorded_details.order(recorded_at: :desc, id: :desc).map { |record| medication(record) },
           conditions: patient.conditions.recorded_details.order(recorded_at: :desc, id: :desc).map { |record| condition(record) },
           reviews: latest_reviews(patient, encounter),
-          reported_intake_conditions: reported_intake_conditions
+          reported_intake_conditions: reported_intake_conditions,
+          reported_intake_history: reported_intake_history
         }
       end
 
       def self.intake_conditions(revision)
+        projection = intake_projection(revision, %w[condition])
+        projection.merge(questions: projection.fetch(:questions).map do |question|
+          question.except(:kind).merge(entries: question.fetch(:entries).map do |entry|
+            entry.slice("name", "kind", "current_status", "certainty")
+          end)
+        end)
+      end
+
+      def self.intake_history(revision)
+        intake_projection(revision, %w[allergy medication condition])
+      end
+
+      def self.intake_projection(revision, kinds)
         payload = PrevisitIntake.decode(revision.encrypted_questionnaire)
         return { state: "not_recorded", source: nil, questions: [] } unless payload
         questions = PrevisitIntake.fields(payload.fetch("form_id", PrevisitIntake::FORM_ID))
-          .select { |field| field[:history_kind] == "condition" }.map do |field|
+          .select { |field| kinds.include?(field[:history_kind]) }.map do |field|
             id = field.fetch(:id)
             answer = payload.fetch("answers", {})[id]
             detail = answer.is_a?(Hash) ? answer : {}
+            kind = field.fetch(:history_kind)
             entries = Array(detail["entries"]).filter_map do |entry|
               next unless entry.is_a?(Hash) && entry["name"].is_a?(String) && entry["name"].present?
-              entry.slice("name", "kind", "current_status", "certainty")
+              keys = case kind
+              when "allergy" then %w[name kind certainty severity details]
+              when "medication" then %w[name kind actual_use dose_value dose_unit dose_certainty frequency source details]
+              when "condition" then %w[name kind current_status certainty review_route details]
+              end
+              entry.slice(*keys).transform_values(&:to_s)
             end
             if entries.empty? && answer.is_a?(String) && answer.present?
               entries = answer.lines.map(&:strip).reject(&:blank?).map { |name| { "name" => name } }
             end
             answer_state = detail["state"] || (answer.is_a?(String) && answer.present? ? "answered" : "unanswered")
-            { id: id, label: field.fetch(:label), answer_state: answer_state,
+            { id: id, label: field.fetch(:label), kind: kind, answer_state: answer_state,
               source: payload.dig("items", id, "source"), entries: entries }
           end
         { state: "available", source: { encounter_id: revision.encounter_id, revision_id: revision.id,

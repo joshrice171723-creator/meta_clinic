@@ -41,7 +41,10 @@ import type {
   Patient,
 } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
-import { isDemoFrame } from "../demo/frame";
+import {
+  BillingDocumentPreview,
+  BillingReceiptButton,
+} from "./BillingDocumentPreview";
 import { LoadState, useResource } from "../../shared/ui";
 import {
   CashDrawerOperations,
@@ -530,83 +533,6 @@ export function Billing() {
   );
 }
 
-function PatientStatementPreview({
-  patientId,
-  onClose,
-}: {
-  patientId: number;
-  onClose: () => void;
-}) {
-  const frame = useRef<HTMLIFrameElement>(null);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState("");
-  const [printRequested, setPrintRequested] = useState(false);
-  const print = () => {
-    if (!ready || !frame.current?.contentWindow) return;
-    try {
-      frame.current.contentWindow.focus();
-      frame.current.contentWindow.print();
-      setPrintRequested(true);
-    } catch {
-      setError(
-        "The browser could not open printing. Reopen the statement and try again.",
-      );
-    }
-  };
-  return (
-    <Dialog
-      open
-      onClose={onClose}
-      fullWidth
-      maxWidth="md"
-      aria-labelledby="patient-statement-title"
-    >
-      <DialogTitle id="patient-statement-title">Patient statement</DialogTitle>
-      <DialogContent dividers>
-        {!ready && !error && (
-          <Typography role="status">Loading patient statement…</Typography>
-        )}
-        {error && <Alert severity="error">{error}</Alert>}
-        {printRequested && (
-          <Alert severity="info">
-            Printing was requested. Choose a printer or Save as PDF in the
-            browser dialog.
-          </Alert>
-        )}
-        <Box
-          component="iframe"
-          ref={frame}
-          title="Patient statement preview"
-          src={`${isDemoFrame() ? "/api/demo-workspace" : "/api"}/clinic/patients/${patientId}/billing_statement`}
-          sandbox="allow-same-origin allow-modals"
-          onLoad={() => {
-            const loaded =
-              frame.current?.contentDocument?.querySelector("#print-statement");
-            if (loaded) loaded.closest(".actions")?.setAttribute("hidden", "");
-            setReady(Boolean(loaded));
-            if (!loaded)
-              setError(
-                "The patient statement could not be loaded. Check your session and billing access, then reopen it.",
-              );
-          }}
-          onError={() =>
-            setError(
-              "The patient statement could not be loaded. Reopen it to try again.",
-            )
-          }
-          sx={{ border: 0, display: "block", height: 560, width: "100%" }}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" disabled={!ready} onClick={print}>
-          Print / save PDF
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
 function LedgerDetails({
   ledger,
   selectedInvoice,
@@ -665,9 +591,11 @@ function LedgerDetails({
           Print patient statement
         </Button>
         {statementOpen && (
-          <PatientStatementPreview
+          <BillingDocumentPreview
             key={ledger.patient.id}
-            patientId={ledger.patient.id}
+            title="Patient statement"
+            path={`/clinic/patients/${ledger.patient.id}/billing_statement`}
+            marker="#print-statement"
             onClose={() => setStatementOpen(false)}
           />
         )}
@@ -2687,15 +2615,12 @@ function PaymentHistory({
                     sx={{ mt: 1.5 }}
                   >
                     {payment.receipt_available && (
-                      <Button
-                        component="a"
-                        href={`/api/clinic/payment_events/${payment.id}/receipt`}
-                        rel="noopener"
-                        target="_blank"
+                      <BillingReceiptButton
+                        paymentId={payment.id}
                         variant="outlined"
                       >
                         Print receipt
-                      </Button>
+                      </BillingReceiptButton>
                     )}
                     {capabilities.billing_payment_record === true &&
                       payment.cash_refund_available &&

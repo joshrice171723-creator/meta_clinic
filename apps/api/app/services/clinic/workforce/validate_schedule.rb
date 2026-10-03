@@ -32,8 +32,16 @@ module Clinic
         week_end = draft.week_start_on + 7.days
         shifts.each do |shift|
           label = shift.employment.staff_member.display_name
-          errors << "#{label}: shift must begin within the selected week." unless shift.starts_at.in_time_zone(draft.timezone).to_date.between?(draft.week_start_on, week_end - 1.day)
+          local_start = shift.starts_at.in_time_zone(draft.timezone)
           shift_end = shift.ends_at - Rational(1, 1_000_000)
+          local_end = shift_end.in_time_zone(draft.timezone)
+          unless local_start.to_date.between?(draft.week_start_on, week_end - 1.day)
+            errors << "#{label}: shift must begin within the selected week."
+          end
+          unless local_end.to_date.between?(draft.week_start_on, week_end - 1.day)
+            errors << "#{label}: shift must end within the selected week."
+          end
+          errors << "#{label}: shift end must be after its start." unless shift.ends_at > shift.starts_at
           unless shift.employment.active_for_work?(at: shift.starts_at) && shift.employment.active_for_work?(at: shift_end)
             errors << "#{label}: employee is not active for the full shift."
           end
@@ -42,8 +50,8 @@ module Clinic
           end
           errors << "#{label}: approved time off overlaps this shift." if approved_time_off?(shift)
 
-          local_start_date = shift.starts_at.in_time_zone(draft.timezone).to_date
-          local_end_date = shift_end.in_time_zone(draft.timezone).to_date
+          local_start_date = local_start.to_date
+          local_end_date = local_end.to_date
           availability = AvailabilityVersion.where(practice_id: draft.practice_id, site_id: draft.site_id,
             employment_id: shift.employment_id, status: %w[approved superseded])
             .where("effective_from <= ? AND (effective_until IS NULL OR effective_until >= ?)", local_start_date, local_end_date)

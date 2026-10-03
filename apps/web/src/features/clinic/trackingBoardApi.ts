@@ -239,6 +239,7 @@ export function trackingBoardVisitToBoardVisit(
       visit.provider_assignment_available === true,
     owner: operations.intakeOwnership?.ownerName ?? null,
     arrivedAt: encounter?.started_at ?? null,
+    lateArrivalMinutes: encounter?.late_arrival_minutes ?? null,
     stageStartedAt: encounter?.started_at ?? null,
     triage: hasVitals
       ? {

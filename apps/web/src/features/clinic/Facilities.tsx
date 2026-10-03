@@ -141,6 +141,7 @@ export function Facilities() {
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
   const [savingRoom, setSavingRoom] = useState(false);
   const [visitTypeRefreshKey, setVisitTypeRefreshKey] = useState(0);
+  const [offeringRefreshKey, setOfferingRefreshKey] = useState(0);
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     text: string;
@@ -295,8 +296,12 @@ export function Facilities() {
         </Typography>
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
           <Button href="#location-setup">Location profile</Button>
+          <Button href="#assessment-setup">Assessment scope</Button>
           <Button href="#visit-type-setup">Visit types</Button>
           <Button href="#service-offering-setup">Service offerings</Button>
+          {selected?.finalized === true && !creating && (
+            <Button href="#scheduling-policy-setup">Scheduling policy</Button>
+          )}
         </Stack>
         {capabilities.workforce_admin && (
           <Button
@@ -340,6 +345,7 @@ export function Facilities() {
           refreshKey={visitTypeRefreshKey}
           siteId={creating ? undefined : selected?.id}
           siteName={selected?.name ?? selected?.code}
+          onCatalogSaved={() => setOfferingRefreshKey((current) => current + 1)}
         />
       </div>
       {capabilities.clinic_setup_write && <ClinicianSetup />}
@@ -869,14 +875,19 @@ export function Facilities() {
       )}
       {selected?.finalized === true && !creating && (
         <div id="service-offering-setup">
-          <ServiceOfferingSettings canWrite={canWrite} />
+          <ServiceOfferingSettings
+            canWrite={canWrite}
+            refreshKey={offeringRefreshKey}
+          />
         </div>
       )}
       {selected?.finalized === true && !creating && (
-        <SiteSchedulingPolicySettings
-          key={`scheduling-policy:${selected.id}`}
-          siteId={selected.id}
-        />
+        <div id="scheduling-policy-setup">
+          <SiteSchedulingPolicySettings
+            key={`scheduling-policy:${selected.id}`}
+            siteId={selected.id}
+          />
+        </div>
       )}
       {selected?.finalized === true && !creating && (
         <OperationalPolicySettings

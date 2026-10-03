@@ -40,11 +40,13 @@ export function VisitTypeSettings({
   refreshKey = 0,
   siteId,
   siteName,
+  onCatalogSaved,
 }: {
   canWrite: boolean;
   refreshKey?: number;
   siteId?: number;
   siteName?: string;
+  onCatalogSaved?: () => void;
 }) {
   const {
     data,
@@ -113,6 +115,7 @@ export function VisitTypeSettings({
       if (attempt.kind === "form") setDialog(null);
       refresh();
       if (siteId !== undefined) profile.refresh();
+      onCatalogSaved?.();
     } catch (reason) {
       if (
         reason instanceof ApiError &&

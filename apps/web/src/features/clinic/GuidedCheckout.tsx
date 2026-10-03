@@ -1,3 +1,4 @@
+import { BillingReceiptButton } from "./BillingDocumentPreview";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import PendingOutlinedIcon from "@mui/icons-material/PendingOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
@@ -546,20 +547,31 @@ export function GuidedCheckout({
                     <Typography color="text.secondary" variant="body2">
                       {step.detail}
                     </Typography>
-                    {step.action && (
-                      <Button
-                        component="a"
-                        href={step.action.href}
-                        startIcon={
-                          step.label === "Receipt" ? (
-                            <ReceiptLongOutlinedIcon />
-                          ) : undefined
-                        }
+                    {step.label === "Receipt" && receipt ? (
+                      <BillingReceiptButton
+                        paymentId={receipt.id}
+                        startIcon={<ReceiptLongOutlinedIcon />}
+                        variant="text"
                         sx={{ alignSelf: "flex-start" }}
-                        variant={step.complete ? "text" : "outlined"}
                       >
-                        {step.action.label}
-                      </Button>
+                        Open receipt
+                      </BillingReceiptButton>
+                    ) : (
+                      step.action && (
+                        <Button
+                          component="a"
+                          href={step.action.href}
+                          startIcon={
+                            step.label === "Receipt" ? (
+                              <ReceiptLongOutlinedIcon />
+                            ) : undefined
+                          }
+                          sx={{ alignSelf: "flex-start" }}
+                          variant={step.complete ? "text" : "outlined"}
+                        >
+                          {step.action.label}
+                        </Button>
+                      )
                     )}
                     {step.recover && (
                       <Button

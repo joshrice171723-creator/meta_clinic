@@ -33,6 +33,7 @@ import {
   type HistoryKind,
   type HistoryRecord,
   type MedicationRecord,
+  type ReportedIntakeHistory,
   type ReviewTopic,
 } from "./clinicalHistory";
 
@@ -158,6 +159,59 @@ export function clinicalHistoryOutcomeIsUnknown(reason: unknown) {
 
 function displayTime(value: string | null) {
   return value ? new Date(value).toLocaleString() : "Not reviewed";
+}
+
+function ReportedIntakeRows({
+  questions,
+}: {
+  questions: ReportedIntakeHistory["questions"];
+}) {
+  const labels = {
+    allergy: "Allergies",
+    medication: "Medications",
+    condition: "Conditions",
+  };
+  return (
+    <Stack spacing={1}>
+      {questions.map((question) => (
+        <Stack key={question.id} spacing={0.5}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {labels[question.kind]} · {question.label} ·{" "}
+            {humanize(question.answer_state)}
+            {question.source
+              ? ` · ${humanize(question.source)}`
+              : " · source unavailable"}
+          </Typography>
+          {question.entries.length ? (
+            question.entries.map((entry, index) => (
+              <Box key={`${question.id}-${index}`} sx={{ pl: 1 }}>
+                <Typography variant="body2">
+                  {entry.name || `Entry ${index + 1}`}
+                </Typography>
+                {Object.entries(entry)
+                  .filter(([key, value]) => key !== "name" && value)
+                  .map(([key, value]) => (
+                    <Typography
+                      key={key}
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block" }}
+                    >
+                      {humanize(key)}: {value}
+                    </Typography>
+                  ))}
+              </Box>
+            ))
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No individual entries recorded. This does not establish that the
+              patient has none.
+            </Typography>
+          )}
+        </Stack>
+      ))}
+    </Stack>
+  );
 }
 
 function initialRecordForm(editor: Editor): Record<string, FormValue> {
@@ -535,6 +589,18 @@ export function PatientClinicalHistory({
     );
   }
   const data = history.data;
+  const activeReview = reviewTopic ? data.reviews[reviewTopic] : undefined;
+  const activeReportedKind =
+    reviewTopic === "allergies"
+      ? "allergy"
+      : reviewTopic === "medications"
+        ? "medication"
+        : reviewTopic === "conditions"
+          ? "condition"
+          : null;
+  const activeReportedQuestions = (
+    data.reported_intake_history?.questions ?? []
+  ).filter((question) => question.kind === activeReportedKind);
 
   return (
     <Paper
@@ -697,67 +763,43 @@ export function PatientClinicalHistory({
         <Paper component="section" variant="outlined" sx={{ p: 1.25 }}>
           <Stack spacing={1}>
             <Typography variant="subtitle1">
-              Health conditions recorded in intake
+              Patient-reported allergies, medications, and conditions
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Intake answers are separate from the longitudinal condition list.
-              Recording or reviewing intake does not add a diagnosis.
+              Intake answers remain patient-reported source information. Review
+              them with the patient and record reconciled chart items
+              separately; this view never creates or verifies clinical records.
             </Typography>
-            {data.reported_intake_conditions?.state === "restricted" ? (
+            {data.reported_intake_history?.state === "restricted" ? (
               <Typography>
-                Intake conditions are unavailable with your current access.
+                Intake history is unavailable with your current access.
               </Typography>
-            ) : data.reported_intake_conditions?.source ? (
+            ) : data.reported_intake_history?.source ? (
               <>
                 <Typography variant="caption" color="text.secondary">
-                  Encounter #
-                  {data.reported_intake_conditions.source.encounter_id} · Intake
-                  revision {data.reported_intake_conditions.source.version} ·{" "}
-                  {displayTime(
-                    data.reported_intake_conditions.source.recorded_at,
-                  )}
+                  Encounter #{data.reported_intake_history.source.encounter_id}{" "}
+                  · Intake revision{" "}
+                  {data.reported_intake_history.source.version} ·{" "}
+                  {displayTime(data.reported_intake_history.source.recorded_at)}
+                  {data.reported_intake_history.source.recorder
+                    ? ` · Recorded by ${humanize(data.reported_intake_history.source.recorder)}`
+                    : " · Recorder unavailable"}
                 </Typography>
-                {data.reported_intake_conditions.questions.map((question) => (
-                  <Stack key={question.id} spacing={0.5}>
-                    <Typography variant="body2">
-                      {question.label} · {humanize(question.answer_state)}
-                      {question.source ? ` · ${humanize(question.source)}` : ""}
-                    </Typography>
-                    {question.entries.length ? (
-                      question.entries.map((entry, index) => (
-                        <Typography
-                          key={`${question.id}-${index}`}
-                          variant="body2"
-                        >
-                          {entry.name}
-                          {entry.current_status
-                            ? ` · ${humanize(entry.current_status)}`
-                            : ""}
-                          {entry.certainty
-                            ? ` · ${humanize(entry.certainty)}`
-                            : ""}
-                        </Typography>
-                      ))
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        No condition entries recorded in this intake answer. No
-                        absence has been inferred.
-                      </Typography>
-                    )}
-                  </Stack>
-                ))}
+                <ReportedIntakeRows
+                  questions={data.reported_intake_history.questions}
+                />
                 <Button
                   size="small"
                   sx={{ alignSelf: "flex-start" }}
-                  href={`/clinic/patients/${patientId}/encounters/${data.reported_intake_conditions.source.encounter_id}?focus=nurse-workspace`}
+                  href={`/clinic/patients/${patientId}/encounters/${data.reported_intake_history.source.encounter_id}?focus=nurse-workspace`}
                 >
                   Open source intake
                 </Button>
               </>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No saved intake condition source is available. No absence has
-                been inferred.
+                No saved intake history source is available. No absence has been
+                inferred.
               </Typography>
             )}
           </Stack>
@@ -871,6 +913,29 @@ export function PatientClinicalHistory({
             spacing={2}
             sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}
           >
+            {reviewTopic && reviewTopic !== "care_needs" && (
+              <>
+                <Typography variant="body2">
+                  Current encounter review status:{" "}
+                  {activeReview
+                    ? `${humanize(activeReview.outcome)} · ${displayTime(activeReview.reviewed_at)}`
+                    : "Not reviewed in this encounter"}
+                </Typography>
+                <Alert severity="info">
+                  This review records the status of the chart list.
+                  Patient-reported intake stays separate until a clinician
+                  explicitly reconciles it into the chart.
+                </Alert>
+                {data.reported_intake_history?.state === "restricted" ? (
+                  <Typography variant="body2">
+                    Patient-reported intake details are unavailable with your
+                    current access.
+                  </Typography>
+                ) : (
+                  <ReportedIntakeRows questions={activeReportedQuestions} />
+                )}
+              </>
+            )}
             <Alert severity="info">
               Choose the outcome explicitly. An empty list does not
               automatically mean none reported.

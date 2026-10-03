@@ -19,8 +19,10 @@ module Clinic
           action_code: "clinical_history.read", outcome: :released,
           resource_version_ref: "Clinic::Care::Patient/#{patient.id}:encounter/#{encounter&.id || 'none'}"
         )
+        intake_history = reported_intake_history(patient, encounter)
         render json: ClinicalHistorySerializer.call(patient, encounter:, can_write:,
-          reported_intake_conditions: reported_intake_conditions(patient, encounter))
+          reported_intake_conditions: intake_history.fetch(:conditions),
+          reported_intake_history: intake_history.fetch(:history))
       end
 
       def create
@@ -76,19 +78,22 @@ module Clinic
 
       private
 
-      def reported_intake_conditions(patient, encounter)
+      def reported_intake_history(patient, encounter)
         revisions = Clinic::EncounterIntakeRevision.where(practice: current_practice, patient: patient)
           .includes(:encounter).order(recorded_at: :desc, id: :desc)
         revision = encounter && revisions.where(encounter: encounter).first
         revision ||= revisions.first
-        return { state: "not_recorded", source: nil, questions: [] } unless revision
+        empty = { state: "not_recorded", source: nil, questions: [] }
+        return { conditions: empty, history: empty } unless revision
         unless current_ability.allowed_permission?("encounters.read", site: revision.encounter.site)
-          return { state: "restricted", source: nil, questions: [] }
+          restricted = { state: "restricted", source: nil, questions: [] }
+          return { conditions: restricted, history: restricted }
         end
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user,
-          action_code: "clinical_history.intake_conditions.read", outcome: :released,
+          action_code: "clinical_history.intake_history.read", outcome: :released,
           resource_version_ref: "Clinic::EncounterIntakeRevision/#{revision.id}:version/#{revision.version_number}:patient/#{patient.id}")
-        ClinicalHistorySerializer.intake_conditions(revision)
+        { conditions: ClinicalHistorySerializer.intake_conditions(revision),
+          history: ClinicalHistorySerializer.intake_history(revision) }
       end
 
       def readable_patient!

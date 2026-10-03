@@ -1,3 +1,4 @@
+import { lateArrivalMessage } from "./arrivalTiming";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
@@ -237,9 +238,7 @@ function AppointmentDayQueue({
     [timezone],
   );
   const [date, setDate] = useState(() => {
-    const requested = isDemoFrame()
-      ? new URLSearchParams(window.location.search).get("date")
-      : null;
+    const requested = new URLSearchParams(window.location.search).get("date");
     if (!requested || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) return today;
     const parsed = new Date(`${requested}T00:00:00Z`);
     return Number.isFinite(parsed.getTime()) &&
@@ -504,7 +503,14 @@ function AppointmentDayQueue({
         throw new Error(
           "The created encounter did not match this appointment.",
         );
-      setNotice(`${patientName} is checked in and the visit is in progress.`);
+      setNotice(
+        [
+          `${patientName} is checked in and the visit is in progress.`,
+          lateArrivalMessage(result.encounter.late_arrival_minutes),
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
       appointments.refresh();
     } catch (error) {
       if (!unknownMutationFailure(error)) {
@@ -559,6 +565,50 @@ function AppointmentDayQueue({
       overbookReason: "",
     });
   }
+
+  const openedLinkedReschedule = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("appointment_id");
+    if (
+      params.get("action") !== "reschedule" ||
+      !id ||
+      openedLinkedReschedule.current ||
+      !canReschedule
+    )
+      return;
+    openedLinkedReschedule.current = true;
+    let active = true;
+    void api<{ appointment: FrontDeskAppointment }>(
+      `/api/clinic/appointments/${encodeURIComponent(id)}`,
+    )
+      .then(({ appointment }) => {
+        if (!active) return;
+        if (
+          String(appointment.id) !== id ||
+          appointment.encounter_id ||
+          !["scheduled", "confirmed"].includes(appointment.status)
+        ) {
+          setActionError(
+            "This appointment is no longer available for rescheduling. Refresh the queue to review its current status.",
+          );
+          return;
+        }
+        openReschedule(appointment);
+      })
+      .catch((reason: unknown) => {
+        if (active)
+          setActionError(
+            reason instanceof Error
+              ? reason.message
+              : "The appointment could not be loaded for rescheduling.",
+          );
+      });
+    return () => {
+      active = false;
+      openedLinkedReschedule.current = false;
+    };
+  }, [canReschedule]);
 
   async function saveReschedule() {
     if (!reschedule || !reschedule.appointment.updated_at) return;
@@ -1505,6 +1555,18 @@ export function RescheduleDialog({
                 onChange({
                   ...draft,
                   startsAt: event.target.value,
+                  endsAt:
+                    Number.isFinite(new Date(event.target.value).valueOf()) &&
+                    new Date(draft.endsAt).valueOf() >
+                      new Date(draft.startsAt).valueOf()
+                      ? localDateTimeInput(
+                          new Date(
+                            new Date(event.target.value).valueOf() +
+                              new Date(draft.endsAt).valueOf() -
+                              new Date(draft.startsAt).valueOf(),
+                          ).toISOString(),
+                        )
+                      : draft.endsAt,
                   requestKey: draft.error
                     ? crypto.randomUUID()
                     : draft.requestKey,
@@ -1516,6 +1578,18 @@ export function RescheduleDialog({
           <TextField
             label="Ends"
             type="datetime-local"
+            error={Boolean(
+              draft?.startsAt &&
+              draft?.endsAt &&
+              new Date(draft.endsAt) <= new Date(draft.startsAt),
+            )}
+            helperText={
+              draft?.startsAt &&
+              draft?.endsAt &&
+              new Date(draft.endsAt) <= new Date(draft.startsAt)
+                ? "End time must be after the start time."
+                : "Changing the start time preserves the appointment duration."
+            }
             value={draft?.endsAt || ""}
             disabled={draft?.busy || draft?.outcomeUnconfirmed}
             onChange={(event) => {
@@ -1813,7 +1887,14 @@ export function RescheduleDialog({
         </Button>
         <Button
           variant="contained"
-          disabled={!draft || draft.busy}
+          disabled={
+            !draft ||
+            draft.busy ||
+            (!draft.outcomeUnconfirmed &&
+              (!Number.isFinite(new Date(draft.startsAt).valueOf()) ||
+                !Number.isFinite(new Date(draft.endsAt).valueOf()) ||
+                new Date(draft.endsAt) <= new Date(draft.startsAt)))
+          }
           onClick={() => void onSave()}
         >
           {draft?.busy ? "Saving…" : "Save appointment"}

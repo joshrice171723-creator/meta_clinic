@@ -1,3 +1,4 @@
+import { BillingReceiptButton } from "./BillingDocumentPreview";
 import { useEffect, useRef, useState } from "react";
 import {
   Accordion,
@@ -435,14 +436,13 @@ export function BillingPayments({
                       <TableCell>
                         {receipt ? (
                           <>
-                            <Button
+                            <BillingReceiptButton
                               startIcon={<PrintOutlinedIcon />}
-                              href={`/api/clinic/payment_events/${payment.id}/receipt?receipt_id=${receipt.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              paymentId={payment.id}
+                              receiptId={receipt.id}
                             >
                               Print receipt
-                            </Button>
+                            </BillingReceiptButton>
                             <Typography variant="body2" color="text.secondary">
                               Payment receipt #{receipt.id}
                             </Typography>
@@ -555,14 +555,13 @@ export function BillingPayments({
                             )}
                           </Typography>
                         </Typography>
-                        <Button
+                        <BillingReceiptButton
                           startIcon={<PrintOutlinedIcon />}
-                          href={`/api/clinic/payment_events/${selected.id}/receipt?receipt_id=${receipt.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          paymentId={selected.id}
+                          receiptId={receipt.id}
                         >
                           Print receipt
-                        </Button>
+                        </BillingReceiptButton>
                       </Stack>
                     ))
                   ) : (

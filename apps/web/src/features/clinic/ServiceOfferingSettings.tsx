@@ -27,7 +27,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { ClinicSite, VisitType } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
@@ -90,7 +90,13 @@ function formFor(offering: ServiceOffering): FormState {
   return { ...offering };
 }
 
-export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
+export function ServiceOfferingSettings({
+  canWrite,
+  refreshKey = 0,
+}: {
+  canWrite: boolean;
+  refreshKey?: number;
+}) {
   const {
     data,
     error: loadError,
@@ -103,12 +109,18 @@ export function ServiceOfferingSettings({ canWrite }: { canWrite: boolean }) {
   const { data: sites } = useResource<{ sites: ClinicSite[] }>(
     "/api/clinic/facilities?type=sites&per_page=100",
   );
-  const { data: visitTypes } = useResource<{ visit_types: VisitType[] }>(
-    "/api/clinic/facilities?type=visit_types&per_page=100",
-  );
+  const { data: visitTypes, refresh: refreshVisitTypes } = useResource<{
+    visit_types: VisitType[];
+  }>("/api/clinic/facilities?type=visit_types&per_page=100");
   const { data: billing } = useResource<{ services: BillingService[] }>(
     "/api/clinic/billing_services?active=true&per_page=100",
   );
+  const previousRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (previousRefreshKey.current === refreshKey) return;
+    previousRefreshKey.current = refreshKey;
+    refreshVisitTypes();
+  }, [refreshKey, refreshVisitTypes]);
   const [dialog, setDialog] = useState<ServiceOffering | "new" | null>(null);
   const [retiring, setRetiring] = useState<ServiceOffering | null>(null);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);

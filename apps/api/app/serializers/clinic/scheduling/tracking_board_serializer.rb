@@ -44,6 +44,7 @@ module Clinic
             id: encounter.id,
             status: encounter.status,
             started_at: encounter.started_at&.iso8601(6),
+            late_arrival_minutes: encounter.late_arrival_minutes,
             ended_at: encounter.ended_at&.iso8601(6),
             site_id: encounter.site_id&.to_s,
             site_code: encounter.site&.code,
@@ -267,7 +268,6 @@ module Clinic
         def effective?(assignment)
           assignment.effective_from <= @as_of && (assignment.effective_until.nil? || assignment.effective_until > @as_of)
         end
-
       end
 
       class CareSummaryBatch
