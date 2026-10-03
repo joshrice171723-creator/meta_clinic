@@ -26,7 +26,9 @@ describe("PatientLabReports patient scope", () => {
     "permits correction after a definite lab rejection %s",
     (status) => {
       expect(
-        isDefiniteLabMutationRejection(new ApiError(status, "Synthetic rejection")),
+        isDefiniteLabMutationRejection(
+          new ApiError(status, "Synthetic rejection"),
+        ),
       ).toBe(true);
     },
   );
@@ -71,11 +73,11 @@ describe("PatientLabReports patient scope", () => {
     expect(patientLabReportsSource).toContain(
       "code_system: row.code_system?.trim() || null",
     );
-    expect(patientLabReportsSource).toContain(
-      "supplied_unit_code: (row.supplied_unit_code ?? row.unit_code)?.trim() || null",
+    expect(patientLabReportsSource).toMatch(
+      /supplied_unit_code:\s*\(row\.supplied_unit_code \?\? row\.unit_code\)\?\.trim\(\) \|\| null/,
     );
-    expect(patientLabReportsSource).toContain(
-      "result(index, { supplied_unit_code: event.target.value || null, unit_code: null })",
+    expect(patientLabReportsSource).toMatch(
+      /result\(index,\s*\{\s*supplied_unit_code:\s*event\.target\.value \|\| null,\s*unit_code:\s*null,?\s*\}\)/,
     );
     expect(patientLabReportsSource).toContain(
       "interpretation: row.interpretation?.trim() || null",

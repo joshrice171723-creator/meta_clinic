@@ -1,4 +1,7 @@
-import { LabUnitValidation, type LabUnitValidationReceipt } from "./LabUnitValidation";
+import {
+  LabUnitValidation,
+  type LabUnitValidationReceipt,
+} from "./LabUnitValidation";
 import AddIcon from "@mui/icons-material/Add";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import {
@@ -666,7 +669,8 @@ export function PatientLabReports({
               value_code: row.value_code?.trim() || null,
               value_code_system: row.value_code_system?.trim() || null,
               unit: row.unit?.trim() || null,
-              supplied_unit_code: (row.supplied_unit_code ?? row.unit_code)?.trim() || null,
+              supplied_unit_code:
+                (row.supplied_unit_code ?? row.unit_code)?.trim() || null,
               interpretation: row.interpretation?.trim() || null,
               reference_range: row.reference_range?.trim() || null,
               flag: row.flag?.trim() || null,
@@ -1249,10 +1253,14 @@ export function PatientLabReports({
                                 : ""}
                               {row.flag ? ` · ${row.flag}` : ""}
                             </Typography>
-                            <LabUnitValidation receipt={row.unit_validation} valueKind={row.value_kind} />
+                            <LabUnitValidation
+                              receipt={row.unit_validation}
+                              valueKind={row.value_kind}
+                            />
                             {(row.code ||
                               row.value_code ||
-                              row.unit_code || row.supplied_unit_code ||
+                              row.unit_code ||
+                              row.supplied_unit_code ||
                               row.interpretation) && (
                               <Typography
                                 variant="caption"
@@ -1263,8 +1271,10 @@ export function PatientLabReports({
                                     `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
                                   row.value_code &&
                                     `Value code: ${row.value_code}${row.value_code_system ? ` (${row.value_code_system})` : ""}`,
-                                  row.supplied_unit_code && `Supplied unit code: ${row.supplied_unit_code}`,
-                                  row.unit_code && `${row.unit_validation?.status === "dimensionally_validated" && row.unit_validation.validation_engine === "ucum-2.2-linear-dimensions-v1" ? "Validated UCUM unit" : "Supplied unit code"}: ${row.unit_code}`,
+                                  row.supplied_unit_code &&
+                                    `Supplied unit code: ${row.supplied_unit_code}`,
+                                  row.unit_code &&
+                                    `${row.unit_validation?.status === "dimensionally_validated" && row.unit_validation.validation_engine === "ucum-2.2-linear-dimensions-v1" ? "Validated UCUM unit" : "Supplied unit code"}: ${row.unit_code}`,
                                   row.interpretation &&
                                     `Source interpretation: ${row.interpretation}`,
                                 ]
@@ -1461,12 +1471,20 @@ export function PatientLabReports({
                       : ""}
                     {version.follow_up?.outcome
                       ? ` · Outcome: ${version.follow_up.outcome}`
-                    : ""}
+                      : ""}
                   </Typography>
                 )}
                 {version.follow_up?.contact_attempts.map((attempt) => (
-                  <Typography key={attempt.id} variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    Contact attempt: {attempt.contact_method.replaceAll("_", " ")} · {attempt.outcome.replaceAll("_", " ")} · {new Date(attempt.attempted_at).toLocaleString()}.
+                  <Typography
+                    key={attempt.id}
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Contact attempt:{" "}
+                    {attempt.contact_method.replaceAll("_", " ")} ·{" "}
+                    {attempt.outcome.replaceAll("_", " ")} ·{" "}
+                    {new Date(attempt.attempted_at).toLocaleString()}.
                     {` Next action #${attempt.next_action.task_id} owned by membership ${attempt.next_action.assigned_to_membership_id ?? "unassigned"}.`}
                   </Typography>
                 ))}
@@ -1491,7 +1509,8 @@ export function PatientLabReports({
                     </Typography>
                     {(row.code ||
                       row.value_code ||
-                      row.unit_code || row.supplied_unit_code ||
+                      row.unit_code ||
+                      row.supplied_unit_code ||
                       row.interpretation) && (
                       <Typography variant="caption" color="text.secondary">
                         {[
@@ -1499,8 +1518,10 @@ export function PatientLabReports({
                             `Test code: ${row.code}${row.code_system ? ` (${row.code_system}${row.code_version ? ` ${row.code_version}` : ""})` : ""}`,
                           row.value_code &&
                             `Value code: ${row.value_code}${row.value_code_system ? ` (${row.value_code_system})` : ""}`,
-                          row.supplied_unit_code && `Supplied unit code: ${row.supplied_unit_code}`,
-                          row.unit_code && `${row.unit_validation?.status === "dimensionally_validated" && row.unit_validation.validation_engine === "ucum-2.2-linear-dimensions-v1" ? "Validated UCUM unit" : "Supplied unit code"}: ${row.unit_code}`,
+                          row.supplied_unit_code &&
+                            `Supplied unit code: ${row.supplied_unit_code}`,
+                          row.unit_code &&
+                            `${row.unit_validation?.status === "dimensionally_validated" && row.unit_validation.validation_engine === "ucum-2.2-linear-dimensions-v1" ? "Validated UCUM unit" : "Supplied unit code"}: ${row.unit_code}`,
                           row.interpretation &&
                             `Source interpretation: ${row.interpretation}`,
                         ]
@@ -1509,7 +1530,10 @@ export function PatientLabReports({
                       </Typography>
                     )}
                     <LabResultProvenanceView row={row} />
-                    <LabUnitValidation receipt={row.unit_validation} valueKind={row.value_kind} />
+                    <LabUnitValidation
+                      receipt={row.unit_validation}
+                      valueKind={row.value_kind}
+                    />
                     {history &&
                       version.id === history.current_version_id &&
                       version.status !== "cancelled" && (
@@ -2290,7 +2314,10 @@ function LabForm({
                 helperText="Preserved as source text; a UCUM code is validated only against a configured expected dimension."
                 value={row.supplied_unit_code ?? row.unit_code ?? ""}
                 onChange={(event) =>
-                  result(index, { supplied_unit_code: event.target.value || null, unit_code: null })
+                  result(index, {
+                    supplied_unit_code: event.target.value || null,
+                    unit_code: null,
+                  })
                 }
               />
               <LabResultProvenanceFields

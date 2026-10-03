@@ -202,7 +202,8 @@ async function open(
       return route.fulfill({ status: 201, json: { report: report() } });
     }
     if (
-      url.pathname === "/api/clinic/patients/3/lab_reports/10/versions/11/follow_up/complete" &&
+      url.pathname ===
+        "/api/clinic/patients/3/lab_reports/10/versions/11/follow_up/complete" &&
       route.request().method() === "POST"
     ) {
       const input = route.request().postDataJSON().follow_up;
@@ -273,8 +274,9 @@ it("current source display and correction preserve supplied organization, offset
     method: "Synthetic corrected method",
     value: "1.2500",
     unit: "mg/L",
-    unit_code: "mg/L",
+    supplied_unit_code: "mg/L",
   });
+  expect(posts[0].results[0]).not.toHaveProperty("unit_code");
   await page
     .getByRole("button", { name: "Report history", exact: true })
     .click();
@@ -344,53 +346,76 @@ it("explicit clearing affects only the new correction and retains the old versio
     .waitFor();
   await page.close();
 });
-it.each(["unknown", "unknown408"] as const)("%s correction retries exact metadata and key without unlocking fields", async (mode) => {
-  const { page, posts } = await open(mode);
-  await page.getByRole("button", { name: "Correct", exact: true }).click();
-  await page
-    .getByLabel("I confirmed this report belongs to the selected patient.")
-    .check();
-  await page
-    .getByRole("button", { name: "Record correction", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Retry unchanged report", exact: true })
-    .waitFor();
-  expect(
-    await page.getByLabel("Source method", { exact: true }).isDisabled(),
-  ).toBe(true);
-  await page
-    .getByRole("button", { name: "Retry unchanged report", exact: true })
-    .click();
-  await page
-    .getByText("Correction version recorded.", { exact: true })
-    .waitFor();
-  expect(posts).toHaveLength(2);
-  expect(posts[1]).toEqual(posts[0]);
-  await page.close();
-});
+it.each(["unknown", "unknown408"] as const)(
+  "%s correction retries exact metadata and key without unlocking fields",
+  async (mode) => {
+    const { page, posts } = await open(mode);
+    await page.getByRole("button", { name: "Correct", exact: true }).click();
+    await page
+      .getByLabel("I confirmed this report belongs to the selected patient.")
+      .check();
+    await page
+      .getByRole("button", { name: "Record correction", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Retry unchanged report", exact: true })
+      .waitFor();
+    expect(
+      await page.getByLabel("Source method", { exact: true }).isDisabled(),
+    ).toBe(true);
+    await page
+      .getByRole("button", { name: "Retry unchanged report", exact: true })
+      .click();
+    await page
+      .getByText("Correction version recorded.", { exact: true })
+      .waitFor();
+    expect(posts).toHaveLength(2);
+    expect(posts[1]).toEqual(posts[0]);
+    await page.close();
+  },
+);
 it.each(["completion408", "completion503"] as const)(
   "%s preserves frozen completion intent and requires explicit exact retry",
   async (mode) => {
     const { page, posts } = await open(mode);
     try {
-      await page.getByRole("button", { name: "Complete follow-up", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "Complete lab follow-up", exact: true });
-      const outcome = dialog.getByLabel("Follow-up outcome", { exact: true });
+      await page
+        .getByRole("button", { name: "Complete follow-up", exact: true })
+        .click();
+      const dialog = page.getByRole("dialog", {
+        name: "Complete lab follow-up",
+        exact: true,
+      });
+      const outcome = dialog.getByRole("textbox", {
+        name: /^Follow-up outcome/,
+      });
       await outcome.fill("Synthetic original lab contact outcome");
-      await dialog.getByRole("button", { name: "Complete follow-up", exact: true }).click();
-      const retry = dialog.getByRole("button", { name: "Retry exact request", exact: true });
+      await dialog
+        .getByRole("button", { name: "Complete follow-up", exact: true })
+        .click();
+      const retry = dialog.getByRole("button", {
+        name: "Retry exact request",
+        exact: true,
+      });
       await retry.waitFor();
       expect(posts).toHaveLength(1);
-      expect(await outcome.inputValue()).toBe("Synthetic original lab contact outcome");
+      expect(await outcome.inputValue()).toBe(
+        "Synthetic original lab contact outcome",
+      );
       expect(await outcome.isDisabled()).toBe(true);
-      expect(await dialog.getByRole("button", { name: "Cancel", exact: true }).isDisabled()).toBe(true);
+      expect(
+        await dialog
+          .getByRole("button", { name: "Cancel", exact: true })
+          .isDisabled(),
+      ).toBe(true);
       await page.keyboard.press("Escape");
       expect(await dialog.isVisible()).toBe(true);
       expect(posts).toHaveLength(1);
       await retry.click();
       await dialog.waitFor({ state: "detached" });
-      await page.getByText("Lab follow-up completed.", { exact: true }).waitFor();
+      await page
+        .getByText("Lab follow-up completed.", { exact: true })
+        .waitFor();
       expect(posts).toHaveLength(2);
       expect(posts[1]).toEqual(posts[0]);
     } finally {
@@ -402,17 +427,32 @@ it.each(["completion408", "completion503"] as const)(
 it("definite completion rejection allows correction with a fresh request", async () => {
   const { page, posts } = await open("completion422");
   try {
-    await page.getByRole("button", { name: "Complete follow-up", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Complete lab follow-up", exact: true });
-    const outcome = dialog.getByLabel("Follow-up outcome", { exact: true });
+    await page
+      .getByRole("button", { name: "Complete follow-up", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Complete lab follow-up",
+      exact: true,
+    });
+    const outcome = dialog.getByRole("textbox", { name: /^Follow-up outcome/ });
     await outcome.fill("Synthetic first rejected lab outcome");
-    await dialog.getByRole("button", { name: "Complete follow-up", exact: true }).click();
-    await dialog.getByText("Synthetic prerequisite remains open", { exact: true }).waitFor();
+    await dialog
+      .getByRole("button", { name: "Complete follow-up", exact: true })
+      .click();
+    await dialog
+      .getByText("Synthetic prerequisite remains open", { exact: true })
+      .waitFor();
     expect(posts).toHaveLength(1);
     expect(await outcome.isDisabled()).toBe(false);
-    expect(await dialog.getByRole("button", { name: "Retry exact request", exact: true }).count()).toBe(0);
+    expect(
+      await dialog
+        .getByRole("button", { name: "Retry exact request", exact: true })
+        .count(),
+    ).toBe(0);
     await outcome.fill("Synthetic corrected lab outcome");
-    await dialog.getByRole("button", { name: "Complete follow-up", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "Complete follow-up", exact: true })
+      .click();
     await dialog.waitFor({ state: "detached" });
     expect(posts).toHaveLength(2);
     expect(posts[1].request_key).not.toBe(posts[0].request_key);
@@ -454,7 +494,6 @@ it("rejected source time leaves supplied metadata editable and shows no success"
   await page.close();
 });
 
-
 it("#175 creates an external result for an active lab order and retains its order and collected specimen on readback and reload", async () => {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 1000 },
@@ -486,7 +525,8 @@ it("#175 creates an external result for an active lab order and retains its orde
       if (path === "/api/csrf" && method === "GET")
         return route.fulfill({ json: { csrf_token: "synthetic-only" } });
       if (
-        path === "/api/clinic/patients/3/encounters/30/clinical_plan_workspace" &&
+        path ===
+          "/api/clinic/patients/3/encounters/30/clinical_plan_workspace" &&
         method === "GET"
       ) {
         orderReads += 1;
@@ -573,32 +613,55 @@ it("#175 creates an external result for an active lab order and retains its orde
     });
     await page.goto(base + "lab-test?create");
     await page
-      .getByText("No lab reports are recorded for this patient.", { exact: true })
+      .getByText("No lab reports are recorded for this patient.", {
+        exact: true,
+      })
       .waitFor();
-    const create = page.getByRole("button", { name: "New report", exact: true });
+    const create = page.getByRole("button", {
+      name: "New report",
+      exact: true,
+    });
     await create.waitFor();
     expect(await create.isEnabled()).toBe(true);
     await create.click();
     await page
-      .getByRole("combobox", { name: /^Authorized laboratory order(?:\s*\*)?$/ })
+      .getByRole("combobox", {
+        name: /^Authorized laboratory order(?:\s*\*)?$/,
+      })
       .click();
     await page
       .getByRole("option", { name: /Synthetic active laboratory order/ })
       .click();
-    await page.getByLabel(/^Source(?:\s*\*)?$/).fill("Synthetic external laboratory");
-    await page.getByLabel("Accession or external ID", { exact: true }).fill("SYN-175-REPORT");
-    await page.getByLabel(/^Title(?:\s*\*)?$/).fill("Synthetic external result #175");
-    await page.getByLabel(/^Specimen type(?:\s*\*)?$/).fill("Synthetic collected specimen");
-    await page.getByLabel(/^Specimen type code(?:\s*\*)?$/).fill("synthetic-specimen");
-    await page.getByLabel("Specimen identifier", { exact: true }).fill("SYN-175-SPECIMEN");
+    await page
+      .getByLabel(/^Source(?:\s*\*)?$/)
+      .fill("Synthetic external laboratory");
+    await page
+      .getByLabel("Accession or external ID", { exact: true })
+      .fill("SYN-175-REPORT");
+    await page
+      .getByLabel(/^Title(?:\s*\*)?$/)
+      .fill("Synthetic external result #175");
+    await page
+      .getByLabel(/^Specimen type(?:\s*\*)?$/)
+      .fill("Synthetic collected specimen");
+    await page
+      .getByLabel(/^Specimen type code(?:\s*\*)?$/)
+      .fill("synthetic-specimen");
+    await page
+      .getByLabel("Specimen identifier", { exact: true })
+      .fill("SYN-175-SPECIMEN");
     await page.getByLabel(/^Collected at(?:\s*\*)?$/).fill("2026-10-01T10:00");
     await page.getByLabel(/^Reported at(?:\s*\*)?$/).fill("2026-10-01T11:00");
-    await page.getByLabel(/^Test(?:\s*\*)?$/).fill("Synthetic laboratory measurement");
+    await page
+      .getByLabel(/^Test(?:\s*\*)?$/)
+      .fill("Synthetic laboratory measurement");
     await page.getByLabel(/^Value(?:\s*\*)?$/).fill("4.70");
     await page
       .getByLabel("I confirmed this report belongs to the selected patient.")
       .check();
-    await page.getByRole("button", { name: "Record report", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Record report", exact: true })
+      .click();
     await page.getByText("Lab report recorded.", { exact: true }).waitFor();
     await page
       .getByText("Synthetic external result #175", { exact: true })
