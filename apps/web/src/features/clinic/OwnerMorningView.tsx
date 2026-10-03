@@ -18,6 +18,18 @@ function monday(date: string) {
   return value.toISOString().slice(0, 10);
 }
 
+function formatBusinessDate(date: string) {
+  const value = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(value.getTime())) return date;
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: "UTC",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(value);
+}
+
 function Fact({
   title,
   value,
@@ -167,6 +179,46 @@ export function OwnerMorningView() {
     ? `/clinic/schedule?site_id=${siteId}&month=${today.slice(0, 7)}&day=${today}&view=day`
     : "/clinic/schedule";
 
+  const summaryItems: string[] = [];
+  if (!canSchedule) {
+    summaryItems.push("Schedule access is restricted");
+  } else if (calendar.error) {
+    summaryItems.push("Schedule information is unavailable");
+  } else if (!appointments) {
+    summaryItems.push("Schedule information is still loading");
+  } else {
+    if (unassigned) {
+      summaryItems.push(`${unassigned} visits need clinician assignment`);
+    }
+    if ((day?.conflicts ?? 0) > 0) {
+      summaryItems.push(`${day?.conflicts} scheduling conflicts recorded`);
+    }
+    if (summaryItems.length === 0) {
+      summaryItems.push(
+        appointments.length > 0
+          ? `${appointments.length} visits scheduled; no unassigned visits or scheduling conflicts are reported`
+          : "No visits are booked today",
+      );
+    }
+  }
+  if (!canStaff) {
+    summaryItems.push("Staffing access is restricted");
+  } else if (staffing.error) {
+    summaryItems.push("Published staffing information is unavailable");
+  } else if (!staffing.data) {
+    summaryItems.push("Published staffing information is still loading");
+  } else if (!publication) {
+    summaryItems.push("The current-week published staff schedule is not shown");
+  } else if (shiftsToday?.length === 0 && !unassigned) {
+    summaryItems.push("No staff shifts are published for today");
+  }
+  if (canBilling && billing.error) {
+    summaryItems.push("Invoice information is unavailable");
+  } else if (canBilling && billing.data && openInvoices > 0) {
+    summaryItems.push(`${openInvoices} open invoices`);
+  }
+  const locationLabel = site?.name || site?.code || practice.name;
+
   const scheduleValue = !canSchedule
     ? "Access restricted"
     : calendar.error
@@ -197,10 +249,10 @@ export function OwnerMorningView() {
         ? "Loading…"
         : !publication
           ? "Schedule not shown"
-          : shiftsToday?.length === 0
-            ? "No shifts today"
-            : unassigned
-              ? `${unassigned} visits need a clinician`
+          : unassigned
+            ? `${unassigned} visits need a clinician`
+            : shiftsToday?.length === 0
+              ? "No shifts today"
               : "Review coverage";
 
   return (
@@ -223,7 +275,9 @@ export function OwnerMorningView() {
             Today at {site?.name || site?.code || practice.name}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {today} · {timezone}. Invoice totals cover the whole clinic.
+            {formatBusinessDate(today)} · {timezone}. Schedule, staffing and
+            cash drawer are for {locationLabel}; invoice totals cover the whole
+            clinic.
           </Typography>
         </Box>
         <Button
@@ -239,7 +293,36 @@ export function OwnerMorningView() {
           Refresh morning view
         </Button>
       </Stack>
+      <Box
+        component="section"
+        aria-label="Morning operational summary"
+        sx={{ mb: 1.5 }}
+      >
+        <Typography component="h3" variant="subtitle2">
+          At a glance
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {summaryItems.join(" · ")}
+        </Typography>
+      </Box>
       <Paper variant="outlined" sx={{ px: 2 }}>
+        <Fact
+          title="Staffing gaps"
+          value={staffingValue}
+          detail={
+            !canStaff
+              ? "Team schedule access is required."
+              : staffing.error ||
+                (!staffing.data
+                  ? "Reading the published team schedule."
+                  : !publication
+                    ? "Current week is absent from the recent published schedules."
+                    : `${shiftsToday?.length ?? 0} published staff shifts today${unassigned === undefined ? "; appointment assignments unavailable" : ` · ${unassigned} appointments without a clinician`}.`)
+          }
+          href={canStaff ? "/clinic/workforce/schedule" : undefined}
+          link="Open team schedule"
+        />
+        <Divider />
         <Fact
           title="Today's schedule"
           value={scheduleValue}
@@ -248,11 +331,41 @@ export function OwnerMorningView() {
               ? "Schedule access is required."
               : calendar.error ||
                 (appointments
-                  ? `${upcomingTimes?.length ? `Next: ${upcomingTimes.join(", ")}. ` : appointments.length ? "No more visits today. " : "No visits booked today. "}${day?.conflicts ?? 0} scheduling conflicts recorded.`
+                  ? `${upcomingTimes?.length ? `Next visits (clinic time): ${upcomingTimes.join(", ")}. ` : appointments.length ? "No more visits today. " : "No visits booked today. "}${day?.conflicts ?? 0} scheduling conflicts recorded.`
                   : "Reading today's appointments.")
           }
           href={canSchedule ? scheduleHref : undefined}
           link="Open today's schedule"
+        />
+        <Divider />
+        <Fact
+          title="Open invoices"
+          value={
+            !canBilling
+              ? "Access restricted"
+              : billing.error
+                ? "Unavailable"
+                : billing.data
+                  ? `${openInvoices} invoices`
+                  : "Loading…"
+          }
+          detail={
+            !canBilling
+              ? "Billing access is required."
+              : billing.error ||
+                (billing.data
+                  ? currencies.length
+                    ? currencies
+                        .map(
+                          (item) =>
+                            `${billingMoney(item.outstanding, item.currency)} outstanding`,
+                        )
+                        .join(" · ")
+                    : "No outstanding balance recorded."
+                  : "Reading invoice balances.")
+          }
+          href={canBilling ? "/clinic/billing" : undefined}
+          link="Open invoice ledger"
         />
         <Divider />
         <Fact
@@ -293,53 +406,6 @@ export function OwnerMorningView() {
               ? "Count and close drawer"
               : "Open cash drawer"
           }
-        />
-        <Divider />
-        <Fact
-          title="Open invoices"
-          value={
-            !canBilling
-              ? "Access restricted"
-              : billing.error
-                ? "Unavailable"
-                : billing.data
-                  ? `${openInvoices} invoices`
-                  : "Loading…"
-          }
-          detail={
-            !canBilling
-              ? "Billing access is required."
-              : billing.error ||
-                (billing.data
-                  ? currencies.length
-                    ? currencies
-                        .map(
-                          (item) =>
-                            `${billingMoney(item.outstanding, item.currency)} outstanding`,
-                        )
-                        .join(" · ")
-                    : "No outstanding balance recorded."
-                  : "Reading invoice balances.")
-          }
-          href={canBilling ? "/clinic/billing" : undefined}
-          link="Open invoice ledger"
-        />
-        <Divider />
-        <Fact
-          title="Staffing gaps"
-          value={staffingValue}
-          detail={
-            !canStaff
-              ? "Team schedule access is required."
-              : staffing.error ||
-                (!staffing.data
-                  ? "Reading the published team schedule."
-                  : !publication
-                    ? "Current week is absent from the recent published schedules."
-                    : `${shiftsToday?.length ?? 0} published staff shifts today${unassigned === undefined ? "; appointment assignments unavailable" : ` · ${unassigned} appointments without a clinician`}.`)
-          }
-          href={canStaff ? "/clinic/workforce/schedule" : undefined}
-          link="Open team schedule"
         />
       </Paper>
     </Box>

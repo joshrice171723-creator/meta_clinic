@@ -34,14 +34,14 @@ module Clinic
           RoleAssignment.grant!(actor: actor, membership: locked_membership,
             role_version: role_version, sites: sites, effective_from: effective_from,
             source_employment: employment)
-          employment
+          employment.reload
         end
       rescue ActiveRecord::RecordNotUnique
         raise ArgumentError, "That directory entry or clinic account is already linked to workforce."
       end
 
       def self.update!(employment:, actor:, status: nil, site_ids: nil, role_version: nil,
-        effective_until: :unchanged, now: Time.current)
+        effective_until: :unchanged, expected_access_revision: nil, now: Time.current)
         normalized_site_ids = site_ids.nil? ? nil : normalize_site_ids(site_ids)
 
         ApplicationRecord.transaction do
@@ -50,12 +50,36 @@ module Clinic
           Access.new(actor: actor, practice: locked.practice, at: now).authorize!("workforce.admin")
           raise ArgumentError, "The employment does not belong to this practice." unless locked.practice_id == employment.practice_id
 
+          if expected_access_revision
+            # Hold the same membership lock used by role-grant writers through
+            # comparison and replacement, before changing sites or employment.
+            locked.membership = Clinic::Membership.lock.find(locked.membership_id)
+            locked.membership.user = User.lock.find(locked.membership.user_id)
+            locked.staff_member = Clinic::Staff::Member.lock.find(locked.staff_member_id)
+            unless expected_access_revision == EmploymentAccessRevision.call(locked)
+              raise ActiveRecord::StaleObjectError.new(locked, "update employee access")
+            end
+            if role_version && normalized_site_ids.nil?
+              intended_scopes = if role_version.role_code == RoleAssignment::LOCATION_ROLE_CODE
+                locked.employment_sites.active.effective_at(now).pluck(:site_id).map { |id| [ "site", id ] }
+              else
+                [ [ "practice", nil ] ]
+              end
+              current_scopes = locked.membership.role_grants.active(now).where(source_employment_id: locked.id)
+                .pluck(:scope_kind, :site_id).uniq
+              unless intended_scopes.sort == current_scopes.sort
+                raise ActiveRecord::StaleObjectError.new(locked, "change employee access scope")
+              end
+            end
+          end
+
           attributes = {}
           attributes[:status] = status if status
           attributes[:effective_until] = effective_until unless effective_until == :unchanged
           locked.update!(attributes) if attributes.any?
           replace_sites!(locked, normalized_site_ids, now) if normalized_site_ids
           replace_access!(locked, actor, role_version, now) if role_version || normalized_site_ids || status
+          locked.reload if expected_access_revision
           locked
         end
       end

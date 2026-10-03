@@ -24,14 +24,21 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api } from "../../api/client";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import type {
   Appointment,
   ClinicalTask,
+  ClinicalTaskMutationReceipt,
   Pagination,
 } from "../../api/contracts";
 import { isBeforeBusinessTime } from "../../shared/businessDate";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
+import {
+  canClaimPatientFlowTask,
+  confirmedPatientFlowClaim,
+  patientFlowScheduleHref,
+} from "./patientFlowActions";
 import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
 import { PrescriptionReconciliationWorklist } from "./PrescriptionReconciliationWorklist";
@@ -463,16 +470,62 @@ function mutationFailure(error: unknown) {
   };
 }
 
+type PatientFlowTaskAction =
+  | "claim"
+  | "assign"
+  | "accept_transfer"
+  | "reject_transfer"
+  | "dependencies"
+  | "start"
+  | "complete";
+
+type PatientFlowTaskController = {
+  busy: string;
+  error: string;
+  inFlight: { current: boolean };
+  attempts: { current: Map<string, { key: string; version: number }> };
+  unknownAttempt: {
+    action: PatientFlowTaskAction;
+    values: Record<string, unknown>;
+    task: ClinicalTaskItem;
+    actorMembershipId: number;
+  } | null;
+  listeners: Set<() => void>;
+  notify: () => void;
+};
+
+function createPatientFlowTaskController(onChange: () => void = () => {}) {
+  const controller: PatientFlowTaskController = {
+    busy: "",
+    error: "",
+    inFlight: { current: false },
+    attempts: { current: new Map() },
+    unknownAttempt: null,
+    listeners: new Set(),
+    notify: () => {
+      for (const update of controller.listeners) update();
+      onChange();
+    },
+  };
+  return controller;
+}
+
 function TaskActions({
   task,
   actorMembershipId,
   availableTasks,
   onChanged,
+  claimOnly = false,
+  hideClaim = false,
+  controller,
 }: {
   task: ClinicalTaskItem;
   actorMembershipId: number;
   availableTasks: ClinicalTaskItem[];
   onChanged: (message?: string) => void;
+  claimOnly?: boolean;
+  hideClaim?: boolean;
+  controller?: PatientFlowTaskController;
 }) {
   const [assigneeId, setAssigneeId] = useState(
     task.assigned_to_membership_id?.toString() || "",
@@ -482,48 +535,88 @@ function TaskActions({
     task.dependency_ids || [],
   );
   const [showDependencies, setShowDependencies] = useState(false);
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
-  const attempts = useRef(new Map<string, { key: string; version: number }>());
+  const [localBusy, setLocalBusy] = useState("");
+  const [localError, setLocalError] = useState("");
+  const [, redraw] = useState(0);
+  const localAttempts = useRef(
+    new Map<string, { key: string; version: number }>(),
+  );
+  const localInFlight = useRef(false);
+  const attempts = controller?.attempts ?? localAttempts;
+  const inFlight = controller?.inFlight ?? localInFlight;
+  const busy = controller?.busy ?? localBusy;
+  const error = controller?.error ?? localError;
+  const actionLocked = Boolean(busy || controller?.unknownAttempt);
+  useEffect(() => {
+    if (!controller) return;
+    const update = () => redraw((value) => value + 1);
+    controller.listeners.add(update);
+    return () => {
+      controller.listeners.delete(update);
+    };
+  }, [controller]);
+  const setBusy = (value: string) => {
+    if (!controller) return setLocalBusy(value);
+    controller.busy = value;
+    controller.notify();
+  };
+  const setError = (value: string) => {
+    if (!controller) return setLocalError(value);
+    controller.error = value;
+    controller.notify();
+  };
 
   async function transition(
-    action:
-      | "claim"
-      | "assign"
-      | "accept_transfer"
-      | "reject_transfer"
-      | "dependencies"
-      | "start"
-      | "complete",
+    action: PatientFlowTaskAction,
     values: Record<string, unknown> = {},
+    exactRetry = false,
   ) {
+    const unresolved = controller?.unknownAttempt;
+    if (inFlight.current || (unresolved && !exactRetry)) return;
+    if (unresolved && unresolved.actorMembershipId !== actorMembershipId)
+      return;
+    // Unknown retries use the original reviewed task, payload, key and version.
+    const reviewedTask = unresolved?.task ?? task;
+    if (unresolved) {
+      action = unresolved.action;
+      values = unresolved.values;
+    }
+    inFlight.current = true;
     const signature = JSON.stringify([action, values]);
     const attempt = attempts.current.get(signature) || {
       key: crypto.randomUUID(),
-      version: task.version,
+      version: reviewedTask.version,
     };
     attempts.current.set(signature, attempt);
     setBusy(action);
     setError("");
     try {
-      const response = await api<{ task: ClinicalTaskItem }>(
-        `/api/clinic/clinical_tasks/${task.id}`,
-        {
-          method: "PATCH",
-          body: {
-            task: {
-              action,
-              expected_version: attempt.version,
-              request_key: attempt.key,
-              ...values,
-            },
+      const response = await api<{
+        task: ClinicalTaskItem;
+        task_receipt?: ClinicalTaskMutationReceipt;
+      }>(`/api/clinic/clinical_tasks/${reviewedTask.id}`, {
+        method: "PATCH",
+        body: {
+          task: {
+            action,
+            expected_version: attempt.version,
+            request_key: attempt.key,
+            ...values,
           },
         },
-      );
+      });
       if (
-        response.task?.id !== task.id ||
+        response.task?.id !== reviewedTask.id ||
         !Number.isSafeInteger(response.task.version) ||
         response.task.version <= attempt.version ||
+        (action === "claim" &&
+          !confirmedPatientFlowClaim(
+            reviewedTask,
+            response.task,
+            response.task_receipt,
+            attempt,
+            actorMembershipId,
+          )) ||
         (action === "complete" && response.task.state !== "completed")
       )
         throw new ApiError(
@@ -532,22 +625,87 @@ function TaskActions({
           "outcome_unconfirmed",
         );
       attempts.current.delete(signature);
-      onChanged(action === "complete" ? "Clinical task resolved." : undefined);
+      if (controller) controller.unknownAttempt = null;
+      onChanged(
+        action === "complete"
+          ? "Clinical task resolved."
+          : action === "claim"
+            ? "Work claimed."
+            : undefined,
+      );
     } catch (reason) {
       const failure = mutationFailure(reason);
-      if (!failure.outcomeUnknown) attempts.current.delete(signature);
-      setError(failure.message);
+      const unknown =
+        failure.outcomeUnknown ||
+        Boolean(
+          controller &&
+          (unresolved || (reason instanceof ApiError && reason.status === 408)),
+        );
+      if (controller && unknown) {
+        controller.unknownAttempt ??= {
+          action,
+          values: structuredClone(values),
+          task: reviewedTask,
+          actorMembershipId,
+        };
+      }
+      if (!unknown) attempts.current.delete(signature);
+      setError(
+        controller && unknown
+          ? "The outcome is unknown. Conflicting task actions are locked; retry the exact task action to confirm it."
+          : failure.message,
+      );
     } finally {
+      inFlight.current = false;
       setBusy("");
     }
   }
 
-  const canClaim =
-    ["open", "claimed", "in_progress", "on_hold"].includes(task.state) &&
-    (!task.assigned_to_membership_id ||
-      task.owner_unavailable ||
-      (task.state === "open" &&
-        task.assigned_to_membership_id === actorMembershipId));
+  const errorNotice = error && (
+    <Alert
+      severity="error"
+      action={
+        controller?.unknownAttempt ? (
+          <Button
+            color="inherit"
+            disabled={Boolean(busy)}
+            onClick={() => {
+              const pending = controller.unknownAttempt;
+              if (pending)
+                void transition(pending.action, pending.values, true);
+            }}
+          >
+            Retry exact task action
+          </Button>
+        ) : undefined
+      }
+    >
+      {error}
+    </Alert>
+  );
+  const canClaim = canClaimPatientFlowTask(task, actorMembershipId);
+  const claimControl = !hideClaim && canClaim && (
+    <Button
+      size="small"
+      variant={claimOnly ? "outlined" : "contained"}
+      disabled={actionLocked}
+      sx={{ minHeight: 44, whiteSpace: "nowrap", alignSelf: "start" }}
+      onClick={() => transition("claim")}
+    >
+      {busy === "claim"
+        ? "Claiming…"
+        : task.owner_unavailable
+          ? "Claim coverage"
+          : "Claim work"}
+    </Button>
+  );
+  if (claimOnly)
+    return (
+      <Stack spacing={1} sx={{ mt: 1.5 }}>
+        {claimControl}
+        {errorNotice}
+      </Stack>
+    );
   const canResolve =
     task.assigned_to_membership_id === actorMembershipId &&
     ["claimed", "in_progress"].includes(task.state) &&
@@ -579,13 +737,13 @@ function TaskActions({
           {task.pending_assignee_membership_id === actorMembershipId && (
             <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
               <Button
-                disabled={Boolean(busy)}
+                disabled={actionLocked}
                 onClick={() => transition("accept_transfer")}
               >
                 Accept transfer
               </Button>
               <Button
-                disabled={Boolean(busy)}
+                disabled={actionLocked}
                 onClick={() => transition("reject_transfer")}
               >
                 Decline transfer
@@ -600,21 +758,7 @@ function TaskActions({
         useFlexGap
         sx={{ flexWrap: "wrap", alignItems: "stretch" }}
       >
-        {canClaim && (
-          <Button
-            size="small"
-            variant="contained"
-            disabled={Boolean(busy)}
-            sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
-            onClick={() => transition("claim")}
-          >
-            {busy === "claim"
-              ? "Claiming…"
-              : task.owner_unavailable
-                ? "Claim coverage"
-                : "Claim"}
-          </Button>
-        )}
+        {claimControl}
         <FormControl
           size="small"
           sx={{ minWidth: { xs: "100%", sm: 190 }, flex: "1 1 190px" }}
@@ -623,6 +767,7 @@ function TaskActions({
           <Select
             labelId={`task-assignee-${task.id}`}
             label="Owner"
+            disabled={actionLocked}
             value={assigneeId}
             onChange={(event) => setAssigneeId(String(event.target.value))}
           >
@@ -642,7 +787,7 @@ function TaskActions({
           size="small"
           variant="outlined"
           disabled={
-            Boolean(busy) ||
+            actionLocked ||
             !assigneeId ||
             assigneeId === task.assigned_to_membership_id?.toString()
           }
@@ -666,7 +811,7 @@ function TaskActions({
           <Button
             size="small"
             variant="outlined"
-            disabled={Boolean(busy)}
+            disabled={actionLocked}
             sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
             onClick={() => transition("start")}
           >
@@ -685,6 +830,7 @@ function TaskActions({
               <Select
                 labelId={`task-resolution-${task.id}`}
                 label="Resolution"
+                disabled={actionLocked}
                 value={resolutionCode}
                 onChange={(event) =>
                   setResolutionCode(String(event.target.value))
@@ -705,7 +851,7 @@ function TaskActions({
             <Button
               size="small"
               variant="outlined"
-              disabled={Boolean(busy)}
+              disabled={actionLocked}
               sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
               onClick={() =>
                 transition("complete", { resolution_code: resolutionCode })
@@ -716,7 +862,7 @@ function TaskActions({
           </>
         )}
       </Stack>
-      {error && <Alert severity="error">{error}</Alert>}
+      {errorNotice}
       {task.source_managed && (
         <Typography variant="caption">
           Completion is recorded in the linked source workspace.
@@ -725,6 +871,7 @@ function TaskActions({
       <Button
         size="small"
         sx={{ alignSelf: "flex-start" }}
+        disabled={actionLocked}
         onClick={() => setShowDependencies(!showDependencies)}
       >
         {showDependencies ? "Hide prerequisites" : "Manage prerequisites"}
@@ -739,6 +886,7 @@ function TaskActions({
               multiple
               labelId={`task-dependencies-${task.id}`}
               label="Work required before starting"
+              disabled={actionLocked}
               value={dependencyIds}
               onChange={(event) =>
                 setDependencyIds(
@@ -776,7 +924,7 @@ function TaskActions({
             for clinical decisions.
           </Typography>
           <Button
-            disabled={Boolean(busy)}
+            disabled={actionLocked}
             onClick={() =>
               transition("dependencies", { dependency_ids: dependencyIds })
             }
@@ -1239,10 +1387,14 @@ function InboxRow({
   item,
   work,
   onChanged,
+  hideTaskClaim = false,
+  taskController,
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
+  hideTaskClaim?: boolean;
+  taskController?: PatientFlowTaskController;
 }) {
   const Icon =
     item.icon === "lab"
@@ -1358,6 +1510,8 @@ function InboxRow({
             actorMembershipId={work.actor_membership_id}
             availableTasks={work.clinical_tasks}
             onChanged={onChanged}
+            hideClaim={hideTaskClaim}
+            controller={taskController}
           />
         )}
         {item.mutation?.kind === "follow_up" && work && (
@@ -1404,17 +1558,20 @@ function PatientFlowCard({
   item,
   work,
   onChanged,
+  taskController,
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
+  taskController?: PatientFlowTaskController;
 }) {
-  const { capabilities } = useClinic();
-  const patientId = item.href.match(/\/clinic\/patients\/(\d+)/)?.[1];
-  const scheduleHref =
-    item.scheduleReady && patientId && capabilities.appointments_read === true
-      ? `/clinic/schedule?patient_id=${encodeURIComponent(patientId)}`
-      : null;
+  const context = useClinic();
+  const localController = useRef<PatientFlowTaskController | null>(null);
+  if (!localController.current)
+    localController.current = createPatientFlowTaskController();
+  const sharedController = taskController ?? localController.current;
+  const task = item.mutation?.kind === "task" ? item.mutation.task : undefined;
+  const scheduleHref = patientFlowScheduleHref(task, context);
   return (
     <Card variant="outlined" sx={{ minWidth: 0 }}>
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
@@ -1445,25 +1602,33 @@ function PatientFlowCard({
           <Typography variant="body2" color="text.secondary">
             Source: {item.sourceLabel.replaceAll("_", " ")}
           </Typography>
-          {!scheduleHref && (
-            <Button
-              href={item.href}
-              variant="contained"
-              sx={{ alignSelf: "start" }}
-            >
-              {item.action}
-            </Button>
-          )}
+          <Button
+            href={item.href}
+            variant={scheduleHref ? "outlined" : "contained"}
+            sx={{ alignSelf: "start", minHeight: 44 }}
+          >
+            {item.action}
+          </Button>
         </Stack>
         {scheduleHref && (
           <Button
             href={scheduleHref}
             variant="contained"
             fullWidth
-            sx={{ mt: 2 }}
+            sx={{ mt: 2, minHeight: 44 }}
           >
             Schedule first appointment
           </Button>
+        )}
+        {task && work && (
+          <TaskActions
+            task={task}
+            actorMembershipId={work.actor_membership_id}
+            availableTasks={work.clinical_tasks}
+            onChanged={onChanged}
+            claimOnly
+            controller={sharedController}
+          />
         )}
         <Box
           component="details"
@@ -1483,7 +1648,13 @@ function PatientFlowCard({
               Chart reference: {patientReferenceLabel(item.patientReference)}
             </Typography>
           )}
-          <InboxRow item={item} work={work} onChanged={onChanged} />
+          <InboxRow
+            item={item}
+            work={work}
+            onChanged={onChanged}
+            hideTaskClaim
+            taskController={sharedController}
+          />
         </Box>
       </CardContent>
     </Card>
@@ -1572,6 +1743,32 @@ export function WorkInbox() {
 
 function ScopedWorkInbox() {
   const { capabilities, current_site, practice, user_id } = useClinic();
+  // Scope survives filters/pages and card movement between columns, but remains
+  // isolated by the existing practice/user/site/capability WorkInbox key.
+  const taskControllers = useRef(new Map<number, PatientFlowTaskController>());
+  const [, redrawTaskOutcomes] = useState(0);
+  const taskController = (taskId: number) => {
+    let controller = taskControllers.current.get(taskId);
+    if (!controller) {
+      controller = createPatientFlowTaskController(() =>
+        redrawTaskOutcomes((value) => value + 1),
+      );
+      taskControllers.current.set(taskId, controller);
+    }
+    return controller;
+  };
+  useDemoNavigationBlocker(() => {
+    const blocked = [...taskControllers.current.values()].some(
+      (controller) =>
+        controller.inFlight.current || controller.unknownAttempt !== null,
+    );
+    return {
+      blocked,
+      message: blocked
+        ? "A Patient Flow task is pending or unconfirmed. Confirm its exact outcome before leaving."
+        : null,
+    };
+  });
   const canLoadWork =
     capabilities.billing_read === true ||
     capabilities.staff_messaging_read === true ||
@@ -2627,6 +2824,11 @@ function ScopedWorkInbox() {
                               key={item.id}
                               item={item}
                               work={work.data}
+                              taskController={
+                                item.mutation?.kind === "task"
+                                  ? taskController(item.mutation.task.id)
+                                  : undefined
+                              }
                               onChanged={(message) => {
                                 setNotice(message ?? "");
                                 setRefreshRevision((value) => value + 1);

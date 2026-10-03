@@ -1100,6 +1100,16 @@
     "/api/public/page_visits(.:format)"
   ],
   [
+    "api_qa_workflow_center_claims",
+    "POST",
+    "/api/qa/workflow-center/claims(.:format)"
+  ],
+  [
+    "api_qa_workflow_center_evidence",
+    "POST",
+    "/api/qa/workflow-center/evidence(.:format)"
+  ],
+  [
     "api_session",
     "GET",
     "/api/session(.:format)"

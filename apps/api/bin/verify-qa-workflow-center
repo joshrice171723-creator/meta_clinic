@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+# Creates and removes only its own isolated, synthetic PostgreSQL database.
+require "securerandom"
+require "open3"
+require "pathname"
+root = File.expand_path("..", __dir__)
+host = ENV.fetch("PGHOST", "127.0.0.1")
+local_socket = Pathname.new(host).absolute? && File.directory?(host) && File.stat(host).uid == Process.uid && (File.stat(host).mode & 0o077).zero?
+abort "Loopback or owned private PostgreSQL socket required" unless %w[127.0.0.1 localhost ::1].include?(host) || local_socket
+name = "apply_qa_native_verify_#{SecureRandom.hex(6)}"
+env = { "DATABASE_URL" => nil, "RAILS_ENV" => "test", "APPLY_TEST_DATABASE" => name,
+  "APPLY_DEVELOPMENT_DATABASE" => "#{name}_unused", "APPLY_QA_VERIFY_DATABASE" => name, "SKIP_TEST_DATABASE" => "1" }
+run = lambda do |*command|
+  output, status = Open3.capture2e(env, *command, chdir: root)
+  puts output
+  raise "Native QA verification command failed: #{command.first}" unless status.success?
+end
+created = false
+begin
+  run.call("createdb", name)
+  created = true
+  run.call("psql", "-v", "ON_ERROR_STOP=1", "-q", "-d", name, "-f", "db/structure.sql")
+  run.call("bundle", "exec", "rails", "db:environment:set", "db:abort_if_pending_migrations")
+  run.call("bundle", "exec", "ruby", "test/verification/qa_workflow_claim_test.rb")
+  run.call("bundle", "exec", "rails", "test", "test/services/qa_workflow_center_test.rb", "test/integration/qa_workflow_center_test.rb")
+  run.call("bundle", "exec", "rails", "runner", "test/verification/qa_workflow_center_races.rb")
+ensure
+  if created
+    run.call("dropdb", name)
+    puts "Removed only the generated QA scratch database #{name}"
+  end
+end

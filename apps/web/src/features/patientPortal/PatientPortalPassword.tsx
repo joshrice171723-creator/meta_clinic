@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 export function PatientPortalPassword() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -16,6 +17,16 @@ export function PatientPortalPassword() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [changed, setChanged] = useState(false);
+  const [edited, setEdited] = useState(false);
+  const dirty = edited && Boolean(currentPassword || password || confirmation);
+  useDemoNavigationBlocker(() => ({
+    blocked: busy,
+    message: busy
+      ? "A password change was submitted and may still complete."
+      : dirty
+        ? "Discard your unsaved password changes?"
+        : null,
+  }));
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -40,6 +51,7 @@ export function PatientPortalPassword() {
       setCurrentPassword("");
       setPassword("");
       setConfirmation("");
+      setEdited(false);
       setChanged(true);
     } catch (reason) {
       setError(
@@ -63,6 +75,29 @@ export function PatientPortalPassword() {
         aria-labelledby="patient-portal-password-heading"
         spacing={2}
         onSubmit={submit}
+        onKeyDown={(event) => {
+          if (
+            event.target instanceof HTMLInputElement &&
+            ((event.key.length === 1 &&
+              !event.ctrlKey &&
+              !event.metaKey &&
+              !event.altKey) ||
+              event.key === "Backspace" ||
+              event.key === "Delete")
+          )
+            setEdited(true);
+        }}
+        onPaste={() => setEdited(true)}
+        onCut={() => setEdited(true)}
+        onBeforeInput={(event) => {
+          const input = event.nativeEvent as InputEvent;
+          if (
+            input.isTrusted &&
+            input.inputType &&
+            input.inputType !== "insertReplacementText"
+          )
+            setEdited(true);
+        }}
       >
         <Typography
           id="patient-portal-password-heading"

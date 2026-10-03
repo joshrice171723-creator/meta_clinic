@@ -81,7 +81,7 @@ module Clinic
       end
 
       def update
-        input = parameter_hash!(:employment, %i[status effective_until role_version_id account_action], arrays: %i[site_ids])
+        input = parameter_hash!(:employment, %i[status effective_until role_version_id account_action expected_access_revision], arrays: %i[site_ids])
         employment = Employment.where(practice_id: current_practice.id).find(integer_id!(params[:id], field: :id))
         role_version = input[:role_version_id].present? ? employee_role_version(input[:role_version_id]) : nil
         account_action = input[:account_action].present? ?
@@ -100,9 +100,10 @@ module Clinic
           employment = EmployeeAccessLifecycle.restore!(employment: employment, actor: current_user,
             role_version: role_version, sites: sites)
         else
+          expected_access_revision = required_string!(input[:expected_access_revision], field: :expected_access_revision, maximum: 64)
           employment = LinkEmployment.update!(employment: employment, actor: current_user, status: status,
             site_ids: input.key?(:site_ids) ? input[:site_ids] : nil, role_version: role_version,
-            effective_until: effective_until)
+            effective_until: effective_until, expected_access_revision: expected_access_revision)
         end
         render json: { schema_version: 1, employment: EmploymentSerializer.call(employment) }
       end

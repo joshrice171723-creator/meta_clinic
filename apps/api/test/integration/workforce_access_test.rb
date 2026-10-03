@@ -41,6 +41,42 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
       active: true, effective_from: 1.hour.ago)
   end
 
+  test "employee access update rejects a missing review revision without mutations" do
+    login(@manager)
+    patch "/api/clinic/workforce/employments/#{@employment.id}",
+      params: { employment: { status: "inactive" } }, headers: csrf_headers, as: :json
+
+    assert_response :bad_request
+    assert_equal "expected_access_revision", response.parsed_body.fetch("field")
+    assert @employment.reload.active?
+    assert @employee_membership.reload.active?
+  end
+
+  test "employee access update rejects a stale reviewed revision then accepts a fresh revision" do
+    login(@manager)
+    get "/api/clinic/workforce/employments", headers: @headers
+    assert_response :success
+    reviewed = response.parsed_body.fetch("employments").find { |record| record.fetch("id") == @employment.id }
+    assert_match(/\A[a-f0-9]{64}\z/, reviewed.fetch("access_revision"))
+
+    @employee_membership.advance_authorization_generation!
+    patch "/api/clinic/workforce/employments/#{@employment.id}",
+      params: { employment: { status: "inactive", expected_access_revision: reviewed.fetch("access_revision") } },
+      headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "stale_record", response.parsed_body.fetch("code")
+    assert @employment.reload.active?
+    assert_equal [ @assigned_site.id ], @employment.employment_sites.active.pluck(:site_id)
+
+    get "/api/clinic/workforce/employments", headers: @headers
+    fresh = response.parsed_body.fetch("employments").find { |record| record.fetch("id") == @employment.id }
+    patch "/api/clinic/workforce/employments/#{@employment.id}",
+      params: { employment: { status: "inactive", expected_access_revision: fresh.fetch("access_revision") } },
+      headers: csrf_headers, as: :json
+    assert_response :success
+    assert @employment.reload.inactive?
+  end
+
   test "employee context exposes only assigned sites and no clinical permissions" do
     login(@employee)
 

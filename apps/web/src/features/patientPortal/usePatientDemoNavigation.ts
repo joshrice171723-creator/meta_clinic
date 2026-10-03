@@ -9,8 +9,8 @@ export function registerPatientDemoNavigation() {
   const confirm = (event: Event) => {
     const detail = (event as CustomEvent<NavigationConfirmation>).detail;
     detail.handled = true;
-    // Preserve the conservative discard prompt for dialogs without their own
-    // registered draft guard. Pending/unknown outcomes cannot be discarded.
+    // Re-evaluate mounted component state on every request. No guard state is
+    // restored from storage; the shell owns the explicit leave escape.
     detail.allowed = confirmUnregisteredDemoNavigation(
       collectDemoNavigationBlockers(),
     );
