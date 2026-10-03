@@ -7,6 +7,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-02 21:06 America/Chicago (2026-10-03 02:06 UTC) — Demo navigation repair published:** Joshua's `$publish` authorized release of `317ee957acc98207ce8c77e52d453350e8c7de57` to aimetaclinic.com. Matched images, TypeScript/main/Office builds, both database scratch restores, encrypted off-host recovery round trip, hosted authentication/Sandbox verifier and exact public revision readback passed. No sandbox reset or rollback occurred. The refined finding concerns inherited-session guard recovery across reloads; that case and Muse's exact-build browser/workflow acceptance remain unverified. [Release evidence and limits](../../records/progress/2026/10/2026-10-02-demo-navigation-publication.md).
+
 **2026-10-03 00:02 UTC - Remaining modernization locally verified; publication blocked:** Source `272cecdccfe9fbb4287c41276fe5387b4c16b682` integrates Workforce, Connectors/Morning and PatientFlow. Nine unique focused cases, three reused actual PostgreSQL proofs, six Ruby syntax/lint checks, TypeScript, changed formatting and main/Office bundles passed; failed attempts preserved. Exact evidence and scope limits are in [[Meta Clinic Implementation Tracker]] and the modernization brief. Automatic approval review rejected branch push because forwarded approval was not treated as a direct owner message; direct question remains pending. Main/live remain e562 application; remote4a18 planning preserved. No QA/BH source merged, no broad QA or publication, fixed74 and originalQA counts unchanged. Vault validation passed; agent-document validation retains seven unchanged baseline missing tracker links (see tracker evidence).
 
 
