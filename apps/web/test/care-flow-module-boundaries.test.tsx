@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  PatientSupport as RoutedPatientSupport,
   SoapNoteForm as RoutedSoapNoteForm,
   bindBookingPatient as routedBindBookingPatient,
   closeRequestKey as routedCloseRequestKey,
 } from "../src/features/clinic/CareFlow";
 import { SoapNoteForm } from "../src/features/clinic/CareSoapNoteWorkspace";
+import { PatientSupport } from "../src/features/clinic/CarePatientHistory";
 import {
   appointmentDraftRecoveryMessage,
   bindBookingPatient,
@@ -21,6 +23,7 @@ import {
 
 describe("care-flow module ownership", () => {
   it("preserves the existing import surface and stable component definition", () => {
+    expect(RoutedPatientSupport).toBe(PatientSupport);
     expect(RoutedSoapNoteForm).toBe(SoapNoteForm);
     expect(routedBindBookingPatient).toBe(bindBookingPatient);
     expect(routedCloseRequestKey).toBe(closeRequestKey);
