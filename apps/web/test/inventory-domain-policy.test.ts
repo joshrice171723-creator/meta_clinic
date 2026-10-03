@@ -262,7 +262,7 @@ describe("mounted inventory mutation response ownership", () => {
       configFile: false,
       optimizeDeps: {
         entries: [],
-        noDiscovery: true,
+        noDiscovery: false,
         include: [
           "react",
           "react/jsx-runtime",
