@@ -42,13 +42,13 @@
 .front-desk-filters {
   display: grid;
   grid-template-columns:
-    minmax(180px, 0.75fr) auto minmax(190px, 0.85fr)
-    minmax(260px, 1.4fr);
-  align-items: center;
+    minmax(150px, 0.8fr) minmax(190px, 1fr) auto
+    minmax(160px, 0.9fr) minmax(240px, 1.5fr);
+  align-items: start;
   gap: 12px;
   padding: 16px 24px;
   border-block: 1px solid var(--clinic-border);
-  background: var(--clinic-soft);
+  background: var(--clinic-surface);
 }
 
 .front-desk-filters .MuiInputBase-root {
@@ -221,9 +221,10 @@
 
 @media (max-width: 1180px) {
   .front-desk-filters {
-    grid-template-columns: minmax(180px, 1fr) auto minmax(190px, 1fr);
+    grid-template-columns: minmax(150px, 1fr) minmax(190px, 1fr) auto;
   }
 
+  .front-desk-filters > :nth-child(4),
   .front-desk-filters > :last-child {
     grid-column: 1 / -1;
   }
@@ -253,7 +254,7 @@
   }
 
   .front-desk-filters {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .front-desk-filters > :nth-child(3),
