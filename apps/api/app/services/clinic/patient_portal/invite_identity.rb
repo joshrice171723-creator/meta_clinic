@@ -12,6 +12,9 @@ module Clinic
         identity = nil
         ApplicationRecord.transaction do
           patient.lock!
+          if patient.merged_into_patient_id.present?
+            raise ArgumentError, "This patient has been merged. Select the canonical patient before creating new work."
+          end
           user = resolve_user!(practice:, patient:, user:, email_address:)
           identity = Identity.lock.find_or_initialize_by(user: user)
           if identity.persisted? && (identity.practice_id != practice.id || identity.patient_id != patient.id)

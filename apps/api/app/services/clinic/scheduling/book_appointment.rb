@@ -144,6 +144,9 @@ module Clinic
           allocation = CapacityGuard.check!(practice: practice, clinician: booked_clinician, site: site, patient: patient, room: room,
             starts_at: starts_at, ends_at: ends_at, schedule_hold_id: schedule_hold&.id, overbook: overbook,
             capacity_override: walk_in) || 1
+          if patient.merged_into_patient_id.present?
+            raise ArgumentError, "This patient has been merged. Select the canonical patient before creating new work."
+          end
           conflicts = overbook ? practice.appointments.where(booked_clinician: booked_clinician, status: %w[scheduled confirmed])
             .where("starts_at < ? AND ends_at > ?", ends_at, starts_at).pluck(:id) : []
           appointment = practice.appointments.create!(patient: patient, site: site, room: room,
