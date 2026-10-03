@@ -75,11 +75,25 @@ def print_json(value):
     print(json.dumps(value, indent=2, sort_keys=True))
 
 
-def pinned_build(client):
-    build = client.build()
-    revision = require(build.get("revision"), "/build.json did not return revision")
-    require(re.fullmatch(r"[0-9a-f]{40}", revision), "A full revision SHA is required")
-    return revision, build
+def observed_build(client):
+    try:
+        supplied = client.build()
+        build = {key: supplied.get(key) for key in ("revision", "version", "environment", "dirty")} if isinstance(supplied, dict) else {}
+        revision = build.get("revision")
+        if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+            build["revision"] = None
+        build["status"] = "observed" if build.get("revision") else "unavailable"
+    except (OSError, ValueError, RuntimeError):
+        build = {"revision": None, "status": "unavailable"}
+    return build.get("revision") or "unobserved", {**build, "observed_at": now()}
+
+
+def build_boundary(before, after):
+    before = before if isinstance(before, dict) else {}
+    after = after if isinstance(after, dict) else {}
+    if not before.get("revision") or not after.get("revision"):
+        return "metadata_unavailable"
+    return "deployment_changed" if before["revision"] != after["revision"] else "same_observed_revision"
 
 
 def source_record(path):
@@ -169,28 +183,32 @@ def command_sync(args):
 
 def command_transition(args, status):
     client = authenticated()
-    before_revision, before = pinned_build(client)
+    before_revision, before = observed_build(client)
     if status == "claimed" and args.prepare_baseline:
         client.request("/api/qa/baseline", "POST", {"revision": before_revision})
     result = {"build_before": before}
     if args.result:
         result = json.loads(Path(args.result).read_text(encoding="utf-8-sig"))
-        result["build_before"] = before
-    after = client.build()
-    if after.get("revision") != before_revision:
-        client.request("/api/qa/tasks/%s/transition" % args.id, "POST", {"status": "aborted", "run_id": args.run_id, "revision": before_revision, "result": {"summary": "Build changed before result submission"}})
-        raise RuntimeError("Build changed; run aborted and task returned to queue")
+        result.setdefault("build_before", before)
+    _, submission = observed_build(client)
+    result["build_submission"] = submission
+    result["build_boundary"] = build_boundary(result["build_before"], submission)
+    result["build_observations"] = [result["build_before"], before, submission]
     response = client.request("/api/qa/tasks/%s/transition" % args.id, "POST",
                               {"status": status, "result": result, "revision": before_revision, "run_id": args.run_id})
-    after = client.build()
+    _, after = observed_build(client)
     print_json({"transition": response, "build_before": before, "build_after": after})
 
 
 def command_event(args):
     client = authenticated()
-    revision = args.revision or pinned_build(client)[0]
-    payload = {"event": {"kind": args.kind, "summary": args.summary, "revision": revision}}
-    payload["event"]["event_key"] = event_key(args.kind, args.summary, revision, {})
+    observed_revision, observation = observed_build(client)
+    revision = args.revision or observed_revision
+    observation["reported_revision"] = args.revision
+    observation["boundary"] = build_boundary({"revision": args.revision}, observation) if args.revision else "observed_at_submission"
+    payload = {"event": {"kind": args.kind, "summary": args.summary, "revision": revision,
+                         "payload": {"build_observation": observation}}}
+    payload["event"]["event_key"] = event_key(args.kind, args.summary, revision, payload["event"]["payload"])
     print_json(client.request("/api/qa/events", "POST", payload))
 
 
@@ -201,33 +219,37 @@ def command_evidence(args):
     content_type = mimetypes.guess_type(path.name)[0]
     require(content_type in ("image/jpeg", "image/png"), "evidence must be a PNG or JPEG")
     client = authenticated()
-    revision = args.revision or pinned_build(client)[0]
+    observed_revision, observation = observed_build(client)
+    revision = args.revision or observed_revision
+    context = json.loads(Path(args.context).read_text(encoding="utf-8-sig"))
+    observation["reported_revision"] = args.revision
+    context["submission_build_observation"] = observation
     evidence = {"issue": args.issue, "filename": path.name, "content_type": content_type,
                 "data_base64": base64.b64encode(data).decode(), "caption": args.caption, "revision": revision,
-                "phase": args.phase, "context": json.loads(Path(args.context).read_text(encoding="utf-8-sig"))}
+                "phase": args.phase, "context": context}
     print_json(client.request("/api/qa/evidence", "POST", {"evidence": evidence}))
 
 
 def command_context(args):
     client = authenticated()
-    revision, build = pinned_build(client)
+    revision, build = observed_build(client)
     qa = client.request("/api/qa")
     text = "# QA context\n\nGenerated from the current application state; it is not a fixture or a claim of QA completion.\n\n"
-    text += "- Observed live revision: `%s`\n- Confirmed QA pin: `%s`\n- Generated at: `%s`\n\n" % (revision, (qa.get("pin") or {}).get("revision", "Not confirmed"), now())
+    text += "- Observed live revision: `%s`\n- Build metadata: `%s`\n- Generated at: `%s`\n\n" % (revision, build["status"], now())
     text += "## Build\n\n```json\n%s\n```\n\n## QA state\n\n```json\n%s\n```\n" % (json.dumps(build, indent=2), json.dumps(qa, indent=2))
     Path(args.output).write_text(text, encoding="utf-8")
     print(args.output)
 
 
-def command_pin(args):
+def command_observe(_):
     client = authenticated()
-    revision, _ = pinned_build(client)
-    print_json(client.request("/api/qa/pin", "POST", {"revision": revision, "reason": args.reason}))
+    _, observation = observed_build(client)
+    print_json(observation)
 
 
 def command_baseline(_):
     client = authenticated()
-    revision, _ = pinned_build(client)
+    revision, _ = observed_build(client)
     print_json(client.request("/api/qa/baseline", "POST", {"revision": revision}))
 
 
@@ -288,7 +310,7 @@ def main():
         item.set_defaults(run=lambda args, value=status: command_transition(args, value))
     event = sub.add_parser("event"); event.add_argument("--kind", required=True); event.add_argument("--summary", required=True); event.add_argument("--revision"); event.set_defaults(run=command_event)
     evidence = sub.add_parser("evidence"); evidence.add_argument("--issue", type=int, required=True); evidence.add_argument("--file", required=True); evidence.add_argument("--caption", required=True); evidence.add_argument("--revision"); evidence.add_argument("--phase", choices=("before", "after", "observation"), required=True); evidence.add_argument("--context", required=True); evidence.set_defaults(run=command_evidence)
-    pin = sub.add_parser("pin"); pin.add_argument("--reason", required=True); pin.set_defaults(run=command_pin)
+    sub.add_parser("observe-build").set_defaults(run=command_observe)
     sub.add_parser("baseline").set_defaults(run=command_baseline)
     sub.add_parser("notify").set_defaults(run=command_notify)
     context = sub.add_parser("context"); context.add_argument("--output", required=True); context.set_defaults(run=command_context)

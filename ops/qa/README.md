@@ -13,9 +13,12 @@ by workflow or shared cause instead of opening a task or release for every
 defect. An urgent blocker may proceed alone. Track each defect separately
 within the batch so its own attempt count and retest outcome remain visible.
 
-1. Read `https://aimetaclinic.com/build.json` before and after QA. Record its full
-   `revision` and `version`. If the revision changes during QA, repeat the affected
-   checks. The actual Notes for QA page is `/clinic/updates`.
+1. Observe `https://aimetaclinic.com/build.json` automatically for each finding and
+   evidence submission. Record revision/version/read time when available, or mark
+   metadata unavailable. No manual pin approval is required. Continue QA across
+   deployments; record the boundary and identify scoped follow-up where needed.
+   Preserve each artifact's original revision rather than relabeling old evidence
+   as proof of a newer build. The actual Notes for QA page is `/clinic/updates`.
 2. Create one GitHub issue per distinct defect, labeled `muse-qa`, in
    `joshrice171723-creator/meta_clinic`, using the repository owner's account.
    Include exact build revision, reproduction, expected/actual behavior and

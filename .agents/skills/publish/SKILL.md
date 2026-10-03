@@ -43,8 +43,11 @@ build/type/source checks remain required; disclose test/browser evidence gaps.
    chat with an active continuing Goal as frozen. Ask its owner to pause that Goal;
    budget-limited Goals stay budget-limited. Missing ownership/readiness blocks
    inclusion; do not silently publish an incomplete branch.
-5. Read Muse's active run/build via its existing monitor. Do not cancel its browser
-   work. Preserve its pinned revision and coordinate current-build retest afterward.
+5. Read available Muse run/build observations via its existing monitor without
+   cancelling browser work. Missing monitor or pin confirmation is not a release
+   coordination blocker. QA observes build.json automatically per finding/evidence
+   and continues across deployments, recording revision boundaries and scoped
+   follow-up. Keep actual owner handoffs and technical release checks distinct.
 
 ## Integrate and verify once
 
@@ -80,8 +83,10 @@ build/type/source checks remain required; disclose test/browser evidence gaps.
     alternate publisher. Failure before switching leaves the prior site; afterward
     follow documented image rollback and report database recovery separately.
 12. Verify public `/build.json` exact SHA/version, `/up` and documented routes. Send
-    that revision and per-change handoff to the existing Muse monitor for independent
-    exact-build retest. A source/build or release pass is not browser QA acceptance.
+    that observed revision and per-change handoff to the existing Muse monitor for
+    independent QA without manual pin approval or campaign-wide exact-build gates.
+    Keep historical evidence on its original revision; record mixed/unavailable
+    build observations and scope follow-up. A release pass is not browser QA acceptance.
 13. After success, align each clean owned loop branch to released main through its
     owner's reviewed merge, once per publication. Preserve unfinished excluded work
     and never reset it. Save the release record in the canonical progress location.
