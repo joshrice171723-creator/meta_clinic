@@ -197,6 +197,31 @@ class PrescriptionReconciliationWorklistTest < ActionDispatch::IntegrationTest
     assert_equal before, ledger
   end
 
+  test "activity report attributes every projection to saved request sites without changing totals" do
+    @site.update!(name: "Weight Management")
+    own = attempt("unknown")
+    other_encounter = @practice.encounters.create!(patient: @patient, site: @other_site, status: "open", started_at: Time.current)
+    other = attempt("unknown", encounter: other_encounter)
+    before = ledger
+
+    get "/api/clinic/reports/prescription_simulator_activity"
+    assert_response :success
+    report = response.parsed_body.fetch("report")
+    assert_equal 2, report.fetch("total")
+    assert_equal({ "unknown" => 2 }, report.fetch("outcome_counts"))
+    %w[current_revision_records current_revision_unknown_records current_revision_unresolved_records].each do |projection|
+      rows = report.fetch(projection).index_by { |row| row.fetch("id") }
+      assert_equal [ own.id, other.id ].sort, rows.keys.sort
+      assert_equal [ @site.id, "Weight Management" ], rows.fetch(own.id).values_at("source_site_id", "source_site_name")
+      assert_equal [ @other_site.id, "RX-B" ], rows.fetch(other.id).values_at("source_site_id", "source_site_name")
+    end
+    assert_equal before, ledger
+    revoke_all_permissions!(@membership)
+    grant_permissions!(@membership, "clinical_records.read", scope_kind: "site", site: @site)
+    get "/api/clinic/reports/prescription_simulator_activity"
+    assert_response :forbidden
+  end
+
   private
 
   def worklist_path

@@ -3,7 +3,7 @@ require "digest"
 module Clinic
   module Reports
     class IssueExport
-      SERIALIZER_REVISION = 3
+      SERIALIZER_REVISION = 4
 
       # The HTTP owner supplies the outer repeatable-read transaction and the
       # existing membership-generation lock. This method never releases bytes.

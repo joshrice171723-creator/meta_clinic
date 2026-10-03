@@ -194,6 +194,8 @@ export function OperationsIntegrationInventory({
         patient_id: number;
         medication_request_revision_id: number;
         encounter_id: number;
+        source_site_id: number | null;
+        source_site_name: string;
         outcome: string;
         submitted_at: string;
       }[];
@@ -203,6 +205,8 @@ export function OperationsIntegrationInventory({
         patient_id: number;
         medication_request_revision_id: number;
         encounter_id: number;
+        source_site_id: number | null;
+        source_site_name: string;
         outcome: string;
         submitted_at: string;
       }[];
@@ -212,6 +216,8 @@ export function OperationsIntegrationInventory({
         patient_id: number;
         medication_request_revision_id: number;
         encounter_id: number;
+        source_site_id: number | null;
+        source_site_name: string;
         outcome: string;
         submitted_at: string;
       }[];
@@ -600,6 +606,8 @@ export function OperationsIntegrationInventory({
                   {" · "}patient {record.patient_id}
                   {" · "}
                   {humanizeActivityLabel(record.outcome)}
+                  {" · "}
+                  {record.source_site_name}
                 </Button>
               ))}
               {activity.current_revision_unresolved_records_capped && (
@@ -694,6 +702,8 @@ export function OperationsIntegrationInventory({
                     {" · "}patient {record.patient_id}
                     {" · "}
                     {humanizeActivityLabel(record.outcome)}
+                    {" · "}
+                    {record.source_site_name}
                   </Button>
                 ))}
                 {activity.current_revision_records_capped && (

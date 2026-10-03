@@ -89,7 +89,7 @@ module Clinic
       def self.serialize(note)
         return nil unless note
 
-        { id: note.id, encounter_id: note.encounter_id, version: note.version_number,
+        { id: note.id, encounter_id: note.encounter_id, version: note.version_number, request_key: note.request_key,
           previous_revision_id: note.previous_revision_id, body: note.body,
           revision_reason: note.revision_reason, recorded_at: note.recorded_at.iso8601(6) }
       end
@@ -97,8 +97,10 @@ module Clinic
       def self.history(practice:, actor:, encounter:)
         member = authorize!(practice:, actor:, encounter:)
         require_therapy_visit!(practice, encounter) unless latest(practice, encounter, member)
-        Care::PsychotherapyNote.where(practice:, encounter:, originator_membership: member)
+        revisions = Care::PsychotherapyNote.where(practice:, encounter:, originator_membership: member)
           .order(version_number: :desc).limit(20).map { |note| serialize(note) }
+        AuditRecorder.record!(practice:, actor:, action_code: "psychotherapy_notes.history", outcome: :released)
+        revisions
       end
 
       def self.latest(practice, encounter, member)

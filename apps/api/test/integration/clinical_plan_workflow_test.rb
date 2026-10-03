@@ -14,6 +14,19 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     grant_permissions!(@membership, "patients.read", "clinical_records.read", "medication_requests.write",
       "service_requests.write", "diagnoses.write", "procedures.write", "care_plans.write", "immunizations.write",
       "medication_administrations.write", "inventory.receive", "encounters.write", "intake.write", "facilities.write")
+    specialty_profile = name.match?(/psychiatry_assessment|controlled_prescription_simulator/)
+    @practice.visit_types.create!(code: "Synthetic shared plan visit") unless specialty_profile
+    # These tests configure their specific source capabilities before their first clinical action.
+    unless specialty_profile || name.match?(/administered.here_immunizations/)
+      services = []
+      services << "prescription_preparation" if name.match?(/clinical_record_families|fulfillment_links|journey_held_orders|journey_pharmacy|substitution|synthetic_prescription|outside_pharmacy|preparation_is_durable/)
+      services << "minor_office_procedures" if name.match?(/clinical_record_families|procedure_fulfillment/)
+      services << "vaccinations" if name.match?(/clinical_record_families|completion_evidence|six_synthetic_staff/)
+      services << "external_lab_coordination" if name.include?("journey_held_orders")
+      Clinic::Configuration::PracticeFeatures.revise(practice: @practice, site: @site, actor: @membership,
+        request_key: "plan-source-profile", expected_revision: 0, insurance_workflows_enabled: false,
+        clinic_type: "primary_care", service_scope: services, assessment_scope: [], finalize: true)
+    end
     @patient = @practice.patients.create!(display_name: "Clinical Plan Patient", reference: "PLAN-001")
     @other_patient = @practice.patients.create!(display_name: "Other Plan Patient", reference: "PLAN-002")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
@@ -181,9 +194,9 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
 
     Clinic::Configuration::PracticeFeatures.revise(
-      practice: @practice, actor: @membership, request_key: "assessment-configure", expected_revision: 0,
-      insurance_workflows_enabled: false, clinic_type: "primary_care", service_scope: [],
-      assessment_scope: [ "depression" ]
+      practice: @practice, site: @site, actor: @membership, request_key: "assessment-configure", expected_revision: 1,
+      insurance_workflows_enabled: false, clinic_type: "primary_care", service_scope: [ "vaccinations" ],
+      assessment_scope: [ "depression" ], finalize: true
     )
     assessment = create_record("assessments", "assessment", {
       category: "depression", instrument_name: "Synthetic PHQ-style screen", score_value: "4"
@@ -211,15 +224,15 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
       assessment.values_at("status", "category", "response_source")
 
     patch "#{workspace_path(@patient)}/assessments/#{assessment.fetch('series_id')}",
-      params: { assessment: { score_source: "calculated", expected_version: assessment.fetch("version_number"),
+      params: { assessment: { score_source: "clinician_entered", expected_version: assessment.fetch("version_number"),
         request_key: "assessment-score-provenance-partial" } }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_includes response.parsed_body.fetch("error"), "Score source and recorded time"
 
     assessment = revise_record("assessments", "assessment", assessment,
-      { assessment: { score_source: "calculated", score_recorded_at: "2026-09-10T15:46:00Z",
+      { assessment: { score_source: "clinician_entered", score_recorded_at: "2026-09-10T15:46:00Z",
         expected_version: assessment.fetch("version_number"), request_key: "assessment-score-provenance" } })
-    assert_equal [ "4", "calculated", "2026-09-10T15:46:00Z" ],
+    assert_equal [ "4", "clinician_entered", "2026-09-10T15:46:00Z" ],
       assessment.values_at("score_value", "score_source", "score_recorded_at")
   end
 
@@ -643,12 +656,12 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
   test "psychiatry assessment preserves item states and synthetic safety work after closure" do
     Clinic::Configuration::PracticeFeatures.revise(
-      practice: @practice, actor: @membership, request_key: "psychiatry-profile", expected_revision: 0,
+      practice: @practice, site: @site, actor: @membership, request_key: "psychiatry-profile", expected_revision: 0,
       insurance_workflows_enabled: false, clinic_type: "behavioral_health",
       service_scope: %w[psychiatric_evaluation medication_management urgent_clinical_follow_up],
-      assessment_scope: [ "psychiatry_assessment" ]
+      assessment_scope: [ "psychiatry_assessment" ], finalize: true
     )
-    assert_equal 8, @practice.visit_types.active.count
+    assert_equal 6, @practice.visit_types.active.count
 
     assessment = create_record("assessments", "assessment", {
       category: "psychiatry_assessment", instrument_name: "Synthetic attention check", instrument_version: "test-v1",
@@ -781,9 +794,9 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
 
   test "controlled prescription simulator snapshots synthetic signer state and fences recovery" do
     Clinic::Configuration::PracticeFeatures.revise(
-      practice: @practice, actor: @membership, request_key: "controlled-profile", expected_revision: 0,
+      practice: @practice, site: @site, actor: @membership, request_key: "controlled-profile", expected_revision: 0,
       insurance_workflows_enabled: false, clinic_type: "behavioral_health",
-      service_scope: %w[controlled_medications medication_management], assessment_scope: []
+      service_scope: %w[controlled_medications medication_management prescription_preparation], assessment_scope: [], finalize: true
     )
     destination = Clinic::Care::PharmacyDestination.create!(practice: @practice, name: "Synthetic Pharmacy",
       address_line1: "1 Demo Way", city: "Austin", state_code: "TX", postal_code: "78701")
@@ -887,16 +900,18 @@ class ClinicalPlanWorkflowTest < ActionDispatch::IntegrationTest
   end
 
   def enable_immunization_administration!
-    optional_features = {
-      "clinic_type" => "primary_care",
-      "service_scope" => [ "vaccinations" ],
-      "assessment_scope" => [],
+    Clinic::Configuration::PracticeFeatures.revise(practice: @practice, site: @site, actor: @membership,
+      request_key: "immunization-source-profile", expected_revision: 0, insurance_workflows_enabled: false,
+      clinic_type: "primary_care", service_scope: %w[vaccinations prescription_preparation], assessment_scope: [], finalize: true)
+    optional_features = Clinic::PracticeFeatureVersion.find_by!(practice: @practice, site: @site, revision: 1)
+      .optional_features.merge(
       "immunization_administration_enabled" => true
-    }
+    )
     Clinic::PracticeFeatureVersion.create!(
       practice: @practice,
+      site: @site,
       created_by_membership: @membership,
-      revision: 1,
+      revision: 2,
       optional_features:,
       effective_from: Current.business_time,
       request_key: "authorized-immunization-administration",

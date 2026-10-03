@@ -48,7 +48,14 @@ import type {
   RuntimeEnvironment,
   User,
 } from "../../api/contracts";
-import { api, setClinicPractice, setClinicSite } from "../../api/client";
+import {
+  announceClinicLocationChange,
+  api,
+  CLINIC_LOCATION_CHANGED_EVENT,
+  setClinicPractice,
+  setClinicSite,
+  watchClinicLocationChanges,
+} from "../../api/client";
 import { ClinicScopeSelector } from "./ClinicScopeSelector";
 import { Form, LoadState, useResource } from "../../shared/ui";
 import { ClinicFrame, ClinicRailContext } from "./ClinicFrame";
@@ -509,21 +516,43 @@ export function Workspace({
 }) {
   const { navigate, confirmNavigation } = useClinicNavigation();
   const {
-    data,
+    data: resourceContext,
     error,
     refresh: refreshWorkspace,
   } = useResource<ClinicWorkspaceContext>("/api/clinic/context");
+  const [reconciledContext, setReconciledContext] = useState<{
+    previous: ClinicWorkspaceContext;
+    current: ClinicWorkspaceContext;
+  } | null>(null);
+  const data =
+    reconciledContext && reconciledContext.previous === resourceContext
+      ? reconciledContext.current
+      : resourceContext;
   const [locationSelectionMade, setLocationSelectionMade] = useState(false);
   const [locationPickerRequested, setLocationPickerRequested] = useState(false);
   const locationSelected =
     !locationPickerRequested &&
     (locationSelectionMade || Boolean(data?.current_site));
   const [switchingPractice, setSwitchingPractice] = useState(false);
+  const [locationContextChanged, setLocationContextChanged] = useState(false);
+  const [reconcilingLocation, setReconcilingLocation] = useState(false);
+  const reconciliationOwner = useRef("");
+  reconciliationOwner.current = `${user.id}:${data?.practice.id}:${data?.membership_id}:${path}`;
+  useEffect(() => {
+    const changed = () => setLocationContextChanged(true);
+    window.addEventListener(CLINIC_LOCATION_CHANGED_EVENT, changed);
+    const stopWatching = watchClinicLocationChanges();
+    return () => {
+      window.removeEventListener(CLINIC_LOCATION_CHANGED_EVENT, changed);
+      stopWatching?.();
+    };
+  }, []);
   useLayoutEffect(() => {
-    if (data?.practice.id !== undefined) setClinicPractice(data.practice.id);
+    if (!locationContextChanged && data?.practice.id !== undefined)
+      setClinicPractice(data.practice.id);
   }, [data?.practice.id]);
   useLayoutEffect(() => {
-    if (data) setClinicSite(data.current_site?.id);
+    if (!locationContextChanged && data) setClinicSite(data.current_site?.id);
   }, [data?.current_site?.id, data?.practice.id]);
   useLayoutEffect(
     () => () => {
@@ -560,6 +589,7 @@ export function Workspace({
         body: { site_id: siteId },
       });
       setClinicSite(siteId);
+      announceClinicLocationChange();
       setPreviousLocationContext(data ?? null);
       setLocationSelectionMade(true);
       setLocationPickerRequested(false);
@@ -619,6 +649,65 @@ export function Workspace({
   const staffSetupPath = path === "/clinic/workforce/employees";
   const historicalRecordPath =
     /^\/clinic\/patients\/\d+(?:\/encounters\/\d+)?$/.test(path);
+  const savedEncounterPath =
+    /^\/clinic\/patients\/([1-9]\d*)\/encounters\/([1-9]\d*)$/.exec(path);
+  const reconcileLocation = async () => {
+    if (reconcilingLocation || !data || !resourceContext || !savedEncounterPath)
+      return;
+    const owner = reconciliationOwner.current;
+    const [, patientId, encounterId] = savedEncounterPath;
+    setReconcilingLocation(true);
+    setLocationPickerError("");
+    try {
+      const current = await api<ClinicWorkspaceContext>("/api/clinic/context");
+      if (
+        current.user_id !== user.id ||
+        current.practice.id !== data.practice.id ||
+        current.membership_id !== data.membership_id ||
+        current.schema_version !== "clinic-context-v1" ||
+        current.policy_version !== "clinic-authorization-v1" ||
+        !Object.keys({ ...data.capabilities, ...current.capabilities }).every(
+          (key) =>
+            data.capabilities[key as keyof ClinicCapabilities] ===
+            current.capabilities[key as keyof ClinicCapabilities],
+        ) ||
+        !current.current_site ||
+        !current.sites.some((site) => site.id === current.current_site?.id)
+      )
+        throw new Error(
+          "The account or clinic context could not be verified. Your unsaved work is retained; saving remains paused.",
+        );
+      if (reconciliationOwner.current !== owner) return;
+      const source = await api<{
+        encounter: { id: number; patient_id: number; site_id: string | null };
+      }>(`/api/clinic/encounters/${encounterId}?patient_id=${patientId}`, {
+        locationRecoverySiteId: current.current_site.id,
+      });
+      if (
+        source.encounter.id !== Number(encounterId) ||
+        source.encounter.patient_id !== Number(patientId) ||
+        !source.encounter.site_id ||
+        !current.sites.some(
+          (site) => site.id === Number(source.encounter.site_id),
+        )
+      )
+        throw new Error(
+          "The saved encounter could not be verified. Your unsaved work is retained; saving remains paused.",
+        );
+      if (reconciliationOwner.current !== owner) return;
+      setClinicSite(current.current_site.id);
+      setReconciledContext({ previous: resourceContext, current });
+      setLocationContextChanged(false);
+    } catch (caught) {
+      setLocationPickerError(
+        caught instanceof Error
+          ? caught.message
+          : "Location reconciliation failed. Your unsaved work is retained.",
+      );
+    } finally {
+      setReconcilingLocation(false);
+    }
+  };
   const landingDestination =
     data && !setupRequired
       ? clinicLandingDestination(data.capabilities, path, homeView)
@@ -849,7 +938,7 @@ export function Workspace({
         <ClinicContext value={clinicContext}>
           <ClinicOverviewContext value={overview.data ?? null}>
             <ScribeRecordingProvider
-              key={`${user.id}:${data.practice.id}:${data.membership_id ?? "none"}:${data.current_site?.id ?? "all"}`}
+              key={`${user.id}:${data.practice.id}:${data.membership_id ?? "none"}:${savedEncounterPath ? path : (data.current_site?.id ?? "all")}`}
             >
               <TelehealthSessionProvider
                 path={path}
@@ -988,6 +1077,37 @@ export function Workspace({
                         <Typography color="error" role="alert">
                           {locationPickerError}
                         </Typography>
+                      )}
+                      {locationContextChanged && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                          The selected location changed in another window.
+                          Saving is paused.{" "}
+                          {savedEncounterPath
+                            ? "Reconcile the location to keep your unsaved text and retry the original request. This chart keeps its recorded location."
+                            : "Review unsaved work before reloading."}
+                          <Button
+                            color="inherit"
+                            disabled={reconcilingLocation}
+                            onClick={() => {
+                              if (savedEncounterPath) {
+                                void reconcileLocation();
+                                return;
+                              }
+                              if (
+                                confirmNavigation &&
+                                !confirmNavigation({
+                                  includeBeforeUnload: true,
+                                })
+                              )
+                                return;
+                              window.location.reload();
+                            }}
+                          >
+                            {savedEncounterPath
+                              ? "Reconcile location"
+                              : "Reload location"}
+                          </Button>
+                        </Alert>
                       )}
                       {children}
                     </main>

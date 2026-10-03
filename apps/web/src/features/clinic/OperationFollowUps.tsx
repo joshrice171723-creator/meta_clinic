@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  MenuItem,
   Paper,
   Stack,
   Tab,
@@ -29,7 +30,11 @@ import { useClinic } from "./Workspace";
 import type { ClinicalTask } from "../../api/contracts";
 
 type FollowUpFilter = "all" | "mine" | "overdue" | "unassigned";
-type FollowUpRequest = {
+type WorkItemLocation = {
+  source_site_id: number | null;
+  source_site_name: string | null;
+};
+type FollowUpRequest = WorkItemLocation & {
   id: number;
   conversation_id: number;
   subject: string;
@@ -59,21 +64,23 @@ type FollowUpResponse = {
   clinical_tasks: ClinicalTaskWorkItem[];
   reminder_attention_count: number | null;
 };
-type EncounterFollowUpWorkItem = EncounterFollowUpRecord & {
-  patient_display_name: string;
-  patient_reference: string;
-  assigned_to_me: boolean;
-  assignee_label: string | null;
-  overdue: boolean;
-};
-type ClinicalTaskWorkItem = ClinicalTask & {
-  patient_display_name: string;
-  patient_reference: string;
-  assigned_to_me: boolean;
-  assignee_label: string | null;
-  overdue: boolean;
-  encounter_href: string | null;
-};
+type EncounterFollowUpWorkItem = EncounterFollowUpRecord &
+  WorkItemLocation & {
+    patient_display_name: string;
+    patient_reference: string;
+    assigned_to_me: boolean;
+    assignee_label: string | null;
+    overdue: boolean;
+  };
+type ClinicalTaskWorkItem = ClinicalTask &
+  WorkItemLocation & {
+    patient_display_name: string;
+    patient_reference: string;
+    assigned_to_me: boolean;
+    assignee_label: string | null;
+    overdue: boolean;
+    encounter_href: string | null;
+  };
 type CompletionAttempt = {
   action: "complete";
   followUpId: number;
@@ -102,6 +109,13 @@ function dateLabel(value: string | null) {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(date);
+}
+
+function sourceLocationLabel(item: WorkItemLocation) {
+  return (
+    item.source_site_name ||
+    (item.source_site_id === null ? "Shared" : "Recorded location")
+  );
 }
 
 function EncounterFollowUpItem({
@@ -261,6 +275,8 @@ function EncounterFollowUpItem({
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {patientReferenceLabel(followUp.patient_reference)} · Encounter #
           {followUp.encounter_id} · {followUp.source_kind.replaceAll("_", " ")}
+          {" · "}
+          {sourceLocationLabel(followUp)}
         </Typography>
         <Typography variant="body2" sx={{ mt: 0.75 }}>
           {followUp.plan}
@@ -353,10 +369,13 @@ export function OperationFollowUps() {
 }
 
 function FollowUpWorklist() {
-  const { current_site } = useClinic();
+  const { current_site, sites } = useClinic();
+  const [siteId, setSiteId] = useState(
+    current_site?.id ? String(current_site.id) : "",
+  );
   const [filter, setFilter] = useState<FollowUpFilter>("all");
   const params = new URLSearchParams({ filter });
-  if (current_site?.id) params.set("site_id", String(current_site.id));
+  if (siteId) params.set("site_id", siteId);
   const resource = useResource<FollowUpResponse>(
     `/api/clinic/operations/follow_ups?${params.toString()}`,
   );
@@ -385,11 +404,24 @@ function FollowUpWorklist() {
           Resolve encounter follow-up plans and open staff requests from one
           operational queue.
         </Typography>
+        <TextField
+          select
+          label="Follow-up location"
+          value={siteId}
+          onChange={(event) => setSiteId(event.target.value)}
+          size="small"
+          sx={{ mt: 1.5, minWidth: 240 }}
+        >
+          <MenuItem value="">All accessible locations</MenuItem>
+          {sites.map((site) => (
+            <MenuItem key={site.id} value={String(site.id)}>
+              {site.name || site.code}
+            </MenuItem>
+          ))}
+        </TextField>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {current_site
-            ? current_site.name || current_site.code
-            : "All accessible locations"}{" "}
-          · Your active conversations
+          Shared work is included where applicable. Each item shows its recorded
+          location.
         </Typography>
       </Box>
       {response?.reminder_attention_count !== null &&
@@ -550,6 +582,8 @@ function FollowUpWorklist() {
                         {patientReferenceLabel(task.patient_reference)
                           ? `· ${patientReferenceLabel(task.patient_reference)}`
                           : ""}
+                        {" · "}
+                        {sourceLocationLabel(task)}
                       </Typography>
                       <Typography
                         variant="body2"
@@ -573,14 +607,14 @@ function FollowUpWorklist() {
                 ))}
                 {response.encounter_follow_ups.map((followUp) => (
                   <EncounterFollowUpItem
-                    key={followUp.id}
+                    key={`follow-up-${followUp.id}`}
                     followUp={followUp}
                     onChanged={resource.refresh}
                   />
                 ))}
                 {response.requests.map((request) => (
                   <Box
-                    key={request.id}
+                    key={`request-${request.id}`}
                     sx={{
                       py: 2,
                       display: "grid",
@@ -623,6 +657,13 @@ function FollowUpWorklist() {
                           {request.subject}
                         </Typography>
                       )}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        {sourceLocationLabel(request)}
+                      </Typography>
                       <Stack
                         direction={{ xs: "column", sm: "row" }}
                         spacing={{ xs: 0.25, sm: 2 }}
