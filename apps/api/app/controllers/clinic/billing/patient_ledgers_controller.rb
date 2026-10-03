@@ -22,11 +22,26 @@ module Clinic
 
       def show
         patient = current_practice.patients.find(requested_id!(params[:id], :id))
-        render json: PatientLedger.call(
-          practice: current_practice,
-          patient: patient,
-          include_adjustment_evidence: true
-        )
+        if params[:kind].present?
+          render json: PatientLedger.history_page(
+            practice: current_practice,
+            patient: patient,
+            kind: params[:kind].to_s,
+            before: optional_id(params[:before], :before),
+            include_adjustment_evidence: true
+          )
+        else
+          focus = %i[invoice_id payment_id refund_id encounter_id].to_h do |field|
+            [field, optional_id(params[field], field)]
+          end.compact
+          render json: PatientLedger.call(
+            practice: current_practice,
+            patient: patient,
+            include_adjustment_evidence: true,
+            history_limit: PatientLedger::HISTORY_LIMIT,
+            focus: focus
+          )
+        end
       end
     end
   end

@@ -228,9 +228,7 @@ module Clinic
       end
 
       def mutation_response
-        return { acknowledged: true } if params[:response] == "ack"
-
-        { data: InventoryWire.call(practice: current_practice, actor: current_user) }
+        { acknowledged: true }
       end
 
       # Supplier evidence only: no fee classification, multiplication or PO total change.

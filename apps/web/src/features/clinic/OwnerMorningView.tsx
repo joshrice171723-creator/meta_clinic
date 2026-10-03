@@ -103,7 +103,7 @@ export function OwnerMorningView() {
   const canBilling = capabilities.billing_read === true;
   const canStaff = capabilities.workforce_schedule_read === true;
   const calendar = useResource<CalendarResponse>(
-    `/api/clinic/schedule_calendar?site_id=${siteId ?? ""}&date=${today}`,
+    `/api/clinic/schedule_calendar?site_id=${siteId ?? ""}&date=${today}&period=day`,
     { enabled: Boolean(siteId && canSchedule) },
   );
   const drawers = useResource<{ drawers: CashDrawer[] }>(

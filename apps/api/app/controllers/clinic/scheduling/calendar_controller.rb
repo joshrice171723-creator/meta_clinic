@@ -19,7 +19,7 @@ module Clinic
           raise ArgumentError, "The requested duration no longer matches the waitlist entry. Refresh the waitlist."
         end
         render json: Calendar.new(practice: current_practice, site: site, date: date, actor: current_user,
-          duration_minutes: duration, waitlist_entry: entry).call
+          duration_minutes: duration, waitlist_entry: entry, period: params[:period].presence || "month").call
       end
     end
   end

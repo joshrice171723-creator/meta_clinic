@@ -78,7 +78,7 @@ function CloseOfDaySnapshot({ timezone }: { timezone: string }) {
     { enabled: Boolean(site && canDrawer) },
   );
   const calendar = useResource<CalendarResponse>(
-    `/api/clinic/schedule_calendar?site_id=${site?.id ?? ""}&date=${tomorrow}`,
+    `/api/clinic/schedule_calendar?site_id=${site?.id ?? ""}&date=${tomorrow}&period=day`,
     { enabled: Boolean(site && canSchedule) },
   );
   const sessions = drawers.data?.drawers.filter(

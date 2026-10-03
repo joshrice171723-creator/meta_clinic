@@ -1255,8 +1255,21 @@ export type EstimateInvoiceComparison = {
   };
 };
 
+export type BillingHistoryKind = "invoices" | "payments";
+export type BillingHistoryPage<K extends BillingHistoryKind> = {
+  schema_version: "clinic-billing-history-v1";
+  patient_id: number;
+  kind: K;
+  items: BillingPatientLedger[K];
+  next_cursor: number | null;
+};
+
 export type BillingPatientLedger = {
   schema_version: "clinic-patient-ledger-v1";
+  pagination?: {
+    invoices: { next_cursor: number | null };
+    payments: { next_cursor: number | null };
+  };
   patient: Pick<Patient, "id" | "display_name" | "reference">;
   currencies: {
     currency: string;
