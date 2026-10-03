@@ -847,7 +847,7 @@ export function StaffMessagingWorkspace({
             variant="outlined"
             sx={{ minWidth: 0, overflow: "hidden" }}
           >
-            <Box sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: "background.paper" }}>
+            <Box sx={{ p: { xs: 1, sm: 1.5 }, bgcolor: "background.paper" }}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1.25}
@@ -860,7 +860,7 @@ export function StaffMessagingWorkspace({
                   <Typography
                     id="conversation-heading"
                     component="h2"
-                    variant="h5"
+                    variant="h2"
                     sx={{ overflowWrap: "anywhere" }}
                   >
                     {selectedConversation.title}
@@ -870,7 +870,7 @@ export function StaffMessagingWorkspace({
                     color="text.secondary"
                     sx={{ mt: 0.4, overflowWrap: "anywhere" }}
                   >
-                    {selectedConversation.kind} conversation ·{" "}
+                    {selectedConversation.kind} ·{" "}
                     {participantSummary(selectedConversation.participants)}
                   </Typography>
                 </Box>
@@ -886,7 +886,7 @@ export function StaffMessagingWorkspace({
                   {selectedConversation.unread && onMarkRead && (
                     <Button
                       size="small"
-                      variant="outlined"
+                      variant="text"
                       startIcon={<MarkEmailReadOutlinedIcon />}
                       onClick={() => void onMarkRead(selectedConversation.id)}
                     >
@@ -905,7 +905,7 @@ export function StaffMessagingWorkspace({
               </Stack>
             </Box>
             <Divider />
-            <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, minWidth: 0 }}>
+            <Stack spacing={1.25} sx={{ p: { xs: 1, sm: 1.5 }, minWidth: 0 }}>
               {(selectedConversation.messagePage || 1) > 1 && (
                 <Button
                   variant="outlined"

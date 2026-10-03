@@ -50,6 +50,7 @@ import {
 } from "./CareIndicators";
 import { openSoapHref, previousChartHref } from "./chartNavigation";
 import { WaitingPolicyStatus } from "./WaitingPolicyStatus";
+import { ClinicEmptyState } from "./ClinicEmptyState";
 import {
   VISIT_STAGES,
   clinicianLabel,
@@ -1846,6 +1847,7 @@ export function TrackingBoardView({
         component={Paper}
         variant="outlined"
         className="tracking-table-container"
+        sx={{ display: filtered.length > 0 ? undefined : "none" }}
         role="region"
         aria-label="Scrollable tracking board"
         onFocusCapture={(event) => {
@@ -2034,27 +2036,27 @@ export function TrackingBoardView({
           </div>
         )}
       {filtered.length === 0 && (
-        <div className="tracking-empty">
-          <h2>
-            {visits.length
-              ? "No visits match these filters"
-              : "No current visits"}
-          </h2>
-          <p>
-            {visits.length
+        <ClinicEmptyState
+          title={
+            visits.length ? "No visits match these filters" : "No current visits"
+          }
+          description={
+            visits.length
               ? "Try another stage or show all patients."
-              : "No visits are currently shown."}
-          </p>
-          {visits.length > 0 && (
-            <Button
-              variant="outlined"
-              type="button"
-              onClick={() => selectDesktopFilter("all")}
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
+              : "No visits are currently shown."
+          }
+          action={
+            visits.length > 0 ? (
+              <Button
+                variant="outlined"
+                type="button"
+                onClick={() => selectDesktopFilter("all")}
+              >
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       )}
     </section>
   );

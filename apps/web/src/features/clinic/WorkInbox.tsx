@@ -1,9 +1,13 @@
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import PaymentOutlinedIcon from "@mui/icons-material/PaymentOutlined";
 import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -34,6 +38,7 @@ import type {
 import { isBeforeBusinessTime } from "../../shared/businessDate";
 import type { EncounterFollowUpRecord } from "./EncounterFollowUp";
 import { patientReferenceLabel } from "./patientReference";
+import { ClinicEmptyState } from "./ClinicEmptyState";
 import {
   canClaimPatientFlowTask,
   confirmedPatientFlowClaim,
@@ -2383,7 +2388,7 @@ function ScopedWorkInbox() {
           sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
         >
           <Box>
-            <Typography component="h1" variant="h4" sx={{ fontWeight: 750 }}>
+            <Typography component="h1" variant="h1">
               Patient Flow
             </Typography>
             <Typography
@@ -2545,67 +2550,98 @@ function ScopedWorkInbox() {
               )}
             </Stack>
           )}
-          {assignment !== "offboarded" && (
-            <Stack spacing={1} sx={{ mb: 2 }}>
-              {canLoadWork && (
-                <>
-                  <QueuePageControls
-                    label="Staff requests"
-                    page={work.data?.staff_requests_page}
-                    requestedPage={pages.staff}
-                    loading={work.loading}
-                    error={work.error}
-                    onPage={(page) => changePage("staff", page)}
-                    onRetry={() => setRefreshRevision((value) => value + 1)}
-                  />
-                  <QueuePageControls
-                    label="Encounter follow-ups"
-                    page={work.data?.encounter_follow_ups_page}
-                    requestedPage={pages.encounters}
-                    loading={work.loading}
-                    error={work.error}
-                    onPage={(page) => changePage("encounters", page)}
-                    onRetry={() => setRefreshRevision((value) => value + 1)}
-                  />
-                  {assignment === "all" && !current_site && (
+          {assignment !== "offboarded" && hasOtherSourcePages && (
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{
+                mb: 2,
+                bgcolor: "transparent",
+                boxShadow: "none",
+                "&::before": { display: "none" },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  px: 0,
+                  minHeight: 44,
+                  "&.Mui-expanded": { minHeight: 44 },
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  More queue pages
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0, pt: 0, pb: 1 }}>
+                <Stack spacing={1} sx={{ pt: 1 }}>
+                  {canLoadWork && (
+                    <>
+                      <QueuePageControls
+                        label="Staff requests"
+                        page={work.data?.staff_requests_page}
+                        requestedPage={pages.staff}
+                        loading={work.loading}
+                        error={work.error}
+                        onPage={(page) => changePage("staff", page)}
+                        onRetry={() =>
+                          setRefreshRevision((value) => value + 1)
+                        }
+                      />
+                      <QueuePageControls
+                        label="Encounter follow-ups"
+                        page={work.data?.encounter_follow_ups_page}
+                        requestedPage={pages.encounters}
+                        loading={work.loading}
+                        error={work.error}
+                        onPage={(page) => changePage("encounters", page)}
+                        onRetry={() =>
+                          setRefreshRevision((value) => value + 1)
+                        }
+                      />
+                      {assignment === "all" && !current_site && (
+                        <QueuePageControls
+                          label="Renewal exceptions"
+                          page={work.data?.renewal_exceptions_page}
+                          requestedPage={pages.renewals}
+                          loading={work.loading}
+                          error={work.error}
+                          onPage={(page) => changePage("renewals", page)}
+                          onRetry={() =>
+                            setRefreshRevision((value) => value + 1)
+                          }
+                        />
+                      )}
+                    </>
+                  )}
+                  {canLoadLabs && assignment === "all" && (
                     <QueuePageControls
-                      label="Renewal exceptions"
-                      page={work.data?.renewal_exceptions_page}
-                      requestedPage={pages.renewals}
-                      loading={work.loading}
-                      error={work.error}
-                      onPage={(page) => changePage("renewals", page)}
+                      label="Lab review"
+                      page={labReviews.data?.pagination}
+                      requestedPage={pages.labReview}
+                      loading={labReviews.loading}
+                      error={labReviews.error}
+                      onPage={(page) => changePage("labReview", page)}
                       onRetry={() => setRefreshRevision((value) => value + 1)}
                     />
                   )}
-                </>
-              )}
-              {canLoadLabs && assignment === "all" && (
-                <>
-                  <QueuePageControls
-                    label="Lab review"
-                    page={labReviews.data?.pagination}
-                    requestedPage={pages.labReview}
-                    loading={labReviews.loading}
-                    error={labReviews.error}
-                    onPage={(page) => changePage("labReview", page)}
-                    onRetry={() => setRefreshRevision((value) => value + 1)}
-                  />
-                </>
-              )}
-              {canLoadLabs &&
-                (assignment === "all" || assignment === "overdue") && (
-                  <QueuePageControls
-                    label="Lab follow-up"
-                    page={labFollowUps.data?.pagination}
-                    requestedPage={pages.labFollowUp}
-                    loading={labFollowUps.loading}
-                    error={labFollowUps.error}
-                    onPage={(page) => changePage("labFollowUp", page)}
-                    onRetry={() => setRefreshRevision((value) => value + 1)}
-                  />
-                )}
-            </Stack>
+                  {canLoadLabs &&
+                    (assignment === "all" || assignment === "overdue") && (
+                      <QueuePageControls
+                        label="Lab follow-up"
+                        page={labFollowUps.data?.pagination}
+                        requestedPage={pages.labFollowUp}
+                        loading={labFollowUps.loading}
+                        error={labFollowUps.error}
+                        onPage={(page) => changePage("labFollowUp", page)}
+                        onRetry={() =>
+                          setRefreshRevision((value) => value + 1)
+                        }
+                      />
+                    )}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
           )}
           <Stack
             direction={{ xs: "column", sm: "row" }}
@@ -2660,76 +2696,86 @@ function ScopedWorkInbox() {
           {!anyLoading &&
             patientFlowItemCount === 0 &&
             sourceErrors.length === 0 && (
-              <Box sx={{ py: 5, textAlign: "center" }}>
-                <AssignmentOutlinedIcon
-                  sx={{ color: "text.disabled", fontSize: 42, mb: 1 }}
-                />
-                <Typography variant="h6">
-                  {hasOtherSourcePages
+              <ClinicEmptyState
+                title={
+                  hasOtherSourcePages
                     ? "No matching work on the loaded pages"
-                    : "No matching work"}
-                </Typography>
-                <Typography color="text.secondary">
-                  {hasOtherSourcePages
-                    ? "Filters apply to the loaded pages. Navigate source pages to check the remaining work."
-                    : "Try another scope or work type. New authorized work will appear here when it is created."}
-                </Typography>
-              </Box>
+                    : "No matching work"
+                }
+                description={
+                  hasOtherSourcePages
+                    ? "Filters apply to the loaded pages. Open More queue pages to check the remaining work."
+                    : "Try another scope or work type. New authorized work will appear here when it is created."
+                }
+              />
             )}
           {!anyLoading &&
             patientFlowItemCount === 0 &&
             sourceErrors.length > 0 && (
-              <Box sx={{ py: 5, textAlign: "center" }}>
-                <Typography variant="h6">
-                  No work is available from the loaded queues
-                </Typography>
-                <Typography color="text.secondary">
-                  Retry the unavailable sources before treating this view as
-                  clear.
-                </Typography>
-              </Box>
+              <ClinicEmptyState
+                title="No work is available from the loaded queues"
+                description="Retry the unavailable sources before treating this view as clear."
+              />
             )}
           {canLoadScheduledVisits && (
-            <Paper
-              component="section"
-              variant="outlined"
-              aria-labelledby="patient-flow-scheduled-summary"
-              sx={{ p: 1.5, mb: 2, minWidth: 0 }}
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{
+                mb: 2,
+                bgcolor: "transparent",
+                boxShadow: "none",
+                "&::before": { display: "none" },
+              }}
             >
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1.5}
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
                 sx={{
-                  alignItems: { sm: "center" },
-                  justifyContent: "space-between",
+                  px: 0,
+                  minHeight: 44,
+                  "&.Mui-expanded": { minHeight: 44 },
                 }}
               >
-                <Box>
-                  <Typography
-                    id="patient-flow-scheduled-summary"
-                    component="h2"
-                    variant="subtitle1"
-                    sx={{ fontWeight: 750 }}
-                  >
-                    Upcoming appointments
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {scheduledVisits.loading && !scheduledVisits.data
-                      ? "Loading appointment summary."
-                      : scheduledVisits.error
-                        ? "Appointment summary unavailable. Refresh or open Schedule to review appointments."
-                        : `${scheduledAppointmentCount} scheduled or confirmed appointments without an encounter among the first 100 upcoming records. This summary is independent of Patient Flow assignment and work type filters.`}
-                  </Typography>
-                </Box>
-                <Button
-                  href="/clinic/schedule"
-                  variant="outlined"
-                  sx={{ flexShrink: 0 }}
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Upcoming appointment summary
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0, pt: 0, pb: 1 }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  sx={{
+                    alignItems: { sm: "center" },
+                    justifyContent: "space-between",
+                    pt: 1,
+                  }}
                 >
-                  Open Schedule
-                </Button>
-              </Stack>
-            </Paper>
+                  <Box>
+                    <Typography
+                      id="patient-flow-scheduled-summary"
+                      component="h2"
+                      variant="h4"
+                    >
+                      Upcoming appointments
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {scheduledVisits.loading && !scheduledVisits.data
+                        ? "Loading appointment summary."
+                        : scheduledVisits.error
+                          ? "Appointment summary unavailable. Refresh or open Schedule to review appointments."
+                          : `${scheduledAppointmentCount} scheduled or confirmed appointments without an encounter among the first 100 upcoming records. This summary is independent of Patient Flow assignment and work type filters.`}
+                    </Typography>
+                  </Box>
+                  <Button
+                    href="/clinic/schedule"
+                    variant="outlined"
+                    sx={{ flexShrink: 0 }}
+                  >
+                    Open Schedule
+                  </Button>
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
           )}
           {patientFlowItemCount > 0 && (
             <Box
@@ -2810,13 +2856,10 @@ function ScopedWorkInbox() {
                       }}
                     >
                       {flowItems[column.id].length === 0 ? (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ py: 2 }}
-                        >
-                          No patients in this stage.
-                        </Typography>
+                        <ClinicEmptyState
+                          title="No patients in this stage"
+                          compact
+                        />
                       ) : (
                         <Stack spacing={1.25}>
                           {flowItems[column.id].map((item) => (

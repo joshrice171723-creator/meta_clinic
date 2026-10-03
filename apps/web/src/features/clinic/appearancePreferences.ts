@@ -21,15 +21,19 @@ export type ColorScheme = "light" | "dark";
 // Shared typography keeps every palette readable without changing density.
 export const CLINIC_TYPOGRAPHY = {
   h1: {
-    fontSize: "clamp(28px, 3vw, 35px)",
+    fontSize: "clamp(28px, 2.2vw, 32px)",
     fontWeight: 650,
-    lineHeight: 1.15,
+    lineHeight: 1.2,
   },
   h2: {
-    fontSize: "clamp(20px, 2vw, 24px)",
+    fontSize: "clamp(21px, 1.7vw, 23px)",
     fontWeight: 650,
-    lineHeight: 1.25,
+    lineHeight: 1.3,
   },
+  h3: { fontSize: "1.25rem", fontWeight: 650, lineHeight: 1.35 },
+  h4: { fontSize: "1.125rem", fontWeight: 650, lineHeight: 1.35 },
+  h5: { fontSize: "1rem", fontWeight: 650, lineHeight: 1.4 },
+  h6: { fontSize: "0.9375rem", fontWeight: 650, lineHeight: 1.4 },
   body1: { fontSize: "1rem", lineHeight: 1.5 },
   body2: { fontSize: "0.875rem", lineHeight: 1.45 },
   button: { fontSize: "1rem", lineHeight: 1.5 },

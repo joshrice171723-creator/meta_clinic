@@ -1,6 +1,6 @@
 .clinic-theme .clinic-sidebar .clinic-work-navigation {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .clinic-theme .clinic-work-navigation section {
@@ -10,14 +10,14 @@
 
 .clinic-theme .clinic-work-navigation .MuiListSubheader-root {
   margin: 0;
-  padding: 0 12px 4px;
+  padding: 0 12px 6px;
   background: transparent;
   color: var(--clinic-sidebar-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
   line-height: 1.4;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .clinic-theme .clinic-work-navigation .MuiListItemButton-root {
