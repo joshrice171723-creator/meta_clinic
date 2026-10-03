@@ -1,5 +1,7 @@
 # Behavioral-health journey evaluation
 
+**Continuity update — 2026-10-02:** The [reconciled behavioral-health feature plan](clinic-workflow-plans/behavioral-health-therapy.md) now owns current feature/applicability planning and links BH-R01–R14 in the canonical tracker. It incorporates location-separation commit `06e71821`. The dated narrative below remains historical evidence: earlier statements that the entire protected-note feature is unavailable are superseded by D-080 and later bounded implementation. Current gaps are instrument/policy selection and named remaining proofs, not a rebuild of delivered intake/private-note/separation work. Older runtime paths, actor assignments and test instructions do not override current task/repository instructions.
+
 Revision 8 — 2026-09-23. User-authorized autonomous local implementation and verification; the original two-visit walkthrough and its later continuity/provenance repairs are completed evidence, not completion of this assignment. The prior psychiatry reconciliation remains below; D-080 selects a separate protected psychotherapy-note feature for a bounded individual-therapy development slice. Implementation status remains in the canonical tracker.
 
 ### D-080 individual-therapy/private-note checkpoint
