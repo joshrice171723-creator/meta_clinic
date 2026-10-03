@@ -97,6 +97,10 @@ export function InvoiceCheckoutControls({
   onChanged: () => void;
 }) {
   const [payment, setPayment] = useState(onlinePayment);
+  const [syntheticPending, setSyntheticPending] = useState(
+    actionLabel === "Collect online" &&
+      onlinePayment.synthetic_collection?.enabled === true,
+  );
   const [busy, setBusy] = useState<CheckoutAction | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -156,7 +160,7 @@ export function InvoiceCheckoutControls({
   }, [endpoint]);
 
   const run = async (action: CheckoutAction) => {
-    if (busy) return;
+    if (busy || (action === "start" && syntheticPending)) return;
     setBusy(action);
     setError("");
     try {
@@ -235,7 +239,10 @@ export function InvoiceCheckoutControls({
     payment.state,
   );
   const canStart =
-    actionsEnabled && payment.state === "available" && payment.eligible;
+    actionsEnabled &&
+    !syntheticPending &&
+    payment.state === "available" &&
+    payment.eligible;
   const canRefreshPaid =
     allowPaidRefresh && actionsEnabled && payment.state === "paid";
   const closeConfirmation = () => {
@@ -295,7 +302,7 @@ export function InvoiceCheckoutControls({
             {(canStart || payment.state === "processing") && (
               <Button
                 variant="contained"
-                disabled={busy !== null}
+                disabled={busy !== null || syntheticPending}
                 onClick={() => setConfirmation("start")}
               >
                 {busy === "start"
@@ -341,6 +348,10 @@ export function InvoiceCheckoutControls({
           key={endpoint}
           payment={payment}
           endpoint={endpoint}
+          patientId={patientId}
+          encounterId={encounterId}
+          invoiceId={invoiceId}
+          onPendingChange={setSyntheticPending}
           actionsEnabled={actionsEnabled}
           onChanged={onChanged}
         />
@@ -379,7 +390,9 @@ export function InvoiceCheckoutControls({
           </Button>
           <Button
             color={confirmation === "cancel" ? "error" : "primary"}
-            disabled={busy !== null}
+            disabled={
+              busy !== null || (confirmation === "start" && syntheticPending)
+            }
             onClick={confirmAction}
             variant="contained"
           >

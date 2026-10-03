@@ -612,15 +612,28 @@ export function BillingDashboard() {
 
   const postInvoice = async (retryOriginal = false) => {
     if (busyAction) return;
-    if (postAttempt && !retryOriginal && selectedInvoice?.id !== postAttempt.invoiceId) {
-      setActionError(`Confirm the pending posting for invoice #${postAttempt.invoiceId} before posting another invoice.`);
+    if (
+      postAttempt &&
+      !retryOriginal &&
+      selectedInvoice?.id !== postAttempt.invoiceId
+    ) {
+      setActionError(
+        `Confirm the pending posting for invoice #${postAttempt.invoiceId} before posting another invoice.`,
+      );
       return;
     }
     let attempt = postAttempt;
     if (!attempt) {
       const review = postReviewRef.current;
-      if (retryOriginal || !selectedInvoice || !review || review.invoiceId !== selectedInvoice.id) {
-        setActionError("Load and review the current invoice lines before posting.");
+      if (
+        retryOriginal ||
+        !selectedInvoice ||
+        !review ||
+        review.invoiceId !== selectedInvoice.id
+      ) {
+        setActionError(
+          "Load and review the current invoice lines before posting.",
+        );
         return;
       }
       attempt = {
@@ -674,12 +687,17 @@ export function BillingDashboard() {
     <Alert
       severity="warning"
       action={
-        <Button color="inherit" disabled={Boolean(busyAction)} onClick={() => void postInvoice(true)}>
+        <Button
+          color="inherit"
+          disabled={Boolean(busyAction)}
+          onClick={() => void postInvoice(true)}
+        >
           Retry invoice #{postAttempt.invoiceId} posting
         </Button>
       }
     >
-      Invoice #{postAttempt.invoiceId} posting is pending confirmation. Retry the original posting before posting another invoice.
+      Invoice #{postAttempt.invoiceId} posting is pending confirmation. Retry
+      the original posting before posting another invoice.
     </Alert>
   );
 
@@ -695,7 +713,11 @@ export function BillingDashboard() {
       <div className="billing-page">
         {postingRecovery}
         <LoadState error={error} />
-        {error && <Button onClick={refresh} variant="outlined">Retry billing dashboard</Button>}
+        {error && (
+          <Button onClick={refresh} variant="outlined">
+            Retry billing dashboard
+          </Button>
+        )}
       </div>
     );
   if (data.schema_version !== "clinic-billing-v1")
@@ -831,8 +853,8 @@ export function BillingDashboard() {
             </AccordionSummary>
             <AccordionDetails id="billing-checkout-queue-content">
               <p className="billing-subtitle">
-                These completed visits have no active invoice. Start checkout
-                to review stored charges, packages, and staff-entered lines.
+                These completed visits have no active invoice. Start checkout to
+                review stored charges, packages, and staff-entered lines.
               </p>
               {checkoutQueue.items.length === 0 ? (
                 <p className="billing-clear-state">
@@ -865,8 +887,13 @@ export function BillingDashboard() {
                           return (
                             <TableRow key={encounter.encounter_id}>
                               <TableCell component="th" scope="row">
-                                <strong>{encounter.patient.display_name}</strong>
-                                <Typography color="text.secondary" variant="body2">
+                                <strong>
+                                  {encounter.patient.display_name}
+                                </strong>
+                                <Typography
+                                  color="text.secondary"
+                                  variant="body2"
+                                >
                                   {patientReferenceLabel(
                                     encounter.patient.reference,
                                   )}
@@ -890,7 +917,8 @@ export function BillingDashboard() {
                                     variant="body2"
                                   >
                                     Previous invoice #
-                                    {encounter.previous_void_invoice_id} was voided
+                                    {encounter.previous_void_invoice_id} was
+                                    voided
                                   </Typography>
                                 )}
                               </TableCell>
@@ -1065,36 +1093,44 @@ export function BillingDashboard() {
                       >
                         <TableCell component="th" scope="row">
                           <div className="billing-invoice-identity">
-                          <Button
-                            type="button"
-                            className="billing-invoice-button"
-                            onClick={() => {
-                              setOpenedCollectionId(null);
-                              setSelectedInvoiceId(invoice.id);
-                              setInvoiceOpen(true);
-                              clearActionState();
-                              setActionMessage("");
-                            }}
-                            aria-pressed={selected}
-                          >
-                            #{invoice.id}
-                          </Button>
-                          {invoice.patient ? (
+                            <Button
+                              type="button"
+                              className="billing-invoice-button"
+                              onClick={() => {
+                                setOpenedCollectionId(null);
+                                setSelectedInvoiceId(invoice.id);
+                                setInvoiceOpen(true);
+                                clearActionState();
+                                setActionMessage("");
+                              }}
+                              aria-pressed={selected}
+                            >
+                              #{invoice.id}
+                            </Button>
+                            {invoice.patient ? (
                               <Button
                                 size="small"
                                 href={`/clinic/billing/patients?patient_id=${invoice.patient.id}`}
                               >
                                 {invoice.patient.display_name}
                               </Button>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              Patient identity unavailable
-                            </Typography>
-                          )}
+                            ) : (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                Patient identity unavailable
+                              </Typography>
+                            )}
                           </div>
-                          <Typography component="p" variant="caption" color="text.secondary">
+                          <Typography
+                            component="p"
+                            variant="caption"
+                            color="text.secondary"
+                          >
                             {invoiceLocationLabel(invoice)}
-                            {invoice.patient && patientReferenceLabel(invoice.patient.reference)
+                            {invoice.patient &&
+                            patientReferenceLabel(invoice.patient.reference)
                               ? ` · ${patientReferenceLabel(invoice.patient.reference)}`
                               : ""}
                           </Typography>
@@ -1279,11 +1315,14 @@ export function BillingDashboard() {
                     recording another.
                   </Alert>
                 )}
-                {selectedDetail && (
+                {selectedDetail && selectedDetail.id === selectedInvoice.id && (
                   <InvoiceCheckoutControls
                     key={selectedInvoice.id}
                     onlinePayment={selectedDetail.online_payment}
                     endpoint={`/api/clinic/invoices/${selectedInvoice.id}/online_payment`}
+                    patientId={selectedDetail.patient_id}
+                    encounterId={selectedDetail.encounter_id ?? undefined}
+                    invoiceId={selectedDetail.id}
                     actionLabel="Collect online"
                     actionsEnabled={
                       canRecordPayment && pendingExternalInvoiceId === null
@@ -1335,7 +1374,8 @@ export function BillingDashboard() {
                             selectedDetail?.id !== selectedInvoice.id ||
                             selectedDetail.status !== "draft" ||
                             !selectedDetail.updated_at ||
-                            (postAttempt !== null && postAttempt.invoiceId !== selectedInvoice.id) ||
+                            (postAttempt !== null &&
+                              postAttempt.invoiceId !== selectedInvoice.id) ||
                             Boolean(busyAction)
                           }
                           onClick={() => {

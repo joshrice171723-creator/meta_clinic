@@ -59,7 +59,7 @@ module Clinic
       @record_id = optional_id(params[:record_id], :record_id)
       @scope = params[:scope].presence || "main"
       allowed_scopes = case @kind
-      when "checkout" then %w[main online_payment cash_payment invoice_edit invoice_post]
+      when "checkout" then %w[main online_payment synthetic_payment cash_payment invoice_edit invoice_post]
       when "follow_up" then %w[main operations]
       else %w[main]
       end
@@ -72,6 +72,7 @@ module Clinic
       raise ArgumentError, "Select the patient for this working draft." if encounter_id && !@patient
       raise ArgumentError, "Select the patient for this working draft." if %w[patient_update vitals soap checkout follow_up].include?(@kind) && !@patient
       raise ArgumentError, "Select the encounter for this working draft." if %w[vitals soap follow_up].include?(@kind) && !@encounter
+      raise ArgumentError, "Select the invoice for this working draft." if @scope == "synthetic_payment" && !@record_id
       if @kind == "checkout" && @record_id
         invoice = current_practice.invoices.where(patient: @patient).find(@record_id)
         raise ArgumentError, "This invoice belongs to another visit." if @encounter && invoice.encounter_id != @encounter.id
@@ -83,8 +84,13 @@ module Clinic
         raise ArgumentError, "Select a location for this working draft." unless site_id
         @site = accessible_clinic_sites.find(site_id)
       end
-      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
-        action: capability, site: @encounter&.site || @site)
+      if @scope == "synthetic_payment"
+        Clinic::Authorization.authorize_with_legacy!(actor: current_user, practice: current_practice,
+          action: "billing.payment_record", legacy_action: "billing.write")
+      else
+        Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+          action: capability, site: @encounter&.site || @site)
+      end
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
         action: "notes.read", site: @encounter.site) if @kind == "soap"
       @context_key = [ @kind, patient_id || 0, encounter_id || 0, @record_id || 0, @scope ].join(":")

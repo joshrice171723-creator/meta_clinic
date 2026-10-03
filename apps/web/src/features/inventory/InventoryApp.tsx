@@ -8,7 +8,6 @@ import {
   inventoryMutationAttempt,
   inventoryOutcomeUnconfirmed,
   inventoryMutationResponseOwned,
-  inventoryUsesAcknowledgement,
   type PendingInventoryMutation,
 } from "./inventoryMutationRecovery";
 import {
@@ -1358,7 +1357,7 @@ function InventoryLocationsScreen({
           },
         },
       );
-      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
+      if (payload.acknowledged !== true)
         throw new Error("The location update could not be confirmed.");
       await onRead(applied);
       setNotice(editingId ? "Location updated." : "Location created.");
@@ -1388,7 +1387,7 @@ function InventoryLocationsScreen({
           body: { location: { status: nextStatus } },
         },
       );
-      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
+      if (payload.acknowledged !== true)
         throw new Error("The location status could not be confirmed.");
       await onRead(applied);
       setNotice(
@@ -2279,7 +2278,7 @@ export function InventoryApp({ path }: { path: string }) {
       });
       if (!inventoryMutationResponseOwned(mutationOwner.current, requestScope))
         return;
-      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
+      if (payload.acknowledged !== true)
         throw new Error(
           "The inventory action response could not be confirmed.",
         );
@@ -3271,7 +3270,7 @@ function PurchaseCartWorkspace({
         `${endpoint}?response=ack`,
         options,
       );
-      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
+      if (payload.acknowledged !== true)
         throw new Error("The cart update response could not be confirmed.");
       await refresh();
     } catch (reason) {
@@ -3373,7 +3372,7 @@ function PurchaseCartWorkspace({
           },
         },
       );
-      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
+      if (payload.acknowledged !== true)
         throw new Error("The cart details could not be confirmed.");
       await run(
         "/api/clinic/inventory/purchase-cart/checkout",

@@ -54,6 +54,7 @@ export function useWorkingDraft<T>({
   scope?:
     | "main"
     | "online_payment"
+    | "synthetic_payment"
     | "cash_payment"
     | "invoice_edit"
     | "invoice_post"

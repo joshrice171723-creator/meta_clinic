@@ -18,6 +18,7 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   Stack,
   Tab,
@@ -2751,9 +2752,7 @@ function ScopedWorkInbox() {
                         loading={work.loading}
                         error={work.error}
                         onPage={(page) => changePage("staff", page)}
-                        onRetry={() =>
-                          setRefreshRevision((value) => value + 1)
-                        }
+                        onRetry={() => setRefreshRevision((value) => value + 1)}
                       />
                       <QueuePageControls
                         label="Encounter follow-ups"
@@ -2762,9 +2761,7 @@ function ScopedWorkInbox() {
                         loading={work.loading}
                         error={work.error}
                         onPage={(page) => changePage("encounters", page)}
-                        onRetry={() =>
-                          setRefreshRevision((value) => value + 1)
-                        }
+                        onRetry={() => setRefreshRevision((value) => value + 1)}
                       />
                       {assignment === "all" && !current_site && (
                         <QueuePageControls
@@ -2801,9 +2798,7 @@ function ScopedWorkInbox() {
                         loading={labFollowUps.loading}
                         error={labFollowUps.error}
                         onPage={(page) => changePage("labFollowUp", page)}
-                        onRetry={() =>
-                          setRefreshRevision((value) => value + 1)
-                        }
+                        onRetry={() => setRefreshRevision((value) => value + 1)}
                       />
                     )}
                 </Stack>
