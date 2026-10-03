@@ -99,31 +99,36 @@ class QaWorkflowCenterTest < ActiveSupport::TestCase
     end
   end
 
-  test "invalid exact pin rolls back the artifact and all evidence receipts" do
+  test "captured revision stays separate from claim revision and never becomes an accepted verdict" do
     with_test_activation do
       input = observation(claim).merge("revision" => "e" * 40)
-      assert_no_difference "Qa::Event.count" do
-        assert_raises(Qa::WorkflowEvidenceContract::Conflict) { record(input) }
-      end
+      saved = record(input)
+      assert_equal "e" * 40, saved["revision"]
+      artifact = Qa::Event.find(saved["artifact_event_id"])
+      observation = Qa::Event.find(saved["observation_event_id"])
+      assert_equal "e" * 40, artifact.revision
+      assert_equal @revision, observation.payload["claim_revision"]
+      assert_nil saved["accepted_verdict"]
     end
   end
 
-  test "deploy boundary seals old pin and cannot manufacture a new pin pass" do
+  test "deployment records a boundary and does not seal a still live claim" do
     with_test_activation do
       input = observation(claim)
       @build = { "revision" => "e" * 40, "dirty" => false }
       saved = record(input)
       assert_equal @revision, saved["revision"]
-      assert_equal "interrupted_old_pin", saved["seal_state"]
+      assert_equal "observation_recorded", saved["seal_state"]
+      assert_equal "deployment_changed", saved["build_boundary"]
       assert_nil saved["accepted_verdict"]
-      assert_equal "interrupted", Qa::Snapshot.find_by!(key: Qa::WorkflowCenter::LEASE_KEY).data.dig("run", "state")
+      assert_equal "claimed", Qa::Snapshot.find_by!(key: Qa::WorkflowCenter::LEASE_KEY).data.dig("run", "state")
       assert_no_difference "Qa::Event.count" do
         assert_equal saved, record(input)
       end
     end
   end
 
-  test "mismatched confirmed pin denies claims and seals existing observations" do
+  test "a legacy pin cannot steal a claim or block observations" do
     with_test_activation do
       input = observation(claim)
       Qa::Snapshot.put("pin", { "revision" => "e" * 40 })
@@ -132,8 +137,34 @@ class QaWorkflowCenterTest < ActiveSupport::TestCase
       end
       receipt = record(input)
       assert_equal @revision, receipt["revision"]
-      assert_equal "interrupted_old_pin", receipt["seal_state"]
+      assert_equal "observation_recorded", receipt["seal_state"]
       assert_nil receipt["accepted_verdict"]
+    end
+  end
+
+  test "unknown captured build remains explicit within the original claim" do
+    with_test_activation do
+      input = observation(claim).merge("revision" => "unobserved")
+      @build = { "revision" => nil }
+      receipt = record(input)
+      assert_equal "unobserved", receipt["revision"]
+      assert_equal "metadata_unavailable", receipt["build_boundary"]
+      assert_nil receipt["accepted_verdict"]
+    end
+  end
+
+  test "a deployment crossing back to capture revision remains visible in event and receipt" do
+    with_test_activation do
+      input = observation(claim)
+      builds = [{ "revision" => "e" * 40 }, { "revision" => @revision }]
+      saved = with_qa_method(Qa::Workspace, :build, -> { builds.shift }) { record(input) }
+      assert_equal "deployment_changed", saved["build_boundary"]
+      assert_equal ["e" * 40, @revision], saved["server_build_observations"].map { |item| item["revision"] }
+      event = Qa::Event.find(saved["observation_event_id"])
+      assert_equal "deployment_changed", event.payload["build_boundary"]
+      assert_equal saved["server_build_observations"], event.payload["server_build_observations"]
+      assert_equal @revision, event.revision
+      assert_nil saved["accepted_verdict"]
     end
   end
 

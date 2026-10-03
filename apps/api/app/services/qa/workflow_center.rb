@@ -84,7 +84,6 @@ module Qa
         history = WorkflowEvidenceContract.append_observation(history: [], input: input.except("artifact").merge("artifact_ids" => [artifact.id]),
           run:, artifacts: [artifact_data], catalog:, live_revision: observed, principal_key: principal[:key], now: Time.current)
         event = history.fetch(0)
-        observation = Event.create!(user:, **event.symbolize_keys, summary: "Workflow observation recorded: #{run['workflow_id']}")
         boundary = if input["revision"] == "unobserved" || [build_before, build_after].any? { |item| item["revision"].nil? }
           "metadata_unavailable"
         elsif [build_before, build_after].any? { |item| item["revision"] != input["revision"] }
@@ -92,6 +91,9 @@ module Qa
         else
           "same_observed_revision"
         end
+        event = event.merge("payload" => event.fetch("payload").merge(
+          "build_boundary" => boundary, "server_build_observations" => [build_before, build_after]))
+        observation = Event.create!(user:, **event.symbolize_keys, summary: "Workflow observation recorded: #{run['workflow_id']}")
         receipt = { "observation_event_id" => observation.id, "artifact_event_id" => artifact.id, "revision" => input["revision"],
           "seal_state" => event.dig("payload", "seal_state"), "accepted_verdict" => nil, "delivery" => "evidence_recorded",
           "build_boundary" => boundary, "server_build_observations" => [build_before, build_after] }

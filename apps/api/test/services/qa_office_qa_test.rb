@@ -54,7 +54,7 @@ class QaOfficeQaTest < ActiveSupport::TestCase
     end
   end
 
-  test "filing persists one pending Muse request pinned by server and never invents ledger proof" do
+  test "filing persists one observed Muse request and never invents ledger proof" do
     input = @defect.slice("title", "severity", "workflow", "repro_steps", "expected", "actual").merge("request_key" => "file-independent-defect")
     with_workspace(:build, @build) do
       first = Qa::OfficeQa.file_defect(user: @owner, token: @dot, input:)
@@ -71,22 +71,34 @@ class QaOfficeQaTest < ActiveSupport::TestCase
       assert_raises(Qa::OfficeActorPolicy::Denied) { Qa::OfficeQa.file_defect(user: nil, token: nil, input:) }
     end
     with_workspace(:build, @build.merge("dirty" => true)) do
-      assert_raises(Qa::OfficeWork::Conflict) { Qa::OfficeQa.file_defect(user: @owner, token: @dot, input:) }
+      replay = Qa::OfficeQa.file_defect(user: @owner, token: @dot, input:)
+      assert_equal @build["revision"], replay.dig("task", "revision")
     end
   end
 
-  test "retests require trusted current pin and deduplicate across principals" do
+  test "retests do not require pins and deduplicate known builds across principals" do
     import
     input = { "request_key" => "retest-independent-defect", "defect_id" => 42 }
     with_workspace(:build, @build) do
-      assert_raises(Qa::OfficeWork::Conflict) { Qa::OfficeQa.request_retest(user: @owner, token: @dot, input:) }
-      Qa::Snapshot.put("pin", @build)
       first = Qa::OfficeQa.request_retest(user: @owner, token: @dot, input:)
       second = Qa::OfficeQa.request_retest(user: @owner, token: @muse, input: input.merge("request_key" => "second-agent-retest"))
       assert_equal first["task"]["id"], second["task"]["id"]
       assert_equal 1, Qa::Task.where(kind: "retest").count
       assert_equal "queued", first["task"]["status"]
       assert_empty first["task"]["allowed_transitions"]
+    end
+  end
+
+  test "unavailable metadata records a pending defect and exact replay retains its original observation" do
+    input = @defect.slice("title", "severity", "workflow", "repro_steps", "expected", "actual").merge("request_key" => "unknown-build-defect")
+    saved = with_workspace(:build, { "revision" => nil }) do
+      Qa::OfficeQa.file_defect(user: @owner, token: @dot, input:)
+    end
+    assert_nil saved.dig("task", "revision")
+    task = Qa::Task.find(saved.dig("task", "id"))
+    assert_equal "unavailable", task.payload.dig("report", "submission_build_observation", "status")
+    with_workspace(:build, @build.merge("revision" => "e" * 40)) do
+      assert_equal saved, Qa::OfficeQa.file_defect(user: @owner, token: @dot, input:)
     end
   end
 
@@ -123,7 +135,7 @@ class QaOfficeQaTest < ActiveSupport::TestCase
       assert Qa::Task.exists?(task_id), "Recorded request history is preserved"
     end
     with_workspace(:build, production.merge("dirty" => true)) do
-      assert_raises(Qa::OfficeWork::Conflict) { Qa::OfficeQa.clean_build! }
+      assert_equal true, Qa::OfficeQa.clean_build!["dirty"]
     end
   end
 

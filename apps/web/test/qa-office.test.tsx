@@ -1037,11 +1037,108 @@ it("edits the coverage grid directly with a local Muse key", async () => {
       ],
     });
     expect(submitted?.idempotency_key).toBeTruthy();
+    // Confirmed handling retires client intent. Server lease exclusion is
+    // verified separately; this isolated carrier observes later request keys.
+    const claimKeys: string[] = [];
+    await page.route("**/qa/api/workflow/claim", (route) => {
+      claimKeys.push(route.request().postDataJSON().idempotency_key);
+      return route.fulfill({
+        status: 201,
+        json: { receipt_id: "synthetic-claim" },
+      });
+    });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const receipt = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === "/qa/api/workflow/claim",
+      );
+      await dialog.getByRole("button", { name: "Claim", exact: true }).click();
+      await receipt;
+      await dialog.getByText("Saved to the coverage grid.").waitFor();
+    }
+    expect(claimKeys).toHaveLength(2);
+    expect(claimKeys[0]).not.toBe(claimKeys[1]);
     await page.keyboard.press("Escape");
     await page
       .getByText("1/116 passed on this revision", { exact: true })
       .waitFor();
     expect(writes).toEqual([]);
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
+it("records unknown metadata and keeps an open observation through a deployment without pin confirmation", async () => {
+  const { page } = await open("ready", Date.parse(observed) + 1000);
+  try {
+    const ownerView = {
+      ...fixture,
+      pin: null,
+      capabilities: { ...fixture.capabilities, record_observation: true },
+    };
+    let metadata: Record<string, unknown> = { revision: null };
+    await page.route("**/api/qa", (route) =>
+      route.fulfill({ json: ownerView }),
+    );
+    await page.route("**/build.json*", (route) =>
+      route.fulfill({ json: metadata }),
+    );
+    let submitted: Record<string, any> | undefined;
+    await page.route("**/api/qa/events", (route) => {
+      submitted = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { id: 71 } });
+    });
+    await page.reload();
+    const buildObservations = page.getByRole("region", {
+      name: "Build observations",
+      includeHidden: true,
+    });
+    await buildObservations
+      .getByText("BUILD METADATA UNAVAILABLE", { exact: true })
+      .waitFor();
+    const record = page.getByRole("button", {
+      name: "Record observation",
+      exact: true,
+    });
+    await record.click();
+    const dialog = page.getByRole("dialog", { name: "Record observation" });
+    await dialog.getByLabel("Summary").fill("Synthetic metadata-boundary note");
+    await dialog
+      .getByLabel("Details and source")
+      .fill("Synthetic retained observation");
+    await dialog.getByRole("combobox", { name: "Source of this note" }).click();
+    await page.getByRole("option", { name: "Observed directly" }).click();
+    const deployedRevision = "c".repeat(40);
+    metadata = { ...build, revision: deployedRevision };
+    await page.clock.runFor(61_000);
+    await buildObservations
+      .getByText(deployedRevision, { exact: true })
+      .waitFor();
+    expect(await dialog.getByLabel("Details and source").inputValue()).toBe(
+      "Synthetic retained observation",
+    );
+    expect(
+      await page
+        .getByRole("button", { name: "Confirm live build pin" })
+        .count(),
+    ).toBe(0);
+    await dialog.getByRole("button", { name: "Save observation" }).click();
+    await page
+      .getByText(
+        "Observation saved to the activity log. Tasks and verdicts are unchanged.",
+      )
+      .waitFor();
+    expect(submitted?.event).toMatchObject({
+      revision: "unobserved",
+      summary: "Synthetic metadata-boundary note",
+      payload: {
+        provenance: "observed",
+        details: "Synthetic retained observation",
+      },
+    });
+    expect(
+      await page.getByRole("button", { name: "Retest this build" }).isEnabled(),
+    ).toBe(true);
   } finally {
     await page.close();
   }
