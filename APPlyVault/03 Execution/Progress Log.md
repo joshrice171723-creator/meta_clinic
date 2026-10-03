@@ -8,6 +8,9 @@ canonical_for: recent-progress-and-history-index
 # Progress Log
 
 
+**2026-10-03 - Inventory cycle follow-up integrated for review:** Hash-verified the supplemental two-file cloud patch and all six cloud-tested file hashes, independently reviewed the direct recovery-module import and active-UI assertions. Cloud reports57 inventory cases passing, including four mounted ownership cases, with type/format/main/Office checks passing. Reused exact matching frontend evidence; raw archive remains unreceived. Granted next CareFlow import/history/compatibility work in1/5/1-file packets with registration, recovery and backend exclusions. Connected journey remains open; no main merge/publication or hosted acceptance. [Receipts and ownership](../../docs/development/clinic-workflow-plans/cash-inventory-repair-audit-20261003.md).
+
+
 **2026-10-03 - Cloud cleanup packet reconciled:** Reconstructed and hash-verified the exact780-line InventoryApp private-screen deletion and three browser fixture repairs from the parent-relayed cloud packet. Separate source review confirms unchanged public exports/active purchasing/prices/drafts/recovery. Cloud reports33 mounted passes and55 post-cleanup inventory passes with two stale source assertions; raw archive remains unreceived. Cloud owns the separate two-file cycle/assertion fix; no duplicate local heavy checks or main/publication action. Local registration accepted synthetic patient1, preserving its receipt before continuing the connected journey. [Packet identities and limits](../../docs/development/clinic-workflow-plans/cash-inventory-repair-audit-20261003.md).
 
 

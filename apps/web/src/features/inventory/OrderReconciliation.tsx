@@ -16,7 +16,7 @@ import {
   inventoryMutationAttempt,
   inventoryOutcomeUnconfirmed,
   type PendingInventoryMutation,
-} from "./InventoryApp";
+} from "./inventoryMutationRecovery";
 import {
   decimalAdd,
   decimalMultiply,
