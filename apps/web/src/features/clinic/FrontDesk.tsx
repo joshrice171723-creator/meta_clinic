@@ -41,7 +41,7 @@ import {
   bookingAvailability,
   offeringEligibilityIssue,
   type BookingServiceOffering,
-} from "./CareFlow";
+} from "./careFlowState";
 import { patientReferenceLabel } from "./patientReference";
 import {
   appointmentActions,
