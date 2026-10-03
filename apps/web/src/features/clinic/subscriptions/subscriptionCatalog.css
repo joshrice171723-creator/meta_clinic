@@ -84,6 +84,23 @@
   color: var(--clinic-text);
 }
 
+@media (max-width: 600px) {
+  .clinic-theme .subscription-catalog__flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    overflow: visible;
+  }
+  .clinic-theme .subscription-catalog__flow > div {
+    min-width: 0;
+  }
+  .clinic-theme .subscription-catalog__flow > div:last-child {
+    grid-column: auto;
+  }
+  .clinic-theme .subscription-catalog__flow > svg {
+    display: none;
+  }
+}
+
 .clinic-theme .subscription-catalog__template {
   display: flex;
   align-items: center;

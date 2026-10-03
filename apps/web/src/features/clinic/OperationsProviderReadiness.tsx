@@ -1,4 +1,14 @@
-import { Alert, Button, Chip, Stack, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
+  Button,
+  Chip,
+  Stack,
+  Typography,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useEffect, useState } from "react";
 import { loadTelehealthSettings } from "../telehealth/api";
 import type {
@@ -126,16 +136,27 @@ export function OperationsProviderReadiness({
         {formatCheckedAt(response.data.health_checked_at)} ·{" "}
         {formatLoadedAt(response.as_of)}. Times are shown in your browser time.
       </Typography>
-      <Typography variant="body2" color="text.secondary">
-        “Configured” reports the server&apos;s latest provider health result.
-        The response does not identify a live environment, so this page does not
-        label the connection live.
-      </Typography>
-      <Alert severity="info">
-        Scribe activity is listed in the integration inventory for authorized
-        staff. Its configuration status does not establish provider
-        connectivity.
-      </Alert>
+      <Accordion disableGutters elevation={0} variant="outlined">
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography component="span" variant="body2">
+            Provider status details
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1}>
+            <Typography variant="body2" color="text.secondary">
+              “Configured” reports the server&apos;s latest provider health
+              result. The response does not identify a live environment, so this
+              page does not label the connection live.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Scribe activity is listed in the integration inventory for
+              authorized staff. Its configuration status does not establish
+              provider connectivity.
+            </Typography>
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
       <Button
         component="a"
         href="/clinic/settings/telehealth"

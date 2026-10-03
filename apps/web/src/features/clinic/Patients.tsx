@@ -163,95 +163,95 @@ export function Patients({ id }: { id?: string }) {
             selectedSite ? `${selectedSite.name} patients` : "All patients"
           }
         >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          sx={{
-            alignItems: { sm: "center" },
-            justifyContent: "space-between",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography color="text.secondary" variant="body2">
-              {selectedSite
-                ? `Browse patients assigned to ${selectedSite.name}.`
-                : "Browse patients registered at this clinic."}
-            </Typography>
-          </Box>
-          <TextField
-            select
-            label="Primary location"
-            size="small"
-            value={selectedSite?.id ?? ""}
-            onChange={(event) =>
-              window.location.assign(
-                event.target.value
-                  ? `/clinic/patients?site_id=${event.target.value}`
-                  : "/clinic/patients",
-              )
-            }
-            sx={{ width: { xs: "100%", sm: 240 }, flexShrink: 0 }}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{
+              alignItems: { sm: "center" },
+              justifyContent: "space-between",
+              mb: 2,
+            }}
           >
-            <MenuItem value="">All clinic patients</MenuItem>
-            {clinic.sites.map((site) => (
-              <MenuItem key={site.id} value={site.id}>
-                {site.name || site.code}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-        {data.patients?.length === 0 ? (
-          <p>
-            {selectedSite
-              ? "No patients are assigned to this location yet."
-              : "No patients are registered at this clinic yet."}
-          </p>
-        ) : (
-          <div className="clinic-table-wrap">
-            <table className="care-table">
-              <caption className="sr-only">
+            <Box>
+              <Typography color="text.secondary" variant="body2">
                 {selectedSite
-                  ? `Patients assigned to ${selectedSite.name}`
-                  : "Patients registered at this clinic"}
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Patient</th>
-                  <th scope="col">Clinic reference</th>
-                  <th scope="col">Date of birth</th>
-                  <th scope="col">Phone</th>
-                  <th scope="col">Record</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.patients?.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <strong>{p.display_name}</strong>
-                    </td>
-                    <td>
-                      {patientReferenceLabel(p.reference) ?? "Not recorded"}
-                    </td>
-                    <td>{p.date_of_birth ?? "Not recorded"}</td>
-                    <td>{p.phone_hint ?? "Not recorded"}</td>
-                    <td>
-                      <a href={`/clinic/patients/${p.id}`}>Open patient</a>
-                    </td>
+                  ? `Browse patients assigned to ${selectedSite.name}.`
+                  : "Browse patients registered at this clinic."}
+              </Typography>
+            </Box>
+            <TextField
+              select
+              label="Primary location"
+              size="small"
+              value={selectedSite?.id ?? ""}
+              onChange={(event) =>
+                window.location.assign(
+                  event.target.value
+                    ? `/clinic/patients?site_id=${event.target.value}`
+                    : "/clinic/patients",
+                )
+              }
+              sx={{ width: { xs: "100%", sm: 240 }, flexShrink: 0 }}
+            >
+              <MenuItem value="">All clinic patients</MenuItem>
+              {clinic.sites.map((site) => (
+                <MenuItem key={site.id} value={site.id}>
+                  {site.name || site.code}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          {data.patients?.length === 0 ? (
+            <p>
+              {selectedSite
+                ? "No patients are assigned to this location yet."
+                : "No patients are registered at this clinic yet."}
+            </p>
+          ) : (
+            <div className="clinic-table-wrap">
+              <table className="care-table">
+                <caption className="sr-only">
+                  {selectedSite
+                    ? `Patients assigned to ${selectedSite.name}`
+                    : "Patients registered at this clinic"}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Patient</th>
+                    <th scope="col">Clinic reference</th>
+                    <th scope="col">Date of birth</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Record</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {data.pagination && (
-          <Pager
-            page={data.pagination.page}
-            total={data.pagination.total}
-            size={data.pagination.per_page}
-            path={`/clinic/patients${selectedSite ? `?site_id=${selectedSite.id}` : ""}`}
-          />
-        )}
+                </thead>
+                <tbody>
+                  {data.patients?.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <strong>{p.display_name}</strong>
+                      </td>
+                      <td>
+                        {patientReferenceLabel(p.reference) ?? "Not recorded"}
+                      </td>
+                      <td>{p.date_of_birth ?? "Not recorded"}</td>
+                      <td>{p.phone_hint ?? "Not recorded"}</td>
+                      <td>
+                        <a href={`/clinic/patients/${p.id}`}>Open patient</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {data.pagination && (
+            <Pager
+              page={data.pagination.page}
+              total={data.pagination.total}
+              size={data.pagination.per_page}
+              path={`/clinic/patients${selectedSite ? `?site_id=${selectedSite.id}` : ""}`}
+            />
+          )}
         </Card>
       </Stack>
     </>
@@ -282,8 +282,7 @@ export function PatientRegistrationPage() {
         >
           <Typography sx={{ fontWeight: 700 }}>Guided registration</Typography>
           <Typography variant="body2">
-            Complete and save each section before continuing. The patient record
-            is created only when you finish registration.
+            Save each section before continuing.
           </Typography>
         </Box>
         <a className="text-link" href="/clinic/patients">
@@ -504,7 +503,11 @@ export function PatientLookupResults({
         <Stack
           direction="row"
           spacing={1}
-          sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}
+          sx={{
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+          }}
         >
           <Typography id="patient-search-results-heading" component="h4" variant="subtitle1">
             Search results
@@ -530,7 +533,11 @@ export function PatientLookupResults({
       <Stack
         direction="row"
         spacing={1}
-        sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
       >
         <Typography id="patient-search-results-heading" component="h4" variant="subtitle1">
           Search results
@@ -1529,7 +1536,8 @@ function ActiveEncounterAction({ patientId }: { patientId: number }) {
         <Box>
           {title}
           <Typography variant="body2" color="text.secondary">
-            Open encounter #{encounter.id} · Started {clinicDateTime(encounter.started_at, timezone)}
+            Open encounter #{encounter.id} · Started{" "}
+            {clinicDateTime(encounter.started_at, timezone)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Confirm the patient and encounter when resuming.
@@ -2849,80 +2857,89 @@ function PatientDetails({
           id="patient-care-overview-heading"
           component="h2"
           variant="h5"
-          sx={{ mb: 1.5 }}
+          sx={{ mb: 0.5 }}
         >
           Care overview
         </Typography>
         <Stack spacing={2}>
-          <PatientClinicalHistory patientId={patient.id} compactOverview />
           <Box
+            className="patient-overview-groups"
             sx={{
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                lg: "minmax(0, 1fr) minmax(0, 1fr)",
+                xl: "minmax(0, 1.8fr) minmax(16rem, 1fr) minmax(16rem, 1fr)",
               },
               gap: 1.5,
               alignItems: "start",
             }}
           >
-          <Card title="Vital-sign history">
-            {patient.vital_signs?.length ? (
-              <Stack
-                component="ul"
-                spacing={0}
-                divider={<Divider />}
-                sx={{ p: 0, m: 0, listStyle: "none" }}
-              >
-                {patient.vital_signs.map((v, index) => {
-                  const label = vitalLabel(v.code);
-                  const value = v.numeric_value ?? "Not recorded";
-                  const unit = vitalUnit(v.unit_code);
-                  return (
-                    <Box
-                      component="li"
-                      key={`${v.code}:${v.observed_at}:${index}`}
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 2,
-                        py: 1,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="body2">{label}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Observed {clinicDateTime(v.observed_at, timezone)}
+            <PatientClinicalHistory patientId={patient.id} compactOverview />
+            <Card title="Recent vital signs">
+              {patient.vital_signs?.length ? (
+                <Stack
+                  component="ul"
+                  spacing={0}
+                  divider={<Divider />}
+                  sx={{ p: 0, m: 0, listStyle: "none" }}
+                >
+                  {patient.vital_signs.map((v, index) => {
+                    const label = vitalLabel(v.code);
+                    const value = v.numeric_value ?? "Not recorded";
+                    const unit = vitalUnit(v.unit_code);
+                    return (
+                      <Box
+                        component="li"
+                        key={`${v.code}:${v.observed_at}:${index}`}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 2,
+                          py: 1,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2">{label}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Observed {clinicDateTime(v.observed_at, timezone)}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {value}
+                          {unit ? ` ${unit}` : ""}
                         </Typography>
                       </Box>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
-                      >
-                        {value}{unit ? ` ${unit}` : ""}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            ) : (
-              <Typography color="text.secondary" variant="body2">
-                No vital-sign observations recorded.
-              </Typography>
-            )}
-            {patient.vital_signs?.length ? (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                Measurements are shown as recorded in the clinic time zone. No
-                trend, normal range, or clinical status is inferred.
-              </Typography>
-            ) : null}
-          </Card>
-          <PatientCareCoordination
-            patientId={patient.id}
-            onSaved={onCoordinationSaved}
-            compactOverview
-          />
+                    );
+                  })}
+                </Stack>
+              ) : (
+                <Typography color="text.secondary" variant="body2">
+                  No vital-sign observations recorded.
+                </Typography>
+              )}
+              {patient.vital_signs?.length ? (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 1, display: "block" }}
+                >
+                  Measurements are shown as recorded in the clinic time zone. No
+                  trend, normal range, or clinical status is inferred.
+                </Typography>
+              ) : null}
+            </Card>
+            <PatientCareCoordination
+              patientId={patient.id}
+              onSaved={onCoordinationSaved}
+              compactOverview
+            />
           </Box>
           <IntakeConsentEvidence patientId={patient.id} />
           <PatientLabReports

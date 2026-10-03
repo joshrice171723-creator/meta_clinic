@@ -18,7 +18,6 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
   Tab,
@@ -1579,8 +1578,8 @@ function PatientFlowCard({
   const scheduleHref = patientFlowScheduleHref(task, context);
   return (
     <Card variant="outlined" sx={{ minWidth: 0 }}>
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Stack spacing={1.25} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+      <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+        <Stack spacing={0.75} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {item.patient || item.title}
           </Typography>
@@ -1603,9 +1602,6 @@ function PatientFlowCard({
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Owner: {item.owner}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Source: {item.sourceLabel.replaceAll("_", " ")}
           </Typography>
           <Button
             href={item.href}
@@ -1644,6 +1640,9 @@ function PatientFlowCard({
         >
           <Typography component="summary" variant="body2">
             Actions and details
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Source: {item.sourceLabel.replaceAll("_", " ")}
           </Typography>
           {item.patientReference && (
             <Typography
@@ -2395,9 +2394,7 @@ function ScopedWorkInbox() {
               color="text.secondary"
               sx={{ mt: 0.5, maxWidth: "72ch" }}
             >
-              Move patient work from a new request through active ownership and
-              scheduling. The Scheduled column contains only recorded clinic
-              appointments.
+              Review open work, assign an owner and choose the next action.
             </Typography>
           </Box>
           <Button
@@ -2416,8 +2413,8 @@ function ScopedWorkInbox() {
       </Box>
       {scheduledVisits.data?.has_more && (
         <Alert severity="info" role="status">
-          The appointment summary covers the first 100 upcoming appointments.
-          Use Schedule to review individual appointments and additional dates.
+          Appointment summary limited to 100 records. Open Schedule for all
+          dates.
         </Alert>
       )}
 
@@ -2471,13 +2468,9 @@ function ScopedWorkInbox() {
           ))}
         </Stack>
       </Box>
-      <Paper
-        elevation={0}
+      <Box
         sx={{
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 2,
-          overflow: "hidden",
+          minWidth: 0,
         }}
       >
         <Tabs
@@ -2496,7 +2489,7 @@ function ScopedWorkInbox() {
           variant="scrollable"
           scrollButtons="auto"
           sx={{
-            px: { xs: 1, md: 2 },
+            px: 0,
             borderBottom: "1px solid",
             borderColor: "divider",
           }}
@@ -2506,7 +2499,7 @@ function ScopedWorkInbox() {
           <Tab value="overdue" label="Overdue" />
           <Tab value="offboarded" label="Revoked owner work" />
         </Tabs>
-        <Box sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Box sx={{ pt: 2 }}>
           {assignment === "offboarded" && work.data && (
             <Stack
               direction="row"
@@ -2792,13 +2785,12 @@ function ScopedWorkInbox() {
               }}
             >
               {patientFlowColumns.map((column) => (
-                <Paper
+                <Box
                   key={column.id}
                   component="section"
-                  variant="outlined"
                   aria-labelledby={`patient-flow-${column.id}`}
                   sx={{
-                    p: 1.5,
+                    p: 0,
                     display: "flex",
                     flexDirection: "column",
                     minWidth: 0,
@@ -2807,7 +2799,6 @@ function ScopedWorkInbox() {
                       xs: "min(46dvh, 24rem)",
                       md: "min(62dvh, 38rem)",
                     },
-                    bgcolor: "action.hover",
                   }}
                 >
                   <Stack spacing={1.25} sx={{ minHeight: 0, flex: 1 }}>
@@ -2882,12 +2873,12 @@ function ScopedWorkInbox() {
                       )}
                     </Box>
                   </Stack>
-                </Paper>
+                </Box>
               ))}
             </Box>
           )}
         </Box>
-      </Paper>
+      </Box>
       <PrescriptionReconciliationWorklist
         practiceId={practice.id}
         actorId={user_id}

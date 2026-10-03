@@ -217,11 +217,7 @@
   position: sticky;
   top: 64px;
   z-index: 3;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  display: block;
   background: var(--clinic-surface);
 }
 .clinic-theme .chart-quick-jump h2 {

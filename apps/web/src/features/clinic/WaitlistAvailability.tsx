@@ -5,6 +5,19 @@ import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import type { WaitlistItem } from "./WaitlistWorkspace";
 
+function displaySlotTime(value: string, timezone: string) {
+  const time = new Date(value);
+  if (Number.isNaN(time.valueOf())) return "Time unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+    timeZone: timezone,
+  }).format(time);
+}
+
 export function WaitlistAvailability({
   entry,
   disabled,
@@ -118,7 +131,7 @@ export function WaitlistAvailability({
                 {entry.clinician_name} · {entry.duration_minutes} minutes ·{" "}
                 {data.timezone}
                 {data.as_of &&
-                  ` · Checked ${new Date(data.as_of).toLocaleString(undefined, { timeZone: data.timezone })}`}
+                  ` · Checked ${displaySlotTime(data.as_of, data.timezone)}`}
               </Typography>
               {!data.capacity_configured ? (
                 <Alert severity="info">
@@ -137,10 +150,7 @@ export function WaitlistAvailability({
                     onClick={() => onChoose(slot.starts_at)}
                   >
                     Draft offer:{" "}
-                    {new Date(slot.starts_at).toLocaleString(undefined, {
-                      timeZone: data.timezone,
-                    })}{" "}
-                    ({data.timezone})
+                    {displaySlotTime(slot.starts_at, data.timezone)}
                   </Button>
                 ))
               )}

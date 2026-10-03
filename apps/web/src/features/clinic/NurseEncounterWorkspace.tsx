@@ -868,8 +868,7 @@ export function NurseEncounterWorkspaceContent({
               Rooming & intake
             </Typography>
             <Typography color="text.secondary">
-              {patient.display_name} · Encounter #{encounter.id} · Room{" "}
-              {roomStatusLabel}
+              Room {roomStatusLabel} · Intake working area
             </Typography>
           </Box>
           <Stack
@@ -911,7 +910,7 @@ export function NurseEncounterWorkspaceContent({
           direction="row"
           spacing={0.5}
           useFlexGap
-          aria-label="Encounter preparation"
+          aria-label="Current rooming and intake section"
           sx={{ flexWrap: "wrap" }}
         >
           {[
@@ -926,8 +925,9 @@ export function NurseEncounterWorkspaceContent({
             <Button
               key={value}
               id={`preparation-tab-${value}`}
-              variant={activeWorkspace === value ? "outlined" : "text"}
+              variant={activeWorkspace === value ? "contained" : "text"}
               aria-pressed={activeWorkspace === value}
+              aria-current={activeWorkspace === value ? "page" : undefined}
               onClick={() => setActiveWorkspace(value)}
               aria-controls={`preparation-panel-${value}`}
               sx={{ minHeight: 44, px: 1.5 }}

@@ -185,7 +185,7 @@
   overflow: hidden;
 }
 .clinic-theme .tracking-visit-alt > .MuiTableCell-root {
-  background: color-mix(in srgb, var(--clinic-soft) 8%, var(--clinic-surface));
+  background: var(--clinic-surface);
 }
 .clinic-theme .tracking-table-container .MuiTableCell-head {
   position: sticky;
@@ -228,6 +228,16 @@
 }
 .clinic-theme .tracking-table-container .MuiTableRow-hover:hover {
   background: color-mix(in srgb, var(--clinic-soft) 70%, transparent);
+}
+.clinic-theme .tracking-table-container .MuiTableBody-root .MuiTableCell-root {
+  background: var(--clinic-surface);
+}
+.clinic-theme
+  .tracking-table-container
+  .MuiTableBody-root
+  tr:is(:hover, :focus-within)
+  > .MuiTableCell-root {
+  background: var(--clinic-soft);
 }
 .clinic-theme .tracking-table-container .MuiChip-root {
   font-family: inherit;

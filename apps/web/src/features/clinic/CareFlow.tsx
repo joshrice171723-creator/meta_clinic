@@ -28,6 +28,7 @@ import {
   type ReactNode,
 } from "react";
 import CloseIcon from "@mui/icons-material/Close";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import {
@@ -35,6 +36,9 @@ import {
   type VisitModality,
 } from "./TelehealthBookingFormat";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -2186,6 +2190,7 @@ function BookingFormEditor({
         <Box
           component="form"
           noValidate
+          sx={{ pb: onClose ? 10 : 0 }}
           onChange={() => {
             if (!outcomeUnconfirmed && !seriesOutcomeUnconfirmed)
               setSubmitError("");
@@ -2461,46 +2466,52 @@ function BookingFormEditor({
               }}
             />
             <Typography component="h3" variant="subtitle1">
-              Visit details
+              Visit type and format
             </Typography>
-              <FormControl
-                fullWidth
-                required
-                disabled={busy || outcomeUnconfirmed}
+            <FormControl
+              fullWidth
+              required
+              disabled={busy || outcomeUnconfirmed}
+            >
+              <InputLabel id="visit-type-label">Visit type</InputLabel>
+              <Select
+                labelId="visit-type-label"
+                label="Visit type"
+                value={visitTypeId}
+                onChange={(event) => setVisitTypeId(event.target.value)}
               >
-                <InputLabel id="visit-type-label">Visit type</InputLabel>
-                <Select
-                  labelId="visit-type-label"
-                  label="Visit type"
-                  value={visitTypeId}
-                  onChange={(event) => setVisitTypeId(event.target.value)}
-                >
-                  <MenuItem value="" disabled>
-                    Select a visit type
+                <MenuItem value="" disabled>
+                  Select a visit type
+                </MenuItem>
+                {visitTypeId && visitTypeIssue && (
+                  <MenuItem value={visitTypeId} disabled>
+                    Previously selected visit type is unavailable
                   </MenuItem>
-                  {visitTypeId && visitTypeIssue && (
-                    <MenuItem value={visitTypeId} disabled>
-                      Previously selected visit type is unavailable
-                    </MenuItem>
-                  )}
-                  {visitTypes.data.visit_types
-                    .filter((type) => !type.retired_at)
-                    .map((type) => (
-                      <MenuItem key={type.id} value={type.id.toString()}>
-                        {statusLabel(type.code)}
-                      </MenuItem>
-                    ))}
-                </Select>
-                {visitTypeIssue && (
-                  <FormHelperText
-                    error={Boolean(visitTypeId) || !visitTypes.data.visit_types.some((type) => !type.retired_at)}
-                  >
-                    {!visitTypeId && visitTypes.data.visit_types.some((type) => !type.retired_at)
-                      ? "Choose a visit type to continue."
-                      : visitTypeIssue}
-                  </FormHelperText>
                 )}
-              </FormControl>
+                {visitTypes.data.visit_types
+                  .filter((type) => !type.retired_at)
+                  .map((type) => (
+                    <MenuItem key={type.id} value={type.id.toString()}>
+                      {statusLabel(type.code)}
+                    </MenuItem>
+                  ))}
+              </Select>
+              {visitTypeIssue && (
+                <FormHelperText
+                  error={
+                    Boolean(visitTypeId) ||
+                    !visitTypes.data.visit_types.some(
+                      (type) => !type.retired_at,
+                    )
+                  }
+                >
+                  {!visitTypeId &&
+                  visitTypes.data.visit_types.some((type) => !type.retired_at)
+                    ? "Choose a visit type to continue."
+                    : visitTypeIssue}
+                </FormHelperText>
+              )}
+            </FormControl>
             <TelehealthBookingFormat
               siteId={siteId}
               visitTypeId={visitTypeId}
@@ -2522,6 +2533,9 @@ function BookingFormEditor({
                 }
               }}
             />
+            <Typography component="h3" variant="subtitle1">
+              Location and clinician
+            </Typography>
             <Box
               sx={{
                 display: "grid",
@@ -2727,84 +2741,18 @@ function BookingFormEditor({
               >
                 Clinic time zone: {bookingTimezone}
               </Typography>
-            <Box
-              sx={{
-                display: "grid",
-                gridColumn: "1 / -1",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 2,
-              }}
-            >
-              <TextField
-                label="Starts"
-                type="datetime-local"
-                required
-                disabled={
-                  busy ||
-                  outcomeUnconfirmed ||
-                  holdOutcomeUnconfirmed ||
-                  seriesOutcomeUnconfirmed ||
-                  Boolean(heldSlot)
-                }
-                value={startsAt}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setStartsAt(value);
-                  if (!endTimeEdited) {
-                    const end = bookingEndTime(value, durationMinutes);
-                    if (end) setEndsAt(end);
-                  }
+              <Box
+                sx={{
+                  display: "grid",
+                  gridColumn: "1 / -1",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: 2,
                 }}
-                helperText="Use your device's time zone. Review clinic time below."
-                slotProps={{
-                  inputLabel: { shrink: true },
-                }}
-              />
-              <TextField
-                label="Ends"
-                type="datetime-local"
-                required
-                disabled={
-                  busy ||
-                  outcomeUnconfirmed ||
-                  holdOutcomeUnconfirmed ||
-                  seriesOutcomeUnconfirmed ||
-                  Boolean(heldSlot)
-                }
-                value={endsAt}
-                error={Boolean(intervalError)}
-                helperText={
-                  intervalError ||
-                  (endTimeEdited
-                    ? "Edited end stays fixed. Choose a duration to calculate it again."
-                    : "Calculated from duration. Edit to set a specific end.")
-                }
-                onChange={(event) => {
-                  setEndsAt(event.target.value);
-                  setEndTimeEdited(true);
-                }}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                }}
-              />
-            </Box>
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1, gridColumn: "1 / -1" }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Duration:
-              </Typography>
-              {[30, 45, 60].map((minutes) => (
-                <Button
-                  key={minutes}
-                  size="small"
-                  variant={
-                    !endTimeEdited && durationMinutes === minutes
-                      ? "contained"
-                      : "outlined"
-                  }
+              >
+                <TextField
+                  label="Starts"
+                  type="datetime-local"
+                  required
                   disabled={
                     busy ||
                     outcomeUnconfirmed ||
@@ -2812,17 +2760,99 @@ function BookingFormEditor({
                     seriesOutcomeUnconfirmed ||
                     Boolean(heldSlot)
                   }
-                  onClick={() => setDuration(minutes)}
+                  value={startsAt}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setStartsAt(value);
+                    if (!endTimeEdited) {
+                      const end = bookingEndTime(value, durationMinutes);
+                      if (end) setEndsAt(end);
+                    }
+                  }}
+                  helperText="Use your device's time zone. Review clinic time below."
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                  }}
+                />
+                <TextField
+                  label="Ends"
+                  type="datetime-local"
+                  required
+                  disabled={
+                    busy ||
+                    outcomeUnconfirmed ||
+                    holdOutcomeUnconfirmed ||
+                    seriesOutcomeUnconfirmed ||
+                    Boolean(heldSlot)
+                  }
+                  value={endsAt}
+                  error={Boolean(intervalError)}
+                  helperText={
+                    intervalError ||
+                    (endTimeEdited
+                      ? "Edited end stays fixed. Choose a duration to calculate it again."
+                      : "Calculated from duration. Edit to set a specific end.")
+                  }
+                  onChange={(event) => {
+                    setEndsAt(event.target.value);
+                    setEndTimeEdited(true);
+                  }}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                  }}
+                />
+              </Box>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  rowGap: 1,
+                  gridColumn: "1 / -1",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Duration:
+                </Typography>
+                {[30, 45, 60].map((minutes) => (
+                  <Button
+                    key={minutes}
+                    size="small"
+                    variant={
+                      !endTimeEdited && durationMinutes === minutes
+                        ? "contained"
+                        : "outlined"
+                    }
+                    disabled={
+                      busy ||
+                      outcomeUnconfirmed ||
+                      holdOutcomeUnconfirmed ||
+                      seriesOutcomeUnconfirmed ||
+                      Boolean(heldSlot)
+                    }
+                    onClick={() => setDuration(minutes)}
+                  >
+                    {minutes} min
+                  </Button>
+                ))}
+              </Stack>
+              {timePreview && (
+                <Alert
+                  severity="info"
+                  variant="outlined"
+                  sx={{ gridColumn: "1 / -1" }}
                 >
-                  {minutes} min
-                </Button>
-              ))}
-            </Stack>
-            {timePreview && (
-              <Alert severity="info" variant="outlined" sx={{ gridColumn: "1 / -1" }}>
-                {timePreview} — look right?
-              </Alert>
-            )}
+                  {timePreview} — look right?
+                </Alert>
+              )}
+              <Typography
+                component="h3"
+                variant="subtitle1"
+                sx={{ gridColumn: "1 / -1" }}
+              >
+                Optional details
+              </Typography>
               <TextField
                 fullWidth
                 label="Visit reason"
@@ -5591,37 +5621,43 @@ export function ChartQuickJump() {
   ] as const;
 
   return (
-    <Paper
+    <Accordion
       component="nav"
       variant="outlined"
       className="chart-quick-jump"
       aria-label="Chart quick navigation"
+      disableGutters
+      elevation={0}
     >
-      <Typography variant="subtitle2" component="h2">
-        Sections in chart
-      </Typography>
-      <Stack direction="row" className="chart-quick-jump-links">
-        {links.map(([label, href]) => (
-          <Button
-            key={href}
-            href={href}
-            variant="text"
-            size="small"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              document.querySelector(href)?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
-              window.history.replaceState(null, "", href);
-            }}
-          >
-            {label}
-          </Button>
-        ))}
-      </Stack>
-    </Paper>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography variant="subtitle2" component="h2">
+          Chart details
+        </Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Stack direction="row" className="chart-quick-jump-links">
+          {links.map(([label, href]) => (
+            <Button
+              key={href}
+              href={href}
+              variant="text"
+              size="small"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                document.querySelector(href)?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+                window.history.replaceState(null, "", href);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -5712,7 +5748,7 @@ export function EncounterSectionRail({
       aria-label="Encounter sections"
     >
       <Typography variant="subtitle2" component="h2">
-        Encounter
+        Current encounter section
       </Typography>
       <Stack direction="row" className="encounter-section-links">
         {links.map(([label, href]) => (

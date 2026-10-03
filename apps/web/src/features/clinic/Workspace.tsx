@@ -11,6 +11,7 @@ import {
 import {
   Alert,
   Button,
+  Collapse,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -38,6 +39,7 @@ import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { TelehealthSessionProvider } from "../telehealth/TelehealthSessionProvider";
 import { TelehealthDock } from "../telehealth/TelehealthDock";
 import type {
@@ -401,6 +403,17 @@ export function ClinicNavigation({
     },
   ];
   const currentPath = path.replace(/\/+$/, "") || "/";
+  const accountIsCurrent = groups
+    .find((group) => group.id === "account")!
+    .links.some(
+      (link) =>
+        currentPath === link.href || currentPath.startsWith(link.href + "/"),
+    );
+  const [accountExpanded, setAccountExpanded] = useState(accountIsCurrent);
+  useEffect(
+    () => setAccountExpanded(accountIsCurrent),
+    [currentPath, accountIsCurrent],
+  );
   return (
     <nav className="clinic-work-navigation" aria-label="Clinic navigation">
       {groups.map((group) => {
@@ -413,46 +426,84 @@ export function ClinicNavigation({
               component="div"
               disablePadding
               subheader={
-                <ListSubheader component="h2" disableSticky id={headingId}>
-                  {group.label}
-                </ListSubheader>
+                group.id === "account" && !rail ? (
+                  <ListSubheader component="h2" disableSticky id={headingId}>
+                    <Button
+                      className="clinic-nav-group-toggle"
+                      aria-expanded={accountExpanded}
+                      aria-controls="clinic-account-links"
+                      onClick={() => setAccountExpanded((value) => !value)}
+                      endIcon={
+                        <ExpandMoreIcon
+                          sx={{
+                            transform: accountExpanded
+                              ? "rotate(180deg)"
+                              : undefined,
+                          }}
+                        />
+                      }
+                    >
+                      {group.label}
+                    </Button>
+                  </ListSubheader>
+                ) : (
+                  <ListSubheader component="h2" disableSticky id={headingId}>
+                    {group.label}
+                  </ListSubheader>
+                )
               }
             >
-              {links.map(({ href, label, description, Icon }) => {
-                const current =
-                  href === "/clinic"
-                    ? currentPath === "/clinic" && homeView === "tracking"
-                    : href === "/clinic/schedule"
-                      ? currentPath === "/clinic/schedule" ||
-                        (currentPath === "/clinic" && homeView === "schedule")
-                      : currentPath === href ||
-                        currentPath.startsWith(href + "/");
-                return (
-                  <Tooltip
-                    key={href}
-                    describeChild
-                    title={description ? `${label} — ${description}` : label}
-                    placement="right"
-                  >
-                    <ListItemButton
-                      component="a"
-                      href={href}
-                      selected={current}
-                      aria-label={label}
-                      aria-current={current ? "page" : undefined}
-                      data-demo-tour-navigation="true"
-                    >
-                      <ListItemIcon>
-                        <Icon aria-hidden="true" fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText
-                        className={rail ? "clinic-nav-rail-label" : undefined}
-                        primary={label}
-                      />
-                    </ListItemButton>
-                  </Tooltip>
-                );
-              })}
+              <Collapse
+                in={group.id !== "account" || rail || accountExpanded}
+                timeout="auto"
+              >
+                <div
+                  id={
+                    group.id === "account" ? "clinic-account-links" : undefined
+                  }
+                >
+                  {links.map(({ href, label, description, Icon }) => {
+                    const current =
+                      href === "/clinic"
+                        ? currentPath === "/clinic" && homeView === "tracking"
+                        : href === "/clinic/schedule"
+                          ? currentPath === "/clinic/schedule" ||
+                            (currentPath === "/clinic" &&
+                              homeView === "schedule")
+                          : currentPath === href ||
+                            currentPath.startsWith(href + "/");
+                    return (
+                      <Tooltip
+                        key={href}
+                        describeChild
+                        title={
+                          description ? `${label} — ${description}` : label
+                        }
+                        placement="right"
+                      >
+                        <ListItemButton
+                          component="a"
+                          href={href}
+                          selected={current}
+                          aria-label={label}
+                          aria-current={current ? "page" : undefined}
+                          data-demo-tour-navigation="true"
+                        >
+                          <ListItemIcon>
+                            <Icon aria-hidden="true" fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText
+                            className={
+                              rail ? "clinic-nav-rail-label" : undefined
+                            }
+                            primary={label}
+                          />
+                        </ListItemButton>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </Collapse>
             </List>
           </section>
         );

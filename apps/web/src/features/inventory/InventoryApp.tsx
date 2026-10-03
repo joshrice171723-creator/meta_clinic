@@ -7233,7 +7233,10 @@ function LotsScreen({
       );
   };
   return (
-    <div className="inventory-stack" aria-busy={loading}>
+    <div
+      className="inventory-stack inventory-stock-workspace"
+      aria-busy={loading}
+    >
       <Card className="inventory-stock-controls">
         <details className="inventory-stock-scan">
           <summary>Scan a product</summary>
@@ -7419,7 +7422,10 @@ function LotsScreen({
                         </Button>
                         <small>
                           Lot {lotItem.lot_number} · expires{" "}
-                          {inventoryDate(lotItem.expiration_date, data.timezone)}
+                          {inventoryDate(
+                            lotItem.expiration_date,
+                            data.timezone,
+                          )}
                         </small>
                       </td>
                       <td>

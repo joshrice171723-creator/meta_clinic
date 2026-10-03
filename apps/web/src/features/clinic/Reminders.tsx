@@ -1045,12 +1045,30 @@ export function Reminders() {
           Appointment reminders
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: "72ch" }}>
-          Schedule the fixed appointment text 24 hours before each visit, or
-          compose a one-off message for review. Standard timing and copy are not
-          configurable here; the server rechecks consent, verified destination,
-          opt-outs, and quiet hours.
+          Review upcoming visits, prepare a reminder, and check its recorded
+          outcome.
         </Typography>
       </Box>
+      <Accordion disableGutters elevation={0} variant="outlined" sx={{ mb: 2 }}>
+        <AccordionSummary expandIcon={<ExpandMoreOutlinedIcon />}>
+          <Typography component="span" variant="body2">
+            Reminder scheduling and delivery details
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Typography variant="body2" color="text.secondary">
+            Standard reminders use fixed text 24 hours before the visit. The
+            server rechecks consent, verified destination, opt-outs, and quiet
+            hours before sending.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Delivery states can be queued, accepted by the provider, delivered,
+            failed, held by policy, unknown, suppressed, or cancelled. Provider
+            acceptance does not confirm delivery, and delivery does not confirm
+            that the patient read the message.
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
 
       {reminderId && (
         <Alert
@@ -1089,14 +1107,6 @@ export function Reminders() {
           {error}
         </Alert>
       )}
-
-      <Alert severity="info" sx={{ mb: 2 }}>
-        <strong>Delivery history:</strong> statuses can include queued, accepted
-        by the provider, delivered, failed, held by policy, unknown, suppressed,
-        or cancelled. These are recorded delivery states; provider acceptance is
-        not proof of delivery, and delivery is not proof that the patient read
-        the message.
-      </Alert>
 
       <Paper
         elevation={0}

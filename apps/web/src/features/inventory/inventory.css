@@ -1746,6 +1746,21 @@ a.inventory-info:hover {
   align-items: start;
   row-gap: 24px;
 }
+.inventory-stock-workspace > .inventory-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.inventory-stock-workspace .inventory-table-wrap {
+  border: 1px solid var(--inventory-border);
+  border-radius: 8px;
+  background: var(--inventory-surface);
+}
+.inventory-stock-workspace .inventory-stock-totals {
+  font-size: 14px;
+  padding-block: 0;
+}
 .inventory-stock-action > .inventory-form-actions {
   justify-content: flex-start;
   padding-top: 4px;

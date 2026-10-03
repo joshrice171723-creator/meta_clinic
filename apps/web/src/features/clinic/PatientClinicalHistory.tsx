@@ -610,13 +610,18 @@ export function PatientClinicalHistory({
   return (
     <Paper
       id="clinical-history"
-      variant="outlined"
-      sx={{ p: { xs: 1.5, md: 2 } }}
+      className={compactOverview ? "patient-history-overview" : undefined}
+      variant={compactOverview ? undefined : "outlined"}
+      elevation={compactOverview ? 0 : undefined}
+      sx={{
+        p: compactOverview ? 0 : { xs: 1.5, md: 2 },
+        backgroundColor: compactOverview ? "transparent" : undefined,
+      }}
     >
       <Stack spacing={1.5}>
         <Box>
           <Typography component="h3" variant="h6">
-            Clinical history
+            Recorded history and review
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Current recorded allergies, medications, and conditions. Empty lists
@@ -664,125 +669,128 @@ export function PatientClinicalHistory({
               const records = lists?.[kind] || [];
               const reviewItem = data.reviews[kind];
               return (
-              <Paper
-                key={kind}
-                variant="outlined"
-                component="section"
-                sx={{ minWidth: 0 }}
-              >
-                <Stack
-                  direction="row"
-                  sx={{
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    p: 1.25,
-                  }}
+                <Paper
+                  key={kind}
+                  variant="outlined"
+                  component="section"
+                  sx={{ minWidth: 0 }}
                 >
-                  <Box>
-                    <Typography
-                      component="h4"
-                      variant="subtitle1"
-                      sx={{ fontWeight: 700 }}
-                    >
-                      {HISTORY_LABELS[kind]}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {records.length} recorded
-                    </Typography>
-                  </Box>
-                  {data.can_write && (
-                    <Button size="small" onClick={() => openEditor(kind)}>
-                      Add
-                    </Button>
-                  )}
-                </Stack>
-                <Divider />
-                {records.length === 0 ? (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ p: 1.25 }}
-                  >
-                    No recorded entries. No absence has been inferred.
-                  </Typography>
-                ) : (
-                  <List dense disablePadding>
-                    {records.map((record, index) => (
-                      <ListItem
-                        key={record.id}
-                        divider={index < records.length - 1}
-                        sx={{ alignItems: "flex-start", py: 1.25 }}
-                      >
-                        <Stack
-                          spacing={0.75}
-                          sx={{ width: "100%", minWidth: 0 }}
-                        >
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            sx={{
-                              justifyContent: "space-between",
-                              alignItems: "flex-start",
-                            }}
-                          >
-                            <Box sx={{ minWidth: 0 }}>
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 700 }}
-                              >
-                                {recordTitle(kind, record)}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {recordDetail(kind, record)}
-                              </Typography>
-                            </Box>
-                            {data.can_write && (
-                              <Button
-                                size="small"
-                                onClick={() => openEditor(kind, record)}
-                              >
-                                Edit
-                              </Button>
-                            )}
-                          </Stack>
-                          <RecordChips kind={kind} record={record} />
-                          <Typography variant="caption" color="text.secondary">
-                            Last reviewed:{" "}
-                            {displayTime(record.last_reviewed_at)}
-                          </Typography>
-                        </Stack>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-                <>
-                  <Divider />
                   <Stack
-                    id={`clinical-history-${kind}-review`}
-                    tabIndex={-1}
-                    spacing={0.5}
-                    sx={{ p: 1.25 }}
+                    direction="row"
+                    sx={{
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      p: 1.25,
+                    }}
                   >
-                    <Typography variant="caption" color="text.secondary">
-                      {reviewItem
-                        ? `${humanize(reviewItem.outcome)} · ${displayTime(reviewItem.reviewed_at)}`
-                        : "Not reviewed in this encounter"}
-                    </Typography>
-                    {data.can_write && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => openReview(kind)}
+                    <Box>
+                      <Typography
+                        component="h4"
+                        variant="subtitle1"
+                        sx={{ fontWeight: 700 }}
                       >
-                        Review list
+                        {HISTORY_LABELS[kind]}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {records.length} recorded
+                      </Typography>
+                    </Box>
+                    {data.can_write && (
+                      <Button size="small" onClick={() => openEditor(kind)}>
+                        Add
                       </Button>
                     )}
                   </Stack>
-                </>
-              </Paper>
+                  <Divider />
+                  {records.length === 0 ? (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ p: 1.25 }}
+                    >
+                      No recorded entries. No absence has been inferred.
+                    </Typography>
+                  ) : (
+                    <List dense disablePadding>
+                      {records.map((record, index) => (
+                        <ListItem
+                          key={record.id}
+                          divider={index < records.length - 1}
+                          sx={{ alignItems: "flex-start", py: 1.25 }}
+                        >
+                          <Stack
+                            spacing={0.75}
+                            sx={{ width: "100%", minWidth: 0 }}
+                          >
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              sx={{
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                              }}
+                            >
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontWeight: 700 }}
+                                >
+                                  {recordTitle(kind, record)}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {recordDetail(kind, record)}
+                                </Typography>
+                              </Box>
+                              {data.can_write && (
+                                <Button
+                                  size="small"
+                                  onClick={() => openEditor(kind, record)}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                            </Stack>
+                            <RecordChips kind={kind} record={record} />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Last reviewed:{" "}
+                              {displayTime(record.last_reviewed_at)}
+                            </Typography>
+                          </Stack>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                  <>
+                    <Divider />
+                    <Stack
+                      id={`clinical-history-${kind}-review`}
+                      tabIndex={-1}
+                      spacing={0.5}
+                      sx={{ p: 1.25 }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {reviewItem
+                          ? `${humanize(reviewItem.outcome)} · ${displayTime(reviewItem.reviewed_at)}`
+                          : "Not reviewed in this encounter"}
+                      </Typography>
+                      {data.can_write && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => openReview(kind)}
+                        >
+                          Review list
+                        </Button>
+                      )}
+                    </Stack>
+                  </>
+                </Paper>
               );
             })}
           </Box>
