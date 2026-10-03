@@ -15,12 +15,14 @@ module Clinic
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
           records: records.order(created_at: :desc, id: :desc)
-            .pluck(:id, :patient_id, :currency, :status, :created_at,
-              Arel.sql(Clinic::Billing::Dashboard::OUTSTANDING_BALANCE_SQL))
-            .map { |id, patient_id, currency, status, created_at, balance|
+            .select(:id, :patient_id, :encounter_id, :currency, :status, :created_at,
+              Arel.sql("#{Clinic::Billing::Dashboard::OUTSTANDING_BALANCE_SQL} AS source_outstanding_balance"))
+            .includes(encounter: :site).map { |invoice|
               SourcePage.check_export_deadline!(deadline: export_deadline)
-              { id:, patient_id:, currency:, status:, created_at: created_at.iso8601(6),
-                current_outstanding_balance: balance.to_d.to_s("F") }
+              { id: invoice.id, patient_id: invoice.patient_id, encounter_id: invoice.encounter_id,
+                currency: invoice.currency, status: invoice.status, created_at: invoice.created_at.iso8601(6),
+                current_outstanding_balance: invoice[:source_outstanding_balance].to_d.to_s("F") }
+                .merge(Clinic::Billing::InvoiceSerializer.source_location(invoice))
             },
           records_capped: pagination[:total_pages] > 1,
           pagination:,

@@ -154,6 +154,27 @@ module Clinic
           provenance: %w[patient_reported staff_recorded inherited imported calculated] }
       end
 
+      def require_new_form!(practice:, appointment: nil, encounter: nil, existing_payload: nil)
+        return if existing_payload
+
+        if appointment
+          valid_booking = appointment.persisted? && appointment.practice_id == practice.id &&
+            appointment.patient.practice_id == practice.id && appointment.site&.practice_id == practice.id &&
+            appointment.visit_type&.practice_id == practice.id && %w[scheduled confirmed].include?(appointment.status)
+          valid_booking &&= encounter.practice_id == practice.id && encounter.appointment_id == appointment.id &&
+            encounter.patient_id == appointment.patient_id && encounter.site_id == appointment.site_id if encounter
+          return if valid_booking
+
+          raise ArgumentError, "Intake must belong to a saved active booking at the same patient and location."
+        end
+
+        site = encounter&.site
+        features = Configuration::PracticeFeatures.snapshot(practice:, site:)
+        unless Configuration::StarterProfile.ready?(site, features)
+          raise ArgumentError, "Complete this location's specialty setup before starting intake. Saved intake remains available."
+        end
+      end
+
       def fields_for_recorder(form_id = FORM_ID, recorder: "patient")
         raise ArgumentError, "Choose a supported intake recorder." unless %w[patient staff].include?(recorder)
         # Keep legacy answers readable, but do not offer a completion checkbox

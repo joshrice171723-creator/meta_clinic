@@ -24,8 +24,9 @@ module Clinic
         return replay(existing, digest) if existing
 
         inquiry = ApplicationRecord.transaction do
+          practice.lock!
           offering = practice.service_offerings.lock.find(service_offering_id)
-          raise ActiveRecord::RecordNotFound unless offering.status == "published" && offering.public_visible?
+          raise ActiveRecord::RecordNotFound unless offering.public_visible? && offering.available_for_new_work?
 
           practice.service_inquiries.create!(service_offering: offering, request_key: key,
             request_digest: digest, display_name: name, email_address: email, phone_number: phone,

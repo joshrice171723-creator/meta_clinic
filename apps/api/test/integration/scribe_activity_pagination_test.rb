@@ -52,7 +52,7 @@ class ScribeActivityPaginationTest < ActionDispatch::IntegrationTest
     assert_equal report.fetch("source_counts"), second.fetch("source_counts")
     assert_empty first.pluck("id").drop(1) & second.fetch("recovery_items").pluck("id")
     second.fetch("recovery_items").each do |item|
-      assert_equal %w[encounter_id id record_type status updated_at], item.keys.sort
+      assert_equal %w[clinical_encounter_id encounter_id id record_type source_site_id source_site_name status updated_at], item.keys.sort
     end
     get "/api/clinic/reports/scribe_activity", headers: @headers
     assert_equal first, response.parsed_body.dig("report", "recovery_items")

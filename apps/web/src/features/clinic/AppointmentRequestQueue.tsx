@@ -223,7 +223,7 @@ function ReviewDialog({
     "/api/clinic/clinicians?per_page=100",
   );
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
-    "/api/clinic/facilities?type=visit_types&per_page=100",
+    `/api/clinic/facilities?type=visit_types&per_page=100&available_only=true&site_id=${siteId}`,
   );
   const availableRooms = useMemo(
     () =>
@@ -233,10 +233,21 @@ function ReviewDialog({
   const schedulingError = sites.error || visitTypes.error;
   const optionalOptionsError = rooms.error || clinicians.error;
   const ready = sites.data && visitTypes.data;
+  const visitTypeUnavailable =
+    visitTypeId !== "" &&
+    !visitTypes.data?.visit_types.some(
+      (type) => String(type.id) === visitTypeId && !type.retired_at,
+    );
   const intervalValid =
     isCancellation || new Date(endsAt).valueOf() > new Date(startsAt).valueOf();
 
   async function approve() {
+    if (isNewBooking && !outcomeUnconfirmed && visitTypeUnavailable) {
+      setError(
+        "Choose an available visit type for this location or remove the visit-type preference.",
+      );
+      return;
+    }
     if (
       isNewBooking &&
       request.requested_modality === "video" &&
@@ -471,6 +482,7 @@ function ReviewDialog({
                 onChange={(event) => {
                   setSiteId(event.target.value);
                   setRoomId("");
+                  setVisitTypeId("");
                   setReviewKey(crypto.randomUUID());
                 }}
               >
@@ -526,13 +538,22 @@ function ReviewDialog({
                 select
                 label="Visit type (optional)"
                 value={visitTypeId}
-                helperText="Leave blank when the visit type is not specified."
+                helperText={
+                  visitTypeUnavailable
+                    ? "The requested visit type is unavailable at this location. Choose another or leave blank."
+                    : "Leave blank when the visit type is not specified."
+                }
                 onChange={(event) => {
                   setVisitTypeId(event.target.value);
                   setReviewKey(crypto.randomUUID());
                 }}
               >
                 <MenuItem value="">Not specified</MenuItem>
+                {visitTypeUnavailable && (
+                  <MenuItem value={visitTypeId} disabled>
+                    Requested visit type is unavailable
+                  </MenuItem>
+                )}
                 {(visitTypes.data?.visit_types || [])
                   .filter((type) => !type.retired_at)
                   .map((type) => (

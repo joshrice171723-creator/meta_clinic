@@ -22,6 +22,13 @@ module Clinic
         depression anxiety alcohol_use tobacco_use social_needs fall_risk
         functional_status cognitive_status psychiatry_assessment
       ].freeze
+      BEHAVIORAL_HEALTH_SERVICES = %w[psychiatric_evaluation adhd_evaluation individual_therapy].freeze
+      SERVICE_OPTIONS_BY_SPECIALTY = CLINIC_TYPES.index_with do |specialty|
+        specialty == "behavioral_health" ? SERVICE_SCOPE : SERVICE_SCOPE - BEHAVIORAL_HEALTH_SERVICES
+      end.freeze
+      ASSESSMENT_OPTIONS_BY_SPECIALTY = CLINIC_TYPES.index_with do |specialty|
+        specialty == "behavioral_health" ? ASSESSMENT_SCOPE : ASSESSMENT_SCOPE - %w[psychiatry_assessment]
+      end.freeze
       RECOMMENDED_CLINIC_TYPE = "primary_care".freeze
       RECOMMENDED_SERVICE_SCOPE = %w[
         telehealth external_lab_coordination minor_office_procedures in_office_medications
@@ -43,14 +50,14 @@ module Clinic
           Clinic::PracticeFeatureVersion.for_practice(practice).where(site:)
             .where(effective_from: ..at).order(revision: :desc, id: :desc).first
         end
-        version = site_version || clinic_version
+        version = site ? site_version : clinic_version
         stored = version&.optional_features || {}
         optional = OPTIONAL_DEFAULTS.merge(stored)
         optional["clinic_type"] = nil unless CLINIC_TYPES.include?(optional["clinic_type"])
         optional["service_scope"] = Array(optional["service_scope"]).select { |code| SERVICE_SCOPE.include?(code) }
         optional["assessment_scope"] = Array(optional["assessment_scope"])
           .select { |code| ASSESSMENT_SCOPE.include?(code) }
-        {
+        features = {
           core: CORE_FEATURES.index_with(true), optional: optional,
           insurance_workflows_enabled: optional.fetch("insurance_workflows", false),
           clinic_type: optional["clinic_type"], service_scope: optional.fetch("service_scope"),
@@ -63,7 +70,7 @@ module Clinic
           finalized_at: site ? site_version&.optional_features&.dig("finalized_at") : stored["finalized_at"],
           selected_services: stored.fetch("selected_services", optional.fetch("service_scope")),
           site_id: site&.id,
-          profile_scope: site_version ? "site" : "clinic_default",
+          profile_scope: site ? (site_version ? "site" : "unconfigured") : "clinic_default",
           site_specialty_configured: site_version.present? && CLINIC_TYPES.include?(site_version.optional_features["clinic_type"]),
           site_revision: site_version&.revision || 0,
           change_handoff: "Clinic staff can change availability, hours, prices and forms within this profile. Capability changes require Meta Clinic review; unsupported transitions require a scoped FDE assignment. No request has been sent.",
@@ -73,12 +80,17 @@ module Clinic
           else
             version.present? && stored.key?("clinic_type") && stored.key?("service_scope")
           end,
+          service_options_by_specialty: SERVICE_OPTIONS_BY_SPECIALTY,
+          assessment_options_by_specialty: ASSESSMENT_OPTIONS_BY_SPECIALTY,
           recommended_clinic_type: RECOMMENDED_CLINIC_TYPE,
           recommended_service_scope: RECOMMENDED_SERVICE_SCOPE,
           recommended_assessment_scope: RECOMMENDED_ASSESSMENT_SCOPE,
           revision: site ? (site_version&.revision || 0) : (clinic_version&.revision || 0),
           effective_from: version&.effective_from&.iso8601
         }
+        features[:compatible_visit_type_ids] = StarterProfile.available_visit_type_ids(practice:, site:, features:, at:, require_ready: false)
+        features[:available_visit_type_ids] = StarterProfile.ready?(site, features) ? features[:compatible_visit_type_ids] : []
+        features
       end
 
       def self.revise(practice:, actor:, request_key:, expected_revision:, insurance_workflows_enabled:,
@@ -96,8 +108,9 @@ module Clinic
         normalized_scope = Array(service_scope).map { |code| code.to_s.strip }.uniq
         unsupported = normalized_scope - SERVICE_SCOPE
         raise ArgumentError, "service_scope includes unsupported services: #{unsupported.join(', ')}" if unsupported.any?
-        if normalized_scope.include?("individual_therapy") && normalized_type != "behavioral_health"
-          raise ArgumentError, "Individual therapy is currently available with the behavioral-health clinic profile."
+        incompatible = normalized_scope - SERVICE_OPTIONS_BY_SPECIALTY.fetch(normalized_type)
+        if incompatible.any?
+          raise ArgumentError, "These services require a behavioral-health location: #{incompatible.join(', ')}."
         end
 
         normalized_assessments = Array(assessment_scope).map { |code| code.to_s.strip }.uniq
@@ -105,6 +118,10 @@ module Clinic
         if unsupported_assessments.any?
           raise ArgumentError,
             "assessment_scope includes unsupported assessments: #{unsupported_assessments.join(', ')}"
+        end
+
+        if (normalized_assessments - ASSESSMENT_OPTIONS_BY_SPECIALTY.fetch(normalized_type)).any?
+          raise ArgumentError, "Psychiatry assessments require a behavioral-health location."
         end
 
         optional = {

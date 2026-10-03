@@ -9,6 +9,7 @@ module Clinic
         latest_counts = latest_attempts.group(:outcome).count
         unknown = latest_attempts.where(outcome: %w[unknown outcome_unknown])
         current_attempts = latest_attempts.joins("INNER JOIN clinic_medication_request_revisions revisions ON revisions.id = clinic_prescription_transmission_attempts.medication_request_revision_id AND revisions.practice_id = clinic_prescription_transmission_attempts.practice_id")
+          .joins("LEFT JOIN clinic_sites source_sites ON source_sites.id = revisions.site_id AND source_sites.practice_id = revisions.practice_id")
           .where("NOT EXISTS (SELECT 1 FROM clinic_medication_request_revisions newer WHERE newer.practice_id = revisions.practice_id AND newer.series_id = revisions.series_id AND newer.version_number > revisions.version_number)")
         current_unknown = current_attempts.where(outcome: %w[unknown outcome_unknown])
           .where("NOT EXISTS (SELECT 1 FROM clinic_prescription_events resolution WHERE resolution.practice_id = clinic_prescription_transmission_attempts.practice_id AND resolution.prior_event_id = clinic_prescription_transmission_attempts.prescription_event_id AND resolution.kind IN ('cancelled', 'confirmed_not_sent'))")
@@ -25,23 +26,23 @@ module Clinic
           current_revision_unresolved_count: current_unresolved.count,
           current_revision_outcome_counts: current_attempts.group(:outcome).count,
           current_revision_records: current_attempts.order("clinic_prescription_transmission_attempts.id DESC").limit(25)
-            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at)
-            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at|
-              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6) }
+            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at, "revisions.site_id", "source_sites.name", "source_sites.code")
+            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at, source_site_id, site_name, site_code|
+              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6), source_site_id:, source_site_name: site_name.presence || site_code.presence || "Shared / unassigned" }
             },
           current_revision_records_capped: current_attempts.count > 25,
           current_revision_unknown_records: current_unknown
             .order("clinic_prescription_transmission_attempts.id DESC").limit(25)
-            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at)
-            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at|
-              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6) }
+            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at, "revisions.site_id", "source_sites.name", "source_sites.code")
+            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at, source_site_id, site_name, site_code|
+              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6), source_site_id:, source_site_name: site_name.presence || site_code.presence || "Shared / unassigned" }
             },
           current_revision_unknown_records_capped: current_unknown.count > 25,
           current_revision_unresolved_records: current_unresolved
             .order("clinic_prescription_transmission_attempts.id DESC").limit(25)
-            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at)
-            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at|
-              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6) }
+            .pluck("clinic_prescription_transmission_attempts.id", "clinic_prescription_transmission_attempts.patient_id", :medication_request_revision_id, "revisions.encounter_id", :outcome, :submitted_at, "revisions.site_id", "source_sites.name", "source_sites.code")
+            .map { |id, patient_id, medication_request_revision_id, encounter_id, outcome, submitted_at, source_site_id, site_name, site_code|
+              { id:, patient_id:, medication_request_revision_id:, encounter_id:, outcome:, submitted_at: submitted_at.iso8601(6), source_site_id:, source_site_name: site_name.presence || site_code.presence || "Shared / unassigned" }
             },
           current_revision_unresolved_records_capped: current_unresolved.count > 25,
           latest_submitted_at: attempts.maximum(:submitted_at)&.iso8601(6)

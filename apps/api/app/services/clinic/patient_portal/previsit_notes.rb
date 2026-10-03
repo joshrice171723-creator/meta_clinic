@@ -29,6 +29,7 @@ module Clinic
         expected_version:, request_key:, submitted_at: Current.business_time)
         normalized_text = text.to_s.strip
         result = ApplicationRecord.transaction do
+          practice.lock!
           appointment.lock!
           authorize_context!(practice:, patient:, appointment:, actor:, identity:, omni_preview:)
 
@@ -40,6 +41,11 @@ module Clinic
           latest = latest(appointment)
           actual_version = latest&.version_number || 0
           raise Stale, "This pre-visit note changed. Reload it before saving." unless actual_version == expected_version
+
+          if latest.nil? || Clinic::Care::PrevisitIntake.decode(normalized_text)
+            Clinic::Care::PrevisitIntake.require_new_form!(practice:, appointment:,
+              existing_payload: latest && Clinic::Care::PrevisitIntake.decode(latest.encrypted_text))
+          end
 
           note = Clinic::Care::PrevisitNote.create!(
             practice: practice,

@@ -52,6 +52,7 @@ module Clinic
         return render_existing(existing, normalized:) if existing
 
         request = AppointmentRequest.transaction do
+          portal_practice.lock!
           if normalized[:request_kind] == "new_booking" && !BookingEligibility.active?(practice: portal_practice, patient: portal_patient)
             raise ArgumentError, BookingEligibility::MESSAGE
           end
@@ -60,8 +61,15 @@ module Clinic
           validate_request!(normalized, source_appointment)
           site = normalized[:site_id] ? portal_practice.sites.where(status: "active").find(normalized[:site_id]) : nil
           visit_type = normalized[:visit_type_id] ? portal_practice.visit_types.active.find(normalized[:visit_type_id]) : nil
+          if normalized[:request_kind] == "new_booking"
+            features = Clinic::Configuration::PracticeFeatures.snapshot(practice: portal_practice, site: site)
+            unless Clinic::Configuration::StarterProfile.ready?(site, features)
+              raise ArgumentError, "Choose a location with completed specialty setup before requesting a new appointment."
+            end
+            Clinic::Configuration::StarterProfile.require_visit!(practice: portal_practice, site: site, visit_type: visit_type) if visit_type
+          end
           validate_modality!(normalized, site: site || source_appointment&.site,
-            visit_type: visit_type || source_appointment&.visit_type)
+            visit_type: visit_type || source_appointment&.visit_type, source_appointment: source_appointment)
           ensure_no_patient_overlap!(normalized, source_appointment) unless normalized[:request_kind] == "cancel"
 
           AppointmentRequest.create!(
@@ -188,12 +196,15 @@ module Clinic
         raise ArgumentError, "That time overlaps an existing appointment." if conflict
       end
 
-      def validate_modality!(normalized, site:, visit_type:)
+      def validate_modality!(normalized, site:, visit_type:, source_appointment:)
         return unless normalized[:requested_modality] == "video"
+        return if source_appointment&.visit_modality == "video"
+
         raise ArgumentError, "Choose a clinic location and visit type for a video request." unless site && visit_type
-        rule = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id,
-          visit_type_id: visit_type.id, enabled: true).where(site_id: [ nil, site.id ]).first
-        unless rule
+        Clinic::Configuration::StarterProfile.require_service!(practice: portal_practice, site: site, service: "telehealth")
+        rules = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id, visit_type_id: visit_type.id)
+        rule = rules.find_by(site_id: site.id) || rules.find_by(site_id: nil)
+        unless rule&.enabled?
           raise ArgumentError, "Video is not available for this visit type and clinic location."
         end
       end
@@ -209,18 +220,33 @@ module Clinic
         setting = Clinic::Telehealth::Setting.find_by(practice_id: portal_practice.id)
         video_ready = Clinic::Telehealth::Config.configured_for?(setting) && setting&.enabled? &&
           setting.active_policy_version&.published? && setting.health_status == "ready"
-        video_visit_type_ids = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id, enabled: true)
-          .distinct.pluck(:visit_type_id).index_with(true)
+        video_rules = Clinic::Telehealth::VisitTypeRule.where(practice_id: portal_practice.id).to_a
+        sites = portal_practice.sites.where(status: "active").order(:code, :id).filter_map do |site|
+          features = Clinic::Configuration::PracticeFeatures.snapshot(practice: portal_practice, site: site)
+          next unless Clinic::Configuration::StarterProfile.ready?(site, features)
+
+          video_ids = if video_ready && features[:service_scope].include?("telehealth")
+            features[:available_visit_type_ids].select do |id|
+              rule = video_rules.find { |item| item.visit_type_id == id && item.site_id == site.id } ||
+                video_rules.find { |item| item.visit_type_id == id && item.site_id.nil? }
+              rule&.enabled?
+            end
+          else
+            []
+          end
+          AppointmentRequestSerializer.site(site).merge(available_visit_type_ids: features[:available_visit_type_ids],
+            video_visit_type_ids: video_ids)
+        end
+        visit_type_ids = sites.flat_map { |site| site[:available_visit_type_ids] }.uniq
+        video_visit_type_ids = sites.flat_map { |site| site[:video_visit_type_ids] }.uniq
         {
-          can_request_new_booking: BookingEligibility.active?(practice: portal_practice, patient: portal_patient),
+          can_request_new_booking: sites.any? && BookingEligibility.active?(practice: portal_practice, patient: portal_patient),
           booking_requirement: BookingEligibility::MESSAGE,
           video_connection_ready: !!video_ready,
-          sites: portal_practice.sites.where(status: "active").order(:code, :id).map do |site|
-            AppointmentRequestSerializer.site(site)
-          end,
-          visit_types: portal_practice.visit_types.active.order(:code, :id).map do |visit_type|
+          sites: sites,
+          visit_types: portal_practice.visit_types.active.where(id: visit_type_ids).order(:code, :id).map do |visit_type|
             AppointmentRequestSerializer.visit_type(visit_type,
-              allowed_modalities: video_visit_type_ids.key?(visit_type.id) ? %w[in_person video] : %w[in_person])
+              allowed_modalities: video_visit_type_ids.include?(visit_type.id) ? %w[in_person video] : %w[in_person])
           end
         }
       end

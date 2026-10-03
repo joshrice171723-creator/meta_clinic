@@ -11,6 +11,7 @@ module Clinic
           visit_type: visit_type, starts_at: starts_at, ends_at: ends_at, visit_modality: visit_modality,
           interval_weeks: interval_weeks, occurrence_count: occurrence_count,
           expected_policy_revision: expected_policy_revision)
+        Configuration::StarterProfile.require_visit!(practice: practice, site: site, visit_type: visit_type)
         BookAppointment.offering_snapshot!(offering: service_offering, practice: practice, site: site,
           clinician: clinician, room: room, visit_type: visit_type, visit_modality: visit_modality,
           starts_at: starts_at, ends_at: ends_at, validate_resources: false) if service_offering

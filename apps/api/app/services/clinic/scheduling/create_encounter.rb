@@ -33,17 +33,21 @@ module Clinic
         end
 
         Authorization.authorize!(actor: actor, practice: practice, action: "encounters.write", site: site)
-
-        encounter = practice.encounters.create!(
-          patient: patient,
-          appointment: appointment,
-          site: site,
-          room: room,
-          started_at: started_at,
-          status: "open"
-        )
-        auto_assign_intake_owner!(encounter, actor)
-        encounter
+        raise ArgumentError, "Choose a location in the selected clinic before starting a visit." unless site&.practice_id == practice.id
+        if room && (room.practice_id != practice.id || room.site_id != site.id)
+          raise ArgumentError, "The selected room must belong to the encounter location."
+        end
+        ApplicationRecord.transaction do
+          practice.lock!
+          features = Clinic::Configuration::PracticeFeatures.snapshot(practice: practice, site: site)
+          unless Configuration::StarterProfile.ready?(site, features)
+            raise ArgumentError, "Complete this location's specialty setup before starting a new visit."
+          end
+          encounter = practice.encounters.create!(patient: patient, site: site, room: room,
+            started_at: started_at, status: "open")
+          auto_assign_intake_owner!(encounter, actor)
+          encounter
+        end
       rescue ActiveRecord::RecordNotUnique
         raise ArgumentError, "That appointment already has an encounter."
       end

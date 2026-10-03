@@ -62,7 +62,10 @@ type AppointmentRequestResponse = {
   appointment_requests: AppointmentRequest[];
   upcoming_appointments: AppointmentSnapshot[];
   options: {
-    sites: Site[];
+    sites: (Site & {
+      available_visit_type_ids: number[];
+      video_visit_type_ids: number[];
+    })[];
     visit_types: VisitType[];
     can_request_new_booking: boolean;
     booking_requirement: string;
@@ -126,6 +129,16 @@ export function PatientAppointmentRequests({
   });
   const [siteId, setSiteId] = useState("");
   const [visitTypeId, setVisitTypeId] = useState("");
+  const availableVisitTypes =
+    resource.data?.options.visit_types.filter((type) =>
+      resource.data?.options.sites
+        .find((site) => String(site.id) === siteId)
+        ?.available_visit_type_ids?.includes(type.id),
+    ) ?? [];
+  const bookingChoiceUnavailable =
+    !resource.data?.options.sites.some((site) => String(site.id) === siteId) ||
+    (visitTypeId !== "" &&
+      !availableVisitTypes.some((type) => String(type.id) === visitTypeId));
   const [requestedModality, setRequestedModality] = useState<
     "in_person" | "video"
   >("in_person");
@@ -232,7 +245,13 @@ export function PatientAppointmentRequests({
   async function submit() {
     const current = submission.current!;
     const eligible = resource.data?.options.can_request_new_booking === true;
-    if (busy || !siteId || !intervalValid || !current.canSubmit(eligible))
+    if (
+      busy ||
+      !siteId ||
+      !intervalValid ||
+      (!current.outcomeUnconfirmed && bookingChoiceUnavailable) ||
+      !current.canSubmit(eligible)
+    )
       return;
     setBusy(true);
     setError("");
@@ -632,6 +651,8 @@ export function PatientAppointmentRequests({
                   value={siteId}
                   onChange={(event) => {
                     setSiteId(event.target.value);
+                    setVisitTypeId("");
+                    setRequestedModality("in_person");
                   }}
                 >
                   <MenuItem value="" disabled>
@@ -663,7 +684,7 @@ export function PatientAppointmentRequests({
                   }}
                 >
                   <MenuItem value="">No preference</MenuItem>
-                  {resource.data.options.visit_types.map((type) => (
+                  {availableVisitTypes.map((type) => (
                     <MenuItem
                       key={type.id}
                       value={String(type.id)}
@@ -693,9 +714,9 @@ export function PatientAppointmentRequests({
                   <MenuItem
                     value="video"
                     disabled={
-                      !resource.data.options.visit_types
-                        .find((type) => String(type.id) === visitTypeId)
-                        ?.allowed_modalities?.includes("video")
+                      !resource.data.options.sites
+                        .find((site) => String(site.id) === siteId)
+                        ?.video_visit_type_ids?.includes(Number(visitTypeId))
                     }
                   >
                     Video
@@ -725,6 +746,7 @@ export function PatientAppointmentRequests({
                   disabled={
                     busy ||
                     !siteId ||
+                    (!outcomeUnconfirmed && bookingChoiceUnavailable) ||
                     !intervalValid ||
                     !submission.current.canSubmit(
                       resource.data.options.can_request_new_booking,

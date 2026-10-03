@@ -109,6 +109,7 @@ module Clinic
         walk_in: false, capacity_override_reason: nil)
         ApplicationRecord.transaction do
           practice.lock!
+          Configuration::StarterProfile.require_visit!(practice: practice, site: site, visit_type: visit_type)
           if schedule_hold
             schedule_hold.lock!
             schedule_hold.expire_if_needed!

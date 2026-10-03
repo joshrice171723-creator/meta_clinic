@@ -39,6 +39,7 @@ module Clinic
             practice.patient_portal_appointment_requests.find_by(id: receipt.resource_id)
           }
         ) do
+          practice.lock!
           locked_request = practice.patient_portal_appointment_requests.lock.find(request.id)
           locked_source = lock_source_appointment!(practice, locked_request)
           authorize_source!(practice: practice, actor: actor, request: locked_request)

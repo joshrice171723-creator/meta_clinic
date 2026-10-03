@@ -25,7 +25,11 @@ module Clinic
       end
 
       def request_state(request)
-        latest = request.response_events.order(:id).last
+        latest = if request.association(:response_events).loaded?
+          request.response_events.max_by(&:id)
+        else
+          request.response_events.order(:id).last
+        end
         return "pending" unless latest
         return "outcome_unknown" if latest.outcome == "unknown"
         return "unavailable" if latest.outcome == "unavailable"

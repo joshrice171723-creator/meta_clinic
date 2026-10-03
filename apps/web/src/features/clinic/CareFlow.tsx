@@ -196,6 +196,7 @@ export type BookingServiceOffering = {
   requires_room: boolean;
   status: "draft" | "published" | "retired";
   eligible_site_ids: number[];
+  available_site_ids?: number[];
   eligible_clinician_ids: number[];
 };
 
@@ -790,9 +791,11 @@ function BookingForm({
   onChooseNewSlot?: () => void;
   onClose?: () => void;
 }) {
+  const clinic = useClinic();
   const workingDraft = useWorkingDraft<AppointmentWorkingDraft>({
     kind: "appointment",
     patientId: initialPatientId,
+    siteId: clinic.current_site?.id,
   });
   const preserved = useRef<AppointmentWorkingDraft | null | undefined>(
     undefined,
@@ -876,7 +879,7 @@ function BookingFormEditor({
       endsAt,
       durationMinutes: bookingDurationMinutes(startsAt, endsAt),
       endTimeEdited: false,
-      siteId: initialSlot ? String(initialSlot.site_id) : "",
+      siteId: String(initialSlot?.site_id ?? clinic.current_site?.id ?? ""),
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
       clinicianId: initialSlot?.clinician_id
         ? String(initialSlot.clinician_id)
@@ -893,7 +896,12 @@ function BookingFormEditor({
       seriesResolutions: [],
       visitModality: initialVisitModality,
     };
-  }, [initialPatientId, initialVisitModality, initialSlot]);
+  }, [
+    initialPatientId,
+    initialVisitModality,
+    initialSlot,
+    clinic.current_site?.id,
+  ]);
   const restoredDraft = initialDraft?.draft ?? defaultDraft;
   const initialHold = initialSlot?.hold ?? null;
   const initialHoldDeferred = Boolean(
@@ -1199,7 +1207,7 @@ function BookingFormEditor({
     }
   }, [clinicianId, firstAvailable, noClinicians]);
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
-    "/api/clinic/facilities?type=visit_types&per_page=100",
+    `/api/clinic/facilities?type=visit_types&per_page=100&available_only=true&site_id=${siteId}`,
   );
   const configuredDefaultsApplied = useRef(Boolean(initialDraft));
   useEffect(() => {
@@ -1251,9 +1259,20 @@ function BookingFormEditor({
     startsAt,
     endsAt,
   });
-  const selectedOffering = serviceOfferings.data?.service_offerings.find(
+  const availableOfferings =
+    serviceOfferings.data?.service_offerings.filter((offering) =>
+      offering.available_site_ids?.includes(Number(siteId)),
+    ) ?? [];
+  const selectedOffering = availableOfferings.find(
     (offering) => String(offering.id) === serviceOfferingId,
   );
+  const visitTypeIssue =
+    visitTypes.data &&
+    !visitTypes.data.visit_types.some(
+      (type) => String(type.id) === visitTypeId && !type.retired_at,
+    )
+      ? "Choose an available visit type for this location. Complete its setup if no visit types are available."
+      : null;
   const offeringIssue = serviceOfferingId
     ? selectedOffering
       ? offeringEligibilityIssue(
@@ -1852,6 +1871,7 @@ function BookingFormEditor({
       !clinicianId ||
       !visitTypeId ||
       intervalError ||
+      visitTypeIssue ||
       offeringIssue
     ) {
       setSubmitError(
@@ -2207,6 +2227,8 @@ function BookingFormEditor({
               );
             if (!bookingAttempt && offeringIssue)
               return setSubmitError(offeringIssue);
+            if (!bookingAttempt && visitTypeIssue)
+              return setSubmitError(visitTypeIssue);
             if (!bookingAttempt && resourceAvailability.issue)
               return setSubmitError(resourceAvailability.issue);
             if (!bookingAttempt && firstAvailable && serviceOfferingId)
@@ -2527,6 +2549,8 @@ function BookingFormEditor({
               </Alert>
             )}
             <TelehealthBookingFormat
+              siteId={siteId}
+              visitTypeId={visitTypeId}
               value={visitModality}
               disabled={
                 busy ||
@@ -2571,6 +2595,10 @@ function BookingFormEditor({
                   onChange={(event) => {
                     setSiteId(event.target.value);
                     setRoomId("");
+                    setVisitTypeId("");
+                    setServiceOfferingId("");
+                    setSeriesPreview(null);
+                    setSeriesPreviewPayload(null);
                   }}
                 >
                   <MenuItem value="" disabled>
@@ -2673,6 +2701,11 @@ function BookingFormEditor({
                   <MenuItem value="" disabled>
                     Select a visit type
                   </MenuItem>
+                  {visitTypeId && visitTypeIssue && (
+                    <MenuItem value={visitTypeId} disabled>
+                      Previously selected visit type is unavailable
+                    </MenuItem>
+                  )}
                   {visitTypes.data.visit_types
                     .filter((type) => !type.retired_at)
                     .map((type) => (
@@ -2681,6 +2714,9 @@ function BookingFormEditor({
                       </MenuItem>
                     ))}
                 </Select>
+                {visitTypeIssue && (
+                  <FormHelperText error>{visitTypeIssue}</FormHelperText>
+                )}
               </FormControl>
               <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                 <FormControl
@@ -2703,10 +2739,9 @@ function BookingFormEditor({
                     onChange={(event) => {
                       const value = event.target.value;
                       setServiceOfferingId(value);
-                      const offering =
-                        serviceOfferings.data?.service_offerings.find(
-                          (item) => String(item.id) === value,
-                        );
+                      const offering = availableOfferings.find(
+                        (item) => String(item.id) === value,
+                      );
                       if (offering?.visit_type_id)
                         setVisitTypeId(String(offering.visit_type_id));
                       if (offering?.duration_minutes)
@@ -2721,14 +2756,12 @@ function BookingFormEditor({
                         Previously selected offering is unavailable
                       </MenuItem>
                     )}
-                    {serviceOfferings.data?.service_offerings.map(
-                      (offering) => (
-                        <MenuItem key={offering.id} value={String(offering.id)}>
-                          {offering.name}
-                          {offering.code ? ` · ${offering.code}` : ""}
-                        </MenuItem>
-                      ),
-                    )}
+                    {availableOfferings.map((offering) => (
+                      <MenuItem key={offering.id} value={String(offering.id)}>
+                        {offering.name}
+                        {offering.code ? ` · ${offering.code}` : ""}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 {serviceOfferings.error && (
@@ -5441,7 +5474,7 @@ function SoapNoteWorkspace({
   const context = useClinic();
   const [created, setCreated] = useState<EncounterNote | null>(null);
   const templates = useResource<{ templates: NoteTemplate[] }>(
-    "/api/clinic/note_templates",
+    `/api/clinic/note_templates?encounter_id=${encounter.id}`,
   );
   if (!context.capabilities.notes_read)
     return (
@@ -6987,7 +7020,7 @@ export function EncounterPage({
 }) {
   const context = useClinic();
   const patient = useResource<{ patient: Patient }>(
-    `/api/clinic/patients/${patientId}`,
+    `/api/clinic/patients/${patientId}?encounter_id=${encounterId}`,
   );
   const encounter = useResource<{ encounter: EncounterDetail }>(
     encounterDetailPath(patientId, encounterId),

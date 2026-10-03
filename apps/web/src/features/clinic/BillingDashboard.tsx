@@ -45,6 +45,7 @@ import {
 import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
 import { stripeSetupReturnMarker } from "./billing/StripeConnectPanel";
 import { patientReferenceLabel } from "./patientReference";
+import { invoiceLocationLabel } from "./billingSourceLocation";
 import { BillingSupportRequestQueue } from "./BillingSupportRequestQueue";
 import {
   ExternalPaymentForm,
@@ -1004,6 +1005,9 @@ export function BillingDashboard() {
                           >
                             #{invoice.id}
                           </Button>
+                          <Typography variant="body2" color="text.secondary">
+                            Location: {invoiceLocationLabel(invoice)}
+                          </Typography>
                           {invoice.patient ? (
                             <>
                               <Button
@@ -1137,6 +1141,11 @@ export function BillingDashboard() {
             {selectedInvoice ? (
               <>
                 <div className="billing-detail-meta">
+                  {selectedDetail && (
+                    <span>
+                      Location: {invoiceLocationLabel(selectedDetail)}
+                    </span>
+                  )}
                   {selectedInvoice.patient ? (
                     <a
                       href={`/clinic/billing/patients?patient_id=${selectedInvoice.patient.id}`}

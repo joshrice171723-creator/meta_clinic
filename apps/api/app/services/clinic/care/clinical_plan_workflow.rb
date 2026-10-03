@@ -154,9 +154,17 @@ module Clinic
           immunization_administration_enabled: Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)
             .fetch(:immunization_administration_enabled),
           new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind, site: encounter.site) },
-          weight_context: weight_context(practice, patient, site: encounter.site),
+          weight_context: weight_context(practice, patient, site: encounter.site, actor:),
           prior_orders: prior_orders(practice, actor, patient, encounter),
-          prior_care: prior_care(practice, actor, patient, encounter)
+          prior_care: prior_care(practice, actor, patient, encounter),
+          assessment_instruments: [ AsqAdultAssessment.catalog ],
+          asq_history: AsqAdultAssessment.history(practice:, actor:, patient:),
+          assessment_follow_up_tasks: Clinic::ClinicalTask.where(practice:, patient:, site_id: encounter.site_id,
+            task_kind: %w[safety_follow_up patient_call], state: Clinic::ClinicalTask::ACTIVE_STATES)
+            .includes(:assigned_to_membership).order(:id).limit(100).map do |task|
+              { id: task.id, state: task.state, owner_membership_id: task.assigned_to_membership_id,
+                accepted_owner: TaskContinuity.eligible?(task.assigned_to_membership, task) && task.pending_assignee_membership_id.nil? }
+            end
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
@@ -169,7 +177,7 @@ module Clinic
         values[:transmission_state] = "not_requested" if kind.to_sym == :medication_requests
         values[:requester_membership_id] = membership.id if kind.to_sym == :medication_requests
         prepare_values!(kind, practice, values, patient:, encounter:)
-        validate_references!(kind, practice, patient, encounter, values)
+        AsqAdultAssessment.normalize!(values, submitted: attributes.to_h.symbolize_keys, practice:, patient:, encounter:, actor:) if kind.to_sym == :assessments
         payload = { patient_id: patient.id, encounter_id: encounter.id, site_id: encounter.site_id,
           values: }
         outcome = Clinic::Idempotency.execute(
@@ -181,6 +189,7 @@ module Clinic
         ) do
           practice.lock!
           raise ArgumentError, "This service is disabled for new work. Clinic Setup owns availability; existing records and unrelated care remain available." unless new_work_available?(practice, kind, site: encounter.site)
+          validate_references!(kind, practice, patient, encounter, values)
           if kind.to_sym == :service_requests && values[:request_kind] == "lab"
             Configuration::StarterProfile.require_service!(practice: practice, site: encounter.site, service: "external_lab_coordination")
           end
@@ -216,6 +225,7 @@ module Clinic
           result_resource: ->(record) { record },
           resource_resolver: resolver(definition.fetch(:klass), encounter)
         ) do
+          practice.lock! if kind.to_sym == :assessments
           ApplicationRecord.connection.execute(ApplicationRecord.sanitize_sql_array([
             "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "clinical-plan:#{practice.id}:#{kind}:#{series}"
           ]))
@@ -238,7 +248,8 @@ module Clinic
           end
           validate_revision_change!(kind, definition, previous, changes, values, reconcile_completion:)
           prepare_values!(kind, practice, values, patient:, encounter:)
-          validate_references!(kind, practice, patient, encounter, values)
+          AsqAdultAssessment.normalize!(values, submitted: changes, practice:, patient:, encounter:, actor:, previous:) if kind.to_sym == :assessments
+          validate_references!(kind, practice, patient, encounter, values, previous:)
           record = definition.fetch(:klass).create!(
             values.merge(common_attributes(practice, patient, encounter, membership, request_key, values:,
               series_id: series, version_number: previous.version_number + 1, prior_revision: previous))
@@ -275,6 +286,12 @@ module Clinic
           end
         end
         payload.merge!(immunization_administration_evidence(record)) if kind.to_sym == :immunizations
+        payload[:asq_protocol] = AsqAdultAssessment.protocol(record) if kind.to_sym == :assessments
+        if kind.to_sym == :assessments && AsqAdultAssessment.named?(instrument_name: record.instrument_name, instrument_version: record.instrument_version)
+          evidence = AsqAdultAssessment.response_evidence(record)
+          payload[:item_responses] = evidence[:items]
+          payload[:response_summary] = evidence[:observations]
+        end
         if %i[medication_requests service_requests].include?(kind.to_sym)
           payload[:completion_reconciliation_required] = record.status == "completed" && active_order_tasks(kind, record).exists?
         end
@@ -306,7 +323,13 @@ module Clinic
       private_class_method :normalized_attributes
 
       def revision_values(definition, record)
-        (COMMON_FIELDS + definition.fetch(:fields)).to_h { |field| [ field, record.public_send(field) ] }
+        values = (COMMON_FIELDS + definition.fetch(:fields)).to_h { |field| [ field, record.public_send(field) ] }
+        if record.is_a?(AssessmentRevision) && AsqAdultAssessment.named?(values)
+          evidence = AsqAdultAssessment.response_evidence(record)
+          values[:item_responses] = evidence[:items]
+          values[:response_summary] = evidence[:observations]
+        end
+        values
       end
       private_class_method :revision_values
 
@@ -364,7 +387,7 @@ module Clinic
       end
       private_class_method :normalized_series_id!
 
-      def validate_references!(kind, practice, patient, encounter, values)
+      def validate_references!(kind, practice, patient, encounter, values, previous: nil)
         case kind.to_sym
         when :medication_requests
           reference = values[:source_medication_statement_id]
@@ -377,15 +400,39 @@ module Clinic
           ServiceRequestRevision.where(practice:, patient:, encounter:).find(reference) if reference.present?
         when :care_goals
           reference = values[:care_plan_revision_id]
-          CarePlanRevision.where(practice:, patient:, encounter:).find(reference)
+          plan = CarePlanRevision.where(practice:, patient:, encounter:).find(reference)
+          unless previous&.care_plan_revision_id == plan.id
+            ApplicationRecord.connection.execute(ApplicationRecord.sanitize_sql_array([
+              "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "clinical-plan:#{practice.id}:care_plans:#{plan.series_id}"
+            ]))
+            current_plan = CarePlanRevision.where(practice:, patient:, encounter:, series_id: plan.series_id)
+              .order(version_number: :desc, id: :desc).first!
+            unless current_plan.id == plan.id
+              raise ArgumentError, "The source plan changed; reload and review before saving this goal."
+            end
+          end
         when :immunizations
           reference = values[:source_document_id]
           Clinic::Document.where(practice:, patient:).find(reference) if reference.present?
           administration_reference = values[:medication_administration_id]
           MedicationAdministration.where(practice:, patient:, encounter:).find(administration_reference) if administration_reference.present?
         when :assessments
-          configured = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site).fetch(:assessment_scope)
-          unless configured.include?(values[:category])
+          if values[:score_source] == "calculated" && !AsqAdultAssessment.named?(values)
+            score_fields = %i[category instrument_name instrument_version score_value score_source score_recorded_at
+              response_source response_summary assessed_at assessment_state item_responses]
+            unchanged_score = previous && score_fields.all? do |field|
+              previous.public_send(field) == previous.class.type_for_attribute(field.to_s).cast(values[field])
+            end
+            unless unchanged_score
+              raise ArgumentError, "No supported instrument scorer is configured. Retain an unscored assessment or record clinician-entered or imported score provenance."
+            end
+          end
+          features = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)
+          configured = features.fetch(:assessment_scope)
+          supported = Configuration::PracticeFeatures::ASSESSMENT_OPTIONS_BY_SPECIALTY.fetch(features[:clinic_type], [])
+          unless previous&.category == values[:category] ||
+            (Configuration::StarterProfile.ready?(encounter.site, features) &&
+              configured.include?(values[:category]) && supported.include?(values[:category]))
             raise ArgumentError, "This assessment category is not enabled in Clinic Setup."
           end
           practice.memberships.active.find(values[:reviewer_membership_id]) if values[:reviewer_membership_id].present?
@@ -498,18 +545,27 @@ module Clinic
       end
 
       def new_work_available?(practice, kind, site: nil)
+        if kind.to_sym == :assessments
+          features = Configuration::PracticeFeatures.snapshot(practice:, site:)
+          supported = Configuration::PracticeFeatures::ASSESSMENT_OPTIONS_BY_SPECIALTY.fetch(features[:clinic_type], [])
+          return Configuration::StarterProfile.ready?(site, features) && (features[:assessment_scope] & supported).any?
+        end
         service = { medication_requests: "prescription_preparation",
           procedures: "minor_office_procedures", immunizations: "vaccinations" }[kind.to_sym]
         !service || Configuration::StarterProfile.service_available?(practice: practice, site:, service: service)
       end
 
-      def weight_context(practice, patient, site: nil)
-        profile = Configuration::PracticeFeatures.snapshot(practice:, site:).fetch(:starter_profile)
-        return unless Array(profile["components"]).include?("weight_context")
-        notes = PrevisitNote.where(practice: practice, patient: patient).order(submitted_at: :desc, id: :desc).limit(30)
+      def weight_context(practice, patient, site: nil, actor: nil)
+        features = Configuration::PracticeFeatures.snapshot(practice:, site:)
+        profile = features.fetch(:starter_profile)
+        return unless site && features[:clinic_type] == "weight_loss" && Array(profile["components"]).include?("weight_context")
+        return [] unless actor && Ability.new(actor, practice:).allowed_permission?("notes.read", site:)
+        notes = PrevisitNote.where(practice: practice, patient: patient).joins(:appointment)
+          .where(clinic_appointments: { site_id: site.id }).order(submitted_at: :desc, id: :desc).limit(30)
         notes.filter_map do |note|
           content = PrevisitIntake.decode(note.encrypted_text)
-          next unless content && content["status"] == "submitted"
+          next unless content && content["status"] == "submitted" &&
+            %w[weight-management-initial-v1 weight-management-follow-up-v1].include?(content["form_id"])
           { note_id: note.id, revision: note.version_number, form_id: content["form_id"],
             appointment_id: note.appointment_id, recorded_at: note.submitted_at.iso8601,
             source: "patient_reported", goals: PrevisitIntake.answer_text(content["answers"]["goals"]),

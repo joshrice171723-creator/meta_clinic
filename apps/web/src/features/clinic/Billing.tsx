@@ -59,6 +59,10 @@ import { InvoiceCheckoutControls } from "./InvoiceCheckoutControls";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { useClinic } from "./Workspace";
 import { CashPayEstimates } from "./CashPayEstimates";
+import {
+  invoiceLocationLabel,
+  paymentLocationLabels,
+} from "./billingSourceLocation";
 
 function money(value: string, currency: string) {
   const [whole, fraction = ""] = value.split(".");
@@ -765,6 +769,9 @@ function LedgerDetails({
                       <TableCell component="th" scope="row">
                         <Typography color="primary" sx={{ fontWeight: 700 }}>
                           Invoice #{invoice.id}
+                        </Typography>
+                        <Typography color="text.secondary" variant="body2">
+                          Location: {invoiceLocationLabel(invoice)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -1975,6 +1982,9 @@ function InvoiceDetail({
           <Typography color="text.secondary" variant="body2">
             Created {date(invoice.created_at, practice.timezone, true)}
           </Typography>
+          <Typography color="text.secondary" variant="body2">
+            Location: {invoiceLocationLabel(invoice)}
+          </Typography>
         </Box>
         <Chip
           color={stateColor(invoiceState(invoice))}
@@ -2467,6 +2477,10 @@ function PaymentHistory({
                       Recorded{" "}
                       {date(payment.created_at, clinic.practice.timezone, true)}
                     </Typography>
+                    <Typography color="text.secondary" variant="body2">
+                      Allocation locations:{" "}
+                      {paymentLocationLabels(payment.source_sites)}
+                    </Typography>
                     {payment.cash_payment && (
                       <Typography color="text.secondary" variant="body2">
                         Cash payment
@@ -2715,6 +2729,8 @@ function PaymentHistory({
                           true,
                         )}{" "}
                         · {refund.reason}
+                        {" · "}Payment allocation locations:{" "}
+                        {paymentLocationLabels(payment.source_sites)}
                       </Typography>
                     ))}
                   </Alert>

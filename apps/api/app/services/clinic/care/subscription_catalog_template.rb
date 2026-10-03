@@ -58,11 +58,16 @@ module Clinic
         }
       }.freeze
 
-      def self.apply(practice:, actor:)
+      def self.apply(practice:, actor:, site: nil)
         Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.write")
+        Clinic::Authorization.authorize!(practice: practice, actor: actor, action: "subscription_catalog.write", site: site) if site
         ApplicationRecord.transaction do
           practice.with_lock do
-            clinic_type = Clinic::Configuration::PracticeFeatures.snapshot(practice: practice).fetch(:clinic_type)
+            features = Clinic::Configuration::PracticeFeatures.snapshot(practice: practice, site:)
+            unless Configuration::StarterProfile.ready?(site, features)
+              raise ArgumentError, "Select a location with finalized specialty setup before applying a plan template."
+            end
+            clinic_type = features.fetch(:clinic_type)
             template = TEMPLATES[clinic_type]
             raise ArgumentError, "No demo plans are available for the selected clinic type." unless template
 

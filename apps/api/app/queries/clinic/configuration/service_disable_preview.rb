@@ -21,13 +21,7 @@ module Clinic
         end
         disabled = current[:finalized] ? current[:service_scope] - requested : []
         removed_assessments = current[:assessment_scope] - assessments
-        site_ids = if site
-          [ site.id ]
-        else
-          overrides = Clinic::PracticeFeatureVersion.where(practice:).where.not(site_id: nil)
-            .where(effective_from: ..Current.business_time).select(:site_id)
-          practice.sites.where.not(id: overrides).pluck(:id)
-        end
+        site_ids = site ? [ site.id ] : []
         providers = ServiceImpactProviders.new(practice:, actor:, site:, site_ids:, current:)
         rows = disabled.map { |service| providers.service(service) }
         assessment_rows = removed_assessments.map { |assessment| providers.assessment(assessment) }

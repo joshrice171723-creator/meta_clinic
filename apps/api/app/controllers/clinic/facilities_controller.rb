@@ -12,6 +12,14 @@ module Clinic
       when "departments" then current_practice.departments
       when "visit_types" then current_practice.visit_types
       end
+      if type == "visit_types" && params[:available_only].to_s == "true"
+        site = params[:site_id].present? ? accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id)) : current_clinic_site
+        ids = Configuration::StarterProfile.available_visit_type_ids(practice: current_practice, site:)
+        records = records.where(id: ids)
+      elsif type == "rooms" && params[:site_id].present?
+        site = accessible_clinic_sites.find(requested_id!(params[:site_id], :site_id))
+        records = records.where(site:)
+      end
       records = records.where(id: current_clinic_site&.id || -1) if type == "sites" && params[:selected_only].to_s == "true"
       records = records.where("code ILIKE ?", "%#{records.model.sanitize_sql_like(query)}%") if query.present?
       records = records.includes(:operating_hours, :hour_exceptions, :rooms) if type == "sites" && params[:detail].to_s == "true"

@@ -29,22 +29,33 @@ export function TelehealthBookingFormat({
   onChange,
   disabled = false,
   canConfigure = false,
+  siteId,
+  visitTypeId,
 }: {
   value: VisitModality;
   onChange: (value: VisitModality) => void;
   disabled?: boolean;
   canConfigure?: boolean;
+  siteId?: string | number;
+  visitTypeId?: string | number;
 }) {
   const options = useResource<BookingOptions>(
-    "/api/clinic/telehealth/booking_options",
+    `/api/clinic/telehealth/booking_options?site_id=${siteId ?? ""}`,
   );
+  const visitRules = options.data?.data.visit_type_rules.filter(
+    (rule) => String(rule.visit_type_id) === String(visitTypeId),
+  );
+  const selectedRule =
+    visitRules?.find((rule) => rule.site_id === Number(siteId)) ??
+    visitRules?.find((rule) => rule.site_id === null);
   const videoAvailable =
     options.data?.data.enabled === true &&
-    options.data.data.allowed_modalities.includes("video");
+    options.data.data.allowed_modalities.includes("video") &&
+    (!visitTypeId || selectedRule?.enabled === true);
   useEffect(() => {
-    if (options.data && !videoAvailable && value === "video")
+    if (!disabled && options.data && !videoAvailable && value === "video")
       onChange("in_person");
-  }, [onChange, options.data, value, videoAvailable]);
+  }, [disabled, onChange, options.data, value, videoAvailable]);
   return (
     <Stack spacing={1}>
       <FormControl fullWidth disabled={disabled}>

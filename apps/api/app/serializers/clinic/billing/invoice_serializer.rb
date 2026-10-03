@@ -11,7 +11,7 @@ module Clinic
           rounding_policy_version: invoice.rounding_policy_version,
           created_at: invoice.created_at,
           updated_at: invoice.updated_at.iso8601(6)
-        }
+        }.merge(source_location(invoice))
         total = invoice.lines.sum { |line| line.posted_amount || 0 }
         allocated = invoice.payment_allocations.sum { |allocation| allocation.amount || 0 }
         credit = invoice.credit_notes.sum { |note| note.amount || 0 }
@@ -51,6 +51,21 @@ module Clinic
         payload = StripeInvoicePayments.eligibility(invoice: invoice)
         payload[:checkout_url] = result.checkout_url if include_checkout_url && result&.checkout_url
         payload
+      end
+
+      def self.source_location(invoice)
+        site = invoice.encounter&.site
+        { source_site_id: site&.id, source_site_name: site ? (site.name.presence || site.code) : "Shared / unassigned" }
+      end
+
+      def self.payment_source_sites(payment)
+        allocations = payment.allocations.to_a
+        sites = allocations.map do |allocation|
+          location = source_location(allocation.invoice)
+          { id: location[:source_site_id], name: location[:source_site_name] }
+        end
+        sites << { id: nil, name: "Shared / unassigned" } if allocations.empty? || allocations.sum(&:amount) < payment.amount
+        sites.uniq.sort_by { |site| [site[:id].nil? ? 0 : 1, site[:id].to_i] }
       end
 
       def self.credit(note)

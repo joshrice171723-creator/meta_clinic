@@ -16,13 +16,14 @@ module Clinic
           families: SubscriptionFamily.where(practice: current_practice).order(:display_order, :id).map { |r| r.attributes.slice("id", "name", "description", "retired", "display_order", "lock_version", "published_snapshot") },
           services: ServiceOption.where(practice: current_practice).order(:name).map { |r| r.attributes.slice("id", "name", "description", "retired") },
           packages: SubscriptionPackage.where(practice: current_practice).order(:name).map { |r| r.attributes.slice("id", "name", "family_id", "draft", "lock_version", "retired", "published_version_id") },
-          clinic_type: Clinic::Configuration::PracticeFeatures.snapshot(practice: current_practice).fetch(:clinic_type),
+          clinic_type: current_clinic_site && Clinic::Configuration::PracticeFeatures.snapshot(
+            practice: current_practice, site: current_clinic_site).fetch(:clinic_type),
           capabilities: { write: ability.allowed_permission?("subscription_catalog.write"), publish: ability.allowed_permission?("subscription_catalog.publish") }
         }
       end
 
       def apply_template
-        result = SubscriptionCatalogTemplate.apply(practice: current_practice, actor: current_user)
+        result = SubscriptionCatalogTemplate.apply(practice: current_practice, actor: current_user, site: current_clinic_site)
         render json: result, status: :ok
       end
 

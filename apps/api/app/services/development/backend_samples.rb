@@ -117,7 +117,7 @@ module Development
         )
         PaperTrail.request(whodunnit: actor.id.to_s,
           controller_info: { causal_id: "synthetic-backend-seed-v2-existing-practice" }) do
-          sites = seed_facilities(practice)
+          sites = seed_facilities(practice, actor: actor)
           clinician_users = seed_population_clinicians(practice, actor, label)
           clinicians = seed_clinicians(practice, clinician_users, sites, label)
           patients = seed_patients(practice, label, actor)
@@ -165,7 +165,7 @@ module Development
       inventory_actor = users.fetch("inventory").second
 
       PaperTrail.request(whodunnit: actor.id.to_s, controller_info: { causal_id: "synthetic-backend-seed-v2" }) do
-        sites = seed_facilities(practice)
+        sites = seed_facilities(practice, actor: actor)
         clinician_users = seed_population_clinicians(
           practice, actor, label,
           candidates: users.fetch("clinician").select { |user| user.clinic_membership.active? }
@@ -228,13 +228,17 @@ module Development
     end
     private_class_method :create_users
 
-    def self.seed_facilities(practice)
+    def self.seed_facilities(practice, actor:)
       rooms_by_site = {
         "MAIN" => %w[WAITING MAIN-1 MAIN-2 CHECKOUT],
         "ANNEX" => %w[ANNEX-1 ANNEX-2]
       }
       rooms_by_site.map do |code, room_codes|
-        site = practice.sites.find_or_create_by!(code: code) { |record| record.status = "active" }
+        created_site = false
+        site = practice.sites.find_or_create_by!(code: code) do |record|
+          created_site = true
+          record.status = "active"
+        end
         7.times do |day_of_week|
           site.operating_hours.find_or_create_by!(practice:, day_of_week:) do |hours|
             hours.closed = [0, 6].include?(day_of_week)
@@ -243,6 +247,15 @@ module Development
           end
         end
         room_codes.each { |room_code| site.rooms.find_or_create_by!(practice: practice, code: room_code) }
+        if created_site
+          practice.visit_types.find_or_create_by!(code: "Follow-up visit")
+          Clinic::Configuration::PracticeFeatures.revise(
+            practice: practice, site: site, actor: actor.clinic_membership,
+            request_key: "synthetic-backend-site-profile-#{site.id}", expected_revision: 0,
+            insurance_workflows_enabled: false, clinic_type: "primary_care",
+            service_scope: [], assessment_scope: [], finalize: true
+          )
+        end
         site
       end
     end

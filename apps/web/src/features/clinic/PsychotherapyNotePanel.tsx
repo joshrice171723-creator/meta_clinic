@@ -18,6 +18,7 @@ type ProtectedRevision = {
   id: number;
   encounter_id: number;
   version: number;
+  request_key: string;
   previous_revision_id: number | null;
   body: string;
   revision_reason: string | null;
@@ -80,8 +81,12 @@ export function PsychotherapyNotePanel({
   useEffect(() => {
     if (!attempt || !resource.data?.note) return;
     if (
+      resource.data.note.encounter_id === encounter.id &&
+      resource.data.note.request_key === attempt.request_key &&
       resource.data.note.version === attempt.expected_version + 1 &&
-      resource.data.note.body === attempt.body
+      resource.data.note.body === attempt.body &&
+      (resource.data.note.revision_reason ?? "") ===
+        (attempt.expected_version === 0 ? "" : attempt.revision_reason)
     ) {
       setBaseline(resource.data.note);
       setBody(resource.data.note.body);
@@ -90,7 +95,7 @@ export function PsychotherapyNotePanel({
       setError("");
       setNotice("The saved revision was confirmed after refresh.");
     }
-  }, [attempt, resource.data]);
+  }, [attempt, encounter.id, resource.data]);
 
   const dirty =
     baseline !== undefined &&
@@ -131,8 +136,11 @@ export function PsychotherapyNotePanel({
       });
       if (
         result.note.encounter_id !== encounter.id ||
+        result.note.request_key !== exact.request_key ||
         result.note.version !== exact.expected_version + 1 ||
-        result.note.body !== exact.body
+        result.note.body !== exact.body ||
+        (result.note.revision_reason ?? "") !==
+          (exact.expected_version === 0 ? "" : exact.revision_reason)
       )
         throw new Error(
           "The response did not match this encounter and revision. Refresh before continuing.",

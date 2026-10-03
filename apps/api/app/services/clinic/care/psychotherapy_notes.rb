@@ -3,7 +3,13 @@ module Clinic
     class PsychotherapyNotes
       OPERATION = "psychotherapy_notes.save"
 
-      def self.therapy_visit?(practice, encounter)
+      def self.therapy_visit?(practice, encounter, actor: nil)
+        if actor
+          member = practice.memberships.active.find_by(user_id: actor.id)
+          return true if member && Care::PsychotherapyNote.exists?(practice:, encounter:, originator_membership: member)
+        end
+        return false unless Configuration::StarterProfile.service_available?(practice:, site: encounter.site,
+          service: "individual_therapy")
         visit_id = Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site).dig(
           :starter_profile, "visits", "individual_therapy", "visit_type_id"
         )
@@ -24,15 +30,14 @@ module Clinic
 
       def self.read(practice:, actor:, encounter:)
         member = authorize!(practice:, actor:, encounter:)
-        require_therapy_visit!(practice, encounter)
         note = latest(practice, encounter, member)
+        require_therapy_visit!(practice, encounter) unless note
         AuditRecorder.record!(practice:, actor:, action_code: "psychotherapy_notes.read", outcome: :released)
         note
       end
 
       def self.save(practice:, actor:, encounter:, body:, revision_reason:, expected_version:, request_key:)
         member = authorize!(practice:, actor:, encounter:)
-        require_therapy_visit!(practice, encounter)
         value = body.to_s
         raise ArgumentError, "Enter note text before saving." if value.strip.empty?
         raise ArgumentError, "The note is too long." if value.length > 50_000
@@ -55,11 +60,10 @@ module Clinic
           authorization: -> { authorize!(practice:, actor:, encounter:) },
           authorization_action: "psychotherapy_notes.save"
         ) do
+          practice.lock!
           encounter.with_lock do
             current = latest(practice, encounter, member)
-            unless current || Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)[:service_scope].include?("individual_therapy")
-              raise ArgumentError, "Individual therapy must be selected in clinic setup before starting a protected note."
-            end
+            require_therapy_visit!(practice, encounter) unless current
             unless (current&.version_number || 0) == expected_version
               raise ActiveRecord::StaleObjectError.new(encounter, "psychotherapy note version")
             end
@@ -85,16 +89,18 @@ module Clinic
       def self.serialize(note)
         return nil unless note
 
-        { id: note.id, encounter_id: note.encounter_id, version: note.version_number,
+        { id: note.id, encounter_id: note.encounter_id, version: note.version_number, request_key: note.request_key,
           previous_revision_id: note.previous_revision_id, body: note.body,
           revision_reason: note.revision_reason, recorded_at: note.recorded_at.iso8601(6) }
       end
 
       def self.history(practice:, actor:, encounter:)
         member = authorize!(practice:, actor:, encounter:)
-        require_therapy_visit!(practice, encounter)
-        Care::PsychotherapyNote.where(practice:, encounter:, originator_membership: member)
+        require_therapy_visit!(practice, encounter) unless latest(practice, encounter, member)
+        revisions = Care::PsychotherapyNote.where(practice:, encounter:, originator_membership: member)
           .order(version_number: :desc).limit(20).map { |note| serialize(note) }
+        AuditRecorder.record!(practice:, actor:, action_code: "psychotherapy_notes.history", outcome: :released)
+        revisions
       end
 
       def self.latest(practice, encounter, member)

@@ -74,7 +74,13 @@ module Development
 
     def self.published_versions!(practice:, actor:)
       if practice.name == "Sandbox Weight Management"
-        Clinic::Care::SubscriptionCatalogTemplate.apply(practice:, actor:)
+        site = practice.sites.order(:id).find do |candidate|
+          features = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: candidate)
+          features[:clinic_type] == "weight_loss" && Clinic::Configuration::StarterProfile.ready?(candidate, features)
+        end
+        raise ArgumentError, "Sandbox growth needs a finalized weight-management location." unless site
+
+        Clinic::Care::SubscriptionCatalogTemplate.apply(practice:, actor:, site:)
         family = Clinic::Care::SubscriptionFamily.where(practice:, name: "Weight management").first!
         family = Clinic::Care::SubscriptionCatalog.save(practice:, actor:, kind: "family", id: family.id,
           attributes: { "publish" => true, "lock_version" => family.lock_version })

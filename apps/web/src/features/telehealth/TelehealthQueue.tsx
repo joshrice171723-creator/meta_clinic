@@ -88,8 +88,9 @@ export function telehealthDate(timeZone: string, now = new Date()) {
 }
 
 function QueueBookingAction({ canConfigure }: { canConfigure: boolean }) {
+  const clinic = useClinic();
   const options = useResource<BookingOptions>(
-    "/api/clinic/telehealth/booking_options",
+    `/api/clinic/telehealth/booking_options?site_id=${clinic.current_site?.id ?? ""}`,
   );
   const available =
     options.data?.data.enabled &&

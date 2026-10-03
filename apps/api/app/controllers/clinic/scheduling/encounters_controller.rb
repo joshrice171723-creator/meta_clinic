@@ -107,6 +107,7 @@ module Clinic
         EncounterSerializer.call(
           encounter,
           detail: true,
+          actor: current_user,
           include_note_metadata: current_ability.allowed_permission?("notes.read", site: encounter.site)
         )
       end

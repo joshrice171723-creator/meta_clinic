@@ -116,6 +116,12 @@ module Clinic
       end
 
       def record_input(kind, revising:)
+        if kind == :assessments
+          raw_items = params[ROOTS.fetch(kind)]&.[](:item_responses)
+          if raw_items.is_a?(Array) && raw_items.any? { |item| !item.respond_to?(:keys) || (item.keys.map(&:to_s) - %w[item_id state value]).any? }
+            raise ArgumentError, "Unsupported assessment item response fields."
+          end
+        end
         fields = FIELD_SETS.fetch(kind) + %i[request_key]
         fields += %i[expected_version reconcile_completion] if revising
         parameter_hash!(ROOTS.fetch(kind), fields,

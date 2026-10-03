@@ -93,6 +93,23 @@ module Clinic
         TEMPLATES
       end
 
+      def self.available(practice:, site: nil)
+        features = Configuration::PracticeFeatures.snapshot(practice:, site:)
+        TEMPLATES.select do |template|
+          specialty = { "behavioral-health-progress" => "behavioral_health",
+            "weight-management-follow-up" => "weight_loss" }[template[:id]]
+          !specialty || (Configuration::StarterProfile.ready?(site, features) && features[:clinic_type] == specialty)
+        end
+      end
+
+      def self.require_available!(practice:, encounter:, template_id:, template_version:)
+        return if available(practice:, site: encounter.site).any? do |template|
+          template[:id] == template_id && template[:version] == template_version
+        end
+
+        raise ArgumentError, "This note template is unavailable for the encounter's location. Review its specialty and setup before starting a new note."
+      end
+
       def self.fetch!(id, version)
         template = TEMPLATES.find { |candidate| candidate[:id] == id && candidate[:version] == version.to_i }
         raise ArgumentError, "Choose an available note template." unless template

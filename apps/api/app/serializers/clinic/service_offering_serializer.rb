@@ -18,6 +18,7 @@ module Clinic
         public_visible: offering.public_visible,
         status: offering.status,
         eligible_site_ids: offering.sites.map(&:id).sort,
+        available_site_ids: offering.available_sites.map(&:id).sort,
         eligible_clinician_ids: offering.clinicians.map(&:id).sort,
         published_at: offering.published_at&.iso8601(6),
         retired_at: offering.retired_at&.iso8601(6),

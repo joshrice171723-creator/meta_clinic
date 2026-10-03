@@ -16,6 +16,7 @@ type DraftResponse<T> = {
   patient_id: number | null;
   encounter_id: number | null;
   record_id: number | null;
+  site_id?: number | null;
   scope: string;
   version: number;
   payload: T | null;
@@ -41,6 +42,7 @@ export function useWorkingDraft<T>({
   patientId,
   encounterId,
   recordId,
+  siteId,
   scope = "main",
   enabled = true,
 }: {
@@ -48,6 +50,7 @@ export function useWorkingDraft<T>({
   patientId?: number | string;
   encounterId?: number | string;
   recordId?: number | string;
+  siteId?: number | string;
   scope?:
     | "main"
     | "online_payment"
@@ -60,10 +63,12 @@ export function useWorkingDraft<T>({
   const patient = patientId == null ? null : Number(patientId);
   const encounter = encounterId == null ? null : Number(encounterId);
   const record = recordId == null ? null : Number(recordId);
+  const site = siteId == null ? null : Number(siteId);
   const query = new URLSearchParams();
   if (patient !== null) query.set("patient_id", String(patient));
   if (encounter !== null) query.set("encounter_id", String(encounter));
   if (record !== null) query.set("record_id", String(record));
+  if (site !== null) query.set("site_id", String(site));
   if (scope !== "main") query.set("scope", scope);
   const endpoint = `/api/clinic/working_drafts/${kind}${query.size ? `?${query}` : ""}`;
   const [revision, refresh] = useState(0);
@@ -101,6 +106,7 @@ export function useWorkingDraft<T>({
         response.patient_id !== patient ||
         response.encounter_id !== encounter ||
         response.record_id !== record ||
+        (site !== null && response.site_id !== site) ||
         response.scope !== scope ||
         !Number.isSafeInteger(response.version) ||
         response.version < 0 ||
@@ -112,7 +118,7 @@ export function useWorkingDraft<T>({
           "The recovered working copy did not match this patient and visit.",
         );
     },
-    [kind, patient, encounter, record, scope],
+    [kind, patient, encounter, record, site, scope],
   );
 
   useEffect(() => {

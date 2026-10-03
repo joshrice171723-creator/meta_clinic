@@ -20,8 +20,9 @@ module Public
       practice = service_page_practice
       slug = practice.public_membership_slug
 
-      offerings = practice.service_offerings.where(status: "published", public_visible: true).order(:name, :id)
-      raise ActiveRecord::RecordNotFound unless offerings.exists?
+      offerings = practice.service_offerings.where(status: "published", public_visible: true)
+        .includes(:sites, :visit_type).order(:name, :id).select(&:available_for_new_work?)
+      raise ActiveRecord::RecordNotFound if offerings.empty?
 
       render json: {
         practice: { name: practice.name, slug: slug,

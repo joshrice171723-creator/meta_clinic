@@ -7,6 +7,7 @@ module Clinic
 
       def initialize(practice:, site:, date:, actor:, duration_minutes: SLOT_MINUTES, waitlist_entry: nil)
         @practice, @site, @actor = practice, site, actor
+        @features = Clinic::Configuration::PracticeFeatures.snapshot(practice: practice, site: site)
         unless duration_minutes.is_a?(Integer) && duration_minutes.between?(5, 240)
           raise ArgumentError, "Choose a visit duration from 5 to 240 minutes."
         end
@@ -79,7 +80,8 @@ module Clinic
       end
 
       def slots_for(date)
-        return [] unless @site.status == "active"
+        return [] unless Configuration::StarterProfile.ready?(@site, @features)
+        return [] if @waitlist_entry && !@features[:available_visit_type_ids].include?(@waitlist_entry.visit_type_id)
 
         slots = []
         @rules.select { |r| r.kind == "weekly" && r.site_id == @site.id && r.weekday == date.wday }.each do |rule|

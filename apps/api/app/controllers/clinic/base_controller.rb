@@ -15,11 +15,38 @@ module Clinic
       "clinic/scheduling/operational_policies" => %w[show update history]
     }.freeze
 
+    HISTORICAL_CARE_ENDPOINTS = {
+      "clinic/scheduling/encounters" => %w[show completion close assign_room create],
+      "clinic/scheduling/provider_assignments" => %w[create],
+      "clinic/scheduling/intake_ownership" => %w[claim release],
+      "clinic/care/patients" => %w[show],
+      "clinic/care/patient_chart_history" => %w[show],
+      "clinic/care/observations" => %w[index create],
+      "clinic/care/patient_care_summaries" => %w[show],
+      "clinic/care/intake_consents" => %w[show create],
+      "clinic/care/lab_reports" => %w[index show result_history create_version review record_action record_follow_up complete_follow_up record_follow_up_contact_attempt],
+      "clinic/care/previsit_notes" => %w[show],
+      "clinic/care/visit_instructions" => %w[show],
+      "clinic/care/vital_signs" => %w[show create],
+      "clinic/care/note_templates" => %w[index],
+      "clinic/care/encounter_notes" => %w[index show create revise correct sign],
+      "clinic/care/psychotherapy_notes" => %w[show update],
+      "clinic/care/clinical_history" => %w[index create update review],
+      "clinic/care/nurse_workflow" => %w[show revise_intake request_handoff transition_handoff question_tasks link_question_task create_task transition_task],
+      "clinic/care/clinical_plan_workspace" => %w[show create_medication_request revise_medication_request create_service_request revise_service_request create_diagnosis revise_diagnosis create_procedure revise_procedure create_care_plan revise_care_plan create_care_goal revise_care_goal create_immunization revise_immunization create_assessment revise_assessment create_fulfillment_link create_referral_event],
+      "clinic/care/medication_administrations" => %w[index create],
+      "clinic/care/patient_education_events" => %w[index create],
+      "clinic/care/prescription_events" => %w[index create prepare submit lifecycle_request simulate_response dispense],
+      "clinic/operations/encounter_follow_ups" => %w[show upsert update],
+      "clinic/working_drafts" => %w[show update]
+    }.freeze
+
     before_action :require_prototype
     before_action :require_member
     before_action :require_expected_actor
     before_action :require_clinic
     before_action :require_expected_practice
+    before_action :require_expected_site
     before_action :require_finalized_site_profile
     before_action :capture_authorization_generation
     around_action :attribute_clinic_mutations
@@ -152,6 +179,16 @@ module Clinic
       render json: { error: "Your clinic changed in another window. Reload before continuing.", code: "clinic_changed" }, status: :conflict
     end
 
+    def require_expected_site
+      # Context reads recover the current location after another tab changes it.
+      return if controller_path == "clinic/context" && action_name == "show"
+
+      expected = request.headers["X-Clinic-Site"]
+      return if expected.blank? || expected == (session[:clinic_site_id].presence || "none").to_s
+
+      render json: { error: "Your location changed in another window. Reload before continuing.", code: "clinic_site_changed" }, status: :conflict
+    end
+
     def require_finalized_site_profile
       site_id = session[:clinic_site_id]
       return if site_id.blank?
@@ -162,6 +199,7 @@ module Clinic
       features = Clinic::Configuration::PracticeFeatures.snapshot(practice: current_practice, site:)
       return if features[:site_specialty_configured] && features[:finalized]
       return if setup_endpoint_allowed?
+      return if historical_care_endpoint_allowed?
 
       render json: {
         error: "Complete clinic setup for this location before opening its workspaces.",
@@ -175,6 +213,71 @@ module Clinic
       return false unless actions&.include?(action_name)
       return params[:setup].to_s == "true" if controller_path == "clinic/clinicians" && action_name == "index"
 
+      true
+    end
+
+    def historical_care_endpoint_allowed?
+      return false unless HISTORICAL_CARE_ENDPOINTS.fetch(controller_path, []).include?(action_name)
+      return false if controller_path == "clinic/working_drafts" && !%w[soap vitals follow_up checkout].include?(params[:kind])
+
+      encounter_id = params[:encounter_id]
+      patient_id = params[:patient_id]
+      appointment = nil
+      case controller_path
+      when "clinic/scheduling/encounters"
+        if action_name == "create"
+          appointment_id = params.dig(:encounter, :appointment_id)
+          return false if appointment_id.blank?
+
+          appointment = current_practice.appointments.find(requested_id!(appointment_id, :appointment_id))
+          patient_id ||= params.dig(:encounter, :patient_id)
+          return false if appointment.site_id.blank? || patient_id.blank?
+        else
+          encounter_id = params[:id] unless action_name == "assign_room"
+          patient_id ||= params.dig(:close, :patient_id)
+        end
+      when "clinic/scheduling/provider_assignments"
+        encounter_id = params[:id]
+        patient_id = params.dig(:assignment, :patient_id)
+      when "clinic/care/patients", "clinic/care/patient_chart_history"
+        patient_id = params[:id]
+        encounter_id ||= params[:exclude_encounter_id] if controller_path == "clinic/care/patient_chart_history"
+      when "clinic/care/encounter_notes"
+        unless %w[index create].include?(action_name)
+          encounter_id = current_practice.encounter_notes.find(requested_id!(params[:id], :id)).encounter_id
+        end
+      when "clinic/care/clinical_history"
+        encounter_id ||= params.dig(action_name == "review" ? :review : :clinical_history, :encounter_id)
+      when "clinic/care/observations"
+        encounter_id ||= params.dig(:observation, :encounter_id) if action_name == "create"
+      when "clinic/care/nurse_workflow"
+        if action_name == "transition_handoff"
+          encounter_id = Clinic::EncounterHandoff.where(practice: current_practice).find(requested_id!(params[:id], :id)).encounter_id
+        elsif action_name == "transition_task"
+          encounter_id = Clinic::ClinicalTask.where(practice: current_practice).find(requested_id!(params[:id], :id)).encounter_id
+        end
+      when "clinic/care/prescription_events"
+        encounter_id = Clinic::Care::MedicationRequestRevision.where(practice: current_practice)
+          .find(requested_id!(params[:medication_request_id], :medication_request_id)).encounter_id
+      when "clinic/care/lab_reports"
+        unless action_name == "index"
+          report = current_practice.lab_reports.find(requested_id!(params[:id], :id))
+          encounter_id = report.service_request_revision&.encounter_id
+        end
+      when "clinic/operations/encounter_follow_ups"
+        if action_name == "update"
+          encounter_id = Clinic::EncounterFollowUp.where(practice: current_practice).find(requested_id!(params[:id], :id)).encounter_id
+        end
+      end
+      return false if encounter_id.blank? && !appointment
+
+      origin = appointment || current_practice.encounters.find(requested_id!(encounter_id, :encounter_id))
+      raise ActiveRecord::RecordNotFound if patient_id.present? && origin.patient_id != requested_id!(patient_id, :patient_id)
+
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+        action: "patients.read", subject: origin.patient)
+      Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
+        action: "patients.read", site: origin.site)
       true
     end
 

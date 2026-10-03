@@ -32,6 +32,7 @@ module Clinic
           result_resource: ->(value) { value },
           resource_resolver: ->(practice:, receipt:) { WaitlistEntry.find_by(practice: practice, id: receipt.resource_id) }
         ) do
+          entry.practice.lock!
           entry.lock!
           entry.clinician.lock!
           raise ActiveRecord::StaleObjectError.new(entry, action) unless entry.lock_version == expected_version
@@ -67,6 +68,7 @@ module Clinic
 
         Authorization.authorize_with_legacy!(actor: actor, practice: appointment.practice,
           action: "appointments.status_transition", legacy_action: "appointments.write", site: appointment.site)
+        appointment.practice.lock!
         expires_at = [now + 4.hours, appointment.starts_at].min
         duration_minutes = (appointment.ends_at - appointment.starts_at).div(60)
         candidates = WaitlistEntry.where(practice: appointment.practice, site_id: appointment.site_id,
@@ -97,6 +99,7 @@ module Clinic
       end
 
       def offer!(entry:, starts_at:, expires_at:)
+        Configuration::StarterProfile.require_visit!(practice: entry.practice, site: entry.site, visit_type: entry.visit_type)
         ends_at = starts_at + entry.duration_minutes.minutes
         now = Current.business_time
         unless starts_at > now && starts_at >= entry.earliest_at && ends_at <= entry.latest_at &&
@@ -133,6 +136,7 @@ module Clinic
               .find(receipt.waitlist_entry_id)
           end
 
+          entry.practice.lock!
           entry = Clinic::Scheduling::WaitlistEntry.lock.find(entry.id)
           entry.clinician.lock!
           raise Clinic::Authorization::Denied unless entry.practice_id == identity.practice_id && entry.patient_id == identity.patient_id
@@ -160,6 +164,7 @@ module Clinic
 
       def book!(entry, actor)
         raise ArgumentError, "This offer has expired or is no longer available." unless entry.effective_state == "offered"
+        Configuration::StarterProfile.require_visit!(practice: entry.practice, site: entry.site, visit_type: entry.visit_type)
         CapacityGuard.check!(practice: entry.practice, clinician: entry.clinician, site: entry.site, patient: entry.patient,
           starts_at: entry.offer_starts_at, ends_at: entry.offer_ends_at, waitlist_entry_id: entry.id)
         appointment = entry.practice.appointments.create!(patient: entry.patient, site: entry.site,
