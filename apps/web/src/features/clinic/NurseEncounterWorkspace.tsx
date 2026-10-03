@@ -254,7 +254,9 @@ export function NurseEncounterWorkspaceContent({
   const [questionToReview, setQuestionToReview] =
     useState<IntakeQuestionError | null>(null);
   const [activeChunk, setActiveChunk] = useState(0);
-  const [groupExpanded, setGroupExpanded] = useState(true);
+  const [groupExpanded, setGroupExpanded] = useState(
+    encounter.status !== "completed",
+  );
   const [activeWorkspace, setActiveWorkspace] = useState("intake");
   const hydratedVersion = useRef<number | null>(null);
   const saveAttempt = useRef<{ signature: string; key: string } | null>(null);
@@ -273,7 +275,7 @@ export function NurseEncounterWorkspaceContent({
     setQuestionToReview(null);
     setNotice("");
     setActiveChunk(0);
-    setGroupExpanded(true);
+    setGroupExpanded(encounter.status !== "completed");
     setActiveWorkspace("intake");
     hydratedVersion.current = null;
     saveAttempt.current = null;
@@ -934,7 +936,14 @@ export function NurseEncounterWorkspaceContent({
             </Button>
           ))}
         </Stack>
-        {!readyEvidence && (
+        {encounter.status === "completed" && handoffAttention.length > 0 ? (
+          <Alert severity="info">
+            This encounter is complete. The current intake still has these
+            incomplete handoff checks: {handoffAttention.join(" · ")}. Staff
+            with intake access may record corrections as a new intake revision;
+            this does not reopen the encounter.
+          </Alert>
+        ) : encounter.status !== "completed" && !readyEvidence ? (
           <Alert severity="warning" icon={<WarningAmberOutlinedIcon />}>
             <Typography variant="body2">
               <Box component="span" sx={{ fontWeight: 600 }}>
@@ -1215,11 +1224,19 @@ export function NurseEncounterWorkspaceContent({
                 hidden={activeWorkspace !== "intake"}
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
-                <Typography variant="body2" color="text.secondary">
-                  {encounter.status === "completed"
-                    ? "Review saved answers and identify any groups that were incomplete when the encounter was completed."
-                    : "Open any group to review its questions. Save and confirm groups in order; previewing a group does not complete it."}
-                </Typography>
+                {encounter.status === "completed" ? (
+                  <Alert severity="info">
+                    Review the saved answers and groups that were incomplete
+                    when the encounter was completed. Staff with intake access
+                    may save corrections as new revisions; corrections do not
+                    reopen the encounter.
+                  </Alert>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Open any group to review its questions. Save and confirm
+                    groups in order; previewing a group does not complete it.
+                  </Typography>
+                )}
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;
                   const locked = intakeChunks
@@ -1657,9 +1674,13 @@ export function NurseEncounterWorkspaceContent({
                                   )
                                 }
                               >
-                                {activeChunkIndex < intakeChunks.length - 1
-                                  ? "Save & continue"
-                                  : "Save group"}
+                                {encounter.status === "completed"
+                                  ? activeChunkIndex < intakeChunks.length - 1
+                                    ? "Save correction & continue"
+                                    : "Save correction"
+                                  : activeChunkIndex < intakeChunks.length - 1
+                                    ? "Save & continue"
+                                    : "Save group"}
                               </Button>
                               <Button
                                 variant="outlined"
@@ -1671,7 +1692,9 @@ export function NurseEncounterWorkspaceContent({
                                 }
                                 onClick={() => void saveIntake()}
                               >
-                                Save draft
+                                {encounter.status === "completed"
+                                  ? "Save correction draft"
+                                  : "Save draft"}
                               </Button>
                             </Stack>
                           </Stack>

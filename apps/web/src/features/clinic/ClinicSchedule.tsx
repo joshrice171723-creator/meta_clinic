@@ -1693,7 +1693,16 @@ export function ClinicSchedule({
                     Recurring visit {selected.series_sequence} · View series
                   </Button>
                 )}
-                {selected.encounter_id ? (
+                {selected.calendar_status === "completed" &&
+                selected.encounter_id ? (
+                  <Alert
+                    id="schedule-appointment-action-guidance"
+                    severity="info"
+                  >
+                    This appointment is complete. Review the encounter for the
+                    recorded visit outcome.
+                  </Alert>
+                ) : selected.encounter_id ? (
                   <Alert
                     id="schedule-appointment-action-guidance"
                     severity="info"
@@ -1721,14 +1730,16 @@ export function ClinicSchedule({
                     Front Desk.
                   </Typography>
                 )}
-                <Typography
-                  id="schedule-cancellation-guidance"
-                  variant="body2"
-                  color="text.secondary"
-                >
-                  Cancel only if this visit will not take place. Review any
-                  patient notifications before confirming cancellation.
-                </Typography>
+                {selected.calendar_status !== "completed" && (
+                  <Typography
+                    id="schedule-cancellation-guidance"
+                    variant="body2"
+                    color="text.secondary"
+                  >
+                    Cancel only if this visit will not take place. Review any
+                    patient notifications before confirming cancellation.
+                  </Typography>
+                )}
                 {!selected.encounter_id &&
                   ["scheduled", "confirmed"].includes(selected.status) &&
                   !context.capabilities.encounters && (
@@ -1785,7 +1796,9 @@ export function ClinicSchedule({
                 Reschedule
               </Button>
             )}
-          {selected && context.capabilities.appointments_status_transition && (
+          {selected &&
+            selected.calendar_status !== "completed" &&
+            context.capabilities.appointments_status_transition && (
             <Button
               color="error"
               aria-describedby={
