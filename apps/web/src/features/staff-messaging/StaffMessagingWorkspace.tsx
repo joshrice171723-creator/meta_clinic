@@ -623,6 +623,14 @@ export function StaffMessagingWorkspace({
     );
   }
 
+  const activeConversationCount = state.conversations.filter(
+    ({ status }) => status === "active",
+  ).length;
+  const activeConversationLabel =
+    activeConversationCount === 1
+      ? "1 active conversation"
+      : `${activeConversationCount} active conversations`;
+
   const sendMessage = async () => {
     const conversationId = selectedConversation.id;
     const draft = drafts[conversationId] || "";
@@ -715,7 +723,7 @@ export function StaffMessagingWorkspace({
             </Typography>
           </Box>
           <Chip
-            label={`${state.conversations.filter(({ status }) => status === "active").length} active conversations`}
+            label={activeConversationLabel}
             variant="outlined"
             sx={{ alignSelf: { xs: "flex-start", sm: "auto" } }}
           />
