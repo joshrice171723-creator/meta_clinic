@@ -12,6 +12,7 @@ import {
 import { canonicalClinicFeatureSlug } from "./clinicTypeFeatures";
 import { featureGroups, featureHref, marketingFeatures } from "./features";
 import { MarketingHeader } from "./MarketingHeader";
+import { isUnavailableMarketingPath } from "./marketingAvailability";
 import { ProductWalkthrough } from "./ProductWalkthrough";
 import "./metaClinicMarketing.css";
 
@@ -183,18 +184,28 @@ const clinicGroups: {
   },
 ];
 
-const clinicTypes = clinicGroups.flatMap((group) => group.types);
+const availableClinicGroups = clinicGroups
+  .map((group) => ({
+    ...group,
+    types: group.types.filter(
+      (clinic) => !isUnavailableMarketingPath(`/${clinic.slug}`),
+    ),
+  }))
+  .filter((group) => group.types.length > 0);
+const clinicTypes = availableClinicGroups.flatMap((group) => group.types);
 
 export function MetaClinicMarketing({
   featureSlug,
   clinicTypeSlug,
   children,
   title,
+  unavailable = false,
 }: {
   featureSlug?: string;
   clinicTypeSlug?: string;
   children?: ReactNode;
   title?: string;
+  unavailable?: boolean;
 }) {
   const activeClinicType =
     clinicTypeSlug && isClinicTypeSlug(clinicTypeSlug)
@@ -219,17 +230,35 @@ export function MetaClinicMarketing({
     const previousTitle = document.title;
     document.title =
       title ??
-      (activeClinicType && feature
-        ? `${feature.label} for ${clinicTypeLabels[activeClinicType]} — Meta Clinic`
-        : activeClinicType
-          ? `${clinicTypeLabels[activeClinicType]} — Meta Clinic`
-          : feature
-            ? `${feature.label} — Meta Clinic`
-            : "Meta Clinic - A more connected clinic day");
+      (unavailable
+        ? "Page not available — Meta Clinic"
+        : activeClinicType && feature
+          ? `${feature.label} for ${clinicTypeLabels[activeClinicType]} — Meta Clinic`
+          : activeClinicType
+            ? `${clinicTypeLabels[activeClinicType]} — Meta Clinic`
+            : feature
+              ? `${feature.label} — Meta Clinic`
+              : "Meta Clinic - A more connected clinic day");
     return () => {
       document.title = previousTitle;
     };
-  }, [feature, activeClinicType, title]);
+  }, [feature, activeClinicType, title, unavailable]);
+  useEffect(() => {
+    if (!unavailable) return;
+    const existing = document.querySelector<HTMLMetaElement>(
+      'meta[name="robots"]',
+    );
+    const robots = existing ?? document.createElement("meta");
+    const previousContent = robots.getAttribute("content");
+    robots.name = "robots";
+    robots.content = "noindex,nofollow";
+    if (!existing) document.head.appendChild(robots);
+    return () => {
+      if (!existing) robots.remove();
+      else if (previousContent === null) robots.removeAttribute("content");
+      else robots.content = previousContent;
+    };
+  }, [unavailable]);
 
   return (
     <div className="meta-marketing">
@@ -238,7 +267,22 @@ export function MetaClinicMarketing({
       </a>
       <MarketingHeader activeClinicType={activeClinicType} />
 
-      {children ? (
+      {unavailable ? (
+        <main
+          id="main"
+          className="meta-marketing__feature-missing meta-marketing__section"
+        >
+          <p className="meta-marketing__eyebrow">Page not available</p>
+          <h1>This page is not available.</h1>
+          <p>Explore the current product tutorials.</p>
+          <Button
+            href="/meta-clinic/resources"
+            endIcon={<ArrowForwardRoundedIcon />}
+          >
+            Browse tutorials
+          </Button>
+        </main>
+      ) : children ? (
         children
       ) : activeClinicType && featureSlug ? (
         <ClinicTypeFeaturePage
@@ -376,7 +420,7 @@ export function MetaClinicMarketing({
               </p>
             </div>
             <div className="meta-marketing__clinic-groups">
-              {clinicGroups.map((group) => (
+              {availableClinicGroups.map((group) => (
                 <div
                   className="meta-marketing__clinic-group"
                   key={group.heading}
@@ -724,7 +768,6 @@ export function MetaClinicMarketing({
           <a href="/meta-clinic/weight-loss">Weight loss</a>
           <a href="/meta-clinic/behavioral-health">Behavioral health</a>
           <a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a>
-          <a href="/meta-clinic/infusion">Infusion</a>
         </nav>
         <nav aria-label="Resource links">
           <strong>Explore</strong>

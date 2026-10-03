@@ -164,7 +164,6 @@ function Footer() {
             {item.label}
           </a>
         ))}
-        <a href="/meta-clinic/infusion">Infusion</a>
       </div>
       <div>
         <span>Resources</span>

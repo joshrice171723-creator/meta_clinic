@@ -12,6 +12,7 @@ import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import { clinicTypeLabels } from "./ClinicTypePages";
 import { featureHref, marketingFeatures } from "./features";
+import { isUnavailableMarketingPath } from "./marketingAvailability";
 import "./marketingHeader.css";
 
 type Destination = { label: string; href: string };
@@ -21,10 +22,12 @@ const groups: NavigationGroup[] = [
   {
     label: "Specialties",
     links: [
-      ...Object.entries(clinicTypeLabels).map(([slug, label]) => ({
-        label,
-        href: `/meta-clinic/${slug}`,
-      })),
+      ...Object.entries(clinicTypeLabels)
+        .filter(([slug]) => !isUnavailableMarketingPath(`/${slug}`))
+        .map(([slug, label]) => ({
+          label,
+          href: `/meta-clinic/${slug}`,
+        })),
     ],
   },
   {
