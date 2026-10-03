@@ -1,4 +1,3 @@
-import { isDemoFrame } from "../demo/frame";
 import { useEffect, useMemo, useState } from "react";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";

@@ -242,7 +242,6 @@
     grid-column: 1;
   }
 
-  .front-desk-filters > :nth-child(4),
   .front-desk-filters > :last-child {
     grid-column: 2 / -1;
   }

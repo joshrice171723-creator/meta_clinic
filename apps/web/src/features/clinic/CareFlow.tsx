@@ -11,7 +11,7 @@ import type {
   PatientCareSummary,
   Patient,
 } from "../../api/contracts";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { type VisitModality } from "./TelehealthBookingFormat";
 import {

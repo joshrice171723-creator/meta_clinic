@@ -71,6 +71,7 @@ import {
   bookingDurationMinutes,
   bookingEndTime,
   bookingContextDefaults,
+  statusLabel,
 } from "./careFlowState";
 
 export function BookingForm({
