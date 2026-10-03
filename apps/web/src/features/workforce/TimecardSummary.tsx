@@ -13,6 +13,10 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+} from "../../shared/dateTime";
 import type { Adjustment, Timecard } from "./clockTypes";
 import { formatMinutes } from "./clockTypes";
 
@@ -37,8 +41,9 @@ export function TimecardSummary({
           <Box>
             <Typography variant="h2">{card.employee_name}</Typography>
             <Typography color="text.secondary">
-              {card.period_start} through the day before {card.period_end} ·
-              version {card.version_number}
+              {formatDisplayDate(card.period_start)} through the day before{" "}
+              {formatDisplayDate(card.period_end)} · version{" "}
+              {card.version_number}
             </Typography>
           </Box>
           <Chip
@@ -103,13 +108,13 @@ export function TimecardSummary({
             <TableBody>
               {card.snapshot.segments.map((segment) => (
                 <TableRow key={segment.id}>
-                  <TableCell>{segment.local_date}</TableCell>
+                  <TableCell>{formatDisplayDate(segment.local_date)}</TableCell>
                   <TableCell>{humanize(segment.segment_kind)}</TableCell>
                   <TableCell>
-                    {new Date(segment.started_at_utc).toLocaleString()}
+                    {formatDisplayDateTime(segment.started_at_utc)}
                   </TableCell>
                   <TableCell>
-                    {new Date(segment.ended_at_utc).toLocaleString()}
+                    {formatDisplayDateTime(segment.ended_at_utc)}
                   </TableCell>
                   <TableCell align="right">
                     {formatMinutes(segment.raw_minutes)}

@@ -1036,7 +1036,12 @@ function AppointmentDayQueue({
         />
       )}
       {response && records.length > 0 && (
-        <>
+        <Box
+          className="clinic-table-wrap front-desk-table"
+          role="region"
+          aria-label="Appointment queue"
+          tabIndex={0}
+        >
           <div className="front-desk-list-heading" aria-hidden="true">
             <span>Time</span>
             <span>Patient</span>
@@ -1066,7 +1071,7 @@ function AppointmentDayQueue({
               />
             ))}
           </Box>
-        </>
+        </Box>
       )}
 
       {pagination && pagination.total_pages > 1 && (

@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import { formatDisplayDateTime } from "./dateTime";
 import { useResource } from "./ui";
 
 export type VisitInstructionHandoutItem = {
@@ -46,17 +47,7 @@ function escapeHtml(value: string) {
 }
 
 function dateLabel(value: string, timezone: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.valueOf())) return "Date not recorded";
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: timezone,
-    }).format(date);
-  } catch {
-    return "Date not recorded";
-  }
+  return formatDisplayDateTime(value, { timeZone: timezone });
 }
 
 export function visitInstructionHandoutHtml(item: VisitInstructionHandoutItem) {

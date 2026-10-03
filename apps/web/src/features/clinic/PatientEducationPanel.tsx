@@ -74,9 +74,9 @@ const initialForm = (patient: Patient): Form => ({
   recipient: "patient",
   material_title: "",
   material_url: "",
-  language: patient.demographics?.primary_language || "English",
+  language: patient.demographics?.primary_language || "",
   interpreter_used: false,
-  teach_back_status: "demonstrated",
+  teach_back_status: "",
   patient_response: "",
   reteaching_summary: "",
   follow_up_needed: false,
@@ -117,6 +117,7 @@ export function PatientEducationPanel({
     if (
       !form.topic_title.trim() ||
       !form.language.trim() ||
+      !form.teach_back_status ||
       (materialRequired && !form.material_title.trim()) ||
       (form.teach_back_status === "demonstrated" &&
         !form.patient_response.trim()) ||
@@ -341,6 +342,7 @@ export function PatientEducationPanel({
               <TextField
                 select
                 label="Teach-back outcome"
+                required
                 value={form.teach_back_status}
                 disabled={outcomeUnknown}
                 onChange={(event) =>
@@ -352,6 +354,9 @@ export function PatientEducationPanel({
                   })
                 }
               >
+                <MenuItem value="" disabled>
+                  Select the recorded outcome
+                </MenuItem>
                 {data.options.teach_back_statuses.map((option) => (
                   <MenuItem key={option} value={option}>
                     {label(option)}

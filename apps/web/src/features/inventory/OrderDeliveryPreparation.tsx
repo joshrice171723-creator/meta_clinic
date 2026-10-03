@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../../api/client";
+import { formatDisplayDateTime } from "../../shared/dateTime";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useClinic } from "../clinic/Workspace";
 import {
   quoteFeeEvidenceLabel,
   type QuoteFeeEvidence,
@@ -64,6 +66,7 @@ export function OrderDeliveryPreparation({
   externalBusy: boolean;
   onBlockedChange: (blocked: boolean) => void;
 }) {
+  const { practice } = useClinic();
   const { registerBlocker } = useClinicNavigation();
   const endpoint = `/api/clinic/inventory/purchase-orders/${orderId}/delivery-preparations`;
   const [data, setData] = useState<PreparationRead | null>(null);
@@ -364,8 +367,11 @@ export function OrderDeliveryPreparation({
               : "Historical source; review current order before any future delivery"}
           </Typography>
           <Typography>
-            Prepared {attempt.prepared_at} · Staff #{attempt.actor_id} ·
-            Correlation {attempt.correlation_id}
+            Prepared{" "}
+            {formatDisplayDateTime(attempt.prepared_at, {
+              timeZone: practice.timezone,
+            })}{" "}
+            · Staff #{attempt.actor_id} · Correlation {attempt.correlation_id}
           </Typography>
           <Typography>
             Source: local preparation · Connection: disconnected · External

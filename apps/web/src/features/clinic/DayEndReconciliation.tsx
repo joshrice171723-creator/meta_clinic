@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { ApiError, api } from "../../api/client";
+import { formatDisplayDateTime } from "../../shared/dateTime";
 import { LoadState, useResource } from "../../shared/ui";
 
 type SourceRow = {
@@ -267,7 +268,11 @@ export function DayEndReconciliation({
         saved.map((row) => (
           <Accordion key={row.id}>
             <AccordionSummary>
-              Reconciliation #{row.id} · {row.reviewed_at} · {row.reviewed_by}
+              Reconciliation #{row.id} ·{" "}
+              {formatDisplayDateTime(row.reviewed_at, {
+                timeZone: row.snapshot.invoices.timezone,
+              })}{" "}
+              · {row.reviewed_by}
             </AccordionSummary>
             <AccordionDetails>
               <Typography>

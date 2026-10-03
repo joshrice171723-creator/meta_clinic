@@ -85,7 +85,7 @@
   border: 1px solid var(--clinic-accent);
   border-radius: 6px;
   background: var(--clinic-surface);
-  color: #000;
+  color: var(--clinic-text);
   font: inherit;
   font-weight: 500;
   line-height: 1.35;
@@ -110,7 +110,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #000;
+  color: var(--clinic-text);
 }
 .clinic-theme .clinic-sidebar .practice-location-chevron {
   flex: 0 0 auto;
@@ -133,7 +133,7 @@
   border: 1px solid var(--clinic-border);
   border-radius: 8px;
   background: var(--clinic-surface);
-  color: #000;
+  color: var(--clinic-text);
 }
 .clinic-theme .clinic-sidebar .practice-location-menu:focus {
   outline: 2px solid currentColor;
@@ -149,7 +149,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #000;
+  color: var(--clinic-text);
   font: inherit;
   font-weight: 500;
   line-height: 1.4;
@@ -162,7 +162,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #000;
+  color: var(--clinic-text);
 }
 .clinic-theme .clinic-sidebar .practice-location-option:hover,
 .clinic-theme
@@ -170,7 +170,7 @@
   .practice-location-option[data-highlighted="true"],
 .clinic-theme .clinic-sidebar .practice-location-option[aria-selected="true"] {
   background: var(--clinic-soft);
-  color: #000;
+  color: var(--clinic-text);
 }
 .clinic-theme .clinic-sidebar .practice-location-option:focus-visible {
   outline: 2px solid currentColor;

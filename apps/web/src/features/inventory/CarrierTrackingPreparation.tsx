@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../../api/client";
+import { formatDisplayDateTime } from "../../shared/dateTime";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useClinic } from "../clinic/Workspace";
 
 type Snapshot = {
   shipment_id: string;
@@ -57,6 +59,7 @@ export function CarrierTrackingPreparation({
   externalBusy: boolean;
   onBlockedChange: (shipmentId: string, blocked: boolean) => void;
 }) {
+  const { practice } = useClinic();
   const { registerBlocker } = useClinicNavigation();
   const endpoint = `/api/clinic/inventory/shipments/${shipmentId}/carrier-preparations`;
   const [data, setData] = useState<PreparationRead | null>(null);
@@ -354,8 +357,11 @@ export function CarrierTrackingPreparation({
               : "Historical source; review shipment identifiers before any future carrier action"}
           </Typography>
           <Typography>
-            Prepared {attempt.prepared_at} · Staff #{attempt.actor_id} ·
-            Correlation {attempt.correlation_id}
+            Prepared{" "}
+            {formatDisplayDateTime(attempt.prepared_at, {
+              timeZone: practice.timezone,
+            })}{" "}
+            · Staff #{attempt.actor_id} · Correlation {attempt.correlation_id}
           </Typography>
           <Typography>
             Source: local preparation · Connection: disconnected · External
@@ -369,7 +375,12 @@ export function CarrierTrackingPreparation({
             Supplied carrier: {attempt.snapshot.carrier} · Tracking: {attempt.snapshot.tracking_number}
           </Typography>
           <Typography>
-            Source: manual shipment record · {attempt.snapshot.recorded_at} · {attempt.snapshot.package_count} packages · {attempt.snapshot.expected_units} expected units
+            Source: manual shipment record ·{" "}
+            {formatDisplayDateTime(attempt.snapshot.recorded_at, {
+              timeZone: practice.timezone,
+            })}{" "}
+            · {attempt.snapshot.package_count} packages ·{" "}
+            {attempt.snapshot.expected_units} expected units
           </Typography>
         </Stack>
       ))}

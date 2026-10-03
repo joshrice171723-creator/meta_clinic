@@ -19,6 +19,10 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+} from "../../shared/dateTime";
 import { useClinic } from "../clinic/Workspace";
 import { isDemoFrame } from "../demo/frame";
 import type { BadgeRecord, KioskEnrollment } from "./clockTypes";
@@ -317,7 +321,10 @@ export function BadgeAdminPage() {
                       color={badge.status === "issued" ? "success" : "default"}
                     />
                     <Typography variant="body2" color="text.secondary">
-                      Issued {new Date(badge.issued_at).toLocaleDateString()}
+                      Issued{" "}
+                      {formatDisplayDate(badge.issued_at, {
+                        timeZone: clinic.practice.timezone,
+                      })}
                       {badge.pin_required ? " · PIN required" : ""}
                     </Typography>
                   </Stack>
@@ -402,3 +409,122 @@ export function BadgeAdminPage() {
               clock on the device you want to enroll, then enter the code there.
             </Typography>
             <Button
+              href={
+                isDemoFrame()
+                  ? "/workforce/kiosk?workspace=demo"
+                  : "/workforce/kiosk"
+              }
+              target="_blank"
+              rel="noreferrer"
+              variant="outlined"
+              sx={{ alignSelf: "start" }}
+            >
+              Open kiosk clock
+            </Button>
+            {kiosks.map((kiosk) => (
+              <Stack
+                key={kiosk.id}
+                direction={{ xs: "column", sm: "row" }}
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: { sm: "center" },
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    {kiosk.site_name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {kiosk.status} · expires{" "}
+                    {formatDisplayDateTime(kiosk.expires_at, {
+                      timeZone: clinic.practice.timezone,
+                    })}
+                  </Typography>
+                </Box>
+                {!["revoked", "expired"].includes(kiosk.status) && (
+                  <Button
+                    color="warning"
+                    disabled={busy}
+                    onClick={() => void revokeKiosk(kiosk.id)}
+                  >
+                    Revoke kiosk
+                  </Button>
+                )}
+              </Stack>
+            ))}
+            <Button
+              variant="outlined"
+              disabled={busy || !siteId}
+              onClick={() => void createEnrollment()}
+              sx={{ alignSelf: "start" }}
+            >
+              Create enrollment code
+            </Button>
+            {enrollmentToken && (
+              <Alert severity="warning">
+                <Typography sx={{ fontWeight: 700 }}>
+                  Enter this code on the kiosk now
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="One-time enrollment code"
+                  value={enrollmentToken}
+                  slotProps={{ htmlInput: { readOnly: true } }}
+                  sx={{ mt: 1 }}
+                />
+              </Alert>
+            )}
+          </Stack>
+        </Paper>
+      )}
+
+      <Dialog
+        open={canManageBadges && !!printable}
+        onClose={() => setPrintable(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Print employee clock badge</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This is the only time the barcode is available. Closing this window
+            requires issuing a replacement.
+          </Alert>
+          {printable && (
+            <Box
+              id="workforce-print-badge"
+              sx={{
+                p: 3,
+                bgcolor: "common.white",
+                color: "common.black",
+                textAlign: "center",
+              }}
+            >
+              <Box
+                component="img"
+                alt="Employee clock badge barcode"
+                src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(printable.barcode_svg)}`}
+                sx={{ display: "block", width: "100%", height: 112 }}
+              />
+              <Typography
+                sx={{ fontFamily: "monospace", mt: 1, wordBreak: "break-all" }}
+              >
+                {printable.token}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPrintable(null)}>Close</Button>
+          <Button
+            variant="contained"
+            startIcon={<PrintOutlinedIcon />}
+            onClick={() => window.print()}
+          >
+            Print
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
+  );
+}

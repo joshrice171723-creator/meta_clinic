@@ -86,7 +86,7 @@ export function IntakeQuestionTasks({ patientId, encounterId, tasks, writable, d
   const [taskKind, setTaskKind] = useState<ClinicalTask["task_kind"] | "">("");
   const [pool, setPool] = useState<ClinicalTask["pool_code"] | "">("");
   const [assignee, setAssignee] = useState<Assignee | null>(null);
-  const [resolution, setResolution] = useState("completed");
+  const [resolution, setResolution] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unknown, setUnknown] = useState(false);
@@ -268,7 +268,7 @@ export function IntakeQuestionTasks({ patientId, encounterId, tasks, writable, d
             </Stack>}
             <Button variant="outlined" disabled={locked || !source?.source_available || (mode === "existing" && !existingTask) || (mode === "new" && (!taskKind || !pool))} onClick={linkQuestion}>{mode === "existing" ? "Link selected question to task" : "Create and link unassigned task"}</Button>
             <Autocomplete options={projection?.eligible_assignees ?? []} value={assignee} disabled={locked} isOptionEqualToValue={(option, value) => option.membership_id === value.membership_id} getOptionLabel={(option) => option.label} onChange={(_, value) => setAssignee(value)} renderInput={(params) => <TextField {...params} label="Staff member for requested transfer" helperText="Choose an authorized active staff member. The recipient must acknowledge the transfer." />} />
-            <TextField select label="Completion resolution" value={resolution} disabled={locked} onChange={(event) => setResolution(event.target.value)}>{["completed", "unable_to_complete", "no_action_needed", "superseded"].map((value) => <MenuItem key={value} value={value}>{label(value)}</MenuItem>)}</TextField>
+            <TextField select label="Completion resolution" value={resolution} disabled={locked} onChange={(event) => setResolution(event.target.value)}><MenuItem value="" disabled>Select a resolution</MenuItem>{["completed", "unable_to_complete", "no_action_needed", "superseded"].map((value) => <MenuItem key={value} value={value}>{label(value)}</MenuItem>)}</TextField>
           </Stack>}
           {!loading && projection?.sources.length === 0 && <Alert severity="info">No saved per-question follow-up details are available. Save a reason and next action with the intake before linking a task.</Alert>}
           {projection?.links.map((link) => {
@@ -301,7 +301,7 @@ export function IntakeQuestionTasks({ patientId, encounterId, tasks, writable, d
                     {active && <><Button disabled={locked || !canClaim} onClick={() => transition(task, "claim")}>Claim</Button><Button disabled={locked || !assignee || assignee.membership_id === task.assigned_to_membership_id || assignee.membership_id === task.pending_assignee_membership_id} onClick={() => transition(task, "assign")}>Request transfer</Button></>}
                     {active && task.pending_assignee_membership_id && <><Button disabled={locked || !recipient} onClick={() => transition(task, "accept_transfer")}>Acknowledge transfer</Button><Button disabled={locked || !recipient} onClick={() => transition(task, "reject_transfer")}>Decline transfer</Button></>}
                     {task.state === "claimed" && <Button disabled={locked || !owns || blocked} onClick={() => transition(task, "start")}>Start</Button>}
-                    {["claimed", "in_progress"].includes(task.state) && <Button disabled={locked || !owns || blocked} onClick={() => transition(task, "complete")}>Complete with selected resolution</Button>}
+                    {["claimed", "in_progress"].includes(task.state) && <Button disabled={locked || !owns || blocked || !resolution} onClick={() => transition(task, "complete")}>Complete with selected resolution</Button>}
                     {active && <Button disabled={locked} onClick={() => transition(task, "cancel")}>Cancel task</Button>}
                     {task.state === "cancelled" && <Button disabled={locked} onClick={() => transition(task, "reopen")}>Reopen to unassigned pool</Button>}
                   </Stack>}
