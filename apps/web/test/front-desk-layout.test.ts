@@ -12,7 +12,7 @@ const styles = readFileSync(
 
 describe("front desk action layout", () => {
   it("keeps wrapped quick actions separated in both directions", () => {
-    expect(frontDesk).toContain('aria-label="Front desk actions"');
+    expect(frontDesk).toContain('aria-label="More front desk actions"');
     expect(frontDesk).toContain("useFlexGap");
     expect(frontDesk).toContain("spacing={1.5}");
     expect(styles).toMatch(

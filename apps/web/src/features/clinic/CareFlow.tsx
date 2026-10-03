@@ -502,7 +502,8 @@ export function EncounterSectionRail({
       setActiveHref(next?.href ?? sections[sections.length - 1].href);
     };
     const scheduleUpdate = () => {
-      if (frame === 0) frame = window.requestAnimationFrame(updateActiveSection);
+      if (frame === 0)
+        frame = window.requestAnimationFrame(updateActiveSection);
     };
 
     updateActiveSection();

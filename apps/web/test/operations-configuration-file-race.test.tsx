@@ -269,11 +269,13 @@ describe(
         await finishRead(page, "delayed-rejection-before-refresh.json", true);
         expect(await errors(page).count()).toBe(0);
         expect(await comparison(page).count()).toBe(0);
-        expect(
-          await page
-            .getByRole("button", { name: "Download configuration JSON" })
-            .count(),
-        ).toBe(1);
+        await expect
+          .poll(() =>
+            page
+              .getByRole("link", { name: "Download configuration JSON" })
+              .count(),
+          )
+          .toBe(1);
       } finally {
         await page.close();
       }

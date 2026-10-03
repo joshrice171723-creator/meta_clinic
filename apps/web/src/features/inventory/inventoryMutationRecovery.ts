@@ -29,20 +29,9 @@ export function inventoryOutcomeUnconfirmed(reason: unknown): boolean {
   );
 }
 
-export function inventoryUsesAcknowledgement(screen: Screen): boolean {
-  return [
-    "lots",
-    "purchasing",
-    "receiving",
-    "replenishment",
-    "purchase_order_new",
-    "shipment_new",
-    "exceptions",
-    "recalls",
-    "counts",
-    "controlled",
-    "activity",
-  ].includes(screen);
+// Every mutation endpoint returns an acknowledgement; data comes from its scoped read.
+export function inventoryUsesAcknowledgement(_screen: Screen): boolean {
+  return true;
 }
 
 export function inventoryMutationResponseOwned(

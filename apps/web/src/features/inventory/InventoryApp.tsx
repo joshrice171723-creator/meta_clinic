@@ -1358,7 +1358,7 @@ function InventoryLocationsScreen({
           },
         },
       );
-      if (payload.acknowledged !== true)
+      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
         throw new Error("The location update could not be confirmed.");
       await onRead(applied);
       setNotice(editingId ? "Location updated." : "Location created.");
@@ -1388,7 +1388,7 @@ function InventoryLocationsScreen({
           body: { location: { status: nextStatus } },
         },
       );
-      if (payload.acknowledged !== true)
+      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
         throw new Error("The location status could not be confirmed.");
       await onRead(applied);
       setNotice(
@@ -2279,7 +2279,7 @@ export function InventoryApp({ path }: { path: string }) {
       });
       if (!inventoryMutationResponseOwned(mutationOwner.current, requestScope))
         return;
-      if (payload.acknowledged !== true)
+      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
         throw new Error(
           "The inventory action response could not be confirmed.",
         );
@@ -2806,7 +2806,8 @@ export function CatalogScreen({
           >
             <strong>No products match this view</strong>
             <p>
-              Change the search or clear the filters to review recorded products.
+              Change the search or clear the filters to review recorded
+              products.
             </p>
             {activeFilter && (
               <Button
@@ -3074,9 +3075,10 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
           minHeight: 52,
           px: 2,
           "&.Mui-expanded": { minHeight: 52 },
-          "& .MuiAccordionSummary-content, & .MuiAccordionSummary-content.Mui-expanded": {
-            my: 1,
-          },
+          "& .MuiAccordionSummary-content, & .MuiAccordionSummary-content.Mui-expanded":
+            {
+              my: 1,
+            },
         }}
       >
         <Stack
@@ -3269,7 +3271,7 @@ function PurchaseCartWorkspace({
         `${endpoint}?response=ack`,
         options,
       );
-      if (payload.acknowledged !== true)
+      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
         throw new Error("The cart update response could not be confirmed.");
       await refresh();
     } catch (reason) {
@@ -3371,7 +3373,7 @@ function PurchaseCartWorkspace({
           },
         },
       );
-      if (payload.acknowledged !== true)
+      if (inventoryUsesAcknowledgement(screen) && payload.acknowledged !== true)
         throw new Error("The cart details could not be confirmed.");
       await run(
         "/api/clinic/inventory/purchase-cart/checkout",
@@ -6210,7 +6212,10 @@ function LotsScreen({
                         </Button>
                         <small>
                           Lot {lotItem.lot_number} · expires{" "}
-                          {inventoryDate(lotItem.expiration_date, data.timezone)}
+                          {inventoryDate(
+                            lotItem.expiration_date,
+                            data.timezone,
+                          )}
                         </small>
                       </td>
                       <td>

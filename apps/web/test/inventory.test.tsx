@@ -677,7 +677,7 @@ describe("inventory integration", () => {
     ]) {
       expect(source).toContain(path);
     }
-    expect(source).toContain('"/api/clinic/inventory/bootstrap"');
+    expect(source).toContain('"/api/clinic/inventory/bootstrap?view=setup"');
     expect(source).toContain('window.location.replace("/clinic/facilities")');
     expect(source).not.toContain("Set up a clinic facility first.");
     expect(facilitiesSource).not.toContain("selected_only=true");

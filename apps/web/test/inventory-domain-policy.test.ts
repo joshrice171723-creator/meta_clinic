@@ -31,11 +31,11 @@ import type {
 
 describe("inventory navigation and response policy", () => {
   const routes: [string, Screen, boolean][] = [
-    ["/clinic/inventory", "catalog", false],
-    ["/clinic/inventory/catalog/new", "catalog_new", false],
-    ["/clinic/inventory/configure", "configure", false],
-    ["/clinic/inventory/locations", "locations", false],
-    ["/clinic/inventory/suppliers", "supplier_pricing", false],
+    ["/clinic/inventory", "catalog", true],
+    ["/clinic/inventory/catalog/new", "catalog_new", true],
+    ["/clinic/inventory/configure", "configure", true],
+    ["/clinic/inventory/locations", "locations", true],
+    ["/clinic/inventory/suppliers", "supplier_pricing", true],
     ["/clinic/inventory/replenishment", "replenishment", true],
     ["/clinic/inventory/purchasing", "purchasing", true],
     ["/clinic/inventory/purchasing/new", "purchase_order_new", true],
@@ -193,7 +193,9 @@ describe("inventory purchasing calculations", () => {
     ]);
     expect(grouped.map((group) => group.id)).toEqual(["order:3", "checkout-1"]);
     expect(grouped[1].orders.map((entry) => entry.id)).toEqual(["1", "2"]);
-    expect(purchaseOrderGroupTotal(grouped[1])).toBe("USD 9,007,199,254,740,993.03");
+    expect(purchaseOrderGroupTotal(grouped[1])).toBe(
+      "USD 9,007,199,254,740,993.03",
+    );
     expect(money("0.125", "UNK")).toBe("0.125 (currency unconfirmed)");
     expect(
       purchaseOrderGroupTotal({
@@ -271,6 +273,7 @@ describe("mounted inventory mutation response ownership", () => {
           "@mui/material",
           "@mui/icons-material/RefreshRounded",
           "@mui/icons-material/ClearRounded",
+          "@mui/icons-material/ExpandMoreRounded",
           "@mui/icons-material/MoveToInboxOutlined",
         ],
       },
@@ -335,6 +338,7 @@ describe("mounted inventory mutation response ownership", () => {
 
   const inventory = (scope: string) => ({
     schema_version: "inventory-wire-v1",
+    setup_page: true,
     dataset_version: "bulk_v3",
     data_version: 1,
     as_of: scope === "A" ? "2026-09-01T12:00:00Z" : "2026-09-01T13:00:00Z",
@@ -399,7 +403,7 @@ describe("mounted inventory mutation response ownership", () => {
           const index = attempts.length;
           await (index === 1 ? firstGate : secondGate);
           if (index === 1 && outcome !== "error") {
-            await route.fulfill({ json: { data: inventory("A") } });
+            await route.fulfill({ json: { acknowledged: true } });
           } else {
             await route.fulfill({
               status: 422,
@@ -491,7 +495,9 @@ describe("mounted inventory mutation response ownership", () => {
         json:
           path === "/api/csrf"
             ? { csrf_token: "synthetic-token" }
-            : { data: inventory("A") },
+            : path === "/api/clinic/inventory_configuration"
+              ? { acknowledged: true }
+              : { data: inventory("A") },
       });
     });
     await page.route(`${base}/clinic/inventory`, (route) =>
