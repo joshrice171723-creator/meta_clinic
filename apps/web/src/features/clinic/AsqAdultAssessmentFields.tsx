@@ -66,6 +66,12 @@ export function AsqAdultAssessmentFields({
       ["q1", "q2", "q3", "q4"].includes(id) &&
       !next.some(
         (item) =>
+          item.item_id === "q5" &&
+          item.state === "answered" &&
+          item.value === "yes",
+      ) &&
+      !next.some(
+        (item) =>
           ["q1", "q2", "q3", "q4"].includes(item.item_id) &&
           item.value === "yes",
       )
