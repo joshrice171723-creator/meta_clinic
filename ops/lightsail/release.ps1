@@ -4,7 +4,8 @@ param(
   [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files'),
   [ValidateSet('local', 'registry')][string]$ImageSource = 'local',
   [switch]$BuildWebOnHost,
-  [switch]$ReuseBuiltImages
+  [switch]$ReuseBuiltImages,
+  [switch]$StreamImages
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,9 @@ if ($BuildWebOnHost -and $ImageSource -ne 'local') {
 }
 if ($ReuseBuiltImages -and $ImageSource -ne 'local') {
   throw 'ReuseBuiltImages requires local image transfer.'
+}
+if ($StreamImages -and ($ImageSource -ne 'local' -or $PSVersionTable.PSVersion -lt [version]'7.4')) {
+  throw 'StreamImages requires local image transfer and PowerShell 7.4 or newer.'
 }
 
 Push-Location $root
@@ -115,16 +119,29 @@ if ($ImageSource -eq 'local') {
         }
       }
     }
-    & docker save -o $localImages $apiImage $webImage
-    if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
+    if (-not $StreamImages) {
+      & docker save -o $localImages $apiImage $webImage
+      if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
+    }
   } finally {
     Pop-Location
   }
   try {
-    & scp -o BatchMode=yes -i $key $localImages "${Server}:$remoteImages"
-    if ($LASTEXITCODE -ne 0) { throw 'Could not transfer matched images.' }
-    & ssh -o BatchMode=yes -i $key $Server "sudo docker load -i $remoteImages"
-    if ($LASTEXITCODE -ne 0) { throw 'Could not load matched images on the host.' }
+    if ($StreamImages) {
+      $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+      try {
+        $PSNativeCommandUseErrorActionPreference = $true
+        & docker save $apiImage $webImage | & ssh -o BatchMode=yes -i $key $Server 'sudo docker load'
+        if ($LASTEXITCODE -ne 0) { throw 'Could not stream matched images to the host.' }
+      } finally {
+        $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+      }
+    } else {
+      & scp -o BatchMode=yes -i $key $localImages "${Server}:$remoteImages"
+      if ($LASTEXITCODE -ne 0) { throw 'Could not transfer matched images.' }
+      & ssh -o BatchMode=yes -i $key $Server "sudo docker load -i $remoteImages"
+      if ($LASTEXITCODE -ne 0) { throw 'Could not load matched images on the host.' }
+    }
   } finally {
     if (Test-Path -LiteralPath $localImages) { Remove-Item -LiteralPath $localImages }
     & ssh -o BatchMode=yes -i $key $Server "rm -f $remoteImages" | Out-Null
