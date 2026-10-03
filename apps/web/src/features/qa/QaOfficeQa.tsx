@@ -301,14 +301,21 @@ export function QaOfficeQa({
       item,
     ]),
   );
-  const passes = [...records.values()].filter(
+  const currentRecords = [...records.values()].filter(
     (item) =>
       !!revision &&
       !build?.dirty &&
       !item.stale_build &&
-      item.revision === revision &&
-      /^(passed|pass)$/i.test(item.result ?? item.status ?? ""),
-  ).length;
+      item.revision === revision,
+  );
+  const countResults = (pattern: RegExp) =>
+    currentRecords.filter((item) =>
+      pattern.test(item.result ?? item.status ?? ""),
+    ).length;
+  const passes = countResults(/^(passed|pass)$/i);
+  const failures = countResults(/^(failed|fail)$/i);
+  const blocked = countResults(/^blocked$/i);
+  const inProgress = countResults(/^(in_progress|working|running)$/i);
   const importedCoverage =
     !!snapshot?.coverage.source ||
     !!snapshot?.coverage.imported_at ||
@@ -328,6 +335,34 @@ export function QaOfficeQa({
       );
   };
   const activeBatch = snapshot?.active_batch;
+  if (!snapshot) {
+    return (
+      <Stack
+        component="section"
+        aria-label="Office QA desk"
+        aria-busy={!readError}
+        spacing={2}
+        sx={{ minWidth: 0, mt: 2 }}
+      >
+        <Typography variant="h5" component="h3">
+          QA desk
+        </Typography>
+        {readError ? (
+          <Alert severity="warning">
+            QA records could not be loaded. {readError}
+            <Button onClick={() => void refresh()}>Retry QA desk</Button>
+          </Alert>
+        ) : (
+          <>
+            <Typography role="status">
+              Reading the build and Muse's QA ledger…
+            </Typography>
+            <LinearProgress aria-label="Loading QA ledger" />
+          </>
+        )}
+      </Stack>
+    );
+  }
   const buildBanner = (
     <Alert
       severity={!verified || build?.dirty || mismatch ? "error" : "info"}
@@ -556,6 +591,13 @@ export function QaOfficeQa({
                 : "Coverage unavailable"}
             </Typography>
           </Stack>
+          {importedCoverage && (
+            <Typography variant="body2" role="status">
+              Recorded QA on this revision: {passes} pass · {failures} fail ·{" "}
+              {blocked} blocked · {inProgress} in progress ·{" "}
+              {116 - currentRecords.length} without current-build evidence
+            </Typography>
+          )}
           <QaChangeImpact selection={impact} revision={revision} />
           {importedCoverage && (
             <LinearProgress
