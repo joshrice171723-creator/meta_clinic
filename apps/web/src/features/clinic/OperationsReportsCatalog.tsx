@@ -8,7 +8,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   BillingLocationProvenance,
   BillingSourceSite,
@@ -407,6 +407,35 @@ function ConfigurationManifestDownload() {
   const [comparisonError, setComparisonError] = useState("");
   const [downloadNotice, setDownloadNotice] = useState("");
   const [downloadError, setDownloadError] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState<string>();
+  const downloadFileName = manifest
+    ? `clinic-configuration-${manifest.configuration.practice.features.revision}.json`
+    : undefined;
+  useEffect(() => {
+    if (!manifest) {
+      setDownloadUrl(undefined);
+      return;
+    }
+    let url: string;
+    try {
+      url = URL.createObjectURL(
+        new Blob([JSON.stringify(manifest, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      setDownloadUrl(url);
+      setDownloadError("");
+    } catch {
+      setDownloadUrl(undefined);
+      setDownloadError(
+        "The configuration download could not be prepared. Refresh this snapshot to try again.",
+      );
+      return;
+    }
+    return () => {
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    };
+  }, [manifest]);
   const comparisonGeneration = useRef(0);
   const [mappingGeneration, setMappingGeneration] = useState(0);
   const compareFile = async (file?: File) => {
@@ -521,37 +550,6 @@ function ConfigurationManifestDownload() {
     setDownloadError("");
     result.refresh();
   };
-  const download = () => {
-    if (!manifest) return;
-    setDownloadNotice("");
-    setDownloadError("");
-    let url: string | undefined;
-    const anchor = document.createElement("a");
-    try {
-      url = URL.createObjectURL(
-        new Blob([JSON.stringify(manifest, null, 2)], {
-          type: "application/json",
-        }),
-      );
-      anchor.href = url;
-      anchor.download = `clinic-configuration-${manifest.configuration.practice.features.revision}.json`;
-      document.body.append(anchor);
-      anchor.click();
-      setDownloadNotice(
-        `Download requested: ${anchor.download}. Check your browser downloads for the file.`,
-      );
-    } catch {
-      setDownloadError(
-        "The configuration download could not be started. Try again from this snapshot.",
-      );
-    } finally {
-      anchor.remove();
-      if (url) {
-        const downloadUrl = url;
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
-      }
-    }
-  };
 
   return (
     <Stack spacing={1} sx={{ mt: 3 }}>
@@ -574,10 +572,18 @@ function ConfigurationManifestDownload() {
             digest {manifest.source_digest}. {manifest.purpose}.
           </Typography>
           <Button
+            component="a"
+            href={downloadUrl}
+            download={downloadFileName}
+            disabled={!downloadUrl}
             size="small"
             variant="outlined"
             sx={{ alignSelf: "flex-start" }}
-            onClick={download}
+            onClick={() =>
+              setDownloadNotice(
+                `Download requested: ${downloadFileName}. Check your browser downloads for the file.`,
+              )
+            }
           >
             Download configuration JSON
           </Button>
