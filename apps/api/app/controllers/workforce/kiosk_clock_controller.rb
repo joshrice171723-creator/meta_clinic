@@ -105,7 +105,9 @@ module Workforce
     private
 
     def require_kiosk_availability
-      head :not_found if Rails.env.production?
+      return unless Rails.env.production?
+
+      head :not_found unless GuidedDemoAccess.hosted? && GuidedDemoAccess.allowed?(request)
     end
 
     def current_kiosk_session!

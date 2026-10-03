@@ -49,6 +49,7 @@ module Clinic
 
       def self.online_payment(invoice, result: nil, include_checkout_url: false)
         payload = StripeInvoicePayments.eligibility(invoice: invoice)
+        payload[:synthetic_collection] = Development::InvoicePaymentSimulator.projection(invoice, eligibility: payload)
         payload[:checkout_url] = result.checkout_url if include_checkout_url && result&.checkout_url
         payload
       end
