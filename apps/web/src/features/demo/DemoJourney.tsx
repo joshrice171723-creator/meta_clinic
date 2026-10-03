@@ -7,6 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import MoreHorizRoundedIcon from "@mui/icons-material/MoreHorizRounded";
 import {
   Alert,
   Box,
@@ -18,6 +19,8 @@ import {
   DialogContent,
   DialogTitle,
   LinearProgress,
+  IconButton,
+  Menu,
   MenuItem,
   Paper,
   Stack,
@@ -167,6 +170,8 @@ function frameUrl(run: DemoRun) {
 
 export function DemoJourney() {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const entryHeadingRef = useRef<HTMLHeadingElement>(null);
+  const registrationSubmitted = useRef(false);
   const generation = useRef(0);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [visitor, setVisitor] = useState({ name: "", email: "", company: "" });
@@ -204,6 +209,9 @@ export function DemoJourney() {
   const sandboxStartedAt = useRef<number | null>(null);
   const accountBusy = useRef(false);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [demoMenuAnchor, setDemoMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  );
   const [selectedAccount, setSelectedAccount] =
     useState<SandboxAccountKey>("admin");
   const [selectedCareModel, setSelectedCareModel] =
@@ -238,6 +246,17 @@ export function DemoJourney() {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (
+      registrationSubmitted.current &&
+      state.status === "ready" &&
+      !state.value.active &&
+      state.value.visitor_registered
+    ) {
+      entryHeadingRef.current?.focus();
+      registrationSubmitted.current = false;
+    }
+  }, [state]);
   const run =
     state.status === "ready" && state.value.active ? state.value.run : null;
   const activeLesson = useMemo(
@@ -365,6 +384,7 @@ export function DemoJourney() {
         body: visitor,
       });
       clearCsrf();
+      registrationSubmitted.current = true;
       setState({ status: "ready", value: response });
     } catch (reason) {
       setError(message(reason, "Your details could not be saved."));
@@ -691,10 +711,32 @@ export function DemoJourney() {
       <DemoEntry>
         <Stack spacing={2.5}>
           <div>
-            <h2>Choose your perspective</h2>
+            <div className="demo-entry__steps" aria-label="Demo entry progress">
+              <span
+                aria-current={
+                  !state.value.visitor_registered ? "step" : undefined
+                }
+              >
+                1. Your details
+              </span>
+              <span aria-hidden="true" />
+              <span
+                aria-current={
+                  state.value.visitor_registered ? "step" : undefined
+                }
+              >
+                2. Your workspace
+              </span>
+            </div>
+            <h2 ref={entryHeadingRef} tabIndex={-1}>
+              {state.value.visitor_registered
+                ? "Choose your perspective"
+                : "Your first look starts here"}
+            </h2>
             <p>
-              Use an existing demo account. Each account keeps its own clinic or
-              patient permissions.
+              {state.value.visitor_registered
+                ? "Choose a clinic and an account to explore. Each account has its own view and permissions."
+                : "A few details, then you're in. No password or email verification needed."}
             </p>
           </div>
           {error && <Alert severity="error">{error}</Alert>}
@@ -703,49 +745,53 @@ export function DemoJourney() {
               {entryNotices[state.value.notice] ?? state.value.notice}
             </Alert>
           )}
-          <div className="demo-entry__model">
-            <TextField
-              select
-              label="Care model"
-              value={selectedCareModel}
-              onChange={(event) =>
-                setSelectedCareModel(event.target.value as SandboxCareModel)
-              }
-              disabled={busy}
-              fullWidth
-              helperText="Primary care supports all five accounts. Weight management uses Admin's existing clinic assignment."
-            >
-              {sandboxCareModels.map(({ key, label }) => (
-                <MenuItem
-                  key={key}
-                  value={key}
-                  disabled={!canEnterCareModel(selectedAccount, key)}
+          {state.value.visitor_registered && (
+            <>
+              <div className="demo-entry__model">
+                <TextField
+                  select
+                  label="Care model"
+                  value={selectedCareModel}
+                  onChange={(event) =>
+                    setSelectedCareModel(event.target.value as SandboxCareModel)
+                  }
+                  disabled={busy}
+                  fullWidth
+                  helperText="Explore Primary care with any account, or Weight management as Admin."
                 >
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </div>
-          <TextField
-            select
-            label="Demo account"
-            value={selectedAccount}
-            onChange={(event) =>
-              setSelectedAccount(event.target.value as SandboxAccountKey)
-            }
-            disabled={busy}
-            fullWidth
-          >
-            {sandboxAccounts.map(({ key, label }) => (
-              <MenuItem
-                key={key}
-                value={key}
-                disabled={!canEnterCareModel(key, selectedCareModel)}
+                  {sandboxCareModels.map(({ key, label }) => (
+                    <MenuItem
+                      key={key}
+                      value={key}
+                      disabled={!canEnterCareModel(selectedAccount, key)}
+                    >
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </div>
+              <TextField
+                select
+                label="Demo account"
+                value={selectedAccount}
+                onChange={(event) =>
+                  setSelectedAccount(event.target.value as SandboxAccountKey)
+                }
+                disabled={busy}
+                fullWidth
               >
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
+                {sandboxAccounts.map(({ key, label }) => (
+                  <MenuItem
+                    key={key}
+                    value={key}
+                    disabled={!canEnterCareModel(key, selectedCareModel)}
+                  >
+                    {label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </>
+          )}
           {!state.value.visitor_registered ? (
             <Box
               component="form"
@@ -755,17 +801,15 @@ export function DemoJourney() {
               }}
             >
               <Stack spacing={2}>
-                <p>
-                  Tell us who is exploring. No password or email verification is
-                  required.
-                </p>
                 {(["name", "email", "company"] as const).map((field) => (
                   <TextField
                     key={field}
                     label={
-                      field === "email"
-                        ? "Email"
-                        : field[0].toUpperCase() + field.slice(1)
+                      {
+                        name: "Your name",
+                        email: "Email address",
+                        company: "Company or organization",
+                      }[field]
                     }
                     type={field === "email" ? "email" : "text"}
                     autoComplete={field === "company" ? "organization" : field}
@@ -796,8 +840,9 @@ export function DemoJourney() {
                   type="submit"
                   variant="contained"
                   disabled={busy}
+                  endIcon={<ArrowForwardRoundedIcon />}
                 >
-                  {busy ? "Saving your details…" : "Continue to the clinic"}
+                  {busy ? "Saving your details…" : "Choose your workspace"}
                 </Button>
                 {showDemoLessons && (
                   <Button
@@ -814,8 +859,7 @@ export function DemoJourney() {
           ) : (
             <Stack spacing={2}>
               <p>
-                Your details are saved. You can switch accounts from the top of
-                the sandbox after entering.
+                You can switch accounts from the top of the demo as you explore.
               </p>
               {preparingSandbox && (
                 <div
@@ -984,11 +1028,12 @@ export function DemoJourney() {
           >
             <Stack spacing={sandbox ? 0 : 1.5}>
               <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={sandbox ? 0 : 1}
+                direction={sandbox ? "row" : { xs: "column", sm: "row" }}
+                spacing={1}
                 sx={{
-                  alignItems: { sm: "center" },
+                  alignItems: sandbox ? "center" : { sm: "center" },
                   justifyContent: "space-between",
+                  minHeight: sandbox ? 56 : undefined,
                 }}
               >
                 <Box>
@@ -999,9 +1044,7 @@ export function DemoJourney() {
                       sandbox ? { lineHeight: 1.5, fontWeight: 600 } : undefined
                     }
                   >
-                    {sandbox
-                      ? `Sandbox • ${run.account?.label ?? "Choose an account"}`
-                      : activeLesson?.title}
+                    {sandbox ? "Meta Clinic demo" : activeLesson?.title}
                   </Typography>
                   {!sandbox && (
                     <Typography variant="body2" color="text.secondary">
@@ -1021,7 +1064,7 @@ export function DemoJourney() {
                         event.target.value as SandboxAccountKey,
                       )
                     }
-                    sx={{ minWidth: 160 }}
+                    sx={{ minWidth: { xs: 125, sm: 160 }, ml: "auto" }}
                   >
                     {(run.accounts ?? []).map(({ key, label, available }) => (
                       <MenuItem key={key} value={key} disabled={!available}>
@@ -1030,35 +1073,70 @@ export function DemoJourney() {
                     ))}
                   </TextField>
                 )}
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => void selectLesson(null)}
-                  disabled={busy}
-                >
-                  Back to clinic entry
-                </Button>
-                {sandbox && (
+                {!sandbox && (
                   <Button
-                    color="warning"
+                    variant="outlined"
                     size="small"
+                    onClick={() => void selectLesson(null)}
                     disabled={busy}
-                    onClick={() => setRestartOpen(true)}
                   >
-                    Reset Sandbox
+                    Back to clinic entry
                   </Button>
                 )}
                 {sandbox && (
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      setFeedbackError("");
-                      setFeedbackSent(false);
-                      setFeedbackOpen(true);
-                    }}
-                  >
-                    Give feedback
-                  </Button>
+                  <>
+                    <IconButton
+                      aria-label="Demo options"
+                      aria-controls={
+                        demoMenuAnchor ? "demo-options-menu" : undefined
+                      }
+                      aria-haspopup="true"
+                      aria-expanded={Boolean(demoMenuAnchor)}
+                      disabled={busy}
+                      onClick={(event) =>
+                        setDemoMenuAnchor(event.currentTarget)
+                      }
+                      sx={{ width: 44, height: 44 }}
+                    >
+                      <MoreHorizRoundedIcon />
+                    </IconButton>
+                    <Menu
+                      id="demo-options-menu"
+                      anchorEl={demoMenuAnchor}
+                      open={Boolean(demoMenuAnchor)}
+                      onClose={() => setDemoMenuAnchor(null)}
+                    >
+                      <MenuItem
+                        disabled={busy}
+                        onClick={() => {
+                          setDemoMenuAnchor(null);
+                          void selectLesson(null);
+                        }}
+                      >
+                        Back to clinic entry
+                      </MenuItem>
+                      <MenuItem
+                        disabled={busy}
+                        onClick={() => {
+                          setDemoMenuAnchor(null);
+                          setFeedbackError("");
+                          setFeedbackSent(false);
+                          setFeedbackOpen(true);
+                        }}
+                      >
+                        Give feedback
+                      </MenuItem>
+                      <MenuItem
+                        disabled={busy}
+                        onClick={() => {
+                          setDemoMenuAnchor(null);
+                          setRestartOpen(true);
+                        }}
+                      >
+                        Reset Sandbox…
+                      </MenuItem>
+                    </Menu>
+                  </>
                 )}
               </Stack>
               {!sandbox && (
