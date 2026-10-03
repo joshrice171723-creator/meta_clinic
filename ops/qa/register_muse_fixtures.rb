@@ -5,7 +5,7 @@ require "digest"
 require "json"
 
 fingerprint = ENV.fetch("MUSE_QA_FINGERPRINT")
-build_pin = ENV.fetch("MUSE_QA_BUILD_PIN")
+build_pin = ENV["MUSE_QA_BUILD_PIN"] # Optional reported revision; not approval.
 expected_database = ENV.fetch("MUSE_QA_DATABASE")
 apply = ENV["MUSE_QA_REGISTER"] == "yes"
 raise "Wrong database" unless ApplicationRecord.connection.current_database == expected_database
@@ -17,7 +17,7 @@ registry_key = "muse:fixture-registry:v1:#{fingerprint}"
 result = nil
 
 Qa::Snapshot.transaction do
-  # The same lock and exact owner/live pin gate used by all Muse writes.
+  # The same registry lock and automatic observation used by all Muse writes.
   Qa::MuseWrites.send(:pin_locked!, build_pin) do |build|
     credential = Qa::MuseCredential.active.lock.find_by!(fingerprint: fingerprint)
     credential.user.lock!
