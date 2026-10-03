@@ -18,7 +18,7 @@ module Clinic
         request_type = enum_param!(input[:request_type], field: :request_type, allowed: ALLOWED_TYPES)
         content = request_content(input, request_type)
         request = CreateRequest.call(practice: portal_practice, patient: portal_patient,
-          identity: patient_portal_identity, request_key:, request_type:, content:)
+          identity: patient_portal_identity, actor: current_user, request_key:, request_type:, content:)
         record_portal_read("patient_portal.request.create")
         acknowledgement = request_payload(request).merge(request_key: request.request_key, request_type: request.request_type)
         render json: { request: acknowledgement }, status: request.previously_new_record? ? :created : :ok
