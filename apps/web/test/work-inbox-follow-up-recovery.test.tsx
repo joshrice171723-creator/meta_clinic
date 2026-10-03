@@ -367,6 +367,18 @@ for (const kind of ["task", "follow-up"] as const) {
       await page
         .getByText("Actions and details", { exact: true })
         .waitFor({ state: "detached" });
+      if (kind === "follow-up") {
+        const frozenOutcome = recovery.getByLabel("Resolution outcome", {
+          exact: true,
+        });
+        expect(await frozenOutcome.inputValue()).toBe(
+          "Synthetic contact completed",
+        );
+        expect(await frozenOutcome.isDisabled()).toBe(true);
+        expect(await frozenOutcome.inputValue()).toBe(
+          writes[0].follow_up.outcome,
+        );
+      }
       const retry = recovery.getByRole("button", {
         name:
           kind === "task"

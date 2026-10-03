@@ -1122,7 +1122,11 @@ function EncounterFollowUpActions({
         <TextField
           size="small"
           label="Resolution outcome"
-          value={outcome}
+          value={
+            pendingAttempt?.action === "complete"
+              ? String(pendingAttempt.body.follow_up.outcome ?? "")
+              : outcome
+          }
           disabled={Boolean(busy) || Boolean(pendingAttempt)}
           onChange={(event) => setOutcome(event.target.value)}
           sx={{ minWidth: { sm: 280 } }}
