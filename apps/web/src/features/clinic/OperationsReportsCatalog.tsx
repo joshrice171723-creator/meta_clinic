@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   Chip,
@@ -8,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type {
   BillingLocationProvenance,
@@ -278,15 +282,12 @@ export function OperationsReportsCatalog({
                 variant="outlined"
               />
             </Stack>
-            <Typography variant="body2">
-              <strong>Source:</strong> {item.source}
-            </Typography>
-            <Typography variant="body2">
-              <strong>Freshness:</strong> {item.freshness}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              <strong>Access:</strong> {item.permission}
-            </Typography>
+            <Typography variant="body2">{item.source}</Typography>
+            {!item.available && (
+              <Typography variant="body2" color="text.secondary">
+                {item.permission}
+              </Typography>
+            )}
             {item.available && (
               <Button
                 component="a"
@@ -297,16 +298,42 @@ export function OperationsReportsCatalog({
                 {item.action}
               </Button>
             )}
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{ bgcolor: "transparent", "&::before": { display: "none" } }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreRoundedIcon />}
+                sx={{ px: 0, minHeight: 44 }}
+              >
+                <Typography variant="body2">
+                  About {item.title.toLowerCase()}
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0, pt: 0 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {item.freshness}
+                </Typography>
+                {item.available && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {item.permission}
+                  </Typography>
+                )}
+              </AccordionDetails>
+            </Accordion>
           </Stack>
         ))}
       </Stack>
-      <Alert severity="info" sx={{ mt: 2 }}>
-        This catalog links to existing server-owned views. It does not combine
-        records into a new cross-domain report, and no consolidated export is
-        currently available. Each destination keeps its source filters,
-        permission boundary, and export/reference metadata so a report can be
-        reconciled back to the ledger that produced it.
-      </Alert>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+        Each report has its own filters, access requirements, and export
+        details. A combined export is not available. Open a report to trace its
+        figures back to the original records.
+      </Typography>
       {((siteId && capabilities.appointments_read === true) ||
         capabilities.billing_read === true ||
         capabilities.inventory === true ||
@@ -363,8 +390,12 @@ function OpenClinicalWork({ siteId }: { siteId?: number }) {
             By recorded owner
           </Typography>
           {report.owners.map((owner) => (
-            <Typography key={owner.membership_id ?? "unassigned"} variant="body2">
-              {owner.label}: {owner.total} active · {owner.overdue_count} past due
+            <Typography
+              key={owner.membership_id ?? "unassigned"}
+              variant="body2"
+            >
+              {owner.label}: {owner.total} active · {owner.overdue_count} past
+              due
             </Typography>
           ))}
           <Button
@@ -819,8 +850,8 @@ function DailyVisitsByState({
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests above
-            the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests
+            above the export resource limits fail explicitly.
           </Typography>
         </Stack>
       )}
@@ -942,8 +973,8 @@ function DailyPaymentActivity({ date }: { date: string }) {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests above
-            the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests
+            above the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1028,8 +1059,8 @@ function DailyInvoices({ date }: { date: string }) {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests above
-            the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests
+            above the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1119,8 +1150,8 @@ function DailyStockMovements({ date }: { date: string }) {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests above
-            the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests
+            above the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/inventory/activity"
@@ -1231,8 +1262,8 @@ function DailyCashDrawers({ date }: { date: string }) {
           <Typography>
             {report.open_count} still open;{" "}
             {report.awaiting_reconciliation_count} closed awaiting
-            reconciliation; {report.variance_count} closed with a variance
-            (this count can overlap with reconciliation).
+            reconciliation; {report.variance_count} closed with a variance (this
+            count can overlap with reconciliation).
           </Typography>
           {report.records.map((row) => (
             <Stack key={row.id} spacing={0.5}>
@@ -1605,8 +1636,8 @@ function CurrentStockReport() {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests above
-            the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests
+            above the export resource limits fail explicitly.
           </Typography>
           {report.pharmacy_units.map((row) => (
             <Typography key={row.unit} variant="body2">
