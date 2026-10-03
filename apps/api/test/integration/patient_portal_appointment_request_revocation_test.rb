@@ -1,5 +1,4 @@
 require "test_helper"
-require "minitest/mock"
 
 class PatientPortalAppointmentRequestRevocationTest < ActionDispatch::IntegrationTest
   setup do
@@ -136,9 +135,9 @@ class PatientPortalAppointmentRequestRevocationTest < ActionDispatch::Integratio
     assert_no_difference counters do
       # Simulated insert conflict/second-guard denial; this is not concurrent
       # revocation evidence and does not abort PostgreSQL's outer test transaction.
-      Clinic::PatientPortal::AppointmentRequest.stub(:find_by, lookup) do
-        Clinic::PatientPortal::AppointmentRequest.stub(:create!, conflict) do
-          Clinic::PatientPortal::RequestAccess.stub(:authorize!, guard) do
+      with_stubbed_singleton_method(Clinic::PatientPortal::AppointmentRequest, :find_by, lookup) do
+        with_stubbed_singleton_method(Clinic::PatientPortal::AppointmentRequest, :create!, conflict) do
+          with_stubbed_singleton_method(Clinic::PatientPortal::RequestAccess, :authorize!, guard) do
             submit("conflict-recovery")
             assert_equal 404, response.status
             refute response.parsed_body.key?("appointment_request")
@@ -152,6 +151,22 @@ class PatientPortalAppointmentRequestRevocationTest < ActionDispatch::Integratio
   end
 
   private
+
+  def with_stubbed_singleton_method(target, method_name, implementation)
+    singleton = target.singleton_class
+    original = target.method(method_name)
+    owned = singleton.instance_methods(false).include?(method_name)
+    singleton.define_method(method_name) do |*arguments, **keywords, &block|
+      implementation.call(*arguments, **keywords, &block)
+    end
+    yield
+  ensure
+    if owned
+      singleton.define_method(method_name, original)
+    else
+      singleton.remove_method(method_name)
+    end
+  end
 
   def csrf_headers
     get "/api/csrf", headers: @headers
@@ -210,7 +225,7 @@ class PatientPortalAppointmentRequestRevocationTest < ActionDispatch::Integratio
 
   def counters
     [ -> { Clinic::PatientPortal::AppointmentRequest.count }, -> { Clinic::Appointment.count },
-      -> { PaperTrail::Version.where(item_type: "Clinic::PatientPortal::AppointmentRequest").count } ]
+      -> { Clinic::ModelVersion.where(item_type: "Clinic::PatientPortal::AppointmentRequest").count } ]
   end
 
   def request_audits

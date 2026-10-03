@@ -1,5 +1,4 @@
 require "test_helper"
-require "minitest/mock"
 
 class PatientPortalRequestRevocationTest < ActionDispatch::IntegrationTest
   setup do
@@ -91,9 +90,9 @@ class PatientPortalRequestRevocationTest < ActionDispatch::IntegrationTest
     assert_no_difference [ -> { Clinic::PatientPortal::Request.count }, -> { request_versions } ] do
       # Simulate the unique-insert exception; do not abort the test's outer
       # PostgreSQL transaction with an actual duplicate insert.
-      Clinic::PatientPortal::Request.stub(:find_by, lookup) do
-        Clinic::PatientPortal::Request.stub(:create!, conflict) do
-          Clinic::PatientPortal::RequestAccess.stub(:authorize!, guard) do
+      with_stubbed_singleton_method(Clinic::PatientPortal::Request, :find_by, lookup) do
+        with_stubbed_singleton_method(Clinic::PatientPortal::Request, :create!, conflict) do
+          with_stubbed_singleton_method(Clinic::PatientPortal::RequestAccess, :authorize!, guard) do
             denial = assert_raises(ActiveRecord::RecordNotFound) { create_request }
             assert_equal "Simulated current portal access denial", denial.message
           end
@@ -133,6 +132,22 @@ class PatientPortalRequestRevocationTest < ActionDispatch::IntegrationTest
 
   private
 
+  def with_stubbed_singleton_method(target, method_name, implementation)
+    singleton = target.singleton_class
+    original = target.method(method_name)
+    owned = singleton.instance_methods(false).include?(method_name)
+    singleton.define_method(method_name) do |*arguments, **keywords, &block|
+      implementation.call(*arguments, **keywords, &block)
+    end
+    yield
+  ensure
+    if owned
+      singleton.define_method(method_name, original)
+    else
+      singleton.remove_method(method_name)
+    end
+  end
+
   def csrf_headers
     get "/api/csrf", headers: @headers
     assert_response :success
@@ -159,7 +174,7 @@ class PatientPortalRequestRevocationTest < ActionDispatch::IntegrationTest
       assert arguments.fetch(:identity).active?, "The controller's independent cached object remains stale"
       original.call(**arguments)
     end
-    Clinic::PatientPortal::CreateRequest.stub(:call, intercepted) { yield }
+    with_stubbed_singleton_method(Clinic::PatientPortal::CreateRequest, :call, intercepted) { yield }
     assert_equal 1, calls
   end
 
@@ -178,7 +193,7 @@ class PatientPortalRequestRevocationTest < ActionDispatch::IntegrationTest
   end
 
   def request_versions
-    PaperTrail::Version.where(item_type: "Clinic::PatientPortal::Request").count
+    Clinic::ModelVersion.where(item_type: "Clinic::PatientPortal::Request").count
   end
 
   def create_request(identity: @identity, actor: @portal_user, practice: @practice, patient: @patient, kind: "message", source: "patient")
