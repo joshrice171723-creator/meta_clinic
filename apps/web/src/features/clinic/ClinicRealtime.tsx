@@ -8,7 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { clinicRealtimeSession, SESSION_CHANGED_EVENT } from "../../api/client";
+import {
+  clinicRealtimeSession,
+  CLINIC_LOCATION_CHANGED_EVENT,
+  CLINIC_LOCATION_RECONCILED_EVENT,
+  SESSION_CHANGED_EVENT,
+} from "../../api/client";
 
 export type ClinicRealtimeTopic =
   "tracking_board" | "work_inbox" | "telehealth_queue" | "staff_messaging";
@@ -70,6 +75,14 @@ export function ClinicRealtimeProvider({ children }: { children: ReactNode }) {
   const [hasSubscriptions, setHasSubscriptions] = useState(false);
   const [state, setState] = useState<ConnectionState>("inactive");
   const [subscriptionCount, setSubscriptionCount] = useState(0);
+  const [locationGeneration, setLocationGeneration] = useState(0);
+  useEffect(() => {
+    const reconciled = () =>
+      setLocationGeneration((generation) => generation + 1);
+    window.addEventListener(CLINIC_LOCATION_RECONCILED_EVENT, reconciled);
+    return () =>
+      window.removeEventListener(CLINIC_LOCATION_RECONCILED_EVENT, reconciled);
+  }, []);
 
   const subscribe = useCallback(
     (topic: ClinicRealtimeTopic, listener: () => void) => {
@@ -103,6 +116,7 @@ export function ClinicRealtimeProvider({ children }: { children: ReactNode }) {
     let flushTimer: number | undefined;
     const flush = () => {
       flushTimer = undefined;
+      if (controller.signal.aborted) return;
       for (const topic of pendingTopics) {
         subscriptions.current.get(topic)?.forEach((listener) => {
           try {
@@ -115,17 +129,22 @@ export function ClinicRealtimeProvider({ children }: { children: ReactNode }) {
       pendingTopics = new Set();
     };
     const invalidate = (topics: ClinicRealtimeTopic[]) => {
+      if (controller.signal.aborted) return;
       topics.forEach((topic) => pendingTopics.add(topic));
       if (flushTimer === undefined) flushTimer = window.setTimeout(flush, 120);
     };
     const onSessionChanged = () => {
       setState("authorization_required");
       controller.abort("Clinic session changed");
+      if (flushTimer !== undefined) window.clearTimeout(flushTimer);
+      flushTimer = undefined;
+      pendingTopics.clear();
     };
     const onVisibilityChanged = () => {
       if (document.visibilityState === "visible") invalidate(ALL_TOPICS);
     };
     window.addEventListener(SESSION_CHANGED_EVENT, onSessionChanged);
+    window.addEventListener(CLINIC_LOCATION_CHANGED_EVENT, onSessionChanged);
     document.addEventListener("visibilitychange", onVisibilityChanged);
 
     const connect = async () => {
@@ -162,6 +181,7 @@ export function ClinicRealtimeProvider({ children }: { children: ReactNode }) {
             headers: session.headers,
             signal: controller.signal,
           });
+          if (controller.signal.aborted) break;
           if ([401, 403, 409].includes(response.status)) {
             setState("authorization_required");
             return;
@@ -177,7 +197,7 @@ export function ClinicRealtimeProvider({ children }: { children: ReactNode }) {
           let buffer = "";
           while (!controller.signal.aborted) {
             const { value, done } = await reader.read();
-            if (done) break;
+            if (controller.signal.aborted || done) break;
             buffer += decoder
               .decode(value, { stream: true })
               .replace(/\r\n/g, "\n");
@@ -228,9 +248,13 @@ export function ClinicRealtimeProvider({ children }: { children: ReactNode }) {
       controller.abort();
       if (flushTimer !== undefined) window.clearTimeout(flushTimer);
       window.removeEventListener(SESSION_CHANGED_EVENT, onSessionChanged);
+      window.removeEventListener(
+        CLINIC_LOCATION_CHANGED_EVENT,
+        onSessionChanged,
+      );
       document.removeEventListener("visibilitychange", onVisibilityChanged);
     };
-  }, [hasSubscriptions]);
+  }, [hasSubscriptions, locationGeneration]);
 
   const value = { state, subscriptionCount, subscribe };
   return (

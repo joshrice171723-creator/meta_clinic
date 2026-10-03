@@ -215,7 +215,7 @@ describe("ClinicalPlanWorkspace", () => {
       expect.objectContaining({
         name: "score_source",
         label: "Score source",
-        options: ["calculated", "clinician_entered", "imported", "unknown"],
+        options: ["clinician_entered", "imported", "unknown"],
       }),
     );
     expect(fields).toContainEqual(

@@ -485,7 +485,7 @@ const RESOURCE_META: Record<
       {
         name: "score_source",
         label: "Score source",
-        options: ["calculated", "clinician_entered", "imported", "unknown"],
+        options: ["clinician_entered", "imported", "unknown"],
       },
       {
         name: "score_recorded_at",
@@ -1883,6 +1883,15 @@ export function ClinicalPlanWorkspace({
                       })
                     }
                   >
+                    {kind === "assessments" &&
+                      field.name === "score_source" &&
+                      editing &&
+                      (editing as AssessmentRevision).score_source ===
+                        "calculated" && (
+                        <MenuItem value="calculated" disabled>
+                          Calculated (historical source)
+                        </MenuItem>
+                      )}
                     {(
                       dynamicOptions ??
                       field.options?.map((option) => ({

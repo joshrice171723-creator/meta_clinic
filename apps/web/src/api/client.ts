@@ -39,13 +39,60 @@ let csrfGeneration = 0;
 let expectedActorId: number | undefined;
 let expectedPracticeId: number | undefined;
 let expectedSiteId: number | undefined;
+let clinicLocationChanged = false;
+let clinicContextChannel: BroadcastChannel | undefined;
+export const CLINIC_LOCATION_CHANGED_EVENT = "apply:clinic-location-changed";
+export const CLINIC_LOCATION_RECONCILED_EVENT =
+  "apply:clinic-location-reconciled";
+
+function reportClinicLocationChanged() {
+  const alreadyChanged = clinicLocationChanged;
+  clinicLocationChanged = true;
+  actorGeneration += 1;
+  if (!alreadyChanged && typeof window !== "undefined")
+    window.dispatchEvent(new Event(CLINIC_LOCATION_CHANGED_EVENT));
+}
+
+export function watchClinicLocationChanges() {
+  if (typeof BroadcastChannel === "undefined" || isDemoFrame()) return;
+  const channel = new BroadcastChannel("apply:clinic-context");
+  clinicContextChannel = channel;
+  channel.onmessage = ({ data }) => {
+    if (
+      data?.type === "location_changed" &&
+      expectedActorId !== undefined &&
+      expectedPracticeId !== undefined &&
+      data.actor_id === expectedActorId &&
+      data.practice_id === expectedPracticeId
+    )
+      reportClinicLocationChanged();
+  };
+  return () => {
+    channel.close();
+    if (clinicContextChannel === channel) clinicContextChannel = undefined;
+  };
+}
+
+export function announceClinicLocationChange() {
+  clinicContextChannel?.postMessage({
+    type: "location_changed",
+    actor_id: expectedActorId,
+    practice_id: expectedPracticeId,
+  });
+}
+
 export function setClinicPractice(practiceId: number | undefined) {
   expectedPracticeId = practiceId;
 }
 export function setClinicSite(siteId: number | undefined) {
-  if (expectedSiteId === siteId) return;
-  expectedSiteId = siteId;
-  actorGeneration += 1;
+  const reconciled = clinicLocationChanged;
+  clinicLocationChanged = false;
+  if (expectedSiteId !== siteId) {
+    expectedSiteId = siteId;
+    actorGeneration += 1;
+  }
+  if (reconciled && typeof window !== "undefined")
+    window.dispatchEvent(new Event(CLINIC_LOCATION_RECONCILED_EVENT));
 }
 
 export function clinicRealtimeSession(): {
@@ -56,7 +103,10 @@ export function clinicRealtimeSession(): {
     return { enabled: false, headers: {} };
 
   return {
-    enabled: expectedActorId !== undefined && expectedPracticeId !== undefined,
+    enabled:
+      !clinicLocationChanged &&
+      expectedActorId !== undefined &&
+      expectedPracticeId !== undefined,
     headers: {
       Accept: "text/event-stream",
       "X-Clinic-Actor": String(expectedActorId ?? ""),
@@ -78,6 +128,7 @@ export function setApiActor(actorId: number | undefined) {
   expectedActorId = actorId;
   expectedPracticeId = undefined;
   expectedSiteId = undefined;
+  clinicLocationChanged = false;
   actorGeneration += 1;
   if (!firstActorBinding) clearCsrf();
 }
@@ -179,14 +230,37 @@ export async function api<T>(
     body?: unknown;
     signal?: AbortSignal;
     timeoutMs?: number;
+    locationRecoverySiteId?: number;
   } = {},
 ): Promise<T> {
   if (!path.startsWith("/api/"))
     throw new Error("Requests must use the same-origin API.");
   const method = options.method || "GET";
+  const locationRecoveryRead = options.locationRecoverySiteId !== undefined;
+  if (
+    locationRecoveryRead &&
+    (method !== "GET" ||
+      !/^\/api\/clinic\/encounters\/[1-9]\d*\?patient_id=[1-9]\d*$/.test(
+        path,
+      ) ||
+      !Number.isSafeInteger(options.locationRecoverySiteId) ||
+      options.locationRecoverySiteId! <= 0)
+  )
+    throw new Error("Location recovery only supports a saved encounter read.");
+  if (
+    clinicLocationChanged &&
+    /^\/api\/clinic(?:\/|$)/.test(path) &&
+    !(path === "/api/clinic/context" && method === "GET") &&
+    !locationRecoveryRead
+  )
+    throw new ApiError(
+      409,
+      "The selected location changed in another window. Review unsaved work, then reload this workspace.",
+      "clinic_site_changed",
+    );
   const requestActor = expectedActorId;
   const requestPractice = expectedPracticeId;
-  const requestSite = expectedSiteId;
+  const requestSite = options.locationRecoverySiteId ?? expectedSiteId;
   const generation = actorGeneration;
   // Initialize the cookie's CSRF state before parallel session/resource reads.
   // Otherwise their earlier cookie snapshots can overwrite that initialization.
@@ -260,9 +334,9 @@ export async function api<T>(
           "session_changed",
         );
       if (!response.ok) {
+        if (data?.code === "clinic_site_changed") reportClinicLocationChanged();
         if (
           data?.code === "session_changed" ||
-          data?.code === "clinic_site_changed" ||
           (response.status === 401 &&
             method !== "GET" &&
             method !== "HEAD" &&

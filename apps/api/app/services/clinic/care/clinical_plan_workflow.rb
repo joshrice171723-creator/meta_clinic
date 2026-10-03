@@ -378,13 +378,33 @@ module Clinic
           ServiceRequestRevision.where(practice:, patient:, encounter:).find(reference) if reference.present?
         when :care_goals
           reference = values[:care_plan_revision_id]
-          CarePlanRevision.where(practice:, patient:, encounter:).find(reference)
+          plan = CarePlanRevision.where(practice:, patient:, encounter:).find(reference)
+          unless previous&.care_plan_revision_id == plan.id
+            ApplicationRecord.connection.execute(ApplicationRecord.sanitize_sql_array([
+              "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "clinical-plan:#{practice.id}:care_plans:#{plan.series_id}"
+            ]))
+            current_plan = CarePlanRevision.where(practice:, patient:, encounter:, series_id: plan.series_id)
+              .order(version_number: :desc, id: :desc).first!
+            unless current_plan.id == plan.id
+              raise ArgumentError, "The source plan changed; reload and review before saving this goal."
+            end
+          end
         when :immunizations
           reference = values[:source_document_id]
           Clinic::Document.where(practice:, patient:).find(reference) if reference.present?
           administration_reference = values[:medication_administration_id]
           MedicationAdministration.where(practice:, patient:, encounter:).find(administration_reference) if administration_reference.present?
         when :assessments
+          if values[:score_source] == "calculated"
+            score_fields = %i[category instrument_name instrument_version score_value score_source score_recorded_at
+              response_source response_summary assessed_at assessment_state item_responses]
+            unchanged_score = previous && score_fields.all? do |field|
+              previous.public_send(field) == previous.class.type_for_attribute(field.to_s).cast(values[field])
+            end
+            unless unchanged_score
+              raise ArgumentError, "No supported instrument scorer is configured. Retain an unscored assessment or record clinician-entered or imported score provenance."
+            end
+          end
           features = Clinic::Configuration::PracticeFeatures.snapshot(practice:, site: encounter.site)
           configured = features.fetch(:assessment_scope)
           supported = Configuration::PracticeFeatures::ASSESSMENT_OPTIONS_BY_SPECIALTY.fetch(features[:clinic_type], [])

@@ -54,7 +54,7 @@ module Clinic
         )
 
         requests, requests_pagination = paged(filtered(base_scope, member)
-          .includes(:assignee_membership, message: { conversation: { members: { membership: :user } } })
+          .includes(:assignee_membership, message: { conversation: [ :site, { members: { membership: :user } } ] })
           .order(:due_at, :id), @staff_requests_page)
 
         encounter_scope = can_manage_encounters ? accessible_encounter_follow_ups(ability) : Clinic::EncounterFollowUp.none
@@ -65,7 +65,7 @@ module Clinic
           member: member
         )
         encounter_follow_ups, encounter_pagination = paged(filtered_encounter_follow_ups(encounter_scope, member)
-          .includes(:patient, :encounter, :follow_up_appointment, assigned_to_membership: :user)
+          .includes(:patient, :follow_up_appointment, encounter: :site, assigned_to_membership: :user)
           .order(:due_at, :id), @encounter_follow_ups_page)
 
         task_scope = can_manage_encounters ? accessible_clinical_tasks(ability) : Clinic::ClinicalTask.none
@@ -80,7 +80,7 @@ module Clinic
         offboarded_page_count = (offboarded_total.to_f / LIMIT).ceil
         offboarded_page = [ @page, [ offboarded_page_count, 1 ].max ].min
         clinical_tasks = filtered_tasks
-          .includes(:patient, :encounter, assigned_to_membership: :user)
+          .includes(:patient, :encounter, :site, assigned_to_membership: :user)
           .order(:due_at, :id).limit(LIMIT).offset(filter == "offboarded" ? (offboarded_page - 1) * LIMIT : 0)
         recorded_appointment_keys = recorded_appointment_keys_for(clinical_tasks)
 
@@ -329,6 +329,8 @@ module Clinic
           contact_attempt&.note || lab_action&.note
         end
         Clinic::Care::NurseWorkflow.serialize_task(task).merge(
+          source_site_id: task.site_id,
+          source_site_name: task.site && (task.site.name.presence || task.site.code),
           patient_display_name: task.patient.display_name,
           patient_reference: task.patient.reference,
           assigned_to_me: task.assigned_to_membership_id == member.id,
@@ -376,6 +378,8 @@ module Clinic
       def serialize_encounter_follow_up(follow_up, member)
         payload = Clinic::Operations::EncounterFollowUps.serialize(follow_up)
         payload.merge(
+          source_site_id: follow_up.encounter.site_id,
+          source_site_name: follow_up.encounter.site && (follow_up.encounter.site.name.presence || follow_up.encounter.site.code),
           patient_display_name: follow_up.patient.display_name,
           patient_reference: follow_up.patient.reference,
           assigned_to_me: follow_up.assigned_to_membership_id == member.id,
@@ -391,6 +395,8 @@ module Clinic
         payload = {
           id: request.id,
           conversation_id: conversation.id,
+          source_site_id: conversation.site_id,
+          source_site_name: conversation.site && (conversation.site.name.presence || conversation.site.code),
           subject: conversation.title.presence || "Staff follow-up",
           requested_action: request.message.requested_action,
           state: request.state,

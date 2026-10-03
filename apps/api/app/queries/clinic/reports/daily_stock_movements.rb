@@ -15,11 +15,15 @@ module Clinic
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
           records: records.order(occurred_at: :desc, id: :desc)
-            .pluck(:id, :stock_type, :stock_unit, :kind, :quantity, :occurred_at, :item_id, :batch_id)
-            .map { |id, stock_type, stock_unit, kind, quantity, occurred_at, item_id, batch_id|
+            .select(:id, :stock_type, :stock_unit, :kind, :quantity, :occurred_at, :item_id, :batch_id)
+            .includes(batch: { location_record: :site }).map { |entry|
               SourcePage.check_export_deadline!(deadline: export_deadline)
-              { id:, stock_type:, stock_unit:, kind:, signed_quantity: quantity.to_d.to_s("F"),
-                occurred_at: occurred_at.iso8601(6), item_id:, batch_id: }
+              location = entry.batch&.location_record
+              site = location&.site
+              { id: entry.id, stock_type: entry.stock_type, stock_unit: entry.stock_unit, kind: entry.kind,
+                signed_quantity: entry.quantity.to_d.to_s("F"), occurred_at: entry.occurred_at.iso8601(6),
+                item_id: entry.item_id, batch_id: entry.batch_id, location_id: location&.id, location_name: location&.name,
+                source_site_id: site&.id, source_site_name: site ? (site.name.presence || site.code) : "Shared / unassigned" }
             },
           records_capped: pagination[:total_pages] > 1,
           pagination:,

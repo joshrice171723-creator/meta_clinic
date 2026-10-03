@@ -8,10 +8,14 @@ class NurseWorkflowTest < ActionDispatch::IntegrationTest
     @password = SecureRandom.hex(18)
     organization = Organization.create!(name: "Synthetic Nurse Workflow Organization")
     @practice = Clinic::Practice.create!(name: "Synthetic Nurse Workflow Practice", organization:, timezone: "UTC")
-    @site = @practice.sites.create!(code: "NURSE")
+    @site = @practice.sites.create!(code: "NURSE", status: "active")
     @user = User.create!(email_address: "nurse-workflow@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @user)
-    grant_permissions!(@membership, "patients.read", "intake.write", "notes.write", "encounters.write")
+    grant_permissions!(@membership, "patients.read", "intake.write", "notes.write", "encounters.write", "facilities.write")
+    @practice.visit_types.create!(code: "Synthetic shared intake visit")
+    Clinic::Configuration::PracticeFeatures.revise(practice: @practice, site: @site, actor: @membership,
+      request_key: "nurse-source-profile", expected_revision: 0, insurance_workflows_enabled: false,
+      clinic_type: "primary_care", service_scope: [], assessment_scope: [], finalize: true)
     @clinician = User.create!(email_address: "nurse-workflow-clinician@example.invalid", password: @password)
     @clinician_membership = @practice.memberships.create!(user: @clinician)
     grant_permissions!(@clinician_membership, "patients.read", "notes.write", "encounters.write")

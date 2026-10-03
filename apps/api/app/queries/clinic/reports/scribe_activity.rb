@@ -11,6 +11,7 @@ module Clinic
         sources = Clinic::Scribe::Source.where(practice:, encounter_id: encounter_ids)
         recordings = Clinic::Scribe::Recording.where(practice:, encounter_id: encounter_ids)
         recovery_items, recovery_pagination = recovery_page(
+          encounters:,
           recordings: recordings.where(status: %w[recording interrupted]),
           sources: sources.where(status: "incomplete"), page:, per_page:)
         Clinic::AuditRecorder.record!(practice:, actor:, action_code: "scribe.read", outcome: :released)
@@ -27,7 +28,7 @@ module Clinic
         }
       end
 
-      def self.recovery_page(recordings:, sources:, page:, per_page:)
+      def self.recovery_page(encounters:, recordings:, sources:, page:, per_page:)
         page = Integer(page)
         per_page = Integer(per_page)
         raise ArgumentError, "Choose a valid recovery page." unless page.between?(1, 100_000)
@@ -45,6 +46,14 @@ module Clinic
         SQL
         items = ApplicationRecord.connection.select_all(sql).cast_values.map do |record_type, id, encounter_id, status, updated_at|
           { record_type:, id:, encounter_id:, status:, updated_at: updated_at.iso8601(6) }
+        end
+        origins = encounters.where(id: items.pluck(:encounter_id)).select(:id, :site_id, :clinical_encounter_id)
+          .includes(:site, clinical_encounter: :site).index_by(&:id)
+        items.each do |item|
+          encounter = origins.fetch(item.fetch(:encounter_id))
+          site = encounter.site || encounter.clinical_encounter&.site
+          item.merge!(clinical_encounter_id: encounter.clinical_encounter_id,
+            source_site_id: site&.id, source_site_name: site ? (site.name.presence || site.code) : "Shared / unassigned")
         end
         [ items, { page:, per_page:, total:, total_pages: } ]
       end

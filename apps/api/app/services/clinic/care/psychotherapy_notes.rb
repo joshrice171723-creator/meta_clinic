@@ -97,8 +97,10 @@ module Clinic
       def self.history(practice:, actor:, encounter:)
         member = authorize!(practice:, actor:, encounter:)
         require_therapy_visit!(practice, encounter) unless latest(practice, encounter, member)
-        Care::PsychotherapyNote.where(practice:, encounter:, originator_membership: member)
+        revisions = Care::PsychotherapyNote.where(practice:, encounter:, originator_membership: member)
           .order(version_number: :desc).limit(20).map { |note| serialize(note) }
+        AuditRecorder.record!(practice:, actor:, action_code: "psychotherapy_notes.history", outcome: :released)
+        revisions
       end
 
       def self.latest(practice, encounter, member)

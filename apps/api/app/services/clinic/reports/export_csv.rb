@@ -54,7 +54,7 @@ module Clinic
           section(rows, report, "refund_records", %w[id payment_event_id patient_id source_sites currency amount created_at])
         when "daily_stock_movements"
           table(rows, report.fetch("movements"), %w[stock_type stock_unit kind count signed_quantity])
-          section(rows, report, "records", %w[id stock_type item_id batch_id kind stock_unit signed_quantity occurred_at])
+          section(rows, report, "records", %w[id stock_type item_id batch_id location_id location_name source_site_id source_site_name kind stock_unit signed_quantity occurred_at])
         when "current_stock"
           rows += [["low_stock_scope", "All clinic products and office items, independent of pharmacy status filter"],
             ["low_pharmacy_products", report["low_product_count"]], ["low_office_items", report["low_office_count"]],
