@@ -1488,3 +1488,7 @@ Published clickable Muse QA controls as 0.2.6 at aab93057 on aimetaclinic.com af
 ### 2026-10-03 - Muse fixture registry activated
 
 Registered a server-generated empty QA result fixture scope for Muse's approved key, covering WF-001 through WF-116 on the existing 0.2.6 / aab93057 build. Live registry resolution passed for all 116 IDs; rerunning registration reused receipt 529 and provenance receipt 528 without duplication. Muse's actual verdict submission remains pending. See [the QA delivery record](../../records/progress/2026/10/2026-10-03-muse-qa-write-api.md) for the operator procedure and scope limits.
+
+## 2026-10-03 - Standalone worker boot integration checkpoint
+
+Separable existing-Bundler-before-JSON fix and three standalone CLI regressions integrated into the repair branch; cloud3cases/18assertions reused for exact source. Lifecycle proposal remains unapplied pending zombie PID-record checkout/role validation. Exact2396 lab23tests and formatting receipts are hash-verified; full mainCI failures/cancellations remain separate. Canonical start/stop and combined publication pending; originalQA and fixed modernization counts unchanged. See [[Meta Clinic Implementation Tracker]] and the owning cash/inventory repair audit for evidence limits.
