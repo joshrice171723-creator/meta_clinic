@@ -323,6 +323,10 @@
 }
 .clinic-theme .clinic-scope-selector .MuiSelect-select {
   padding: 7px 28px 7px 9px;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
 }
 .clinic-theme .clinic-scope-selector .MuiInputLabel-root {
   font-size: 16px;

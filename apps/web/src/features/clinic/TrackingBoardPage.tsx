@@ -545,13 +545,13 @@ function storedTrackingBoardColumns(): ColumnKey[] {
     return initialColumns;
   }
 }
-const minimumPatientColumnWidth = 280;
+const minimumPatientColumnWidth = 248;
 const initialColumnWidths: Record<ColumnKey, number> = {
   patient: minimumPatientColumnWidth,
   stage: 175,
   wait: 96,
   location: 80,
-  provider: 184,
+  provider: 176,
   reason: 192,
   care: 136,
   triage: 144,

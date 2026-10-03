@@ -289,7 +289,7 @@ function EmploymentAccessEditor({
   };
 
   return (
-    <Stack spacing={1.5} sx={{ minWidth: { md: 360 } }}>
+    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
       {accessUnknown && (
         <Alert
           severity="warning"
@@ -468,6 +468,9 @@ export function EmploymentAdminPage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [expandedAccess, setExpandedAccess] = useState<Record<number, boolean>>(
+    {},
+  );
   const [directorySelection, setDirectorySelection] = useState<number[]>([]);
   const [bulkRoleOpen, setBulkRoleOpen] = useState(false);
   const bulkRoleSummaryRef = useRef<HTMLDivElement>(null);
@@ -775,7 +778,9 @@ export function EmploymentAdminPage() {
       employment.staff_member.display_name,
       employment.membership_summary.email_address,
       ...employment.roles.map((role) => roleLabel(role.role_code)),
-      ...employment.sites.filter((site) => site.active).map((site) => site.name),
+      ...employment.sites
+        .filter((site) => site.active)
+        .map((site) => site.name),
       employment.active_for_work
         ? "work active active for work"
         : "work inactive inactive for work",
@@ -801,8 +806,7 @@ export function EmploymentAdminPage() {
     heading?.focus({ preventScroll: true });
   };
   const beginBulkRoleChange = () => {
-    if (!directorySelection.length || selectionActionsBlocked)
-      return;
+    if (!directorySelection.length || selectionActionsBlocked) return;
     bulkSelectionSequence.current += 1;
     setBulkSelectionRequest({
       sequence: bulkSelectionSequence.current,
@@ -945,7 +949,9 @@ export function EmploymentAdminPage() {
             }}
           >
             <Typography variant="body2" role="status">
-              {directorySelection.length} employees selected for role changes.
+              {directorySelection.length}{" "}
+              {directorySelection.length === 1 ? "employee" : "employees"}{" "}
+              selected for role changes.
             </Typography>
             <Stack direction="row" spacing={1}>
               <Button
@@ -955,9 +961,7 @@ export function EmploymentAdminPage() {
               >
                 Open role editor
               </Button>
-              <Button
-                onClick={() => setDirectorySelection([])}
-              >
+              <Button onClick={() => setDirectorySelection([])}>
                 Clear selection
               </Button>
             </Stack>
@@ -1045,9 +1049,7 @@ export function EmploymentAdminPage() {
                     <Chip
                       size="small"
                       variant="outlined"
-                      color={
-                        accountStatus === "active" ? "success" : "default"
-                      }
+                      color={accountStatus === "active" ? "success" : "default"}
                       label={
                         accountStatus === "active"
                           ? "Clinic login active"
@@ -1081,15 +1083,48 @@ export function EmploymentAdminPage() {
                       .join(", ") || "No eligible sites"}
                   </Typography>
                 </Stack>
-                <EmploymentAccessEditor
-                  key={employment.id}
-                  employment={employment}
-                  roles={data.role_options}
-                  sites={data.sites}
-                  refresh={refresh}
-                  setFeedback={setFeedback}
-                  onBlockingChange={accessBlockingChanged}
-                />
+                <Accordion
+                  expanded={Boolean(
+                    expandedAccess[employment.id] ||
+                    individualAccessBlocked[employment.id],
+                  )}
+                  onChange={(_, expanded) => {
+                    if (!expanded && individualAccessBlocked[employment.id])
+                      return;
+                    setExpandedAccess((current) => ({
+                      ...current,
+                      [employment.id]: expanded,
+                    }));
+                  }}
+                  disableGutters
+                  elevation={0}
+                  sx={{
+                    width: { xs: "100%", md: 360 },
+                    flexShrink: 0,
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    id={`employment-${employment.id}-access-heading`}
+                    aria-controls={`employment-${employment.id}-access-content`}
+                    aria-label={`Manage access for ${employment.staff_member.display_name}`}
+                  >
+                    <Typography variant="body2">Manage access</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails
+                    id={`employment-${employment.id}-access-content`}
+                  >
+                    <EmploymentAccessEditor
+                      employment={employment}
+                      roles={data.role_options}
+                      sites={data.sites}
+                      refresh={refresh}
+                      setFeedback={setFeedback}
+                      onBlockingChange={accessBlockingChanged}
+                    />
+                  </AccordionDetails>
+                </Accordion>
               </Stack>
             );
           })}
