@@ -19,10 +19,14 @@ module Clinic
         )
         records = ConversationIndex.with_summary(
           records, practice: current_practice, membership: member
-        ).includes(members: { membership: :user })
+        ).includes(members: { membership: :user }).to_a
+        memberships = records.flat_map do |conversation|
+          conversation.members.select { |member| member.membership_state == "active" }.map(&:membership)
+        end
+        display_names = StaffMessagingSerializer.participant_display_names(memberships, practice: current_practice)
         render json: {
           conversations: records.map do |conversation|
-            StaffMessagingSerializer.conversation(conversation, actor_membership_id: member.id)
+            StaffMessagingSerializer.conversation(conversation, actor_membership_id: member.id, display_names: display_names)
           end,
           pagination: pagination
         }

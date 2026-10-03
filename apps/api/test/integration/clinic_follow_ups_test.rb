@@ -277,6 +277,65 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
     assert_operator expanded_queries, :<=, baseline_queries + 1
   end
 
+  test "staff conversation participant names prefer clinician and fall back to current employment" do
+    @membership.create_clinician_profile!(practice: @practice, display_name: "Synthetic clinician")
+    @coworker.create_clinician_profile!(practice: @practice, display_name: " ")
+    create_participant_employment(@membership, name: "Synthetic workforce alternative")
+    create_participant_employment(@coworker, name: "Synthetic workforce fallback")
+    unnamed = create_membership(@practice, "synthetic-unnamed-participant@example.invalid")
+    conversation = create_conversation(title: "Synthetic participant names", members: [@membership, @coworker, unnamed])
+
+    participants = staff_conversation_participants(conversation)
+
+    assert_equal "Synthetic clinician", participants.fetch(@membership.id).fetch("display_name")
+    assert_equal "Synthetic workforce fallback", participants.fetch(@coworker.id).fetch("display_name")
+    assert_nil participants.fetch(unnamed.id).fetch("display_name")
+    assert_equal @coworker.user.email_address, participants.fetch(@coworker.id).fetch("email")
+    assert_equal true, participants.fetch(@coworker.id).fetch("active")
+  end
+
+  test "staff conversation participant names retain effective employment boundaries" do
+    travel_to(Time.utc(2026, 10, 4, 12)) do
+      login
+      at = Current.business_time
+      current = create_membership(@practice, "synthetic-current-participant@example.invalid")
+      future = create_membership(@practice, "synthetic-future-participant@example.invalid")
+      ended = create_membership(@practice, "synthetic-ended-participant@example.invalid")
+      inactive = create_membership(@practice, "synthetic-inactive-participant@example.invalid")
+      create_participant_employment(current, name: "Synthetic current name", effective_from: at, effective_until: at + 1.hour)
+      create_participant_employment(future, name: "Synthetic future name", effective_from: at + 1.second)
+      create_participant_employment(ended, name: "Synthetic ended name", effective_from: at - 1.hour, effective_until: at)
+      create_participant_employment(inactive, name: "Synthetic inactive name", status: "inactive", effective_from: at - 1.hour)
+      conversation = create_conversation(title: "Synthetic employment windows", members: [@membership, current, future, ended, inactive])
+
+      participants = staff_conversation_participants(conversation)
+
+      assert_equal "Synthetic current name", participants.fetch(current.id).fetch("display_name")
+      [future, ended, inactive].each { |membership| assert_nil participants.fetch(membership.id).fetch("display_name") }
+    end
+  end
+
+  test "staff conversation participant names are refreshed for each request" do
+    employment = create_participant_employment(@coworker, name: "Synthetic first name")
+    conversation = create_conversation(title: "Synthetic refreshed names", members: [@membership, @coworker])
+    assert_equal "Synthetic first name", staff_conversation_participants(conversation).fetch(@coworker.id).fetch("display_name")
+
+    employment.staff_member.update!(display_name: "Synthetic updated name")
+    assert_equal "Synthetic updated name", staff_conversation_participants(conversation).fetch(@coworker.id).fetch("display_name")
+
+    employment.update!(status: "inactive")
+    assert_nil staff_conversation_participants(conversation).fetch(@coworker.id).fetch("display_name")
+  end
+
+  test "staff participant name batching rejects memberships from another practice" do
+    other_practice = Clinic::Practice.create!(name: "Synthetic other name practice")
+    other_membership = create_membership(other_practice, "synthetic-foreign-name@example.invalid")
+
+    assert_raises(ArgumentError) do
+      Clinic::StaffMessagingSerializer.participant_display_names([other_membership], practice: @practice)
+    end
+  end
+
   test "marking staff messages read rolls back receipt and cursor when audit recording fails" do
     conversation = create_conversation(title: "Atomic read", members: [ @membership, @coworker ])
     message = create_staff_message(
@@ -452,6 +511,20 @@ class ClinicFollowUpsTest < ActionDispatch::IntegrationTest
     )
     conversation.update!(last_message_at: Time.current)
     message
+  end
+
+  def create_participant_employment(membership, name:, status: "active", effective_from: Current.business_time - 1.hour, effective_until: nil)
+    staff = @practice.staff_members.create!(display_name: name, job_title: "Synthetic coordinator", active: true)
+    Clinic::Workforce::Employment.create!(practice: @practice, membership: membership, staff_member: staff,
+      status: status, effective_from: effective_from, effective_until: effective_until)
+  end
+
+  def staff_conversation_participants(conversation)
+    get "/api/clinic/staff-messaging/conversations", headers: @headers
+    assert_response :success
+    row = response.parsed_body.fetch("conversations").find { |record| record.fetch("id") == conversation.id }
+    assert_not_nil row
+    row.fetch("participants").index_by { |participant| participant.fetch("id") }
   end
 
   def staff_conversation_ids(filter)

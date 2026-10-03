@@ -2,22 +2,49 @@ module Clinic
   module StaffMessagingSerializer
     module_function
 
-    def participant(membership)
-      display_name = membership.clinician_profile&.display_name
-      unless display_name.present?
-        at = Current.business_time
-        employment = Clinic::Workforce::Employment
-          .where(practice_id: membership.practice_id, membership_id: membership.id, status: "active")
-          .where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at)
-          .includes(:staff_member).order(:id).first
-        display_name = employment&.staff_member&.display_name
+    def participant_display_names(memberships, practice:)
+      memberships = memberships.uniq(&:id)
+      unless memberships.all? { |membership| membership.practice_id == practice.id }
+        raise ArgumentError, "Staff participants must belong to the selected practice."
+      end
+      ActiveRecord::Associations::Preloader.new(records: memberships, associations: :clinician_profile).call
+      names = memberships.to_h { |membership| [membership.id, membership.clinician_profile&.display_name.presence] }
+      fallback_ids = names.filter_map { |id, name| id unless name.present? }
+      return names if fallback_ids.empty?
+
+      employments = Clinic::Workforce::Employment
+        .where(practice_id: practice.id, membership_id: fallback_ids, status: "active")
+        .effective_at(Current.business_time).includes(:staff_member).order(:id)
+      seen = {}
+      employments.each do |employment|
+        next if seen[employment.membership_id]
+
+        names[employment.membership_id] = employment.staff_member&.display_name
+        seen[employment.membership_id] = true
+      end
+      names
+    end
+
+    def participant(membership, display_names: nil)
+      if display_names
+        display_name = display_names.fetch(membership.id)
+      else
+        display_name = membership.clinician_profile&.display_name
+        unless display_name.present?
+          at = Current.business_time
+          employment = Clinic::Workforce::Employment
+            .where(practice_id: membership.practice_id, membership_id: membership.id, status: "active")
+            .where("effective_from <= ? AND (effective_until IS NULL OR effective_until > ?)", at, at)
+            .includes(:staff_member).order(:id).first
+          display_name = employment&.staff_member&.display_name
+        end
       end
 
       { id: membership.id, email: membership.user.email_address,
         display_name: display_name.presence, active: membership.active? }
     end
 
-    def conversation(conversation, actor_membership_id: nil)
+    def conversation(conversation, actor_membership_id: nil, display_names: nil)
       active_members = if conversation.association(:members).loaded?
         conversation.members.target.select { |member| member.membership_state == "active" }
       else
@@ -45,7 +72,7 @@ module Clinic
         status: conversation.status, site_id: conversation.site_id,
         last_message_at: conversation.last_message_at,
         unread: !!unread, urgent: urgent, unresolved: unresolved,
-        participants: active_members.map { |member| participant(member.membership) },
+        participants: active_members.map { |member| participant(member.membership, display_names: display_names) },
         last_message_class: latest_message_class
       }
     end
