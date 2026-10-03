@@ -110,7 +110,13 @@ module Workforce
     def require_kiosk_availability
       return unless Rails.env.production?
 
-      head :not_found unless GuidedDemoAccess.hosted? && GuidedDemoAccess.allowed?(request)
+      guided_clock = GuidedDemoAccess.hosted? && GuidedDemoAccess.allowed?(request)
+      # Existing public staging opt-in can issue codes in the ordinary workspace.
+      # Redemption stays on that database and never enables ordinary production.
+      public_staging_clock = DevelopmentAccess.public_staging_demo? &&
+        request.host == "aimetaclinic.com" &&
+        (request.origin == request.base_url || ((request.get? || request.head?) && request.origin.nil?))
+      head :not_found unless guided_clock || public_staging_clock
     end
 
     def current_kiosk_session!

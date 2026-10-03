@@ -107,6 +107,41 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public staging redeems a site code only on its exact host and origin" do
+    with_kiosk_environment("staging", public_login: "1") do
+      host! "aimetaclinic.com"
+      https!
+      @headers = { "Origin" => "https://aimetaclinic.com", "REMOTE_ADDR" => "127.0.0.1" }
+      get "/api/workforce/kiosk", headers: @headers
+      assert_response :unauthorized
+      assert_equal "This kiosk is not enrolled", response.parsed_body.fetch("error")
+      post "/api/workforce/kiosk/enroll", params: { enrollment_token: @enrollment_token }, headers: csrf_headers, as: :json
+      assert_response :created
+      assert_equal @site.id, response.parsed_body.fetch("site_id")
+      get "/api/workforce/kiosk", headers: @headers
+      assert_response :success
+      get "/api/workforce/kiosk", headers: @headers.merge("Origin" => "https://other.example.invalid")
+      assert_response :not_found
+      host! "other.example.invalid"
+      get "/api/workforce/kiosk", headers: @headers.merge("Origin" => "https://other.example.invalid")
+      assert_response :not_found
+    end
+  end
+
+  test "kiosk remains unavailable outside the explicit public staging opt-in" do
+    host! "aimetaclinic.com"
+    https!
+    headers = { "Origin" => "https://aimetaclinic.com", "REMOTE_ADDR" => "127.0.0.1" }
+    with_kiosk_environment("staging", public_login: "0") do
+      get "/api/workforce/kiosk", headers: headers
+      assert_response :not_found
+    end
+    with_kiosk_environment("production", public_login: "1") do
+      get "/api/workforce/kiosk", headers: headers
+      assert_response :not_found
+    end
+  end
+
   test "enrolled kiosk resolves a badge and replays one saved punch" do
     post "/api/workforce/kiosk/enroll", params: { enrollment_token: @enrollment_token }, headers: csrf_headers, as: :json
     assert_response :created
@@ -131,6 +166,20 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def with_kiosk_environment(deployment, public_login:)
+    values = { "APP_DEPLOYMENT_ENV" => deployment, "APP_PUBLIC_DEVELOPMENT_LOGIN" => public_login, "APP_GUIDED_DEMO" => "0" }
+    original_values = values.keys.to_h { |key| [key, ENV[key]] }
+    original_environment = Rails.method(:env)
+    begin
+      values.each { |key, value| ENV[key] = value }
+      Rails.define_singleton_method(:env) { ActiveSupport::StringInquirer.new("production") }
+      yield
+    ensure
+      original_values.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
+      Rails.define_singleton_method(:env, original_environment)
+    end
+  end
 
   def with_business_time(time)
     original = Current.method(:business_time)
