@@ -8,13 +8,16 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  LinearProgress,
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
-import { IntakeQuestions } from "./IntakeQuestions";
+import { IntakeQuestions, intakeFieldVisible } from "./IntakeQuestions";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 type Answer =
@@ -170,6 +173,10 @@ export function PatientPrevisitNote({
   appointmentId: number;
   appointmentLabel: string;
 }) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"), {
+    noSsr: true,
+  });
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Response | null>(null);
@@ -479,6 +486,17 @@ export function PatientPrevisitNote({
     (text.trim() !== "" || hasAnswers(answers) || data.note !== null);
   const conflictChoiceDisabled =
     busy || outcomeUnknown || loading || !latestReady || latestRefreshFailed;
+  const intakeFields = data?.intake_form?.fields;
+  const visibleQuestions = intakeFields?.filter((field) =>
+    intakeFieldVisible(field, answers, intakeFields),
+  );
+  const answeredQuestionCount =
+    visibleQuestions?.filter(
+      (field) => answerState(answers[field.id]) !== "unanswered",
+    ).length ?? 0;
+  const questionProgress = visibleQuestions?.length
+    ? Math.round((answeredQuestionCount / visibleQuestions.length) * 100)
+    : 0;
 
   return (
     <>
@@ -494,16 +512,51 @@ export function PatientPrevisitNote({
         open={open}
         onClose={requestClose}
         fullWidth
-        maxWidth="sm"
+        fullScreen={fullScreen}
+        maxWidth="lg"
+        sx={{
+          "& .MuiDialog-paper": {
+            overflow: "hidden",
+            maxHeight: fullScreen ? "100%" : "calc(100% - 48px)",
+          },
+        }}
         aria-labelledby={`previsit-note-${appointmentId}-title`}
       >
-        <DialogTitle id={`previsit-note-${appointmentId}-title`}>
-          Prepare for your visit
-          <Typography component="div" variant="body2" color="text.secondary">
-            {appointmentLabel}
-          </Typography>
+        <DialogTitle
+          id={`previsit-note-${appointmentId}-title`}
+          sx={{ flexShrink: 0, pb: 1.5 }}
+        >
+          <Stack spacing={0.5}>
+            <Typography component="span" variant="h5">
+              Prepare for your visit
+            </Typography>
+            <Typography component="span" variant="body2" color="text.secondary">
+              {appointmentLabel}
+            </Typography>
+            {visibleQuestions && (
+              <Stack spacing={0.5} sx={{ pt: 1 }}>
+                <Typography
+                  id={`previsit-note-${appointmentId}-progress`}
+                  variant="body2"
+                  color="text.secondary"
+                  aria-live="polite"
+                >
+                  {answeredQuestionCount} of {visibleQuestions.length} shown
+                  questions responded to
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={questionProgress}
+                  aria-labelledby={`previsit-note-${appointmentId}-progress`}
+                />
+              </Stack>
+            )}
+          </Stack>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent
+          dividers
+          sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: { xs: 2, sm: 3 } }}
+        >
           <Stack spacing={2}>
             <Typography color="text.secondary">
               Your clinic can review this note when preparing for your visit.
@@ -556,6 +609,21 @@ export function PatientPrevisitNote({
             )}
             {data?.can_edit && (
               <Stack spacing={2}>
+                {data.intake_form && (
+                  <Box component="section" aria-labelledby={`previsit-note-${appointmentId}-questions`}>
+                    <Typography
+                      id={`previsit-note-${appointmentId}-questions`}
+                      component="h2"
+                      variant="h6"
+                      sx={{ mb: 1.5 }}
+                    >
+                      Health questions
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
+                      Answer the questions that apply. Your visible progress updates as you respond.
+                    </Typography>
+                  </Box>
+                )}
                 {data.reusable_answers && (
                   <Box>
                     <Typography variant="body2" color="text.secondary">
@@ -603,20 +671,30 @@ export function PatientPrevisitNote({
                     }}
                   />
                 )}
-                <TextField
-                  label="Anything else the clinic should know?"
-                  value={text}
-                  onChange={(event) => {
-                    setText(event.target.value);
-                    setAttested(false);
-                  }}
-                  multiline
-                  minRows={5}
-                  fullWidth
-                  disabled={loading || busy || outcomeUnknown || conflict}
-                  slotProps={{ htmlInput: { maxLength: 5_000 } }}
-                  helperText="Optional. You can clear a saved note before the visit starts."
-                />
+                <Box component="section" aria-labelledby={`previsit-note-${appointmentId}-additional`}>
+                  <Typography
+                    id={`previsit-note-${appointmentId}-additional`}
+                    component="h2"
+                    variant="h6"
+                    sx={{ mb: 1.5 }}
+                  >
+                    Anything else the clinic should know?
+                  </Typography>
+                  <TextField
+                    label="Additional note (optional)"
+                    value={text}
+                    onChange={(event) => {
+                      setText(event.target.value);
+                      setAttested(false);
+                    }}
+                    multiline
+                    minRows={4}
+                    fullWidth
+                    disabled={loading || busy || outcomeUnknown || conflict}
+                    slotProps={{ htmlInput: { maxLength: 5_000 } }}
+                    helperText="You can clear a saved note before the visit starts."
+                  />
+                </Box>
                 {data.intake_form?.attestation &&
                   (text.trim() !== "" || hasAnswers(answers)) && (
                     <FormControlLabel
@@ -638,7 +716,7 @@ export function PatientPrevisitNote({
             )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexShrink: 0, gap: 0.5, flexWrap: "wrap", p: { xs: 1.5, sm: 2 } }}>
           <Button disabled={busy || outcomeUnknown} onClick={requestClose}>
             Close
           </Button>
