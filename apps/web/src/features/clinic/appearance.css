@@ -13,7 +13,7 @@
   --clinic-sidebar-selected-on: rgb(229 238 232);
 }
 .clinic-theme[data-clinic-palette="cobalt"][data-color-scheme="light"] {
-  --clinic-sidebar-ground: rgb(25 108 210);
+  --clinic-sidebar-ground: rgb(25 59 82);
   --clinic-sidebar-on: rgb(242 247 251);
   --clinic-sidebar-muted: rgb(181 201 215);
   --clinic-sidebar-selected: rgb(242 247 251);

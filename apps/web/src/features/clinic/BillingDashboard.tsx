@@ -998,6 +998,7 @@ export function BillingDashboard() {
                         data-selected={selected || undefined}
                       >
                         <TableCell component="th" scope="row">
+                          <div className="billing-invoice-identity">
                           <Button
                             type="button"
                             className="billing-invoice-button"
@@ -1012,35 +1013,25 @@ export function BillingDashboard() {
                           >
                             #{invoice.id}
                           </Button>
-                          <Typography variant="body2" color="text.secondary">
-                            Location: {invoiceLocationLabel(invoice)}
-                          </Typography>
                           {invoice.patient ? (
-                            <>
                               <Button
                                 size="small"
                                 href={`/clinic/billing/patients?patient_id=${invoice.patient.id}`}
                               >
                                 {invoice.patient.display_name}
                               </Button>
-                              {patientReferenceLabel(
-                                invoice.patient.reference,
-                              ) && (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  {patientReferenceLabel(
-                                    invoice.patient.reference,
-                                  )}
-                                </Typography>
-                              )}
-                            </>
                           ) : (
                             <Typography variant="body2" color="text.secondary">
                               Patient identity unavailable
                             </Typography>
                           )}
+                          </div>
+                          <Typography component="p" variant="caption" color="text.secondary">
+                            {invoiceLocationLabel(invoice)}
+                            {invoice.patient && patientReferenceLabel(invoice.patient.reference)
+                              ? ` · ${patientReferenceLabel(invoice.patient.reference)}`
+                              : ""}
+                          </Typography>
                         </TableCell>
                         <TableCell data-label="State">
                           <span className={`billing-badge billing-${state}`}>

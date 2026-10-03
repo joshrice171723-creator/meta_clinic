@@ -550,12 +550,12 @@ const initialColumnWidths: Record<ColumnKey, number> = {
   patient: minimumPatientColumnWidth,
   stage: 175,
   wait: 96,
-  location: 96,
+  location: 80,
   provider: 184,
-  reason: 116,
-  care: 156,
+  reason: 192,
+  care: 136,
   triage: 144,
-  action: 96,
+  action: 64,
 };
 const columnLabels: Record<ColumnKey, string> = {
   patient: "Patient",

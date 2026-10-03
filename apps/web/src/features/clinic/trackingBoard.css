@@ -433,9 +433,9 @@
 }
 .clinic-theme .tracking-reason {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   min-width: 0;
   overflow: visible;
 }
@@ -444,6 +444,7 @@
   overflow: visible;
 }
 .clinic-theme .tracking-reason .MuiTypography-root {
+  flex: 1 1 120px;
   display: block;
   overflow: visible;
   text-overflow: clip;

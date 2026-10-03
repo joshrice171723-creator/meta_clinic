@@ -924,10 +924,30 @@
   text-align: left;
 }
 .clinic-theme .billing-ledger-table tbody tr[data-selected="true"] {
-  background: transparent;
+  background: color-mix(in srgb, var(--clinic-accent) 8%, var(--clinic-surface));
 }
 .clinic-theme .billing-ledger-table tbody tr:hover {
-  background: var(--clinic-soft);
+  background: color-mix(in srgb, var(--clinic-accent) 5%, var(--clinic-surface));
+}
+.clinic-theme .billing-ledger-table tbody tr[data-selected="true"]:hover {
+  background: color-mix(in srgb, var(--clinic-accent) 12%, var(--clinic-surface));
+}
+.clinic-theme .billing-ledger-table tbody :is(th, td) p {
+  margin: 2px 0;
+}
+.clinic-theme .billing-invoice-identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.clinic-theme .billing-invoice-identity .MuiButton-root {
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 0;
+}
+.clinic-theme .billing-ledger-table tbody th:first-child {
+  white-space: normal;
 }
 .clinic-theme .billing-empty-state {
   padding: 48px 16px;
