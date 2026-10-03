@@ -530,7 +530,7 @@ function TaskActions({
   const [assigneeId, setAssigneeId] = useState(
     task.assigned_to_membership_id?.toString() || "",
   );
-  const [resolutionCode, setResolutionCode] = useState("completed");
+  const [resolutionCode, setResolutionCode] = useState("");
   const [dependencyIds, setDependencyIds] = useState<number[]>(
     task.dependency_ids || [],
   );
@@ -836,6 +836,9 @@ function TaskActions({
                   setResolutionCode(String(event.target.value))
                 }
               >
+                <MenuItem value="" disabled>
+                  Select a resolution
+                </MenuItem>
                 {[
                   ["completed", "Completed"],
                   ["unable_to_complete", "Unable to complete"],
@@ -851,7 +854,7 @@ function TaskActions({
             <Button
               size="small"
               variant="outlined"
-              disabled={actionLocked}
+              disabled={actionLocked || !resolutionCode}
               sx={{ minHeight: 40, whiteSpace: "nowrap", flex: "0 0 auto" }}
               onClick={() =>
                 transition("complete", { resolution_code: resolutionCode })

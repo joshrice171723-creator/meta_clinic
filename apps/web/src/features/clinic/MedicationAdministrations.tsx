@@ -253,7 +253,7 @@ function MedicationAdministrationPanel({
     `/api/clinic/encounters/${encounter.id}/medication_administrations`,
   );
   const [orderId, setOrderId] = useState("");
-  const [status, setStatus] = useState<"completed" | "not_done">("completed");
+  const [status, setStatus] = useState<"" | "completed" | "not_done">("");
   const [quantities, setQuantities] = useState<Record<number, string>>({});
   const [doseValue, setDoseValue] = useState("");
   const [doseUnitCode, setDoseUnitCode] = useState("");
@@ -264,7 +264,7 @@ function MedicationAdministrationPanel({
   const [varianceReason, setVarianceReason] = useState("");
   const [precheckStatus, setPrecheckStatus] = useState("");
   const [precheckNotes, setPrecheckNotes] = useState("");
-  const [verificationStatus, setVerificationStatus] = useState("not_required");
+  const [verificationStatus, setVerificationStatus] = useState("");
   const [verifiedByMembershipId, setVerifiedByMembershipId] = useState("");
   const [responseText, setResponseText] = useState("");
   const [educationText, setEducationText] = useState("");
@@ -314,6 +314,10 @@ function MedicationAdministrationPanel({
 
   function prepareReview() {
     if (!resource.data?.can_record_outcome || locked || !selectedOrder) return;
+    if (!status) {
+      setError("Choose whether the medication was given.");
+      return;
+    }
     if (!administeredAt) {
       setError("Enter the outcome time.");
       return;
@@ -455,11 +459,12 @@ function MedicationAdministrationPanel({
       setRouteCode("");
       setAdministrationSiteCode("");
       setAdministrationSiteText("");
+      setStatus("");
       setStatusReason("");
       setVarianceReason("");
       setPrecheckStatus("");
       setPrecheckNotes("");
-      setVerificationStatus("not_required");
+      setVerificationStatus("");
       setVerifiedByMembershipId("");
       setResponseText("");
       setEducationText("");
@@ -731,10 +736,15 @@ function MedicationAdministrationPanel({
                 label="Outcome"
                 value={status}
                 onChange={(event) => {
-                  setStatus(event.target.value as "completed" | "not_done");
+                  setStatus(
+                    event.target.value as "" | "completed" | "not_done",
+                  );
                   setError("");
                 }}
               >
+                <MenuItem value="" disabled>
+                  Select the recorded outcome
+                </MenuItem>
                 <MenuItem value="completed">Given</MenuItem>
                 <MenuItem value="not_done">Not given / refused</MenuItem>
               </Select>
@@ -893,6 +903,9 @@ function MedicationAdministrationPanel({
                           setVerifiedByMembershipId("");
                       }}
                     >
+                      <MenuItem value="" disabled>
+                        Select the policy outcome
+                      </MenuItem>
                       <MenuItem value="not_required">
                         Not required by clinic policy
                       </MenuItem>
@@ -1029,7 +1042,7 @@ function MedicationAdministrationPanel({
               </Alert>
             )}
             <Button
-              disabled={locked || !selectedOrder}
+              disabled={locked || !selectedOrder || !status}
               onClick={prepareReview}
               sx={{ alignSelf: "flex-start" }}
               variant="contained"

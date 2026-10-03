@@ -148,6 +148,7 @@ export function Field({
     defaultValue: value,
     autoComplete,
     readOnly,
+    "aria-describedby": description || owner ? `${id}-hint` : undefined,
   };
   return (
     <div className="form-field">
@@ -184,7 +185,7 @@ export function Field({
         />
       )}
       {(description || owner) && (
-        <div className="form-field-hint">
+        <div className="form-field-hint" id={`${id}-hint`}>
           {description && <span>{description}</span>}
           {owner && <span>Owner: {owner}</span>}
         </div>
@@ -223,6 +224,7 @@ export function Form({
   return (
     <form
       className={className}
+      onChange={() => setNotice("")}
       onSubmit={async (event) => {
         event.preventDefault();
         if (inFlight.current) return;

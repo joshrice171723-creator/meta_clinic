@@ -356,6 +356,12 @@
   background: var(--clinic-accent);
   color: var(--clinic-on-accent);
 }
+.clinic-theme[data-color-scheme="light"] {
+  color-scheme: light;
+}
+.clinic-theme[data-color-scheme="dark"] {
+  color-scheme: dark;
+}
 .clinic-theme .brand-dot {
   background: var(--clinic-accent);
 }
@@ -458,8 +464,8 @@
   gap: 2px;
   margin-top: 4px;
   color: var(--clinic-muted);
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.45;
 }
 .clinic-theme .primary-link,
 .clinic-theme .clinic-content .primary-link {
@@ -470,6 +476,9 @@
   padding: 12px 18px;
   font-size: 16px;
   border-radius: var(--clinic-radius-control);
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .clinic-theme .primary-link:hover {
   background: var(--clinic-accent);
@@ -485,9 +494,8 @@
   font-size: 16px;
   max-width: 100%;
   white-space: normal;
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
   word-break: normal;
-  overflow-x: auto;
   justify-content: safe center;
 }
 .clinic-theme .text-link {
@@ -511,15 +519,13 @@
   padding: 14px 18px;
   border-radius: var(--clinic-radius-control);
   font-size: 16px;
-  overflow-wrap: normal;
-  overflow-x: auto;
+  overflow-wrap: anywhere;
 }
 .clinic-theme .form-success {
   color: var(--clinic-success);
   background: var(--clinic-success-bg);
   font-size: 16px;
-  overflow-wrap: normal;
-  overflow-x: auto;
+  overflow-wrap: anywhere;
 }
 .clinic-theme .form-success p {
   color: inherit;

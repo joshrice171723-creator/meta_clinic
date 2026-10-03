@@ -18,6 +18,10 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+} from "../../shared/dateTime";
 import { useClinic } from "../clinic/Workspace";
 import type { BadgeRecord, KioskEnrollment } from "./clockTypes";
 
@@ -315,7 +319,10 @@ export function BadgeAdminPage() {
                       color={badge.status === "issued" ? "success" : "default"}
                     />
                     <Typography variant="body2" color="text.secondary">
-                      Issued {new Date(badge.issued_at).toLocaleDateString()}
+                      Issued{" "}
+                      {formatDisplayDate(badge.issued_at, {
+                        timeZone: clinic.practice.timezone,
+                      })}
                       {badge.pin_required ? " · PIN required" : ""}
                     </Typography>
                   </Stack>
@@ -423,7 +430,9 @@ export function BadgeAdminPage() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {kiosk.status} · expires{" "}
-                    {new Date(kiosk.expires_at).toLocaleString()}
+                    {formatDisplayDateTime(kiosk.expires_at, {
+                      timeZone: clinic.practice.timezone,
+                    })}
                   </Typography>
                 </Box>
                 {!["revoked", "expired"].includes(kiosk.status) && (
