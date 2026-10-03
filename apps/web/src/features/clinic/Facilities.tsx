@@ -28,6 +28,7 @@ import { VisitTypeSettings } from "./VisitTypeSettings";
 import { ServiceOfferingSettings } from "./ServiceOfferingSettings";
 import { useClinic } from "./Workspace";
 import { PracticeFeatureSettings } from "./PracticeFeatureSettings";
+import { useClinicNavigation } from "./clinicNavigation";
 import { ClinicianSetup } from "./ClinicianSetup";
 import { SiteSchedulingPolicySettings } from "./SiteSchedulingPolicy";
 import { OperationalPolicySettings } from "./OperationalPolicySettings";
@@ -119,6 +120,7 @@ function nextRoomName(site: ClinicSite, kind: "physical" | "telehealth") {
 }
 
 export function Facilities() {
+  const { confirmNavigation } = useClinicNavigation();
   const {
     capabilities,
     current_site: currentSite,
@@ -281,6 +283,7 @@ export function Facilities() {
   if (isDemoFrame())
     return (
       <PracticeFeatureSettings
+        key={currentSite?.id ?? "clinic"}
         canWrite={capabilities.clinic_setup_write === true}
         siteId={currentSite?.id ?? null}
       />
@@ -329,7 +332,13 @@ export function Facilities() {
           />
         </div>
       )}
-      <VisitTypeSettings canWrite={canWrite} refreshKey={visitTypeRefreshKey} />
+      <VisitTypeSettings
+        key={`visit-type-catalog:${selected?.id ?? "clinic"}`}
+        canWrite={canWrite}
+        refreshKey={visitTypeRefreshKey}
+        siteId={creating ? undefined : selected?.id}
+        siteName={selected?.name ?? selected?.code}
+      />
       {capabilities.clinic_setup_write && <ClinicianSetup />}
       <div className="facilities-layout">
         <Paper variant="outlined" className="facilities-list">
@@ -347,6 +356,7 @@ export function Facilities() {
                 size="small"
                 startIcon={<AddIcon />}
                 onClick={() => {
+                  if (confirmNavigation && !confirmNavigation()) return;
                   setCreating(true);
                   setSelectedId(null);
                   setDraft(emptySite());
@@ -378,6 +388,8 @@ export function Facilities() {
                   }
                   color="inherit"
                   onClick={() => {
+                    if (!creating && selectedId === site.id) return;
+                    if (confirmNavigation && !confirmNavigation()) return;
                     setCreating(false);
                     setSelectedId(site.id);
                     setDraft(siteForm(site));
@@ -852,12 +864,26 @@ export function Facilities() {
           </Stack>
         </Paper>
       )}
-      <ServiceOfferingSettings canWrite={canWrite} />
-      {selected && !creating && (
-        <SiteSchedulingPolicySettings key={selected.id} siteId={selected.id} />
+      {selected?.finalized === true && !creating && (
+        <ServiceOfferingSettings canWrite={canWrite} />
       )}
-      {selected && !creating && (
-        <OperationalPolicySettings key={selected.id} siteId={selected.id} />
+      {selected?.finalized === true && !creating && (
+        <SiteSchedulingPolicySettings
+          key={`scheduling-policy:${selected.id}`}
+          siteId={selected.id}
+        />
+      )}
+      {selected?.finalized === true && !creating && (
+        <OperationalPolicySettings
+          key={`operational-policy:${selected.id}`}
+          siteId={selected.id}
+        />
+      )}
+      {selected && selected.finalized !== true && !creating && (
+        <Typography color="text.secondary" sx={{ mt: 2 }}>
+          Finalize this location's setup to configure service offerings and
+          scheduling policies.
+        </Typography>
       )}
     </div>
   );

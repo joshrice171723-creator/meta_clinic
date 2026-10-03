@@ -48,7 +48,7 @@ import type {
   RuntimeEnvironment,
   User,
 } from "../../api/contracts";
-import { api, setClinicPractice } from "../../api/client";
+import { api, setClinicPractice, setClinicSite } from "../../api/client";
 import { ClinicScopeSelector } from "./ClinicScopeSelector";
 import { Form, LoadState, useResource } from "../../shared/ui";
 import { ClinicFrame, ClinicRailContext } from "./ClinicFrame";
@@ -522,7 +522,16 @@ export function Workspace({
   useLayoutEffect(() => {
     if (data?.practice.id !== undefined) setClinicPractice(data.practice.id);
   }, [data?.practice.id]);
-  useLayoutEffect(() => () => setClinicPractice(undefined), []);
+  useLayoutEffect(() => {
+    if (data) setClinicSite(data.current_site?.id);
+  }, [data?.current_site?.id, data?.practice.id]);
+  useLayoutEffect(
+    () => () => {
+      setClinicPractice(undefined);
+      setClinicSite(undefined);
+    },
+    [],
+  );
   const [selectingSiteId, setSelectingSiteId] = useState<number | null>(null);
   const [locationPickerError, setLocationPickerError] = useState("");
   const [setupRedirect, setSetupRedirect] = useState<{
@@ -550,6 +559,7 @@ export function Workspace({
         method: "PATCH",
         body: { site_id: siteId },
       });
+      setClinicSite(siteId);
       setPreviousLocationContext(data ?? null);
       setLocationSelectionMade(true);
       setLocationPickerRequested(false);
@@ -607,6 +617,8 @@ export function Workspace({
     setupFeatures,
   );
   const staffSetupPath = path === "/clinic/workforce/employees";
+  const historicalRecordPath =
+    /^\/clinic\/patients\/\d+(?:\/encounters\/\d+)?$/.test(path);
   const landingDestination =
     data && !setupRequired
       ? clinicLandingDestination(data.capabilities, path, homeView)
@@ -619,6 +631,7 @@ export function Workspace({
       setupRequired &&
       path !== "/clinic/setup" &&
       !staffSetupPath &&
+      !historicalRecordPath &&
       data?.current_site
     ) {
       setSetupRedirect({
@@ -627,13 +640,18 @@ export function Workspace({
         practiceId: data.practice.id,
       });
       navigate("/clinic/setup", { replace: true });
-    } else if (staffSetupPath || (data && !setupRequired))
+    } else if (
+      staffSetupPath ||
+      historicalRecordPath ||
+      (data && !setupRequired)
+    )
       setSetupRedirect(null);
   }, [
     navigate,
     path,
     setupRequired,
     staffSetupPath,
+    historicalRecordPath,
     data?.current_site?.id,
     data?.practice.id,
   ]);
@@ -732,7 +750,7 @@ export function Workspace({
     ...data,
     refreshWorkspace,
   };
-  if (setupRequired && !staffSetupPath)
+  if (setupRequired && !staffSetupPath && !historicalRecordPath)
     return (
       <ClinicAppearanceScope {...appearance}>
         <AppearanceContext value={appearance}>

@@ -47,11 +47,11 @@ module Clinic
             end
             rows << [row["currency"], "cohort_current_outstanding", "", "", row["current_outstanding_balance"]]
           end
-          section(rows, report, "records", %w[id patient_id currency status created_at current_outstanding_balance])
+          section(rows, report, "records", %w[id patient_id encounter_id source_site_id source_site_name currency status created_at current_outstanding_balance])
         when "daily_payment_activity"
           table(rows, report.fetch("currencies"), %w[currency payment_count payment_amount refund_count refund_amount])
-          section(rows, report, "payment_records", %w[id patient_id currency amount created_at])
-          section(rows, report, "refund_records", %w[id payment_event_id patient_id currency amount created_at])
+          section(rows, report, "payment_records", %w[id patient_id source_sites currency amount created_at])
+          section(rows, report, "refund_records", %w[id payment_event_id patient_id source_sites currency amount created_at])
         when "daily_stock_movements"
           table(rows, report.fetch("movements"), %w[stock_type stock_unit kind count signed_quantity])
           section(rows, report, "records", %w[id stock_type item_id batch_id kind stock_unit signed_quantity occurred_at])
@@ -86,7 +86,7 @@ module Clinic
       end
 
       def self.safe_cell(value)
-        text = value.to_s
+        text = value.is_a?(Array) ? JSON.generate(value) : value.to_s
         # Preserve signed decimal quantities; neutralize spreadsheet formulas,
         # including leading control characters and whitespace.
         text.match?(/\A[[:space:]]*[=+@-]/) && !text.match?(/\A-?\d+(?:\.\d+)?\z/) ? "'#{text}" : text

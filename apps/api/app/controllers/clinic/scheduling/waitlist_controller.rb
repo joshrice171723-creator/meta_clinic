@@ -6,6 +6,11 @@ module Clinic
         entries = entries.where(state: %w[waiting offered]) unless params[:history] == "true"
         total = entries.count
         sites = current_practice.sites.where(id: visible_site_ids)
+        site_options = sites.map do |site|
+          { id: site.id, name: site.name, available_visit_type_ids:
+            Configuration::StarterProfile.available_visit_type_ids(practice: current_practice, site: site) }
+        end
+        visit_type_ids = site_options.flat_map { |site| site[:available_visit_type_ids] }.uniq
         cancelled = current_practice.appointments.where(site_id: sites.select(:id), status: %w[cancelled no_show])
           .where("starts_at > ? AND starts_at < ?", Current.business_time, Current.business_time + 30.days)
           .order(:starts_at).limit(30)
@@ -13,9 +18,9 @@ module Clinic
         render json: {
           entries: entries.limit(100).map { |entry| Waitlist.serialize(entry) }, total: total,
           ranking: "First requested, then entry ID; no inferred clinical priority.",
-          sites: sites.map { |site| { id: site.id, name: site.name } },
+          sites: site_options,
           clinicians: current_practice.clinician_profiles.order(:id).map { |item| { id: item.id, name: item.display_name.presence || item.reference.presence || "Clinician profile ##{item.id}" } },
-          visit_types: current_practice.visit_types.active.order(:id).map { |item| { id: item.id, name: item.code } },
+          visit_types: current_practice.visit_types.active.where(id: visit_type_ids).order(:id).map { |item| { id: item.id, name: item.code } },
           cancellations: cancelled.map { |item| { id: item.id, status: item.status, site_id: item.site_id,
             clinician_id: item.booked_clinician_id, starts_at: item.starts_at.iso8601(6), ends_at: item.ends_at.iso8601(6) } }
         }
@@ -42,7 +47,11 @@ module Clinic
           authorization: -> { Waitlist.authorize!(practice: current_practice, actor: current_user, site: site) },
           result_resource: ->(entry) { entry },
           resource_resolver: ->(practice:, receipt:) { WaitlistEntry.find_by(practice: practice, id: receipt.resource_id) }
-        ) { WaitlistEntry.create!(attributes.merge(practice: current_practice)) }
+        ) do
+          current_practice.lock!
+          Configuration::StarterProfile.require_visit!(practice: current_practice, site: site, visit_type: attributes[:visit_type])
+          WaitlistEntry.create!(attributes.merge(practice: current_practice))
+        end
         entry = result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
         render json: { entry: Waitlist.serialize(entry) }, status: :created
       end

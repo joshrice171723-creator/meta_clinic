@@ -87,13 +87,13 @@ module Clinic
 
       def invoice_page(before: nil)
         relation = @patient.invoices.where(practice: @practice)
-          .includes(:lines, :payment_allocations, :credit_notes, invoice_stripe_checkouts: :collection_intent)
+          .includes(:lines, :payment_allocations, :credit_notes, encounter: :site, invoice_stripe_checkouts: :collection_intent)
         bounded_page(relation, before:)
       end
 
       def payment_page(before: nil)
         relation = Clinic::PaymentEvent.where(practice: @practice, patient: @patient)
-          .includes(:allocations, :refund_events, :billing_receipts, cash_tender: :cash_drawer_session)
+          .includes(:refund_events, :billing_receipts, allocations: { invoice: { encounter: :site } }, cash_tender: :cash_drawer_session)
         bounded_page(relation, before:)
       end
 
@@ -110,6 +110,7 @@ module Clinic
       def invoice_payload(invoice)
         payload = {
           id: invoice.id,
+          encounter_id: invoice.encounter_id,
           currency: invoice.currency,
           status: invoice.status,
           created_at: invoice.created_at.iso8601,
@@ -129,7 +130,7 @@ module Clinic
           credits: invoice.credit_notes.sort_by(&:created_at).map do |credit|
             credit_payload(credit)
           end
-        }
+        }.merge(InvoiceSerializer.source_location(invoice))
         if @include_adjustment_evidence
           payload.merge!(
             void_reason: invoice.void_reason,
@@ -184,6 +185,7 @@ module Clinic
         end
         {
           id: payment.id,
+          source_sites: InvoiceSerializer.payment_source_sites(payment),
           currency: payment.currency,
           amount: decimal(payment.amount),
           allocated_amount: decimal(allocated),

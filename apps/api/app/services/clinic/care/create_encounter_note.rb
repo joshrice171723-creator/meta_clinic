@@ -40,8 +40,13 @@ module Clinic
           },
           authorization_action: "notes.write"
         ) do
+          practice.lock! if note_kind == "soap"
           author_membership = active_author_membership!(practice, actor)
-          SoapNotePayload.load!(encrypted_body) if note_kind == "soap"
+          if note_kind == "soap"
+            body = SoapNotePayload.load!(encrypted_body)
+            NoteTemplateCatalog.require_available!(practice:, encounter:,
+              template_id: body.fetch(:template_id), template_version: body.fetch(:template_version))
+          end
           note = encounter.notes.create!(practice: practice, patient: encounter.patient, note_kind: note_kind)
           revision = note.revisions.create!(
             practice: practice,

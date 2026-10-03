@@ -28,6 +28,17 @@ module Clinic
       status == "published"
     end
 
+    def available_sites
+      sites.select do |site|
+        Configuration::StarterProfile.visit_available?(practice: practice, site: site, visit_type: visit_type) &&
+          (modality != "video" || Configuration::StarterProfile.service_available?(practice: practice, site: site, service: "telehealth"))
+      end
+    end
+
+    def available_for_new_work?
+      published? && available_sites.any?
+    end
+
     private
 
     def related_records_belong_to_practice

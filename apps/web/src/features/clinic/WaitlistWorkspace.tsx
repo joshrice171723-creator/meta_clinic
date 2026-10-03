@@ -53,7 +53,7 @@ type Queue = {
   entries: WaitlistItem[];
   total: number;
   ranking: string;
-  sites: Option[];
+  sites: (Option & { available_visit_type_ids: number[] })[];
   clinicians: Option[];
   visit_types: Option[];
   cancellations: {
@@ -170,6 +170,15 @@ export function WaitlistWorkspace() {
     (!categoryRequired || categoryKey !== "");
   const [clinician, setClinician] = useState("");
   const [visitType, setVisitType] = useState("");
+  const availableVisitTypes =
+    queue.data?.visit_types.filter((type) =>
+      queue.data?.sites
+        .find((item) => String(item.id) === site)
+        ?.available_visit_type_ids?.includes(type.id),
+    ) ?? [];
+  useEffect(() => {
+    if (!uncertain) setVisitType("");
+  }, [site]);
   const [earliest, setEarliest] = useState("");
   const [latest, setLatest] = useState("");
   const [duration, setDuration] = useState("30");
@@ -314,7 +323,13 @@ export function WaitlistWorkspace() {
     });
   }
   function createEntry() {
-    if (!patient || !earliest || !latest) return;
+    if (
+      !patient ||
+      !earliest ||
+      !latest ||
+      !availableVisitTypes.some((type) => String(type.id) === visitType)
+    )
+      return;
     void submit({
       path: "/api/clinic/waitlist",
       body: {
@@ -792,7 +807,7 @@ export function WaitlistWorkspace() {
                       "Visit type",
                       visitType,
                       setVisitType,
-                      queue.data.visit_types,
+                      availableVisitTypes,
                     )}
                     <TextField
                       label="Duration (minutes)"
@@ -834,6 +849,9 @@ export function WaitlistWorkspace() {
                       !site ||
                       !clinician ||
                       !visitType ||
+                      !availableVisitTypes.some(
+                        (type) => String(type.id) === visitType,
+                      ) ||
                       !earliest ||
                       !latest
                     }

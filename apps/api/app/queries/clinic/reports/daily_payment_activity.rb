@@ -25,18 +25,20 @@ module Clinic
           timezone: zone.tzinfo.name, interval_start: starts_at.iso8601(6), interval_end: ends_at.iso8601(6),
           as_of: Time.current.iso8601(6), freshness: "live_source_query_no_cache",
           payment_records: payment_records.order(created_at: :desc, id: :desc)
-            .pluck(:id, :patient_id, :currency, :amount, :created_at)
-            .map { |id, patient_id, currency, amount, created_at|
+            .includes(allocations: { invoice: { encounter: :site } }).map { |payment|
               SourcePage.check_export_deadline!(deadline: export_deadline)
-              { id:, patient_id:, currency:, amount: amount.to_d.to_s("F"), created_at: created_at.iso8601(6) }
+              { id: payment.id, patient_id: payment.patient_id, currency: payment.currency,
+                amount: payment.amount.to_d.to_s("F"), created_at: payment.created_at.iso8601(6),
+                source_sites: Clinic::Billing::InvoiceSerializer.payment_source_sites(payment) }
             },
           payment_records_capped: payment_pagination[:total_pages] > 1,
           payment_pagination:,
           refund_records: refund_records.order(created_at: :desc, id: :desc)
-            .pluck(:id, :patient_id, :payment_event_id, :currency, :amount, :created_at)
-            .map { |id, patient_id, payment_event_id, currency, amount, created_at|
+            .includes(payment_event: { allocations: { invoice: { encounter: :site } } }).map { |refund|
               SourcePage.check_export_deadline!(deadline: export_deadline)
-              { id:, patient_id:, payment_event_id:, currency:, amount: amount.to_d.to_s("F"), created_at: created_at.iso8601(6) }
+              { id: refund.id, patient_id: refund.patient_id, payment_event_id: refund.payment_event_id,
+                currency: refund.currency, amount: refund.amount.to_d.to_s("F"), created_at: refund.created_at.iso8601(6),
+                source_sites: Clinic::Billing::InvoiceSerializer.payment_source_sites(refund.payment_event) }
             },
           refund_records_capped: refund_pagination[:total_pages] > 1,
           refund_pagination:,

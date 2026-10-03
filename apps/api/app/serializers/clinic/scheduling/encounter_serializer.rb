@@ -17,7 +17,7 @@ module Clinic
 
         payload = payload.merge(
           visit_modality: encounter.appointment&.visit_modality || "in_person",
-          individual_therapy_visit: Clinic::Care::PsychotherapyNotes.therapy_visit?(encounter.practice, encounter),
+          individual_therapy_visit: Clinic::Care::PsychotherapyNotes.therapy_visit?(encounter.practice, encounter, actor: actor),
           participants: encounter.participants.order(:effective_from, :id).map { |participant|
             {
               id: participant.id.to_s,

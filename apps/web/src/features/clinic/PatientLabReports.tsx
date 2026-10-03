@@ -429,7 +429,7 @@ export function PatientLabReports({
     setError("");
     setReportsStale(data !== undefined);
     api<Index>(
-      `/api/clinic/patients/${patientId}/lab_reports?page=${page}&per_page=25`,
+      `/api/clinic/patients/${patientId}/lab_reports?page=${page}&per_page=25${encounterId === undefined ? "" : `&encounter_id=${encounterId}`}`,
       { signal: controller.signal },
     )
       .then((result) => {
@@ -447,7 +447,7 @@ export function PatientLabReports({
           ),
       );
     return () => controller.abort();
-  }, [canRead, page, patientId, reload]);
+  }, [canRead, encounterId, page, patientId, reload]);
   useEffect(() => {
     if (!canRead || encounterId === undefined) {
       setLabOrders([]);

@@ -27,13 +27,23 @@ module Clinic
         }
       }.freeze
 
+      VISIT_SERVICES = {
+        "psychiatric_evaluation" => "psychiatric_evaluation",
+        "adhd_evaluation" => "adhd_evaluation",
+        "medication_follow_up" => "medication_management",
+        "refill_review" => "medication_management",
+        "therapy_referral_coordination" => "therapy_referral_coordination",
+        "individual_therapy" => "individual_therapy",
+        "urgent_clinical_follow_up" => "urgent_clinical_follow_up"
+      }.freeze
+
       def self.apply(practice:, clinic_type:, service_scope: [], previous:)
         recipe = PRESETS[clinic_type]
         return {} unless recipe
         return previous if previous.present? && previous["id"] != recipe.fetch("id")
 
         selected_visits = recipe.fetch("visits").reject do |key, _definition|
-          key == "individual_therapy" && !service_scope.include?("individual_therapy")
+          VISIT_SERVICES.key?(key) && !service_scope.include?(VISIT_SERVICES.fetch(key))
         end
         visits = selected_visits.each_with_object({}) do |(key, definition), result|
           linked = (previous || {}).fetch("visits", {})[key]
@@ -62,7 +72,49 @@ module Clinic
 
       def self.service_available?(practice:, service:, site: nil)
         features = PracticeFeatures.snapshot(practice:, site:)
-        !features[:finalized] || features[:service_scope].include?(service)
+        ready?(site, features) && features[:service_scope].include?(service) &&
+          PracticeFeatures::SERVICE_OPTIONS_BY_SPECIALTY.fetch(features[:clinic_type], []).include?(service)
+      end
+
+
+      def self.ready?(site, features)
+        site && site.status == "active" && features[:site_specialty_configured] && features[:finalized]
+      end
+
+      # Saved preset identities, including retired versions, distinguish specialty
+      # visit types from shared custom types without guessing from editable names.
+      # ponytail: scans profile history; index preset identities if revision volume makes this hot.
+      def self.available_visit_type_ids(practice:, site:, features: nil, at: Current.business_time, require_ready: true)
+        return PracticeFeatures.snapshot(practice:, site:, at:).fetch(:available_visit_type_ids) unless features
+        return [] unless site && features[:site_specialty_configured]
+        return [] if require_ready && !ready?(site, features)
+
+        owners = Hash.new { |values, id| values[id] = [] }
+        PracticeFeatureVersion.for_practice(practice).where(effective_from: ..at)
+          .pluck(:optional_features).each do |saved|
+            saved.fetch("starter_profile", {}).fetch("visits", {}).each do |key, visit|
+              next unless visit["visit_type_id"]
+              owners[visit["visit_type_id"].to_i] << [saved["clinic_type"], VISIT_SERVICES[key]]
+            end
+          end
+        practice.visit_types.active.pluck(:id).select do |id|
+          owners[id].empty? || owners[id].any? do |specialty, service|
+            specialty == features[:clinic_type] &&
+              (service.nil? || features[:service_scope].include?(service))
+          end
+        end
+      end
+
+      def self.visit_available?(practice:, site:, visit_type:)
+        return false unless site && visit_type && site.practice_id == practice.id && visit_type.practice_id == practice.id
+
+        PracticeFeatures.snapshot(practice:, site:)[:available_visit_type_ids].include?(visit_type.id)
+      end
+
+      def self.require_visit!(practice:, site:, visit_type:)
+        return if visit_available?(practice:, site:, visit_type:)
+
+        raise ArgumentError, "This visit type is not available at this location. Complete location setup and choose an enabled service."
       end
 
       def self.require_service!(practice:, service:, site: nil)

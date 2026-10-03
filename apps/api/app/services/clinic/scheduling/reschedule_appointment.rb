@@ -68,7 +68,12 @@ module Clinic
             end
 
             modality = visit_modality.to_s.presence || appointment.visit_modality
-            if modality == "video"
+            context_changed = next_site&.id != appointment.site_id || next_visit_type&.id != appointment.visit_type_id ||
+              next_offering&.id != appointment.service_offering_id
+            if context_changed
+              Configuration::StarterProfile.require_visit!(practice: appointment.practice, site: next_site, visit_type: next_visit_type)
+            end
+            if modality == "video" && (context_changed || appointment.visit_modality != "video")
               Configuration::StarterProfile.require_service!(practice: appointment.practice, site: next_site, service: "telehealth")
             end
             raise ArgumentError, "Visit format must be in person or video." unless %w[in_person video].include?(modality)

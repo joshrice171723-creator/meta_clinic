@@ -303,7 +303,7 @@ function AppointmentDayQueue({
     "/api/clinic/clinicians?per_page=100",
   );
   const visitTypes = useResource<{ visit_types: VisitType[] }>(
-    "/api/clinic/facilities?type=visit_types&per_page=100",
+    `/api/clinic/facilities?type=visit_types&per_page=100&available_only=true&site_id=${reschedule?.siteId ?? siteId}`,
   );
   const rooms = useResource<{ rooms: FacilityRoom[] }>(
     "/api/clinic/facilities?type=rooms&per_page=100",
@@ -1549,6 +1549,8 @@ export function RescheduleDialog({
                 ...draft,
                 siteId: event.target.value,
                 roomId: "",
+                visitTypeId: "",
+                serviceOfferingId: "",
                 overbookRequested: false,
                 expectedPolicyRevision: undefined,
                 requestKey: draft.error
@@ -1611,7 +1613,7 @@ export function RescheduleDialog({
               )}
             {offerings.map((offering) => {
               const eligible =
-                offering.eligible_site_ids.includes(Number(draft?.siteId)) &&
+                offering.available_site_ids?.includes(Number(draft?.siteId)) &&
                 (!offering.eligible_clinician_ids.length ||
                   offering.eligible_clinician_ids.includes(
                     Number(draft?.clinicianId),

@@ -10,6 +10,8 @@ import {
   DialogContent,
   DialogTitle,
   Paper,
+  FormControlLabel,
+  Switch,
   Stack,
   Table,
   TableBody,
@@ -21,7 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import type { VisitType } from "../../api/contracts";
+import type { PracticeFeatures, VisitType } from "../../api/contracts";
 import { api, ApiError } from "../../api/client";
 import { useResource } from "../../shared/ui";
 
@@ -36,9 +38,13 @@ type VisitTypeAttempt = {
 export function VisitTypeSettings({
   canWrite,
   refreshKey = 0,
+  siteId,
+  siteName,
 }: {
   canWrite: boolean;
   refreshKey?: number;
+  siteId?: number;
+  siteName?: string;
 }) {
   const {
     data,
@@ -50,12 +56,31 @@ export function VisitTypeSettings({
   }>("/api/clinic/facilities?type=visit_types&per_page=100", {
     retainDataOnRefresh: true,
   });
+  const profile = useResource<{ features: PracticeFeatures }>(
+    `/api/clinic/practice_features?site_id=${siteId ?? ""}`,
+    { enabled: siteId !== undefined },
+  );
+  const [showClinicWide, setShowClinicWide] = useState(false);
+  const locationView = siteId !== undefined && !showClinicWide;
+  const rows = useMemo(
+    () =>
+      (data?.visit_types ?? []).filter(
+        (type) =>
+          !locationView ||
+          (type.retired_at === null &&
+            profile.data?.features.compatible_visit_type_ids?.includes(
+              type.id,
+            )),
+      ),
+    [data, locationView, profile.data],
+  );
   const previousRefreshKey = useRef(refreshKey);
   useEffect(() => {
     if (previousRefreshKey.current === refreshKey) return;
     previousRefreshKey.current = refreshKey;
     refresh();
-  }, [refresh, refreshKey]);
+    if (siteId !== undefined) profile.refresh();
+  }, [profile.refresh, refresh, refreshKey, siteId]);
   const [dialog, setDialog] = useState<VisitType | "new" | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -67,12 +92,11 @@ export function VisitTypeSettings({
     null,
   );
   const counts = useMemo(() => {
-    const rows = data?.visit_types ?? [];
     return {
       active: rows.filter((item) => item.retired_at === null).length,
       inactive: rows.filter((item) => item.retired_at !== null).length,
     };
-  }, [data]);
+  }, [rows]);
   const canManage = canWrite && data?.can_write === true;
 
   const perform = async (attempt: VisitTypeAttempt) => {
@@ -88,6 +112,7 @@ export function VisitTypeSettings({
       setFeedback({ tone: "success", text: attempt.success });
       if (attempt.kind === "form") setDialog(null);
       refresh();
+      if (siteId !== undefined) profile.refresh();
     } catch (reason) {
       if (
         reason instanceof ApiError &&
@@ -204,7 +229,11 @@ export function VisitTypeSettings({
           sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
         >
           <Box>
-            <Typography variant="h2">Visit types</Typography>
+            <Typography variant="h2">
+              {locationView
+                ? `Visit types for ${siteName ?? "this location"}`
+                : "Clinic-wide visit type catalog"}
+            </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
               {counts.active} active · {counts.inactive} inactive
             </Typography>
@@ -221,9 +250,31 @@ export function VisitTypeSettings({
           )}
         </Stack>
         <Typography color="text.secondary" sx={{ mt: 2, maxWidth: 760 }}>
-          These are the choices staff and patients can use when scheduling.
-          Inactive visit types stay attached to existing appointments.
+          {locationView
+            ? "These active visit types match the location's saved specialty. Edits apply across the clinic. Scheduling becomes available after location setup is finalized."
+            : "This shared catalog includes all locations' visit types and inactive history. Editing or changing status applies across the clinic. Each location offers only its compatible active types for scheduling."}
         </Typography>
+        {siteId !== undefined && (
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showClinicWide}
+                onChange={(event) => setShowClinicWide(event.target.checked)}
+                disabled={controlsDisabled}
+              />
+            }
+            label="Show clinic-wide catalog"
+          />
+        )}
+        {locationView && profile.error && (
+          <Alert severity="error" sx={{ mt: 1 }}>
+            {profile.error}
+            <Button onClick={profile.refresh}>Reload location profile</Button>
+          </Alert>
+        )}
+        {locationView && !profile.data && !profile.error && (
+          <Typography role="status">Loading location visit types…</Typography>
+        )}
       </Paper>
 
       <TableContainer
@@ -232,7 +283,9 @@ export function VisitTypeSettings({
         sx={{ overflowX: "auto" }}
       >
         <Table
-          aria-label="Clinic visit types"
+          aria-label={
+            locationView ? "Location visit types" : "Clinic-wide visit types"
+          }
           sx={{
             minWidth: 520,
             "& .MuiTableCell-root": { px: 2 },
@@ -250,16 +303,18 @@ export function VisitTypeSettings({
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.visit_types.length === 0 && (
+            {rows.length === 0 && (!locationView || profile.data) && (
               <TableRow>
                 <TableCell colSpan={canManage ? 3 : 2}>
                   <Typography color="text.secondary">
-                    No visit types have been added yet.
+                    {locationView
+                      ? "No compatible active visit types are available. Save a location specialty, or open the clinic-wide catalog to manage shared types."
+                      : "No visit types have been added yet."}
                   </Typography>
                 </TableCell>
               </TableRow>
             )}
-            {data.visit_types.map((visitType) => {
+            {rows.map((visitType) => {
               const active = visitType.retired_at === null;
               return (
                 <TableRow key={visitType.id}>

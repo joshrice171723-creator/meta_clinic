@@ -1091,7 +1091,12 @@ export type ClinicCapabilities = {
   billing: boolean;
   roles: boolean;
 };
-export type ClinicInvoice = {
+export type BillingSourceSite = { id: number | null; name: string };
+export type BillingLocationProvenance = {
+  source_site_id?: number | null;
+  source_site_name?: string;
+};
+export type ClinicInvoice = BillingLocationProvenance & {
   id: number;
   patient_id: number;
   currency: string;
@@ -1116,7 +1121,7 @@ export type BillingCurrencyMetrics = {
   outstanding: Decimal;
   open_invoice_count: number;
 };
-export type BillingInvoiceSummary = {
+export type BillingInvoiceSummary = BillingLocationProvenance & {
   id: number;
   status: "draft" | "posted" | "void";
   currency: string;
@@ -1126,7 +1131,7 @@ export type BillingInvoiceSummary = {
   created_at: string;
   online_payment?: InvoiceOnlinePayment;
 };
-export type BillingInvoiceDetail = {
+export type BillingInvoiceDetail = BillingLocationProvenance & {
   id: number;
   patient_id: number;
   encounter_id: number | null;
@@ -1225,8 +1230,9 @@ export type BillingPatientLedger = {
     balance_amount: Decimal;
     refunded_amount: Decimal;
   }[];
-  invoices: {
+  invoices: (BillingLocationProvenance & {
     id: number;
+    encounter_id?: number | null;
     currency: string;
     status: "draft" | "posted" | "void";
     created_at: string;
@@ -1266,9 +1272,10 @@ export type BillingPatientLedger = {
       issued_at?: string | null;
       issued_by?: string | null;
     }[];
-  }[];
+  })[];
   payments: {
     id: number;
+    source_sites?: BillingSourceSite[];
     currency: string;
     amount: Decimal;
     allocated_amount: Decimal;
@@ -1502,11 +1509,15 @@ export type ServiceDisablePreview = {
 export type PracticeFeatures = {
   site_id?: number | null;
   site_specialty_configured?: boolean;
-  profile_scope?: "site" | "clinic_default";
+  profile_scope?: "site" | "clinic_default" | "unconfigured";
   site_revision?: number;
   finalized?: boolean;
   finalized_at?: string | null;
   selected_services?: ClinicServiceCode[];
+  service_options_by_specialty?: Record<ClinicType, ClinicServiceCode[]>;
+  assessment_options_by_specialty?: Record<ClinicType, ClinicAssessmentCode[]>;
+  available_visit_type_ids?: number[];
+  compatible_visit_type_ids?: number[];
   starter_profile?: {
     id?: string;
     version?: number;

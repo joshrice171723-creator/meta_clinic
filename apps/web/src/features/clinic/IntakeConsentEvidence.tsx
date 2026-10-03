@@ -94,18 +94,31 @@ const fromEvidence = (evidence: Evidence | null): Form =>
       }
     : blankForm();
 
-export function IntakeConsentEvidence({ patientId }: { patientId: number }) {
+export function IntakeConsentEvidence({
+  patientId,
+  encounterId,
+}: {
+  patientId: number;
+  encounterId?: number;
+}) {
   const clinic = useClinic();
   return (
     <IntakeConsentEvidencePanel
-      key={`${clinic.user_id}:${clinic.practice.id}:${clinic.authorization_generation}:${patientId}`}
+      key={`${clinic.user_id}:${clinic.practice.id}:${clinic.authorization_generation}:${patientId}:${encounterId ?? "patient"}`}
       patientId={patientId}
+      encounterId={encounterId}
     />
   );
 }
 
-function IntakeConsentEvidencePanel({ patientId }: { patientId: number }) {
-  const path = `/api/clinic/patients/${patientId}/intake_consents`;
+function IntakeConsentEvidencePanel({
+  patientId,
+  encounterId,
+}: {
+  patientId: number;
+  encounterId?: number;
+}) {
+  const path = `/api/clinic/patients/${patientId}/intake_consents${encounterId === undefined ? "" : `?encounter_id=${encounterId}`}`;
   const resource = useResource<Response>(path);
   if (!resource.data && !resource.error) return <LoadState />;
   if (resource.error || !resource.data)

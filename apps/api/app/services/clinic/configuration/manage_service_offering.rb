@@ -27,6 +27,7 @@ module Clinic
         raise ArgumentError, "lock_version must be zero or greater." if expected_lock_version.negative?
         execute(practice: practice, actor: actor, request_key: request_key, operation: UPDATE_OPERATION,
           payload: { service_offering_id: offering.id, lock_version: expected_lock_version, attributes: normalized }) do
+          practice.lock!
           locked = practice.service_offerings.lock.find(offering.id)
           raise ActiveRecord::StaleObjectError.new(locked, "update") unless locked.lock_version == expected_lock_version
           raise ArgumentError, "Retired service offerings cannot be edited." if locked.status == "retired"
@@ -35,6 +36,9 @@ module Clinic
           locked.update!(fields) unless fields.empty?
           replace_sites!(offering: locked, site_ids: normalized[:site_ids]) if normalized.key?(:site_ids)
           replace_clinicians!(offering: locked, clinician_ids: normalized[:clinician_ids]) if normalized.key?(:clinician_ids)
+          if locked.published? && normalized.keys.intersect?(%i[site_ids visit_type_id modality])
+            require_available_sites!(locked)
+          end
           locked.touch if fields.empty? && (normalized.key?(:site_ids) || normalized.key?(:clinician_ids))
           audit!(practice: practice, actor: actor, offering: locked, action: UPDATE_OPERATION)
           locked
@@ -50,10 +54,11 @@ module Clinic
         expected_lock_version = Integer(lock_version.to_s, 10)
         execute(practice: practice, actor: actor, request_key: request_key, operation: PUBLISH_OPERATION,
           payload: { service_offering_id: offering.id, lock_version: expected_lock_version }) do
+          practice.lock!
           locked = practice.service_offerings.lock.find(offering.id)
           raise ActiveRecord::StaleObjectError.new(locked, "publish") unless locked.lock_version == expected_lock_version
           raise ArgumentError, "Only draft service offerings can be published." unless locked.status == "draft"
-
+          require_available_sites!(locked)
           locked.update!(status: "published", published_at: Time.current, retired_at: nil)
           audit!(practice: practice, actor: actor, offering: locked, action: PUBLISH_OPERATION)
           locked
@@ -96,6 +101,14 @@ module Clinic
         Result.new(offering: outcome.value || raise(Clinic::Idempotency::InvalidRequest, "The committed service offering is unavailable."), replayed: outcome.replayed)
       end
       private_class_method :execute
+
+      def self.require_available_sites!(offering)
+        sites = offering.sites.to_a
+        unless sites.any? && offering.available_sites.map(&:id).sort == sites.map(&:id).sort
+          raise ArgumentError, "Choose locations with finalized specialty setup and this service enabled before publishing."
+        end
+      end
+      private_class_method :require_available_sites!
 
       def self.normalize(attributes, creating:)
         values = {}

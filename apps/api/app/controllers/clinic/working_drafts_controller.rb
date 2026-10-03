@@ -3,7 +3,7 @@ module Clinic
     before_action :authorize_context
 
     def show
-      draft = draft_scope.first
+      draft = find_draft
       audit!(draft, "released")
       render json: representation(draft)
     end
@@ -18,9 +18,9 @@ module Clinic
 
       draft = WorkingDraft.transaction do
         connection = WorkingDraft.connection
-        identity = "working-draft:#{current_practice.id}:#{clinic_membership.id}:#{@context_key}"
+        identity = "working-draft:#{current_practice.id}:#{clinic_membership.id}:#{@legacy_context_key}"
         connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(#{connection.quote(identity)}, 0))")
-        record = draft_scope.first_or_initialize(kind: @kind, patient: @patient, encounter: @encounter)
+        record = find_draft || draft_scope.new(kind: @kind, patient: @patient, encounter: @encounter)
         # A lost response may be retried verbatim. Only the immediately preceding
         # version can replay; old saves cannot resurrect a cleared working copy.
         replay = record.persisted? && record[:version] == expected + 1 && record.encrypted_payload == encoded
@@ -30,6 +30,7 @@ module Clinic
             next nil
           end
           record[:version] = expected + 1
+          record.context_key = @context_key
           record.encrypted_payload = encoded
           record.save!
           audit!(record, "committed")
@@ -77,11 +78,28 @@ module Clinic
       elsif @record_id
         raise ArgumentError, "This working draft does not accept a record selection."
       end
+      if @kind == "appointment"
+        site_id = optional_id(params[:site_id], :site_id) || current_clinic_site&.id
+        raise ArgumentError, "Select a location for this working draft." unless site_id
+        @site = accessible_clinic_sites.find(site_id)
+      end
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
-        action: capability, site: @encounter&.site, any_site: @kind == "appointment" && !@encounter)
+        action: capability, site: @encounter&.site || @site)
       Clinic::Authorization.authorize!(actor: current_user, practice: current_practice,
         action: "notes.read", site: @encounter.site) if @kind == "soap"
       @context_key = [ @kind, patient_id || 0, encounter_id || 0, @record_id || 0, @scope ].join(":")
+      @legacy_context_key = @context_key
+      @context_key = "#{@context_key}:site:#{@site.id}" if @site
+    end
+
+    def find_draft
+      draft = draft_scope.first
+      return draft if draft || !@site
+
+      legacy = WorkingDraft.find_by(practice: current_practice, actor_membership: clinic_membership,
+        context_key: @legacy_context_key)
+      payload = legacy&.encrypted_payload && JSON.parse(legacy.encrypted_payload)
+      legacy if payload&.dig("draft", "siteId").to_s == @site.id.to_s
     end
 
     def draft_scope
@@ -89,7 +107,7 @@ module Clinic
     end
 
     def representation(draft)
-      { kind: @kind, patient_id: @patient&.id, encounter_id: @encounter&.id, record_id: @record_id, scope: @scope,
+      { kind: @kind, patient_id: @patient&.id, encounter_id: @encounter&.id, record_id: @record_id, scope: @scope, site_id: @site&.id,
         version: draft ? draft[:version] : 0, payload: draft&.encrypted_payload && JSON.parse(draft.encrypted_payload),
         updated_at: draft&.updated_at&.iso8601(6) }
     end

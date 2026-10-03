@@ -66,7 +66,8 @@ module Public
           headline: practice.public_page_headline, intro: practice.public_page_intro, accent: practice.public_page_accent,
           logo_path: practice.public_page_logo_data.present? ?
             "/api/public/clinic_services/#{practice.public_membership_slug}/logo" : nil },
-        services: practice.service_offerings.where(status: "published", public_visible: true).order(:name, :id).map { |offering|
+        services: practice.service_offerings.where(status: "published", public_visible: true)
+          .includes(:sites, :visit_type).order(:name, :id).select(&:available_for_new_work?).map { |offering|
           { name: offering.name, description: offering.description, duration_minutes: offering.duration_minutes, modality: offering.modality }
         },
         business_date: Current.business_date.iso8601,

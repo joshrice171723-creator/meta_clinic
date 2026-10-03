@@ -1420,7 +1420,10 @@ export function NurseEncounterWorkspaceContent({
                             )}
                             {intakeChunks[activeChunkIndex].id ===
                               "records_consent_admin" && (
-                              <IntakeConsentEvidence patientId={patient.id} />
+                              <IntakeConsentEvidence
+                                patientId={patient.id}
+                                encounterId={encounter.id}
+                              />
                             )}
                             {intakeChunks[activeChunkIndex].id ===
                               "records_consent_admin" && (

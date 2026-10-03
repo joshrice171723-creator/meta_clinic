@@ -31,6 +31,7 @@ import type {
   ServiceDisableImpact,
 } from "../../api/contracts";
 import { LoadState, useResource } from "../../shared/ui";
+import { useClinicNavigation } from "./clinicNavigation";
 
 const clinicTypes: Array<{
   code: ClinicType;
@@ -470,7 +471,8 @@ export function PracticeFeatureSettings({
   const { data, error, refresh } = useResource<{ features: PracticeFeatures }>(
     `/api/clinic/practice_features${siteQuery}`,
   );
-  const [clinicType, setClinicType] = useState<ClinicType>("primary_care");
+  const { registerBlocker } = useClinicNavigation();
+  const [clinicType, setClinicType] = useState<ClinicType | "">("");
   const [serviceScope, setServiceScope] = useState<ClinicServiceCode[]>([]);
   const [assessmentScope, setAssessmentScope] = useState<
     ClinicAssessmentCode[]
@@ -503,7 +505,9 @@ export function PracticeFeatureSettings({
   const features = data?.features;
   useEffect(() => {
     if (!features || mutationLocked.current) return;
-    setClinicType(features.clinic_type ?? features.recommended_clinic_type);
+    setClinicType(
+      features.clinic_type ?? (siteId ? "" : features.recommended_clinic_type),
+    );
     setServiceScope(features.service_scope);
     setAssessmentScope(features.assessment_scope);
     setInsuranceEnabled(features.insurance_workflows_enabled);
@@ -535,14 +539,54 @@ export function PracticeFeatureSettings({
     () =>
       features !== undefined &&
       (clinicType !==
-        (features.clinic_type ?? features.recommended_clinic_type) ||
+        (features.clinic_type ??
+          (siteId ? "" : features.recommended_clinic_type)) ||
         !sameSelection(serviceScope, features.service_scope) ||
         !sameSelection(assessmentScope, features.assessment_scope) ||
         insuranceEnabled !== features.insurance_workflows_enabled),
-    [assessmentScope, clinicType, features, insuranceEnabled, serviceScope],
+    [
+      assessmentScope,
+      clinicType,
+      features,
+      insuranceEnabled,
+      serviceScope,
+      siteId,
+    ],
   );
 
+  useEffect(() => {
+    if (!changed && !saving && !uncertain) return;
+    const warning = uncertain
+      ? "This profile save is unconfirmed. Leaving discards its exact retry request."
+      : saving
+        ? "This location profile is saving. Leave before its outcome is confirmed?"
+        : "This location profile has unsaved changes. Leave and discard them?";
+    const unregister = registerBlocker(() => warning);
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [changed, saving, uncertain, registerBlocker]);
+
   if (!features) return <LoadState error={error} />;
+  const serviceOptions = clinicType
+    ? (features.service_options_by_specialty?.[clinicType] ?? [])
+    : [];
+  const assessmentOptions = clinicType
+    ? (features.assessment_options_by_specialty?.[clinicType] ?? [])
+    : [];
+  const visibleServices = services.filter(
+    (service) =>
+      serviceOptions.includes(service.code) ||
+      serviceScope.includes(service.code),
+  );
+  const visibleAssessments = assessments.filter(
+    (assessment) =>
+      assessmentOptions.includes(assessment.code) ||
+      assessmentScope.includes(assessment.code),
+  );
 
   if (features.finalized && !reviewFinalizedChanges && !saving && !uncertain) {
     const clinicTypeLabel = clinicTypes.find(
@@ -824,6 +868,7 @@ export function PracticeFeatureSettings({
     setFeedback(null);
   };
   const save = async (finalize = false, retry = false) => {
+    if (!retry && !clinicType) return;
     if (uncertain && !retry) return;
     if (!retry && disabling && currentPreview?.review_complete !== true) return;
     setSaving(true);
@@ -947,8 +992,8 @@ export function PracticeFeatureSettings({
           </Typography>
           {siteId && !features.site_specialty_configured && (
             <Alert severity="warning">
-              This location currently inherits its clinic profile. Choose and
-              save a location specialty before assigning patients here.
+              Choose and save an explicit specialty for this location before
+              assigning patients here.
             </Alert>
           )}
           <Alert severity="info">
@@ -1050,7 +1095,22 @@ export function PracticeFeatureSettings({
             aria-labelledby="clinic-type-label"
             value={clinicType}
             onChange={(event) => {
-              setClinicType(event.target.value as ClinicType);
+              const specialty = event.target.value as ClinicType;
+              setClinicType(specialty);
+              setServiceScope((selected) =>
+                selected.filter((code) =>
+                  features.service_options_by_specialty?.[specialty]?.includes(
+                    code,
+                  ),
+                ),
+              );
+              setAssessmentScope((selected) =>
+                selected.filter((code) =>
+                  features.assessment_options_by_specialty?.[
+                    specialty
+                  ]?.includes(code),
+                ),
+              );
               setFeedback(null);
             }}
             sx={{
@@ -1101,14 +1161,12 @@ export function PracticeFeatureSettings({
             software work still required; they are not clinical approvals.
           </Typography>
           <Stack spacing={1}>
-            {services.map((service) => {
+            {visibleServices.map((service) => {
               const hardening = service.readiness === "Hardening required";
               const implementation =
                 service.readiness === "Implementation required" ||
                 service.readiness === "Configured intent";
-              const therapyRequiresBehavioralHealth =
-                service.code === "individual_therapy" &&
-                clinicType !== "behavioral_health";
+              const incompatible = !serviceOptions.includes(service.code);
               return (
                 <Paper
                   key={service.code}
@@ -1133,8 +1191,7 @@ export function PracticeFeatureSettings({
                             !features.selected_services?.includes(
                               service.code,
                             )) ||
-                          (therapyRequiresBehavioralHealth &&
-                            !serviceScope.includes(service.code))
+                          (incompatible && !serviceScope.includes(service.code))
                         }
                         checked={serviceScope.includes(service.code)}
                         onChange={(event) =>
@@ -1152,6 +1209,13 @@ export function PracticeFeatureSettings({
                           <Typography sx={{ fontWeight: 700 }}>
                             {service.label}
                           </Typography>
+                          {incompatible && (
+                            <Chip
+                              size="small"
+                              color="warning"
+                              label="Unavailable for this specialty"
+                            />
+                          )}
                           <Chip
                             size="small"
                             variant="outlined"
@@ -1201,7 +1265,7 @@ export function PracticeFeatureSettings({
             </Alert>
           )}
           <Stack spacing={1}>
-            {assessments.map((assessment) => (
+            {visibleAssessments.map((assessment) => (
               <Paper
                 key={assessment.code}
                 variant="outlined"
@@ -1210,6 +1274,10 @@ export function PracticeFeatureSettings({
                 <FormControlLabel
                   control={
                     <Checkbox
+                      disabled={
+                        !assessmentOptions.includes(assessment.code) &&
+                        !assessmentScope.includes(assessment.code)
+                      }
                       checked={assessmentScope.includes(assessment.code)}
                       onChange={(event) =>
                         toggleAssessment(assessment.code, event.target.checked)
@@ -1221,6 +1289,12 @@ export function PracticeFeatureSettings({
                       <Typography sx={{ fontWeight: 700 }}>
                         {assessment.label}
                       </Typography>
+                      {!assessmentOptions.includes(assessment.code) && (
+                        <Typography variant="caption" color="warning.main">
+                          Unavailable for this specialty; remove from the
+                          current profile.
+                        </Typography>
+                      )}
                       <Typography variant="body2" color="text.secondary">
                         {assessment.description}
                       </Typography>
@@ -1404,6 +1478,7 @@ export function PracticeFeatureSettings({
             startIcon={<SaveOutlinedIcon />}
             disabled={
               !canWrite ||
+              !clinicType ||
               editingLocked ||
               (!changed && features.configured) ||
               (disabling && currentPreview?.review_complete !== true)

@@ -147,9 +147,15 @@ module Clinic
           payload:, result_resource: ->(value) { value },
           resource_resolver: ->(practice:, receipt:) { Clinic::EncounterIntakeRevision.find_by(practice:, id: receipt.resource_id) }
         ) do
+          practice.lock!
           encounter.with_lock do
             current = latest_intake(practice, encounter, lock: true)
             stale!(current&.version_number || 0, expected_version, current || encounter)
+            unless current
+              portal_note = encounter.appointment && Clinic::PatientPortal::PrevisitNotes.latest(encounter.appointment)
+              PrevisitIntake.require_new_form!(practice:, appointment: encounter.appointment, encounter:,
+                existing_payload: portal_note && PrevisitIntake.decode(portal_note.encrypted_text))
+            end
             saved_input = input.key?(:encrypted_questionnaire) ? input : input.merge(encrypted_questionnaire: current&.encrypted_questionnaire)
             if input.key?(:encrypted_questionnaire)
               questionnaire = PrevisitIntake.decode(input[:encrypted_questionnaire])

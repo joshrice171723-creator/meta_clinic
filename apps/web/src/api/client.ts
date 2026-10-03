@@ -38,8 +38,14 @@ let csrfRequest: Promise<Configuration> | undefined;
 let csrfGeneration = 0;
 let expectedActorId: number | undefined;
 let expectedPracticeId: number | undefined;
+let expectedSiteId: number | undefined;
 export function setClinicPractice(practiceId: number | undefined) {
   expectedPracticeId = practiceId;
+}
+export function setClinicSite(siteId: number | undefined) {
+  if (expectedSiteId === siteId) return;
+  expectedSiteId = siteId;
+  actorGeneration += 1;
 }
 
 export function clinicRealtimeSession(): {
@@ -57,6 +63,9 @@ export function clinicRealtimeSession(): {
       ...(expectedPracticeId === undefined
         ? {}
         : { "X-Clinic-Practice": String(expectedPracticeId) }),
+      ...(expectedSiteId === undefined
+        ? {}
+        : { "X-Clinic-Site": String(expectedSiteId) }),
     },
   };
 }
@@ -68,6 +77,7 @@ export function setApiActor(actorId: number | undefined) {
     expectedActorId === undefined && csrfToken !== undefined;
   expectedActorId = actorId;
   expectedPracticeId = undefined;
+  expectedSiteId = undefined;
   actorGeneration += 1;
   if (!firstActorBinding) clearCsrf();
 }
@@ -176,6 +186,7 @@ export async function api<T>(
   const method = options.method || "GET";
   const requestActor = expectedActorId;
   const requestPractice = expectedPracticeId;
+  const requestSite = expectedSiteId;
   const generation = actorGeneration;
   // Initialize the cookie's CSRF state before parallel session/resource reads.
   // Otherwise their earlier cookie snapshots can overwrite that initialization.
@@ -203,6 +214,9 @@ export async function api<T>(
                 "X-Clinic-Actor": String(requestActor),
                 ...(requestPractice !== undefined
                   ? { "X-Clinic-Practice": String(requestPractice) }
+                  : {}),
+                ...(requestSite !== undefined
+                  ? { "X-Clinic-Site": String(requestSite) }
                   : {}),
               }
             : {}),
@@ -248,6 +262,7 @@ export async function api<T>(
       if (!response.ok) {
         if (
           data?.code === "session_changed" ||
+          data?.code === "clinic_site_changed" ||
           (response.status === 401 &&
             method !== "GET" &&
             method !== "HEAD" &&

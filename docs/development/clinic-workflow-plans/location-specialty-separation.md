@@ -2,7 +2,7 @@
 
 ## Assignment and authority
 
-Requested 2026-10-02: make differences between weight-loss and behavioral-health locations explicit, prevent workflows from mixing, and provide ordered visible progress. This run creates the tracker and implementation brief; it does not implement application changes or establish runtime acceptance. The single live checklist is [Location specialty separation in the implementation tracker](../../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md#location-specialty-separation).
+Requested 2026-10-02: make differences between weight-loss and behavioral-health locations explicit, prevent workflows from mixing, and provide ordered visible progress. Joshua subsequently authorized implementation with “take care of it.” Application changes are in progress; runtime acceptance must be recorded separately. The single live checklist is [Location specialty separation in the implementation tracker](../../../APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md#location-specialty-separation).
 
 Accepted outcome: each location exposes its configured specialty and selected services consistently throughout setup, new-work creation, clinical work and follow-up. Shared capabilities remain reusable. An organization with different specialties at different locations must not leak one location's new-work choices into another. Existing authorized clinical history remains available under its own access rules; separation does not mean duplicating patients or concealing relevant history.
 
@@ -31,7 +31,7 @@ Follow the same ordered journey for location W (weight loss) and location B (beh
 
 ## Fields and action rules
 
-The following is a proposed implementation mapping to settle at LS-02, not a claim that all gates are implemented.
+The following is the implementation mapping for LS-02. Each gate still requires its recorded verification.
 
 | Configuration or context | Owner / origin / control | Required distinction and recovery |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ Separation examples to adjudicate in LS-02:
 
 Canonical dependencies remain [CF-01 through CF-04 and CV-10](../meta-clinic-build-and-acceptance.md#workflow-dependency-and-ownership-matrix): valid scoped references, idempotent/stale preset handling, historical/unfinished-work preservation, change authority, and exact content revision use. No dependency rows are changed by this planning run.
 
-Map configuration to MC-01/15, permissions/context to MC-13, scheduling to MC-04, intake/chart to MC-05/06, medication to MC-10, patient return to MC-12, and reports to MC-14; retain BH-01/BH-02 and the existing weight-loss acceptance scope. Use one integrator for shared configuration/API/UI contracts. Actual implementation ownership is unassigned; no agents or external tasks were dispatched.
+Map configuration to MC-01/15, permissions/context to MC-13, scheduling to MC-04, intake/chart to MC-05/06, medication to MC-10, patient return to MC-12, and reports to MC-14; retain BH-01/BH-02 and the existing weight-loss acceptance scope. Use one integrator for shared configuration/API/UI contracts. The integrator owns configuration, drafts, evidence and Git integration. Delegated slices own scheduling/public requests, clinical workflows and frontend context. All use the same isolated worktree; only the integrator commits.
 
 ## Implementation and acceptance
 
@@ -74,17 +74,23 @@ Required proof scenarios for later implementation:
 
 Use scoped source/diff review and necessary non-test checks during implementation. No application tests are added or run unless Joshua explicitly requests them. Browser proof is a separate milestone; if it is not performed, retain an unverified state. Passing source/type/build checks cannot complete the runtime-proof row. No clinical, live-provider or deployment acceptance follows from this tracker.
 
-## Checkpoint
+## Implementation evidence — 2026-10-02
 
-Tracker established; application separation work remains pending. Next unfinished action: LS-01, reconcile latest source and overlapping ownership, then inventory the entire location-to-workflow path. The two earlier conversational audits are partial source evidence, not completion of LS-01 or LS-02.
+Source implemented on `codex/location-specialty-tracker` from `4a18ea50`, isolated from the original dirty checkout. No schema, dependency, clinical protocol or deployment changes. Dot received scope and exact claimed files for parallel integration coordination.
 
-Before starting, resuming after a context reset, or accepting a handoff, read this brief and its canonical references. Compare the baseline with current source and newer user direction. Reconcile stale assumptions before editing; do not silently broaden scope or repeat completed work. Update the canonical LS row at each meaningful completed slice, blocker or handoff with a commit/path and actual evidence; keep this checkpoint concise. Planning-only work must not be marked implemented, and implementation must not be marked runtime-verified without observed proof.
+| Surface | Source result | Observed verification / remaining coverage |
+| --- | --- | --- |
+| Configuration and presets | Explicit site revision; no clinic-default inheritance. Backend service/assessment matrix; preserved preset IDs; only selected service visits generated. | Rollback-only local check passes unconfigured/draft/selected/disabled/renamed/retired cases and shared custom visits. Inactive-site and role-denial runtime proof pending. |
+| Setup UI | Compatible catalog for selected facility; explicit clinic-wide administration toggle; unfinished setup does not request optional offering panels. | Real browser saved/finalized W and B; W has weight initial/follow-up plus shared visit; B has behavioral initial/follow-up, selected therapy plus shared visit; psychiatry/ADHD unselected. Switching W/B exposed duplicate React keys, repaired and repeated successfully. |
+| Booking / entry | Staff booking, series, holds, reschedule, waitlist, calendar, public inquiries/offerings and portal options use location availability; telehealth requires site configuration. | Source inspected. Full staff/public/portal bookings, recurrence, request acceptance and modality permutations not exercised in browser. |
+| Intake / clinical | Encounter-origin templates and weight context; new assessment/private-note creation gated; ordinary shared care preserved. | Backend check verifies template separation and first intake for an existing booking after service removal. Complete intake, note signing, assessment/private-note permission and closure journeys pending. |
+| Switching / drafts | Site request fence and response generation; navigation guard/remount; appointment drafts scoped by site with matching-only legacy recovery. | Source inspected; selected-facility W/B setup switch observed. Cross-tab delayed-response, unsaved-draft, Back/Forward and retry scenarios remain unverified. |
+| History / unfinished work | Explicit persisted encounter/appointment origins permit authorized historical routes through unfinished navigation setup; practice lock serializes new gated care against configuration edits. | Source inspected and saved-booking intake check passes. End-to-end historical record amendments, task ownership and protected-note denial proof pending. |
+| Billing / reports | Invoice, ledger, dashboard, daily invoices/payments/refunds and CSV project recorded origin; shared/unallocated amounts labeled explicitly. Money calculations and practice-wide aggregation retained. | Source inspected, frontend build passes. Financial browser/CSV round-trip proof pending. Prescription activity location labels remain a known gap; other reports, payroll and scribe exports uninspected. |
+| Medication / follow-up | Existing encounter-site ownership, stock-site denial and task owners retained. | Bounded source review only; dispensing/prescribing/stock and follow-up lifecycle runtime proof pending. |
 
-## Last run
+Checks performed: all 44 changed/new Ruby files parse; frontend TypeScript and production main/Office bundles pass; scoped diff whitespace passes. A small development-only, rollback-only executable check is retained at `apps/api/script/check_location_specialty.rb`; it passes profile, service, visit, template, shared-work, booked-intake and preset-identity cases. No framework/full regression suite was run. The final setup-key correction also passes TypeScript.
 
-- Date: 2026-10-02 America/Chicago.
-- Baseline: `e562e57f6484`; clean managed worktree, original dirty checkout preserved.
-- Outcome: created ordered canonical tracker and linked assignment brief; no application changes.
-- Changed records: this file, implementation tracker, and one concise Progress Log entry.
-- Verification: scoped diff review and diff whitespace check passed. Vault links checked after correcting the new heading anchor. Harness verification reports seven pre-existing unlinked assignment files, none introduced here; vault hygiene reports existing size/metadata advisories. No application tests or browser run.
-- Next action: LS-01 source/ownership and entry-point inventory.
+Local proof used an independently created organization on the isolated `apply_location_specialty_development` database (API3151/web3150). Broad development seeding initially failed on strict setup; newly created fixture sites now explicitly finalize primary-care setup. Its retry hit an unrelated clinician capacity collision and rolled back. Browser proof used a separate minimal fixture; broad seed success is not claimed. Screenshot evidence is local and ignored: `tmp/location-specialty-behavioral.jpg`.
+
+This is bounded implementation and partial runtime evidence, not full LS-10 acceptance. Next ordered work: finish same-patient W/B booking-to-closure, role/site denial, history, cross-tab/draft and downstream report proof; resolve prescription report attribution; record every remaining report/export as inspected or excluded with a reason. Deployment and clinical/provider acceptance remain separate.

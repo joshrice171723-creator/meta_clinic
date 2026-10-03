@@ -9,7 +9,11 @@ import {
   Typography,
 } from "@mui/material";
 import { useRef, useState, type FormEvent } from "react";
-import type { ClinicCapabilities } from "../../api/contracts";
+import type {
+  BillingLocationProvenance,
+  BillingSourceSite,
+  ClinicCapabilities,
+} from "../../api/contracts";
 import { ApiError, api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
 import { Card, LoadState, useResource } from "../../shared/ui";
@@ -17,6 +21,10 @@ import { ReportExportControl } from "./ReportExportControl";
 import { DayEndReconciliation } from "./DayEndReconciliation";
 import { clinicDateValue } from "./frontDeskModel";
 import { ConfigurationMappingPreview } from "./ConfigurationMappingPreview";
+import {
+  invoiceLocationLabel,
+  paymentLocationLabels,
+} from "./billingSourceLocation";
 import type {
   ConfigurationManifest,
   ConfigurationRecord,
@@ -75,14 +83,15 @@ type DailyInvoicesReport = {
   interval_end: string;
   as_of: string;
   freshness: string;
-  records: {
+  records: (BillingLocationProvenance & {
     id: number;
     patient_id: number;
+    encounter_id: number | null;
     currency: string;
     status: string;
     created_at: string;
     current_outstanding_balance: string;
-  }[];
+  })[];
   pagination: ReportPagination;
   currencies: {
     currency: string;
@@ -144,6 +153,7 @@ type DailyPaymentReport = {
   freshness: string;
   payment_records: {
     id: number;
+    source_sites: BillingSourceSite[];
     patient_id: number;
     currency: string;
     amount: string;
@@ -152,6 +162,7 @@ type DailyPaymentReport = {
   payment_pagination: ReportPagination;
   refund_records: {
     id: number;
+    source_sites: BillingSourceSite[];
     patient_id: number;
     payment_event_id: number;
     currency: string;
@@ -867,6 +878,8 @@ function DailyPaymentActivity({ date }: { date: string }) {
               sx={{ alignSelf: "flex-start" }}
             >
               Payment {record.id} · {record.currency} {record.amount}
+              {" · "}Allocation locations:{" "}
+              {paymentLocationLabels(record.source_sites)}
             </Button>
           ))}
           <ReportPageControls
@@ -883,6 +896,8 @@ function DailyPaymentActivity({ date }: { date: string }) {
             >
               Refund {record.id} for payment {record.payment_event_id} ·{" "}
               {record.currency} {record.amount}
+              {" · "}Payment allocation locations:{" "}
+              {paymentLocationLabels(record.source_sites)}
             </Button>
           ))}
           <ReportPageControls
@@ -968,6 +983,7 @@ function DailyInvoices({ date }: { date: string }) {
             >
               Invoice {record.id} · {record.status} · {record.currency} ·
               current balance {record.current_outstanding_balance}
+              {" · "}Location: {invoiceLocationLabel(record)}
             </Button>
           ))}
           <ReportPageControls

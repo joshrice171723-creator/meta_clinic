@@ -48,7 +48,7 @@ module Clinic
             void_count: invoice_counts.fetch("void", 0),
             currencies: currencies.map { |currency| currency_metrics(invoices, currency, period_start, period_end, practice) }
           },
-          recent_invoices: invoice_scope.includes(:lines, :payment_allocations, :credit_notes,
+          recent_invoices: invoice_scope.includes(:lines, :payment_allocations, :credit_notes, { encounter: :site },
             *(patient_identity_access ? [ :patient ] : []))
             .limit(per_page)
             .offset((page - 1) * per_page)
@@ -273,7 +273,7 @@ module Clinic
           age_days: age_days,
           age_bucket: age_bucket(age_days),
           created_at: invoice.created_at.iso8601
-        }
+        }.merge(InvoiceSerializer.source_location(invoice))
         if patient_identity_access
           summary[:patient] = {
             id: invoice.patient.id,
