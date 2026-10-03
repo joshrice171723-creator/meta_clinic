@@ -68,23 +68,61 @@ class ClinicBillingReceiptLookupTest < ActionDispatch::IntegrationTest
     post "/api/clinic/cash_drawers/#{drawer.id}/reconcile", params: payload, headers: csrf_headers, as: :json
     assert_response :success
     drawer.reload
-    original = drawer.attributes.slice("reconciliation_note", "reconciled_by_id", "reconciled_at", "reconciliation_request_key")
+    original = drawer.attributes
+    original_versions = drawer.versions.count
+    counts = -> { [ Clinic::CashTender, Clinic::PaymentEvent, Clinic::RefundEvent, Clinic::BillingReceipt,
+      Clinic::OperationReceipt ].map { |model| model.where(practice: @practice).count } }
+    original_counts = counts.call
     assert_equal "Synthetic verified count", original.fetch("reconciliation_note")
 
-    post "/api/clinic/cash_drawers/#{drawer.id}/reconcile", params: payload, headers: csrf_headers, as: :json
-    assert_response :success
-    assert_equal original, drawer.reload.attributes.slice(*original.keys)
+    [ "Synthetic verified count", "\n\t Synthetic verified count \t\n" ].each do |equivalent_note|
+      post "/api/clinic/cash_drawers/#{drawer.id}/reconcile",
+        params: { drawer: payload.fetch(:drawer).merge(reconciliation_note: equivalent_note) }, headers: csrf_headers, as: :json
+      assert_response :success
+      assert_equal drawer.id, response.parsed_body.fetch("drawer").fetch("id")
+      assert_equal original, drawer.reload.attributes
+      assert_equal original_versions, drawer.versions.count
+      assert_equal original_counts, counts.call
+    end
 
     post "/api/clinic/cash_drawers/#{drawer.id}/reconcile",
       params: { drawer: payload.fetch(:drawer).merge(reconciliation_note: "Different count") }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     assert_match(/do not match/, response.parsed_body.fetch("error"))
-    assert_equal original, drawer.reload.attributes.slice(*original.keys)
+    assert_equal original, drawer.reload.attributes
+    assert_equal original_versions, drawer.versions.count
+    assert_equal original_counts, counts.call
 
     post "/api/clinic/cash_drawers/#{drawer.id}/reconcile",
       params: { drawer: payload.fetch(:drawer).merge(request_key: "another-reconciliation") }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
-    assert_equal original, drawer.reload.attributes.slice(*original.keys)
+    assert_equal original, drawer.reload.attributes
+    assert_equal original_versions, drawer.versions.count
+    assert_equal original_counts, counts.call
+
+    denied = User.create!(email_address: "drawer-reconciliation-denied@example.invalid", password: @password)
+    @practice.memberships.create!(user: denied)
+    login(denied)
+    post "/api/clinic/cash_drawers/#{drawer.id}/reconcile", params: payload, headers: csrf_headers, as: :json
+    assert_response :forbidden
+    assert_equal original, drawer.reload.attributes
+    assert_equal original_versions, drawer.versions.count
+    assert_equal original_counts, counts.call
+
+    login(@actor)
+    foreign = Clinic::Practice.create!(name: "Foreign Synthetic Drawer Practice", organization: @practice.organization)
+    foreign_site = foreign.sites.create!(code: "FOREIGN-RECEIPT")
+    foreign_drawer = foreign.cash_drawer_sessions.create!(site: foreign_site, opened_by: @actor,
+      currency: "USD", opening_float: "0.00")
+    foreign_original = foreign_drawer.attributes
+    foreign_versions = foreign_drawer.versions.count
+    post "/api/clinic/cash_drawers/#{foreign_drawer.id}/reconcile", params: payload, headers: csrf_headers, as: :json
+    assert_response :not_found
+    assert_equal foreign_original, foreign_drawer.reload.attributes
+    assert_equal foreign_versions, foreign_drawer.versions.count
+    assert_equal original, drawer.reload.attributes
+    assert_equal original_versions, drawer.versions.count
+    assert_equal original_counts, counts.call
   end
 
   private

@@ -113,6 +113,68 @@ class ClinicPatientNameLookupS1Test < ActionDispatch::IntegrationTest
     assert_equal "ending 5309", Clinic::Care::PatientIdentitySearch.masked_phone(@patient)
   end
 
+  test "phone activation and expiry follow business time without any identity write" do
+    starts_at = 1.day.from_now.change(usec: 0)
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: starts_at, effective_until: starts_at + 1.day)
+    original_patient = @patient.reload.attributes
+    original_contacts = @patient.contacts.order(:id).map(&:attributes)
+
+    get "/api/clinic/patients/lookup", params: { phone: "15558675309" }, headers: @headers
+    assert_response :success
+    assert_equal [ @patient.id ], response.parsed_body.fetch("patients").pluck("id")
+    get "/api/clinic/patients/lookup", params: { phone: "12025550127" }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("patients")
+
+    travel_to(starts_at + 1.minute) do
+      login(@practice.memberships.first!.user)
+      get "/api/clinic/patients/lookup", params: { phone: "15558675309" }, headers: @headers
+      assert_response :success
+      assert_empty response.parsed_body.fetch("patients")
+      get "/api/clinic/patients/lookup", params: { phone: "12025550127" }, headers: @headers
+      assert_response :success
+      row = response.parsed_body.fetch("patients").sole
+      assert_equal @patient.id, row.fetch("id")
+      assert_equal "ending 0127", row.fetch("phone_hint")
+    end
+
+    travel_to(starts_at + 1.day + 1.minute) do
+      login(@practice.memberships.first!.user)
+      %w[15558675309 12025550127].each do |phone|
+        get "/api/clinic/patients/lookup", params: { phone: phone }, headers: @headers
+        assert_response :success
+        assert_empty response.parsed_body.fetch("patients")
+      end
+      get "/api/clinic/patients/lookup", params: { id: @patient.id }, headers: @headers
+      assert_response :success
+      assert_nil response.parsed_body.fetch("patients").sole.fetch("phone_hint")
+    end
+    assert_equal original_patient, @patient.reload.attributes
+    assert_equal original_contacts, @patient.contacts.order(:id).map(&:attributes)
+  end
+
+  test "chart phone projection follows effective contact boundaries without writes" do
+    grant_permissions!(@practice.memberships.first!, "patients.read")
+    starts_at = 1.day.from_now.change(usec: 0)
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: starts_at, effective_until: starts_at + 1.day)
+    original_patient = @patient.reload.attributes
+    original_contacts = @patient.contacts.order(:id).map(&:attributes)
+    [ [ starts_at - 1.minute, "+1 (555) 867-5309" ], [ starts_at, "+12025550127" ],
+      [ starts_at + 1.day, nil ] ].each do |at, expected_phone|
+      travel_to(at) do
+        login(@practice.memberships.first!.user)
+        get "/api/clinic/patients/#{@patient.id}", headers: @headers
+        assert_response :success
+        phones = response.parsed_body.fetch("patient").fetch("contacts").select { |contact| contact.fetch("contact_type") == "phone" }
+        assert_equal expected_phone ? [ expected_phone ] : [], phones.pluck("contact_value")
+        assert_equal original_patient, @patient.reload.attributes
+        assert_equal original_contacts, @patient.contacts.order(:id).map(&:attributes)
+      end
+    end
+  end
+
   test "booking name queries immediately find synthetic names independently of their references" do
     mercer = @practice.patients.create!(display_name: "SYN_Mercer, Alex", reference: "LOOKUP-111-A")
     vale = @practice.patients.create!(display_name: "SYN_Vale, Briar", reference: "LOOKUP-111-B")

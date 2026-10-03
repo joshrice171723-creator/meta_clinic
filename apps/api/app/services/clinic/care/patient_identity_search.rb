@@ -12,7 +12,21 @@ module Clinic
           tokens = query_tokens(practice_id:, date_of_birth:, phone:)
           return result if tokens.empty?
 
-          result.where("identity_search_tokens @> ?::text[]", postgres_array(tokens))
+          return result.where("identity_search_tokens @> ?::text[]", postgres_array(tokens)) if phone.blank?
+
+          # Persisted phone tokens can be stale after a scheduled contact starts
+          # or expires without a save. Use the authorized source scope at one
+          # business time; do not refresh identity records during a GET.
+          date_tokens = query_tokens(practice_id:, date_of_birth:, phone: nil)
+          result = result.where("identity_search_tokens @> ?::text[]", postgres_array(date_tokens)) if date_tokens.present?
+          phone_token = query_tokens(practice_id:, date_of_birth: nil, phone:).sole
+          matching_ids = []
+          CurrentPatientContact.for_patients(patient_scope: result, practice_id:, contact_type: "phone",
+            at: Current.business_time).select(:id, :patient_id, :contact_value).find_each(batch_size: 100) do |contact|
+            candidate = query_tokens(practice_id:, date_of_birth: nil, phone: contact.contact_value).sole
+            matching_ids << contact.patient_id if candidate == phone_token
+          end
+          result.where(id: matching_ids)
         end
 
         def tokens_for(patient)

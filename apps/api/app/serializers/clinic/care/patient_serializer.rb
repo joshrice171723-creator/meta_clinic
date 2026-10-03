@@ -12,13 +12,15 @@ module Clinic
 
         demographics = patient.demographics&.as_json(only: %i[legal_name preferred_name date_of_birth sex primary_language interpreter_required])
         demographics["date_of_birth_status"] = patient.demographics.date_of_birth_status if demographics
+        at = Current.business_time
+        contacts = %w[phone email].filter_map { |type| CurrentPatientContact.call(patient:, contact_type: type, at:) }
         payload.merge(
           primary_address_version_id: patient.primary_address_version_id,
           created_at: patient.created_at,
           updated_at: patient.updated_at.iso8601(6),
           demographics: demographics,
           primary_address: primary_address(patient.primary_address_version),
-          contacts: current_versions(patient.contacts, partition_by: :contact_type).map { |c| c.as_json(only: %i[id contact_type contact_value preferred effective_from effective_until]) },
+          contacts: contacts.map { |c| c.as_json(only: %i[id contact_type contact_value preferred effective_from effective_until]) },
           emergency_contacts: current_versions(patient.emergency_contacts).map { |c| c.as_json(only: %i[id name relationship phone permission_to_contact effective_from effective_until]) },
           communication_preference: patient.communication_preference&.as_json(only: %i[preferred_contact_method appointment_reminders_consent general_communications_consent]),
           social_histories: current_versions(patient.social_histories).map { |s| s.as_json(only: %i[id tobacco_use alcohol_use exercise_habits diet occupation living_situation relevant_social_factors effective_from effective_until]) },
