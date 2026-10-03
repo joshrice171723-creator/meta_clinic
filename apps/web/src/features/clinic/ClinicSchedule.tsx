@@ -1,6 +1,9 @@
 import { lateArrivalMessage } from "./arrivalTiming";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -10,14 +13,18 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   MenuItem,
   Paper,
   Stack,
   TextField,
+  Tooltip,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import type {
   Appointment,
   Patient,
@@ -1014,28 +1021,40 @@ export function ClinicSchedule({
           )}
           {(data.policy?.recurrence === "not_configured" ||
             data.policy?.overbook === "not_configured") && (
-            <Alert severity="warning" sx={{ alignItems: "center" }}>
-              <Typography variant="body2">
-                {[
-                  data.policy.recurrence === "not_configured"
-                    ? "Recurring appointments are off."
-                    : "",
-                  data.policy.overbook === "not_configured"
-                    ? "Overbook exceptions are off."
-                    : "",
-                  "An authorized staff member can change this location's scheduling policy in Clinic setup.",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              </Typography>
-              {context.capabilities.facilities_read && (
-                <Button
-                  href={`/clinic/facilities?site_id=${siteId}#scheduling-policy-setup`}
-                >
-                  Review scheduling policy
-                </Button>
-              )}
-            </Alert>
+            <Accordion disableGutters>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="schedule-policy-details"
+                id="schedule-policy-heading"
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Some scheduling options are unavailable at this location
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails id="schedule-policy-details">
+                <Stack spacing={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    {[data.policy?.recurrence === "not_configured"
+                      ? "Recurring appointments are not configured."
+                      : "",
+                    data.policy?.overbook === "not_configured"
+                      ? "Overbook exceptions are not configured."
+                      : "",
+                    "An authorized staff member can update this location's scheduling policy in Clinic setup."]
+                      .filter(Boolean)
+                      .join(" ")}
+                  </Typography>
+                  {context.capabilities.facilities_read && (
+                    <Button
+                      href={`/clinic/facilities?site_id=${siteId}#scheduling-policy-setup`}
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Review scheduling policy
+                    </Button>
+                  )}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
           )}
           {view === "month" ? (
             <Paper variant="outlined" sx={{ overflowX: "auto" }}>
@@ -1066,13 +1085,24 @@ export function ClinicSchedule({
                 )}
                 {data.days.map((item) => {
                   const completed = item.appointments.filter(
-                    (appointment) =>
-                      appointment.calendar_status === "completed",
+                    (appointment) => appointment.calendar_status === "completed",
                   ).length;
+                  const appointments = item.appointments
+                    .filter(
+                      (appointment) =>
+                        !["cancelled", "no_show"].includes(
+                          appointment.calendar_status,
+                        ),
+                    )
+                    .sort(
+                      (left, right) =>
+                        Date.parse(left.starts_at) - Date.parse(right.starts_at),
+                    );
                   return (
                     <ButtonBase
                       key={item.date}
                       onClick={() => openDay(item.date)}
+                      aria-pressed={item.date === day}
                       aria-label={`${dateLabel(item.date)}: ${completed} completed, ${item.scheduled} scheduled, ${item.confirmed} confirmed, ${item.available ?? "unknown"} available slots, ${item.holds.length} active holds, ${item.conflicts} conflicts`}
                       sx={{
                         display: "block",
@@ -1083,9 +1113,12 @@ export function ClinicSchedule({
                         borderRight: 1,
                         borderColor: "divider",
                         bgcolor:
-                          item.date === today
+                          item.date === day
                             ? "action.selected"
                             : "background.paper",
+                        outline: item.date === day ? "2px solid" : undefined,
+                        outlineColor: "primary.main",
+                        outlineOffset: -2,
                         "&:hover": { bgcolor: "action.hover" },
                         "&.Mui-focusVisible": {
                           outline: "2px solid",
@@ -1100,32 +1133,38 @@ export function ClinicSchedule({
                       >
                         {Number(item.date.slice(-2))}
                         {item.date === today ? " · Today" : ""}
+                        {item.date === day && item.date !== today ? " · Selected" : ""}
                       </Typography>
-                      {completed > 0 && (
-                        <Typography variant="body2" color="success.main">
-                          {completed} completed
+                      {appointments.slice(0, 2).map((appointment) => (
+                        <Typography
+                          key={appointment.id}
+                          variant="caption"
+                          sx={{ display: "block", overflowWrap: "anywhere" }}
+                        >
+                          <strong>{time(appointment.starts_at)}</strong>{" "}
+                          {appointment.patient?.display_name || "Patient not recorded"}
+                        </Typography>
+                      ))}
+                      {appointments.length > 2 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                          +{appointments.length - 2} more visits
                         </Typography>
                       )}
-                      <Typography variant="body2">
-                        {item.scheduled} scheduled
-                      </Typography>
-                      <Typography variant="body2">
-                        {item.confirmed} confirmed
-                      </Typography>
                       {item.holds.length > 0 && (
                         <Typography variant="body2" color="warning.main">
                           {item.holds.length} held
                         </Typography>
                       )}
-                      <Typography
-                        variant="caption"
-                        sx={{ display: "block" }}
-                        color="text.secondary"
-                      >
-                        {item.available === null
-                          ? "Capacity not set"
-                          : `${item.available} open slots · ${data.slot_minutes} min`}
-                      </Typography>
+                      {item.available === null && (
+                        <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">
+                          Capacity not set
+                        </Typography>
+                      )}
+                      {(item.available ?? 0) > 0 && (
+                        <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">
+                          {item.available} open slots
+                        </Typography>
+                      )}
                       {item.conflicts > 0 && (
                         <Typography variant="caption" color="error">
                           {item.conflicts} conflicts
@@ -1233,12 +1272,16 @@ export function ClinicSchedule({
                   >
                     {dateLabel(day)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {selectedDay?.appointments.length ?? 0} appointments ·
-                    Select an open time to book. Capacity counts clinician time,
-                    not additional room capacity. Time bars show booked
-                    duration; cards expand to keep details readable.
-                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedDay?.appointments.length ?? 0} scheduled visits
+                    </Typography>
+                    <Tooltip title="Select an open time to book. Capacity reflects clinician time and does not include additional room capacity. Time bars show booked duration; cards expand to keep details readable.">
+                      <IconButton size="small" aria-label="About schedule availability">
+                        <InfoOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
                 </Box>
                 <Box
                   sx={{

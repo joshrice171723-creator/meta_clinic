@@ -284,6 +284,15 @@ export function IntakeQuestions({
       sx={{
         display: "grid",
         gap: 2,
+        "& .MuiFormLabel-root": {
+          whiteSpace: "normal",
+          lineHeight: 1.25,
+          maxWidth: "calc(100% - 28px)",
+        },
+        "& .MuiFormControlLabel-label": {
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+        },
         gridTemplateColumns: {
           xs: "minmax(0, 1fr)",
           md:
@@ -359,7 +368,11 @@ export function IntakeQuestions({
                   field.record_fields ||
                   repeatable ||
                   !canEnterAnswer) && (
-                  <Typography component="h4" variant="subtitle2">
+                  <Typography
+                    component="h3"
+                    variant="subtitle1"
+                    sx={{ overflowWrap: "anywhere" }}
+                  >
                     {field.label}
                   </Typography>
                 )}
@@ -621,6 +634,7 @@ export function IntakeQuestions({
                   ) : null}
                   <AnswerStateMenu
                     state={state}
+                    questionLabel={field.label}
                     answerStates={answerStates}
                     disabled={disabled}
                     editing={editingAnswers.includes(field.id)}
@@ -711,6 +725,7 @@ export function IntakeQuestions({
 
 function AnswerStateMenu({
   state,
+  questionLabel,
   answerStates,
   disabled,
   editing,
@@ -718,6 +733,7 @@ function AnswerStateMenu({
   onChange,
 }: {
   state: string;
+  questionLabel: string;
   answerStates: string[];
   disabled: boolean;
   editing: boolean;
@@ -744,11 +760,12 @@ function AnswerStateMenu({
         <Button
           size="small"
           disabled={disabled}
+          aria-label={`Choose a response for ${questionLabel}`}
           aria-haspopup="menu"
           aria-expanded={Boolean(anchorEl)}
           onClick={(event) => setAnchorEl(event.currentTarget)}
         >
-          Record an exception
+          Choose a response
         </Button>
       )}
       <Menu
