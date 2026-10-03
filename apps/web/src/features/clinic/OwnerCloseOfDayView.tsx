@@ -23,7 +23,7 @@ function recordedCash(value: string | null, currency: string | null) {
       style: "currency",
       currency,
     }).resolvedOptions().minimumFractionDigits;
-    const fraction = (amount[3] ?? "").padEnd(digits, "0");
+    const fraction = (amount[3] ?? "").padEnd(digits ?? 0, "0");
     const whole = amount[2].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return `${currency} ${amount[1]}${whole}${fraction ? `.${fraction}` : ""}`;
   } catch {

@@ -2712,7 +2712,7 @@ function BookingFormEditor({
                 variant="subtitle1"
                 sx={{ gridColumn: "1 / -1" }}
               >
-                Location and time
+                Appointment time
               </Typography>
               <Typography
                 variant="caption"
@@ -2724,6 +2724,7 @@ function BookingFormEditor({
             <Box
               sx={{
                 display: "grid",
+                gridColumn: "1 / -1",
                 gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
                 gap: 2,
               }}
@@ -2784,7 +2785,7 @@ function BookingFormEditor({
             <Stack
               direction="row"
               spacing={1}
-              sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
+              sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1, gridColumn: "1 / -1" }}
             >
               <Typography variant="body2" color="text.secondary">
                 Duration:
@@ -2812,7 +2813,7 @@ function BookingFormEditor({
               ))}
             </Stack>
             {timePreview && (
-              <Alert severity="info" variant="outlined">
+              <Alert severity="info" variant="outlined" sx={{ gridColumn: "1 / -1" }}>
                 {timePreview} — look right?
               </Alert>
             )}
