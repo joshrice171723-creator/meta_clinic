@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, IconButton, Popover } from "@mui/material";
+import { Button, IconButton } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { FlagshipFeaturePage, isFlagshipSlug } from "./FlagshipFeaturePages";
 import { FeatureStoryPage } from "./FeatureStoryPages";
@@ -9,12 +9,9 @@ import {
   clinicTypeLabels,
   isClinicTypeSlug,
 } from "./ClinicTypePages";
-import {
-  canonicalClinicFeatureSlug,
-  clinicTypeFeatureHref,
-  clinicTypeToolkits,
-} from "./clinicTypeFeatures";
+import { canonicalClinicFeatureSlug } from "./clinicTypeFeatures";
 import { featureGroups, featureHref, marketingFeatures } from "./features";
+import { MarketingHeader } from "./MarketingHeader";
 import { ProductWalkthrough } from "./ProductWalkthrough";
 import "./metaClinicMarketing.css";
 
@@ -209,19 +206,6 @@ export function MetaClinicMarketing({
   const feature = marketingFeatures.find(
     (item) => item.slug === canonicalFeatureSlug,
   );
-  const visibleFeatureGroups = activeClinicType
-    ? featureGroups
-        .map((group) => ({
-          ...group,
-          features: group.features.filter((item) =>
-            clinicTypeToolkits[activeClinicType].features.some(
-              (selected) => selected.slug === item.slug,
-            ),
-          ),
-        }))
-        .filter((group) => group.features.length > 0)
-    : featureGroups;
-  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [selectedClinic, setSelectedClinic] = useState(clinicTypes[0]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const toggleTool = (tool: string) => {
@@ -252,103 +236,7 @@ export function MetaClinicMarketing({
       <a className="meta-marketing__skip" href="#main">
         Skip to content
       </a>
-      <header className="meta-marketing__header">
-        <a
-          className="meta-marketing__brand"
-          href="/meta-clinic"
-          aria-label="Meta Clinic home"
-        >
-          <span className="meta-marketing__brand-mark" aria-hidden="true">
-            <span />
-            <span />
-          </span>
-          Meta Clinic
-        </a>
-        <nav className="meta-marketing__nav" aria-label="Main navigation">
-          <a href="/meta-clinic/platform">Platform</a>
-          <details className="meta-marketing__nav-menu">
-            <summary>Specialties</summary>
-            <div>
-              <a href="/meta-clinic#clinic-types">Explore clinic types</a>
-              <a href="/meta-clinic/weight-loss">Weight loss</a>
-              <a href="/meta-clinic/behavioral-health">Behavioral health</a>
-              <a href="/meta-clinic/primary-care/cash-pay">Cash-pay care</a>
-              <a href="/meta-clinic/infusion">Infusion</a>
-            </div>
-          </details>
-          <Button
-            className="meta-marketing__nav-button"
-            aria-controls={
-              menuAnchor ? "meta-marketing-feature-menu" : undefined
-            }
-            aria-expanded={Boolean(menuAnchor)}
-            aria-haspopup="dialog"
-            onClick={(event) => setMenuAnchor(event.currentTarget)}
-          >
-            Features <span aria-hidden="true">⌄</span>
-          </Button>
-          <a href="/meta-clinic/ai">AI</a>
-          <a href="/meta-clinic/security">Security</a>
-          <a href="/meta-clinic/pricing">Pricing</a>
-          <a href="/meta-clinic/resources">Resources</a>
-          <a className="meta-marketing__mobile-sign-in" href="/login">
-            Sign in
-          </a>
-        </nav>
-        <Button
-          className="meta-marketing__sign-in"
-          href="/login"
-          variant="outlined"
-        >
-          Sign in
-        </Button>
-        <Button
-          className="meta-marketing__book-demo"
-          href="/meta-clinic/book-demo"
-          variant="contained"
-        >
-          Book a demo
-        </Button>
-      </header>
-
-      <Popover
-        id="meta-marketing-feature-menu"
-        open={Boolean(menuAnchor)}
-        anchorEl={menuAnchor}
-        onClose={() => setMenuAnchor(null)}
-        slotProps={{
-          paper: { role: "dialog", "aria-label": "Features" },
-        }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-      >
-        <nav className="meta-marketing__mega" aria-label="Features">
-          {visibleFeatureGroups.map((group) => (
-            <div key={group.heading}>
-              <h2>{group.heading}</h2>
-              {group.features.map((item) => (
-                <a
-                  key={item.slug}
-                  href={
-                    activeClinicType
-                      ? clinicTypeFeatureHref(activeClinicType, item.slug)
-                      : featureHref(item)
-                  }
-                  onClick={() => setMenuAnchor(null)}
-                >
-                  <span
-                    className="meta-marketing__mega-icon"
-                    aria-hidden="true"
-                  >
-                    ↗
-                  </span>
-                  {item.label}
-                </a>
-              ))}
-            </div>
-          ))}
-        </nav>
-      </Popover>
+      <MarketingHeader activeClinicType={activeClinicType} />
 
       {children ? (
         children

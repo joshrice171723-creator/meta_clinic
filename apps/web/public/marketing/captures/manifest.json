@@ -1,7 +1,7 @@
 {
   "version": 1,
   "purpose": "Curated authentic Meta Clinic synthetic demo captures for marketing pages",
-  "generatedAt": "2026-09-24",
+  "generatedAt": "2026-10-03",
   "assets": [
     {
       "file": "apps/web/public/marketing/captures/care-front-desk-october-afternoon-queue.png",
@@ -788,6 +788,465 @@
       "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
       "provenanceNote": "Captured from the running synthetic Meta Clinic app in an earlier review session; curated using original app pixels only.",
       "sourceCapture": "apps/web/outputs/real-app-review/backend-tracking-board-table.png"
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-care-followup.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "care followup",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 556
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-care-goals.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "care goals",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 544
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-care-plan.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "care plan",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 544
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-insurance-model.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "insurance model",
+      "sourceRoute": "/clinic/setup",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1300,
+        "height": 85
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-insurance-profile.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "insurance profile",
+      "sourceRoute": "/clinic/setup",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 683
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-intake-answers.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "intake answers",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1314,
+        "height": 1154
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-intake-groups.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "intake groups",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 1027
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-intake-handoff.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "intake handoff",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 726
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-labs-reports.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "labs reports",
+      "sourceRoute": "/clinic/patients/7592?lab_report_id=65&lab_version_id=81",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 666,
+        "height": 503
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-labs-review.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "labs review",
+      "sourceRoute": "/clinic/patients/7592?lab_report_id=65&lab_version_id=81",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 600,
+        "height": 526
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-medication-outcome.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "medication outcome",
+      "sourceRoute": "/clinic/refills",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1300,
+        "height": 375
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-medication-request.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "medication request",
+      "sourceRoute": "/clinic/refills",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1300,
+        "height": 566
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-medication-review.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "medication review",
+      "sourceRoute": "/clinic/refills",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1300,
+        "height": 720
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-note-findings.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "note findings",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 849
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-note-history.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "note history",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 333
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-note-signing.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "note signing",
+      "sourceRoute": "/clinic/patients/7579/encounters/11904",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 222
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-online-request.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "online request",
+      "sourceRoute": "/patient-portal",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 982,
+        "height": 358
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-online-reschedule.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "online reschedule",
+      "sourceRoute": "/patient-portal",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 600,
+        "height": 467
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-portal-appointments.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "portal appointments",
+      "sourceRoute": "/patient-portal",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1182,
+        "height": 1482
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-portal-billing.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "portal billing",
+      "sourceRoute": "/patient-portal",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1040,
+        "height": 593
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-portal-home.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "portal home",
+      "sourceRoute": "/patient-portal",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1182,
+        "height": 982
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-scribe-context.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "scribe context",
+      "sourceRoute": "/clinic/scribe",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1382,
+        "height": 982
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-scribe-transcript.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "scribe transcript",
+      "sourceRoute": "/clinic/scribe",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1382,
+        "height": 982
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-team-queue.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "team queue",
+      "sourceRoute": "/clinic/work",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1350,
+        "height": 1054
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-team-task.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "team task",
+      "sourceRoute": "/clinic/work",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 351,
+        "height": 234
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-telehealth-preparation.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "telehealth preparation",
+      "sourceRoute": "/clinic/settings/telehealth",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1080,
+        "height": 1394
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
+    },
+    {
+      "file": "apps/web/public/marketing/captures/tutorial-telehealth-room.png",
+      "approved": true,
+      "visualInspected": true,
+      "featureArea": "telehealth room",
+      "sourceRoute": "/clinic/telehealth",
+      "sourceEntry": "https://aimetaclinic.com/demo",
+      "clinic": "Sandbox Primary Care",
+      "data": "synthetic",
+      "capturedAt": "2026-10-03",
+      "dimensions": {
+        "width": 1382,
+        "height": 1032
+      },
+      "sourceQuality": "authentic app element or region capture; no UI synthesis; demo wrapper excluded",
+      "provenanceNote": "Captured from the inner app workspace of the hosted synthetic demo. The outer demo toolbar is outside the capture. Read-only walkthrough state; different screenshots can show separate example records."
     }
   ],
   "rawMovedTo": "apps/web/outputs/capture-raw/",
