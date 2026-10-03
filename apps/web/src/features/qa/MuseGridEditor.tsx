@@ -76,17 +76,17 @@ export function MuseGridEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const observedPin = useRef(revision);
+  const openedRevision = useRef(revision);
   const requests = useRef(new Map<string, string>());
-  const changed = observedPin.current !== revision;
-  const disabled = !connection || !enabled || !revision || busy || changed;
+  const changed = openedRevision.current !== revision;
+  const disabled = !connection || !enabled || busy;
   const write = async (action: string, extra: Record<string, unknown> = {}) => {
-    if (disabled || !connection || !revision) return;
+    if (disabled || !connection) return;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const input = { build_pin: revision, ...extra };
+      const input = { build_pin: openedRevision.current ?? null, ...extra };
       const identity = action + JSON.stringify(input);
       let id = requests.current.get(identity);
       if (!id) {
@@ -95,6 +95,9 @@ export function MuseGridEditor({
       }
       await museWrite(connection, action, { ...input, idempotency_key: id });
       await onSaved();
+      // Retain unresolved transport intent, but a confirmed receipt ends this
+      // request so a later intentional claim can acquire a fresh lease.
+      requests.current.delete(identity);
       setNotice("Saved to the coverage grid.");
     } catch (reason) {
       setError(
@@ -120,8 +123,8 @@ export function MuseGridEditor({
       )}
       {changed && (
         <Alert severity="warning">
-          Build changed. Close and reopen this workflow before recording new
-          evidence.
+          Deployment boundary observed. Notes remain available; submission
+          records the observed build separately from this draft's revision.
         </Alert>
       )}
       <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
@@ -159,14 +162,14 @@ export function MuseGridEditor({
         minRows={2}
         value={evidence}
         onChange={(e) => setEvidence(e.target.value)}
-        disabled={busy || changed}
+        disabled={busy}
         slotProps={{ htmlInput: { maxLength: 4000 } }}
       />
       <TextField
         label="Screenshot URL (optional)"
         value={screenshot}
         onChange={(e) => setScreenshot(e.target.value)}
-        disabled={busy || changed}
+        disabled={busy}
       />
       <Stack direction="row" spacing={1}>
         {(["pass", "fail", "blocked"] as const).map((verdict) => (
@@ -190,7 +193,7 @@ export function MuseGridEditor({
         label="Defect title (optional)"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        disabled={busy || changed}
+        disabled={busy}
         slotProps={{ htmlInput: { maxLength: 200 } }}
       />
       {title && (
@@ -201,7 +204,7 @@ export function MuseGridEditor({
             minRows={2}
             value={steps}
             onChange={(e) => setSteps(e.target.value)}
-            disabled={busy || changed}
+            disabled={busy}
           />
           <Button
             disabled={disabled || !steps.trim() || !evidence.trim()}

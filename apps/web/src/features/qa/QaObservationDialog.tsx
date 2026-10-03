@@ -79,8 +79,8 @@ export function QaObservationDialog({
         <DialogTitle id="qa-observation-title">Record observation</DialogTitle>
         <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
           <p>
-            Saved to this build's activity log. Tasks and defect verdicts remain
-            unchanged.
+            Saved with automatic build observations. Tasks and defect verdicts
+            remain unchanged.
           </p>
           <code>{revision}</code>
           {error && <Alert severity="error">{error}</Alert>}
@@ -125,13 +125,11 @@ export function QaObservationDialog({
             disabled={busy}
           >
             <MenuItem value="">No related task</MenuItem>
-            {tasks
-              .filter((task) => task.revision === revision)
-              .map((task) => (
-                <MenuItem key={task.id} value={String(task.id)}>
-                  #{task.id}: {task.title}
-                </MenuItem>
-              ))}
+            {tasks.map((task) => (
+              <MenuItem key={task.id} value={String(task.id)}>
+                #{task.id}: {task.title}
+              </MenuItem>
+            ))}
           </TextField>
         </DialogContent>
         <DialogActions>

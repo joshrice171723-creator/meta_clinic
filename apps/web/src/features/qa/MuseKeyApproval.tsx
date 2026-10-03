@@ -8,17 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { inspectMusePublicKey } from "./museBrowserKey";
-export function MuseKeyApproval({
-  revision,
-  clean,
-  confirmed,
-  onConfirmBuild,
-}: {
-  revision?: string;
-  clean: boolean;
-  confirmed: boolean;
-  onConfirmBuild: () => void;
-}) {
+export function MuseKeyApproval({ revision }: { revision?: string }) {
   const [publicKey, setPublicKey] = useState("");
   const [fingerprint, setFingerprint] = useState("");
   const [error, setError] = useState("");
@@ -43,14 +33,14 @@ export function MuseKeyApproval({
     };
   }, [publicKey]);
   const approve = async () => {
-    if (!revision || !clean || !confirmed || !fingerprint) return;
+    if (!fingerprint) return;
     setBusy(true);
     setError("");
     try {
       const body = {
         fingerprint,
         public_key: publicKey.trim(),
-        build_pin: revision,
+        build_pin: revision ?? null,
       };
       const serialized = JSON.stringify(body);
       if (pending.current.body !== serialized)
@@ -115,16 +105,11 @@ export function MuseKeyApproval({
         <Typography variant="caption" sx={{ overflowWrap: "anywhere" }}>
           Build: {revision || "Unavailable"}
         </Typography>
-        {!confirmed && (
-          <Button disabled={!clean || busy} onClick={onConfirmBuild}>
-            Confirm this build
-          </Button>
-        )}
         {error && <Alert severity="error">{error}</Alert>}
         {notice && <Alert severity="success">{notice}</Alert>}
         <Button
           variant="contained"
-          disabled={busy || !clean || !confirmed || !fingerprint || !!notice}
+          disabled={busy || !fingerprint || !!notice}
           onClick={() => void approve()}
         >
           Approve Muse

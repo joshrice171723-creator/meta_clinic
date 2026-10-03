@@ -254,7 +254,6 @@ export function QaWorkspace() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [file, setFile] = useState<File>();
   const [coverageFile, setCoverageFile] = useState<File>();
-  const [pinDialog, setPinDialog] = useState(false);
   const [reviewTask, setReviewTask] = useState<Task>();
   const [observationRevision, setObservationRevision] = useState<string>();
   useEffect(() => {
@@ -317,7 +316,7 @@ export function QaWorkspace() {
             const build = (await response.json()) as Build;
             if (!build.revision || !/^[0-9a-f]{40}$/.test(build.revision))
               throw new Error(
-                "Live build has no full revision. QA actions are paused.",
+                "Live build metadata is unavailable; observations will record this gap.",
               );
             setLive({ ...build, observed_at: new Date().toISOString() });
             setBuildError("");
@@ -428,12 +427,7 @@ export function QaWorkspace() {
         Math.max(15, (scheduler.interval_minutes ?? 10) * 2) * 60_000),
   );
   const mismatch = Boolean(
-    data &&
-    live?.revision &&
-    live.revision !== (data?.pin?.revision ?? data?.state.last_qa_revision),
-  );
-  const pinReady = Boolean(
-    live?.revision && !live.dirty && data?.pin?.revision === live.revision,
+    data && live?.revision && live.revision !== data?.state.last_qa_revision,
   );
   const issueNumber =
     selected && "number" in selected ? selected.number : selected?.github_issue;
@@ -527,7 +521,8 @@ export function QaWorkspace() {
             phase: form.get("phase"),
             content_type: file.type,
             data_base64: encoded,
-            revision: live?.revision,
+            // A chosen file's capture build cannot be inferred from upload time.
+            revision: "unobserved",
             context: {
               steps: form.get("steps"),
               expected: form.get("expected"),
@@ -539,7 +534,7 @@ export function QaWorkspace() {
           },
         },
       });
-    }, "Screenshot and observed evidence saved to this revision.");
+    }, "Screenshot saved with submission build observations.");
   }
 
   return (
@@ -585,8 +580,10 @@ export function QaWorkspace() {
           <div className="qa-actions">
             {data?.capabilities.record_observation && (
               <Button
-                disabled={!pinReady || busy}
-                onClick={() => setObservationRevision(live?.revision)}
+                disabled={busy}
+                onClick={() =>
+                  setObservationRevision(live?.revision ?? "unobserved")
+                }
               >
                 Record observation
               </Button>
@@ -596,7 +593,7 @@ export function QaWorkspace() {
             </Button>
             <Button
               className="qa-primary"
-              disabled={busy || !pinReady}
+              disabled={busy || !data}
               onClick={() =>
                 void queue(
                   "retest",
@@ -620,20 +617,18 @@ export function QaWorkspace() {
         )}
         <section
           className={`qa-build ${mismatch ? "changed" : ""}`}
-          aria-label="Build identity gate"
+          aria-label="Build observations"
         >
           <div className="qa-build-label">
             <span className="qa-dot" />
             <strong>
               {live?.dirty
-                ? "UNCOMMITTED SOURCE · QA PAUSED"
+                ? "UNCOMMITTED BUILD OBSERVED"
                 : mismatch
-                  ? "BUILD CHANGED · QA PAUSED"
-                  : pinReady
-                    ? "BUILD PIN CONFIRMED"
-                    : live?.revision
-                      ? "LIVE BUILD OBSERVED"
-                      : "BUILD UNAVAILABLE"}
+                  ? "DEPLOYMENT BOUNDARY OBSERVED"
+                  : live?.revision
+                    ? "LIVE BUILD OBSERVED"
+                    : "BUILD METADATA UNAVAILABLE"}
             </strong>
             <small>{stamp(live?.observed_at)}</small>
             {live?.environment && (
@@ -656,33 +651,19 @@ export function QaWorkspace() {
             {buildError && <Alert severity="error">{buildError}</Alert>}
           </div>
           <div>
-            <span>{data?.pin ? "CONFIRMED QA PIN" : "MUSE LAST PIN"}</span>
+            <span>LAST RECORDED QA REVISION</span>
             <code>
-              {data?.pin?.revision ??
-                data?.state.last_qa_revision ??
-                "No prior pin recorded"}
+              {data?.state.last_qa_revision ?? "No prior revision recorded"}
             </code>
           </div>
-          {!pinReady && (
-            <p>
-              Observe this build and confirm its pin before requesting QA.
-              Historical verdicts retain their original revision.{" "}
-              <Button
-                disabled={!data || !live?.revision || live.dirty || busy}
-                onClick={() => setPinDialog(true)}
-              >
-                Confirm live build pin
-              </Button>
-            </p>
-          )}
+          <p>
+            Build observations attach automatically. QA continues across
+            deployments; historical evidence retains its original revision and
+            follow-up scope.
+          </p>
         </section>
         {data?.capabilities.record_observation && (
-          <MuseKeyApproval
-            revision={live?.revision}
-            clean={live?.dirty === false && !buildError}
-            confirmed={data.pin?.revision === live?.revision}
-            onConfirmBuild={() => setPinDialog(true)}
-          />
+          <MuseKeyApproval revision={live?.revision} />
         )}
         {!data && !error && (
           <p className="qa-empty">Connecting the QA records…</p>
@@ -923,10 +904,7 @@ export function QaWorkspace() {
                         Route, steps, expected behavior, and actual behavior go
                         to Muse's triage inbox.
                       </p>
-                      <Button
-                        onClick={() => setReport(true)}
-                        disabled={!live?.revision}
-                      >
+                      <Button onClick={() => setReport(true)} disabled={busy}>
                         Report a defect
                       </Button>
                     </div>
@@ -936,10 +914,7 @@ export function QaWorkspace() {
                         Ask Codex for reproduction help or clarification, tied
                         to a defect.
                       </p>
-                      <Button
-                        onClick={() => setQuestion(true)}
-                        disabled={!live?.revision}
-                      >
+                      <Button onClick={() => setQuestion(true)} disabled={busy}>
                         Ask Codex
                       </Button>
                     </div>
@@ -952,8 +927,6 @@ export function QaWorkspace() {
                       <Button
                         disabled={
                           busy ||
-                          !live?.revision ||
-                          live.dirty ||
                           tasks.some((task) => task.status === "claimed")
                         }
                         onClick={() =>
@@ -1114,10 +1087,7 @@ export function QaWorkspace() {
                     <MenuItem value="open">Open</MenuItem>
                     <MenuItem value="closed">Closed</MenuItem>
                   </TextField>
-                  <Button
-                    onClick={() => setReport(true)}
-                    disabled={!live?.revision}
-                  >
+                  <Button onClick={() => setReport(true)} disabled={busy}>
                     Report a defect
                   </Button>
                 </div>
@@ -1449,11 +1419,7 @@ export function QaWorkspace() {
                         data.capabilities.manage_tasks &&
                         task.status === "proposed" && (
                           <Button
-                            disabled={
-                              busy ||
-                              !pinReady ||
-                              task.revision !== live?.revision
-                            }
+                            disabled={busy}
                             onClick={() =>
                               void perform(
                                 () =>
@@ -1465,7 +1431,7 @@ export function QaWorkspace() {
                               )
                             }
                           >
-                            Accept proposal for pinned build
+                            Accept proposal
                           </Button>
                         )}
                       {task.kind !== "coordination" &&
@@ -1653,67 +1619,6 @@ export function QaWorkspace() {
         />
       )}
       <Dialog
-        open={pinDialog}
-        onClose={() => setPinDialog(false)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            void perform(async () => {
-              const result = await api<{
-                status?: string;
-                revision: string;
-                confirmed_at?: string;
-              }>("/api/qa/pin", {
-                method: "POST",
-                body: {
-                  revision: live?.revision,
-                  reason: form.get("reason"),
-                },
-              });
-              if (result.status === "proposed")
-                throw new Error(
-                  "Pin proposal recorded. Sign in with an owner account to confirm it; QA remains paused.",
-                );
-              if (result.revision !== live?.revision || !result.confirmed_at)
-                throw new Error(
-                  "The build pin was not confirmed. Refresh the workspace before trying again.",
-                );
-            }, "Live build pinned. QA requests can now be queued.").then(
-              (saved) => {
-                if (saved) setPinDialog(false);
-              },
-            );
-          }}
-        >
-          <DialogTitle>Confirm the build for QA</DialogTitle>
-          <DialogContent className="qa-dialog-fields">
-            <code>{live?.revision}</code>
-            {error && <Alert severity="error">{error}</Alert>}
-            <TextField
-              name="reason"
-              label="Why is this the build to review?"
-              required
-              multiline
-              fullWidth
-            />
-            <p>
-              Existing verdicts remain on their original revisions. This
-              confirmation records your identity and time.
-            </p>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setPinDialog(false)}>Cancel</Button>
-            <Button type="submit" disabled={busy}>
-              Confirm pin
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-      <Dialog
         open={Boolean(reviewTask)}
         onClose={() => setReviewTask(undefined)}
         fullWidth
@@ -1807,11 +1712,7 @@ export function QaWorkspace() {
             >
               <MenuItem
                 value="approved"
-                disabled={
-                  reviewTask?.status !== "completed" ||
-                  !pinReady ||
-                  reviewTask.revision !== live?.revision
-                }
+                disabled={reviewTask?.status !== "completed"}
               >
                 Accept reviewed browser behavior
               </MenuItem>
@@ -1883,7 +1784,7 @@ export function QaWorkspace() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setReport(false)}>Cancel</Button>
-            <Button type="submit" disabled={busy || !pinReady}>
+            <Button type="submit" disabled={busy || !data}>
               Save to triage
             </Button>
           </DialogActions>
@@ -2028,7 +1929,7 @@ export function QaWorkspace() {
                 required
                 multiline
               />
-              <Button type="submit" disabled={busy || !live?.revision}>
+              <Button type="submit" disabled={busy || !data}>
                 Save screenshot and evidence
               </Button>
             </form>
@@ -2045,7 +1946,7 @@ export function QaWorkspace() {
           </Button>
           {issueNumber && (
             <Button
-              disabled={busy || !live?.revision}
+              disabled={busy || !data}
               onClick={() =>
                 void queue("retest", `Retest GitHub #${issueNumber}`, {
                   github_issue: issueNumber,

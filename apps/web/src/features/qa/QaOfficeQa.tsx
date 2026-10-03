@@ -143,9 +143,11 @@ const label = (value?: string | null) =>
   value?.replaceAll("_", " ") || "Not recorded";
 const workflowLabel = (item?: Workflow) =>
   item?.status === "expired"
-    ? item.seal?.reason === "build_changed"
-      ? "Expired — build changed"
-      : "Expired — build unavailable or dirty"
+    ? item.seal?.reason === "lease_expired"
+      ? "Expired - lease ended"
+      : item.seal?.reason === "build_changed"
+        ? "Expired - build changed"
+        : "Expired - build unavailable or dirty"
     : label(item?.result ?? item?.status ?? "unassessed");
 const time = (value?: string | null) =>
   value && Number.isFinite(Date.parse(value))
@@ -188,42 +190,48 @@ export function QaOfficeQa({
     undefined,
   );
   const [museConnection, setMuseConnection] = useState<MuseBrowserKey>();
-  const refresh = useCallback(async () => {
-    const request = ++version.current;
-    try {
-      const received = await api<QaSnapshot>("/api/qa/office/qa");
-      if (
-        !received.build ||
-        !Array.isArray(received.ledger?.defects) ||
-        !Array.isArray(received.coverage?.workflows)
-      )
-        throw new Error("QA ledger projection is unavailable.");
-      if (!active.current || request !== version.current) return;
-      setSnapshot(received);
-      setWorkflow((previous) =>
-        previous
-          ? {
-              ...received.coverage.workflows.find(
-                (item) => item.id === previous.id,
-              ),
-              id: previous.id,
-            }
-          : undefined,
-      );
-      setReadError("");
-      setSelected((previous) =>
-        previous
-          ? received.ledger.defects.find((defect) => defect.id === previous.id)
-          : undefined,
-      );
-      setNow(Date.now());
-    } catch (reason) {
-      if (active.current && request === version.current)
-        setReadError(
-          reason instanceof Error ? reason.message : "QA refresh failed.",
+  const refresh = useCallback(
+    async (strict = false) => {
+      const request = ++version.current;
+      try {
+        const received = await api<QaSnapshot>("/api/qa/office/qa");
+        if (
+          !received.build ||
+          !Array.isArray(received.ledger?.defects) ||
+          !Array.isArray(received.coverage?.workflows)
+        )
+          throw new Error("QA ledger projection is unavailable.");
+        if (!active.current || request !== version.current) return;
+        setSnapshot(received);
+        setWorkflow((previous) =>
+          previous
+            ? {
+                ...received.coverage.workflows.find(
+                  (item) => item.id === previous.id,
+                ),
+                id: previous.id,
+              }
+            : undefined,
         );
-    }
-  }, [api]);
+        setReadError("");
+        setSelected((previous) =>
+          previous
+            ? received.ledger.defects.find(
+                (defect) => defect.id === previous.id,
+              )
+            : undefined,
+        );
+        setNow(Date.now());
+      } catch (reason) {
+        if (active.current && request === version.current)
+          setReadError(
+            reason instanceof Error ? reason.message : "QA refresh failed.",
+          );
+        if (strict) throw reason;
+      }
+    },
+    [api],
+  );
   useEffect(() => {
     active.current = true;
     void refresh();
@@ -289,8 +297,7 @@ export function QaOfficeQa({
     Number.isFinite(observed) &&
     observed <= now &&
     !build.error;
-  const mismatch = verified && snapshot?.pin?.revision !== revision;
-  const ready = verified && !build?.dirty && !mismatch && !readError;
+  const ready = !!snapshot && !readError;
   const age =
     Number.isFinite(observed) && observed <= now
       ? `${Math.floor((now - observed) / 1000)}s ago`
@@ -315,7 +322,6 @@ export function QaOfficeQa({
     records.size > 0;
   const canRetest = (defect: Defect) =>
     typeof defect.id === "number" &&
-    !!snapshot?.ledger.imported_at &&
     ready &&
     !!snapshot.capabilities.request_retest;
   const retest = (defect: Defect) => {
@@ -330,18 +336,16 @@ export function QaOfficeQa({
   const activeBatch = snapshot?.active_batch;
   const buildBanner = (
     <Alert
-      severity={!verified || build?.dirty || mismatch ? "error" : "info"}
+      severity={!verified || build?.dirty ? "warning" : "info"}
       sx={{ "& .MuiAlert-message": { width: "100%", minWidth: 0 } }}
     >
       <Stack spacing={0.5}>
         <Typography variant="subtitle2">
           {!verified
-            ? "Build verification unavailable"
+            ? "Build metadata unavailable; QA continues"
             : build?.dirty
-              ? "Uncommitted build · QA actions paused"
-              : mismatch
-                ? "Build differs from the trusted QA pin"
-                : "Current build verified"}
+              ? "Uncommitted build observed · QA continues"
+              : "Current build observed"}
         </Typography>
         <Typography variant="body2">
           Version {build?.version ?? "unknown"} · verified {age}
@@ -353,14 +357,9 @@ export function QaOfficeQa({
         >
           {revision ?? "Full build revision unavailable"}
         </Typography>
-        {mismatch && (
-          <Typography variant="caption">
-            Pinned revision: {snapshot?.pin?.revision ?? "Not pinned"}
-          </Typography>
-        )}
         {secureLink(snapshot?.diff_url) && (
           <a href={snapshot!.diff_url!} target="_blank" rel="noreferrer">
-            Compare build and QA pin on GitHub
+            Compare observed build and historical QA revision on GitHub
           </a>
         )}
       </Stack>
@@ -426,13 +425,7 @@ export function QaOfficeQa({
         ))}
         <Button
           variant="contained"
-          disabled={
-            busy ||
-            !snapshot?.capabilities.file_defect ||
-            !verified ||
-            !!build?.dirty ||
-            !!readError
-          }
+          disabled={busy || !snapshot?.capabilities.file_defect || !!readError}
           onClick={() => setReport(true)}
         >
           File a defect
@@ -1011,12 +1004,8 @@ export function QaOfficeQa({
                 connection={museConnection}
                 workflowId={workflow.id}
                 revision={snapshot?.build.revision ?? undefined}
-                enabled={
-                  snapshot?.build.dirty === false &&
-                  snapshot?.pin?.revision === snapshot?.build.revision &&
-                  !readError
-                }
-                onSaved={refresh}
+                enabled={!!snapshot && !readError}
+                onSaved={() => refresh(true)}
               />
             )}
             {secureLink(workflow?.evidence_ref) && (
