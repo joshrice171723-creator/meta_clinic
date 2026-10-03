@@ -50,7 +50,7 @@ module Clinic
             attempt = reminder.delivery_attempts.create!(
               practice: reminder.practice,
               attempt_number: attempt_number,
-              provider: provider_name,
+              provider: provider_name(reminder:),
               idempotency_key: "#{outbox.idempotency_key}:#{attempt_number}",
               status: "queued",
               masked_destination: reminder.communication_endpoint.masked_value,
@@ -140,14 +140,14 @@ module Clinic
       private_class_method :ready_to_send?
 
       def self.deliver(reminder:, attempt:)
-        provider.send(reminder: reminder, idempotency_key: attempt.idempotency_key)
+        provider(reminder:).send(reminder: reminder, idempotency_key: attempt.idempotency_key)
       rescue StandardError
         { status: :unknown, failure_class: "provider_outcome_unknown" }
       end
       private_class_method :deliver
 
-      def self.provider
-        case provider_name
+      def self.provider(reminder:)
+        case provider_name(reminder:)
         when "twilio" then Providers::Twilio
         when "twilio_test" then Providers::TwilioTest
         else Providers::Synthetic
@@ -155,7 +155,9 @@ module Clinic
       end
       private_class_method :provider
 
-      def self.provider_name
+      def self.provider_name(reminder:)
+        return "synthetic" if Development::DemoRun.synthetic_practice?(reminder.practice)
+
         configured = ENV["APPLY_REMINDERS_PROVIDER"].to_s
         return "twilio" if configured == "twilio"
         return "twilio_test" if configured == "twilio_test"

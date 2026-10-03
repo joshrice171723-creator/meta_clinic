@@ -14,6 +14,7 @@ import { api } from "../../api/client";
 import type { InvoiceOnlinePayment } from "../../api/contracts";
 import { useWorkingDraft } from "./useWorkingDraft";
 import { subscriptionMoney } from "./subscriptions/contracts";
+import { InvoicePaymentSimulator } from "./InvoicePaymentSimulator";
 
 type CheckoutEnvelope = {
   online_payment: InvoiceOnlinePayment;
@@ -335,6 +336,15 @@ export function InvoiceCheckoutControls({
           </Stack>
         )}
       </Stack>
+      {actionLabel === "Collect online" && (
+        <InvoicePaymentSimulator
+          key={endpoint}
+          payment={payment}
+          endpoint={endpoint}
+          actionsEnabled={actionsEnabled}
+          onChanged={onChanged}
+        />
+      )}
       <Dialog
         fullWidth
         maxWidth="sm"

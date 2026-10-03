@@ -317,6 +317,7 @@ Rails.application.routes.draw do
         post :payment_allocations, on: :member, action: :allocate_payment
         post :cash_payments, on: :member, to: "billing/invoices#record_cash_payment"
         post "online_payment/start", on: :member, to: "billing/invoice_online_payments#start"
+        post "online_payment/simulate", on: :member, to: "billing/invoice_online_payments#simulate"
         post "online_payment/reconcile", on: :member, to: "billing/invoice_online_payments#reconcile"
         post "online_payment/cancel", on: :member, to: "billing/invoice_online_payments#cancel"
       end

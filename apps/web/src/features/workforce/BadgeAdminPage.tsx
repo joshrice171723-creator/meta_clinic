@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
+import { isDemoFrame } from "../demo/frame";
 import type { BadgeRecord, KioskEnrollment } from "./clockTypes";
 
 type PrintableBadge = {
@@ -401,7 +402,7 @@ export function BadgeAdminPage() {
             </Typography>
             <Button
               href="/workforce/kiosk"
-              target="_blank"
+              target={isDemoFrame() ? "_self" : "_blank"}
               rel="noreferrer"
               variant="outlined"
               sx={{ alignSelf: "start" }}

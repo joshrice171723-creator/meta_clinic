@@ -24,6 +24,20 @@ module Clinic
         render_result StripeInvoicePayments.reconcile(checkout: checkout, actor: current_user, gateway: StripeGateway.new)
       end
 
+      def simulate
+        input = parameter_hash!(:online_payment, %i[request_key amount outcome])
+        intent = Development::InvoicePaymentSimulator.collect!(invoice:, actor: current_user,
+          request_key: required_string!(input[:request_key], field: :request_key, maximum: 160),
+          amount: input[:amount], outcome: input[:outcome].to_s)
+        invoice.reload
+        render json: {
+          online_payment: InvoiceSerializer.online_payment(invoice),
+          invoice: InvoiceSerializer.call(invoice, detail: true),
+          simulation: { collection_intent_id: intent.id, state: intent.state,
+            amount: intent.amount.to_s("F"), currency: intent.currency, mode: "test", processor: intent.processor }
+        }
+      end
+
       def cancel
         input = parameter_hash!(:online_payment, %i[request_key])
         result = StripeInvoicePayments.cancel(checkout: checkout, actor: current_user,

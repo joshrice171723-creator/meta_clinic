@@ -3,6 +3,7 @@ module Development
   class SandboxAccounts
     OPTIONS = {
       "admin" => [ "Admin", nil ],
+      "manager" => [ "Manager", "clinic-administrator" ],
       "front_desk" => [ "Front Desk", "front-desk-coordinator" ],
       "clinician" => [ "Clinician", "clinician" ],
       "inventory" => [ "Inventory", "inventory-coordinator" ],

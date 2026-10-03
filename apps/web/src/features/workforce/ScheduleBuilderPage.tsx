@@ -405,6 +405,18 @@ export function ScheduleBuilderPage() {
       </Box>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {data.employments.length === 0 && (
+        <Alert severity="info">
+          No active employees are assigned to {data.site.name}. Assign employees
+          to this location before adding shifts, or select a location with
+          assigned employees.
+          {capabilities.workforce_admin === true && (
+            <Button href="/clinic/workforce/employees" size="small">
+              Manage employees
+            </Button>
+          )}
+        </Alert>
+      )}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={2}
@@ -582,6 +594,7 @@ export function ScheduleBuilderPage() {
                   labelId={`${fieldId}-3-label`}
                   label="Employee"
                   value={employeeId}
+                  disabled={data.employments.length === 0}
                   onChange={(e) => setEmployeeId(e.target.value)}
                 >
                   {data.employments.map((employee) => (

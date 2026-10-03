@@ -1,8 +1,9 @@
 export type SandboxAccountKey =
-  "admin" | "front_desk" | "clinician" | "inventory" | "patient";
+  "admin" | "manager" | "front_desk" | "clinician" | "inventory" | "patient";
 
 export const sandboxAccounts: { key: SandboxAccountKey; label: string }[] = [
   { key: "admin", label: "Admin" },
+  { key: "manager", label: "Manager" },
   { key: "front_desk", label: "Front Desk" },
   { key: "clinician", label: "Clinician" },
   { key: "inventory", label: "Inventory" },
