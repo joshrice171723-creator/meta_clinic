@@ -47,12 +47,21 @@ module Clinic
         request_key = required_string!(input[:request_key], field: :request_key, maximum: 160)
         normalized = normalized_request(input)
         normalized[:requested_modality] ||= "in_person" if normalized[:request_kind] == "new_booking"
-        existing = AppointmentRequest.find_by(practice: portal_practice, request_key: request_key)
-        normalized[:requested_modality] ||= existing&.requested_modality
-        return render_existing(existing, normalized:) if existing
-
         request = AppointmentRequest.transaction do
           portal_practice.lock!
+          # Confirmation also locks appointment before identity. Keep that order
+          # without revalidating old appointment state before an exact replay.
+          if normalized[:request_kind] != "new_booking" && normalized[:source_appointment_id]
+            portal_patient.appointments.lock.find_by(id: normalized[:source_appointment_id])
+          end
+          RequestAccess.authorize!(practice: portal_practice, patient: portal_patient,
+            identity: patient_portal_identity, actor: current_user)
+          existing = AppointmentRequest.find_by(practice: portal_practice, request_key: request_key)
+          normalized[:requested_modality] ||= existing&.requested_modality
+          if existing
+            render_existing(existing, normalized:)
+            next
+          end
           if normalized[:request_kind] == "new_booking" && !BookingEligibility.active?(practice: portal_practice, patient: portal_patient)
             raise ArgumentError, BookingEligibility::MESSAGE
           end
@@ -93,13 +102,19 @@ module Clinic
             status: :pending
           )
         end
+        return if performed?
+
         record_portal_read("patient_portal.appointment_request.create")
         render json: { appointment_request: AppointmentRequestSerializer.call(request) }, status: :created
       rescue ActiveRecord::RecordNotUnique
-        retry_existing = AppointmentRequest.find_by(practice: portal_practice, request_key: request_key)
-        raise unless retry_existing
+        AppointmentRequest.transaction do
+          RequestAccess.authorize!(practice: portal_practice, patient: portal_patient,
+            identity: patient_portal_identity, actor: current_user)
+          retry_existing = AppointmentRequest.find_by(practice: portal_practice, request_key: request_key)
+          raise unless retry_existing
 
-        render_existing(retry_existing, normalized:)
+          render_existing(retry_existing, normalized:)
+        end
       end
 
       private
