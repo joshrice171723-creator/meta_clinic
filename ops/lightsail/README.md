@@ -85,8 +85,10 @@ unchanged.
 ```
 
 For a local disk with insufficient space for the image archive, add `-StreamImages`
-on PowerShell 7.4 or newer. It pipes the matched images directly over SSH into
-the host's Docker loader. Export or SSH errors stop the release; host image
+on PowerShell 7.4 or newer. With `-BuildWebOnHost`, it streams the generated web
+bundle into Docker rather than copying it into a temporary packaging directory.
+It then pipes the matched images directly over SSH into the host's Docker loader.
+Packaging, export or SSH errors stop the release; host image
 identity, encrypted recovery, migration and rollout checks still run.
 
 Optional prebuilt mode: first run **Publish portable containers** on `main`
