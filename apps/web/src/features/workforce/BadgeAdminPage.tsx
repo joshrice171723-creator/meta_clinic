@@ -1,3 +1,4 @@
+import { isDemoFrame } from "../demo/frame";
 import { useEffect, useMemo, useState } from "react";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
@@ -400,7 +401,11 @@ export function BadgeAdminPage() {
               clock on the device you want to enroll, then enter the code there.
             </Typography>
             <Button
-              href="/workforce/kiosk"
+              href={
+                isDemoFrame()
+                  ? "/workforce/kiosk?workspace=demo"
+                  : "/workforce/kiosk"
+              }
               target="_blank"
               rel="noreferrer"
               variant="outlined"

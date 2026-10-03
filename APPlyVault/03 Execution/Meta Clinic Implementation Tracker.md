@@ -1197,3 +1197,7 @@ Source-supported counterexample: simulated issuer date more than24hours behind a
 ### Kiosk transition-clock companion —2026-10-03
 
 Resolved review finding: ResolveBadgeChallenge forwards its explicit now to allowed_transitions, so a future tutorial date cannot prematurely apply a correction and offer a transition rejected by wall-time RecordPunch. Existing service defaults/history seams, actor, badge, site, settings and adjustment eligibility remain. Prepared synthetic future-correction challenge→punch regression is UNRUN pending cloud DB execution. Together with the previous lifetime packet this fixes source-supported clock inconsistencies; generic hosted error causation remains unobserved.
+
+### Demo kiosk namespace repair —2026-10-03
+
+Source-supported separate failure: BadgeAdminPage in the guided-demo iframe opens /workforce/kiosk in a new tab, where frame-based transport detection disappears. The code then goes to ordinary /api, not the isolated database where it was issued; newer-main appropriately denies ordinary production kiosk access. Demo-origin link now carries workspace=demo and only that exact kiosk pathname selects the existing demo API/CSRF namespace. Ordinary kiosk and unrelated routes retain ordinary transport. No code in URLs, database transfer, permission grant, backend guard change or insecure cookie storage. Prepared transport isolation cases are UNRUN pending cloud frontend checks; hosted SHA-less cause/acceptance still unobserved.

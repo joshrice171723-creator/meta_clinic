@@ -3,7 +3,11 @@ import { isDemoFrame, notifyDemo } from "../features/demo/frame";
 
 function demoSessionHeaders(): Record<string, string> {
   return typeof window !== "undefined" &&
-    (isDemoFrame() || window.location.pathname.replace(/\/$/, "") === "/demo")
+    (isDemoFrame() ||
+      window.location.pathname.replace(/\/$/, "") === "/demo" ||
+      (window.location.pathname.replace(/\/$/, "") === "/workforce/kiosk" &&
+        new URLSearchParams(window.location.search).get("workspace") ===
+          "demo"))
     ? { "X-Clinic-Demo": "1" }
     : {};
 }
