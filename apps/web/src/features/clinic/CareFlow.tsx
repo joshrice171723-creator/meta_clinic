@@ -5872,10 +5872,10 @@ export function ProviderEncounterWorkflow({
           >
             <Box>
               <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
-                Encounter #{encounter.id}
+                {patient.display_name}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Patient and visit summary
+                Encounter #{encounter.id} · Patient and visit summary
               </Typography>
             </Box>
             <Stack
