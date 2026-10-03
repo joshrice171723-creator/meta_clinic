@@ -130,8 +130,21 @@ const MEASUREMENT_CODES = new Set([
   "vital-pain-score",
 ]);
 
-export function intakeGroupProgressLabel(saved: number, total: number) {
-  return `${saved} of ${total} ${total === 1 ? "group" : "groups"} saved · Save each group to unlock the next.`;
+export function intakeGroupProgressLabel(
+  saved: number,
+  total: number,
+  encounterCompleted = false,
+) {
+  const groupLabel = total === 1 ? "group" : "groups";
+  if (encounterCompleted) {
+    const incomplete = Math.max(0, total - saved);
+    const incompleteLabel =
+      incomplete === 1 ? "group remains" : "groups remain";
+    return incomplete === 0
+      ? `${saved} of ${total} ${groupLabel} saved · Encounter completed.`
+      : `${saved} of ${total} ${groupLabel} saved · ${incomplete} ${incompleteLabel} incomplete.`;
+  }
+  return `${saved} of ${total} ${groupLabel} saved · Save each group to unlock the next.`;
 }
 
 export function allIntakeChunksConfirmed(
@@ -880,8 +893,11 @@ export function NurseEncounterWorkspaceContent({
             {workspace.questionnaire_form && (
               <Chip
                 label={intakeGroupProgressLabel(
-                  confirmedChunkIndexes.length,
+                  intakeChunks.filter((_chunk, index) =>
+                    confirmedChunkIndexes.includes(index),
+                  ).length,
                   intakeChunks.length,
+                  encounter.status === "completed",
                 )}
                 size="small"
                 variant="outlined"
@@ -1200,8 +1216,9 @@ export function NurseEncounterWorkspaceContent({
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  Open any group to review its questions. Save and confirm
-                  groups in order; previewing a group does not complete it.
+                  {encounter.status === "completed"
+                    ? "Review saved answers and identify any groups that were incomplete when the encounter was completed."
+                    : "Open any group to review its questions. Save and confirm groups in order; previewing a group does not complete it."}
                 </Typography>
                 {intakeChunks.map((chunk, index) => {
                   if (!workspace.questionnaire_form) return null;
@@ -1256,11 +1273,13 @@ export function NurseEncounterWorkspaceContent({
                             {index + 1}. {chunk.label}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {locked
-                              ? "Preview only — save earlier groups first"
-                              : confirmedChunkIndexes.includes(index)
-                                ? "Saved"
-                                : "To complete"}
+                            {confirmedChunkIndexes.includes(index)
+                              ? "Saved"
+                              : encounter.status === "completed"
+                                ? "Incomplete"
+                                : locked
+                                  ? "Preview only — save earlier groups first"
+                                  : "To complete"}
                           </Typography>
                         </Stack>
                       </AccordionSummary>
@@ -1272,8 +1291,10 @@ export function NurseEncounterWorkspaceContent({
                               ref={groupHeading}
                               tabIndex={-1}
                             >
-                              {chunk.description} Save earlier groups before
-                              entering and confirming this group.
+                              {chunk.description}{" "}
+                              {encounter.status === "completed"
+                                ? "This group is preview-only because an earlier group was not confirmed."
+                                : "Save earlier groups before entering and confirming this group."}
                             </Typography>
                             <StaffIntakeSections
                               sectionId={chunk.id}

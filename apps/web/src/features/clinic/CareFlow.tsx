@@ -5623,17 +5623,79 @@ export function EncounterSectionRail({
 }: {
   chartConfirmed: boolean;
 }) {
-  const links = [
-    ["Summary", "#chart-patient"],
-    ["Intake", "#nurse-workspace"],
-    ["Chart", "#chart-access"],
-    ...(chartConfirmed
-      ? [
-          ["Documentation", "#chart-documentation"],
-          ["Completion", "#chart-completion"],
-        ]
-      : []),
-  ];
+  const links = useMemo<Array<[string, string]>>(
+    () => [
+      ["Summary", "#chart-patient"],
+      ["Intake", "#nurse-workspace"],
+      ["Chart", "#chart-access"],
+      ...(chartConfirmed
+        ? [
+            ["Documentation", "#chart-documentation"],
+            ["Completion", "#chart-completion"],
+          ]
+        : []),
+    ],
+    [chartConfirmed],
+  );
+  const [activeHref, setActiveHref] = useState(links[0][1]);
+
+  useEffect(() => {
+    let frame = 0;
+    const updateActiveSection = () => {
+      frame = 0;
+      const sections = links
+        .map(([, href]) => ({
+          href,
+          element: document.getElementById(href.slice(1)),
+        }))
+        .filter(
+          (section): section is typeof section & { element: HTMLElement } =>
+            section.element instanceof HTMLElement,
+        );
+      if (sections.length === 0) return;
+
+      const activationLine = Math.min(160, window.innerHeight * 0.28);
+      const current = sections
+        .filter(({ element }) => {
+          const rect = element.getBoundingClientRect();
+          return rect.top <= activationLine && rect.bottom > activationLine;
+        })
+        .sort(
+          (left, right) =>
+            right.element.getBoundingClientRect().top -
+            left.element.getBoundingClientRect().top,
+        )[0];
+      if (current) {
+        setActiveHref(current.href);
+        return;
+      }
+
+      const next = sections
+        .filter(
+          ({ element }) => element.getBoundingClientRect().top > activationLine,
+        )
+        .sort(
+          (left, right) =>
+            left.element.getBoundingClientRect().top -
+            right.element.getBoundingClientRect().top,
+        )[0];
+      setActiveHref(next?.href ?? sections[sections.length - 1].href);
+    };
+    const scheduleUpdate = () => {
+      if (frame === 0) frame = window.requestAnimationFrame(updateActiveSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    window.addEventListener("hashchange", scheduleUpdate);
+    return () => {
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      window.removeEventListener("hashchange", scheduleUpdate);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [links]);
 
   return (
     <Paper
@@ -5650,8 +5712,9 @@ export function EncounterSectionRail({
           <Button
             key={href}
             href={href}
-            variant="text"
+            variant={activeHref === href ? "outlined" : "text"}
             size="small"
+            aria-current={activeHref === href ? "location" : undefined}
             onClick={(event) => {
               if (
                 event.button !== 0 ||
@@ -6093,9 +6156,11 @@ export function ProviderEncounterWorkflow({
                 <Alert severity="info">
                   {signedChart
                     ? "Confirm this patient reference and encounter before viewing the signed chart."
-                    : existingChart
-                      ? "This encounter has an in-progress chart. Confirm the patient reference and encounter before opening it."
-                      : "Complete the available nurse preparation, then confirm this patient reference and encounter before opening the chart."}
+                    : encounter.status === "completed"
+                      ? "This encounter is complete. Confirm the patient reference and encounter before reviewing the chart."
+                      : existingChart
+                        ? "This encounter has an in-progress chart. Confirm the patient reference and encounter before opening it."
+                        : "Complete the available nurse preparation, then confirm this patient reference and encounter before opening the chart."}
                 </Alert>
               )}
               {!chartConfirmed && (
@@ -6106,9 +6171,11 @@ export function ProviderEncounterWorkflow({
                 >
                   {signedChart
                     ? "Confirm and view signed chart"
-                    : existingChart
-                      ? "Confirm and open chart"
-                      : "Confirm and begin charting"}
+                    : encounter.status === "completed"
+                      ? "Confirm and review chart"
+                      : existingChart
+                        ? "Confirm and open chart"
+                        : "Confirm and begin charting"}
                 </Button>
               )}
             </Stack>
