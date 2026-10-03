@@ -1,4 +1,7 @@
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -15,6 +18,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { IntakeQuestions, intakeFieldVisible } from "./IntakeQuestions";
@@ -193,6 +197,7 @@ export function PatientPrevisitNote({
   const [latestReady, setLatestReady] = useState(false);
   const [latestRefreshFailed, setLatestRefreshFailed] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [expandedPart, setExpandedPart] = useState<number | false>(0);
   const attempt = useRef<Attempt | null>(null);
   const inFlight = useRef<Attempt | null>(null);
   const appointmentIdRef = useRef(appointmentId);
@@ -306,6 +311,7 @@ export function PatientPrevisitNote({
   const openEditor = () => {
     if (inFlight.current || attempt.current?.uncertain) return;
     setOpen(true);
+    setExpandedPart(0);
     setNotice("");
     setError("");
     setConflict(false);
@@ -497,6 +503,16 @@ export function PatientPrevisitNote({
   const questionProgress = visibleQuestions?.length
     ? Math.round((answeredQuestionCount / visibleQuestions.length) * 100)
     : 0;
+  // Presentation groups retain the supplied order and all conditional definitions.
+  const questionParts = Array.from(
+    { length: Math.ceil((intakeFields?.length ?? 0) / 8) },
+    (_, index) => ({
+      index,
+      fields: intakeFields!.slice(index * 8, (index + 1) * 8),
+    }),
+  ).filter((part) =>
+    part.fields.some((field) => intakeFieldVisible(field, answers, intakeFields)),
+  );
 
   return (
     <>
@@ -542,7 +558,8 @@ export function PatientPrevisitNote({
                   aria-live="polite"
                 >
                   {answeredQuestionCount} of {visibleQuestions.length} shown
-                  questions responded to
+                    questions responded to
+                    {questionParts.length > 1 && ` · ${questionParts.length} parts`}
                 </Typography>
                 <LinearProgress
                   variant="determinate"
@@ -620,7 +637,8 @@ export function PatientPrevisitNote({
                       Health questions
                     </Typography>
                     <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
-                      Answer the questions that apply. Your visible progress updates as you respond.
+                      Open any part to review its questions. Answer what applies;
+                      your progress updates as you respond. You can save a draft at any time.
                     </Typography>
                   </Box>
                 )}
@@ -656,9 +674,40 @@ export function PatientPrevisitNote({
                     </Button>
                   </Box>
                 )}
-                {data.intake_form && (
-                  <IntakeQuestions
-                    fields={data.intake_form.fields}
+                {data.intake_form && questionParts.map((part, partIndex) => {
+                  const shown = part.fields.filter((field) =>
+                    intakeFieldVisible(field, answers, data.intake_form!.fields),
+                  );
+                  const responded = shown.filter((field) =>
+                    answerState(answers[field.id]) !== "unanswered",
+                  ).length;
+                  return (
+                  <Accordion
+                    key={part.index}
+                    expanded={expandedPart === part.index}
+                    onChange={(_, expanded) => setExpandedPart(expanded ? part.index : false)}
+                    disableGutters
+                    variant="outlined"
+                    sx={{ "&:before": { display: "none" } }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreRoundedIcon />}
+                      id={`previsit-note-${appointmentId}-part-${part.index}`}
+                      aria-controls={`previsit-note-${appointmentId}-part-${part.index}-content`}
+                    >
+                      <Stack spacing={0.25}>
+                        <Typography component="span" sx={{ fontWeight: 600 }}>
+                          Part {partIndex + 1} of {questionParts.length}
+                        </Typography>
+                        <Typography component="span" variant="body2" color="text.secondary">
+                          {responded} of {shown.length} shown questions responded to
+                        </Typography>
+                      </Stack>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                    <IntakeQuestions
+                    fields={part.fields}
+                    definitions={data.intake_form!.fields}
                     answers={answers}
                     medicationOptions={data.intake_form.medication_options}
                     medicationReferences={
@@ -670,7 +719,10 @@ export function PatientPrevisitNote({
                       setAttested(false);
                     }}
                   />
-                )}
+                    </AccordionDetails>
+                  </Accordion>
+                  );
+                })}
                 <Box component="section" aria-labelledby={`previsit-note-${appointmentId}-additional`}>
                   <Typography
                     id={`previsit-note-${appointmentId}-additional`}
