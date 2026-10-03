@@ -599,12 +599,22 @@ export function RefillRequestQueue() {
           Refill requests
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
-          Review patient medication and pharmacy details, record the clinical
-          decision, and return an outcome to the patient portal. Approval
-          creates an authorized medication order in the selected encounter;
-          pharmacy transmission is a separate workflow.
+          Review the request, record the decision, and send the patient outcome.
         </Typography>
       </Box>
+      <Accordion disableGutters elevation={0} variant="outlined">
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography component="span" variant="body2">
+            Refill workflow details
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Typography variant="body2" color="text.secondary">
+            Approval creates an authorized medication order in the selected
+            encounter. Pharmacy transmission follows in a separate workflow.
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       {canDecide && (

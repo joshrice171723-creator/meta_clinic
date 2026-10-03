@@ -47,3 +47,18 @@
   line-height: 1.35;
   opacity: 0.78;
 }
+
+.clinic-theme .clinic-work-navigation .clinic-nav-group-toggle {
+  width: 100%;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 4px 0;
+  color: inherit;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-theme .clinic-work-navigation .MuiCollapse-root {
+    transition-duration: 0s !important;
+  }
+}

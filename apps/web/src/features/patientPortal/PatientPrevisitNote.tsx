@@ -69,6 +69,7 @@ type Response = {
       id: string;
       label: string;
       reusable: boolean;
+      chunk_id?: string;
       units?: string[];
     }[];
     answer_states?: string[];
@@ -99,6 +100,30 @@ type Attempt = {
     };
   };
 };
+
+const INTAKE_SECTION_TITLES: Record<string, string> = {
+  today_visit: "Today’s concerns and functioning",
+  patient_coordination: "Support and care needs",
+  safety_history: "Relevant history",
+  prior_approaches: "Previous approaches",
+  measurements: "Measurements",
+  reproductive_product_safety: "Reproductive and product safety",
+  nutrition_support: "Nutrition and support",
+  activity_sleep_barriers: "Activity, sleep, and access",
+  records_consent_admin: "Records and visit details",
+  confirmation_clinician_review: "Confirmation and care-team review",
+  follow_up_change: "Changes and follow-up",
+};
+
+function intakeSectionTitle(
+  chunkId: string | undefined,
+  fields: { label: string }[],
+) {
+  if (chunkId && INTAKE_SECTION_TITLES[chunkId]) {
+    return INTAKE_SECTION_TITLES[chunkId];
+  }
+  return fields[0]?.label ?? "Health questions";
+}
 
 export function isUncertainPrevisitSave(reason: unknown) {
   return (
@@ -503,16 +528,50 @@ export function PatientPrevisitNote({
   const questionProgress = visibleQuestions?.length
     ? Math.round((answeredQuestionCount / visibleQuestions.length) * 100)
     : 0;
-  // Presentation groups retain the supplied order and all conditional definitions.
-  const questionParts = Array.from(
-    { length: Math.ceil((intakeFields?.length ?? 0) / 8) },
-    (_, index) => ({
-      index,
-      fields: intakeFields!.slice(index * 8, (index + 1) * 8),
-    }),
-  ).filter((part) =>
-    part.fields.some((field) => intakeFieldVisible(field, answers, intakeFields)),
-  );
+  // Group by the backend-owned chunk identifier while retaining the supplied field order.
+  // Older forms without chunks keep the prior, bounded eight-question presentation.
+  const questionParts = (intakeFields ?? [])
+    .reduce<
+      Array<{
+        index: number;
+        chunkId?: string;
+        fields: NonNullable<typeof intakeFields>;
+      }>
+    >((parts, field) => {
+      const previous = parts[parts.length - 1];
+      const ungrouped = !field.chunk_id;
+      if (
+        previous &&
+        previous.chunkId === field.chunk_id &&
+        (!ungrouped || previous.fields.length < 8)
+      ) {
+        previous.fields.push(field);
+      } else {
+        parts.push({
+          index: parts.length,
+          chunkId: field.chunk_id,
+          fields: [field],
+        });
+      }
+      return parts;
+    }, [])
+    .filter((part) =>
+      part.fields.some((field) =>
+        intakeFieldVisible(field, answers, intakeFields),
+      ),
+    );
+  const visiblePartIndexes = questionParts.map((part) => part.index).join(",");
+  const firstVisiblePart = questionParts[0]?.index ?? false;
+  const hasVisibleParts = questionParts.length > 0;
+  useEffect(() => {
+    if (!hasVisibleParts) return;
+    setExpandedPart((current) =>
+      current !== false &&
+      !visiblePartIndexes.split(",").includes(String(current))
+        ? firstVisiblePart
+        : current,
+    );
+  }, [firstVisiblePart, hasVisibleParts, visiblePartIndexes]);
 
   return (
     <>
@@ -558,8 +617,9 @@ export function PatientPrevisitNote({
                   aria-live="polite"
                 >
                   {answeredQuestionCount} of {visibleQuestions.length} shown
-                    questions responded to
-                    {questionParts.length > 1 && ` · ${questionParts.length} parts`}
+                  questions responded to
+                  {questionParts.length > 1 &&
+                    ` · ${questionParts.length} sections`}
                 </Typography>
                 <LinearProgress
                   variant="determinate"
@@ -572,11 +632,17 @@ export function PatientPrevisitNote({
         </DialogTitle>
         <DialogContent
           dividers
-          sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: { xs: 2, sm: 3 } }}
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            px: { xs: 2, sm: 3 },
+            pb: { xs: 3, sm: 4 },
+          }}
         >
           <Stack spacing={2}>
-            <Typography color="text.secondary">
-              Your clinic can review this note when preparing for your visit.
+            <Typography color="text.secondary" variant="body2">
+              Review what applies and save a draft whenever you need to pause.
             </Typography>
             {loading && (
               <Typography role="status">Loading your visit note…</Typography>
@@ -636,9 +702,13 @@ export function PatientPrevisitNote({
                     >
                       Health questions
                     </Typography>
-                    <Typography color="text.secondary" variant="body2" sx={{ mb: 2 }}>
-                      Open any part to review its questions. Answer what applies;
-                      your progress updates as you respond. You can save a draft at any time.
+                    <Typography
+                      color="text.secondary"
+                      variant="body2"
+                      sx={{ mb: 2 }}
+                    >
+                      Sections follow your visit topics. Answer what applies;
+                      progress updates as you respond.
                     </Typography>
                   </Box>
                 )}
@@ -674,57 +744,73 @@ export function PatientPrevisitNote({
                     </Button>
                   </Box>
                 )}
-                {data.intake_form && questionParts.map((part, partIndex) => {
-                  const form = data.intake_form!;
-                  const shown = part.fields.filter((field) =>
-                    intakeFieldVisible(field, answers, form.fields),
-                  );
-                  const responded = shown.filter((field) =>
-                    answerState(answers[field.id]) !== "unanswered",
-                  ).length;
-                  return (
-                  <Accordion
-                    key={part.index}
-                    expanded={expandedPart === part.index}
-                    onChange={(_, expanded) => setExpandedPart(expanded ? part.index : false)}
-                    disableGutters
-                    variant="outlined"
-                    sx={{ "&:before": { display: "none" } }}
-                  >
-                    <AccordionSummary
-                      expandIcon={<ExpandMoreRoundedIcon />}
-                      id={`previsit-note-${appointmentId}-part-${part.index}`}
-                      aria-controls={`previsit-note-${appointmentId}-part-${part.index}-content`}
-                    >
-                      <Stack spacing={0.25}>
-                        <Typography component="span" sx={{ fontWeight: 600 }}>
-                          Part {partIndex + 1} of {questionParts.length}
-                        </Typography>
-                        <Typography component="span" variant="body2" color="text.secondary">
-                          {responded} of {shown.length} shown questions responded to
-                        </Typography>
-                      </Stack>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                    <IntakeQuestions
-                    fields={part.fields}
-                    definitions={form.fields}
-                    answers={answers}
-                    medicationOptions={form.medication_options}
-                    medicationReferences={
-                      form.medication_references
-                    }
-                    disabled={loading || busy || outcomeUnknown || conflict}
-                    onChange={(next) => {
-                      setAnswers(next);
-                      setAttested(false);
-                    }}
-                  />
-                    </AccordionDetails>
-                  </Accordion>
-                  );
-                })}
-                <Box component="section" aria-labelledby={`previsit-note-${appointmentId}-additional`}>
+                {data.intake_form &&
+                  questionParts.map((part) => {
+                    const form = data.intake_form!;
+                    const shown = part.fields.filter((field) =>
+                      intakeFieldVisible(field, answers, form.fields),
+                    );
+                    const responded = shown.filter(
+                      (field) =>
+                        answerState(answers[field.id]) !== "unanswered",
+                    ).length;
+                    const title = intakeSectionTitle(part.chunkId, part.fields);
+                    return (
+                      <Accordion
+                        key={part.index}
+                        expanded={expandedPart === part.index}
+                        onChange={(_, expanded) =>
+                          setExpandedPart(expanded ? part.index : false)
+                        }
+                        disableGutters
+                        variant="outlined"
+                        sx={{ "&:before": { display: "none" } }}
+                      >
+                        <AccordionSummary
+                          expandIcon={<ExpandMoreRoundedIcon />}
+                          id={`previsit-note-${appointmentId}-part-${part.index}`}
+                          aria-controls={`previsit-note-${appointmentId}-part-${part.index}-content`}
+                        >
+                          <Stack spacing={0.25}>
+                            <Typography
+                              component="span"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {title}
+                            </Typography>
+                            <Typography
+                              component="span"
+                              variant="body2"
+                              color="text.secondary"
+                            >
+                              {responded} of {shown.length} shown questions
+                              responded to
+                            </Typography>
+                          </Stack>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <IntakeQuestions
+                            fields={part.fields}
+                            definitions={form.fields}
+                            answers={answers}
+                            medicationOptions={form.medication_options}
+                            medicationReferences={form.medication_references}
+                            disabled={
+                              loading || busy || outcomeUnknown || conflict
+                            }
+                            onChange={(next) => {
+                              setAnswers(next);
+                              setAttested(false);
+                            }}
+                          />
+                        </AccordionDetails>
+                      </Accordion>
+                    );
+                  })}
+                <Box
+                  component="section"
+                  aria-labelledby={`previsit-note-${appointmentId}-additional`}
+                >
                   <Typography
                     id={`previsit-note-${appointmentId}-additional`}
                     component="h2"
@@ -769,7 +855,14 @@ export function PatientPrevisitNote({
             )}
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ flexShrink: 0, gap: 0.5, flexWrap: "wrap", p: { xs: 1.5, sm: 2 } }}>
+        <DialogActions
+          sx={{
+            flexShrink: 0,
+            gap: 0.5,
+            flexWrap: "wrap",
+            p: { xs: 1.5, sm: 2 },
+          }}
+        >
           <Button disabled={busy || outcomeUnknown} onClick={requestClose}>
             Close
           </Button>

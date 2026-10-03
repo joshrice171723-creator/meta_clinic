@@ -287,7 +287,8 @@ export function IntakeQuestions({
         "& .MuiFormLabel-root": {
           whiteSpace: "normal",
           lineHeight: 1.25,
-          maxWidth: "calc(100% - 28px)",
+          maxWidth: "100%",
+          overflowWrap: "anywhere",
         },
         "& .MuiFormControlLabel-label": {
           whiteSpace: "normal",

@@ -101,8 +101,8 @@
 }
 
 .front-desk-row {
-  min-height: 88px;
-  padding-block: 12px;
+  min-height: 72px;
+  padding-block: 8px;
   border-bottom: 1px solid var(--clinic-border);
   transition: background-color 120ms ease;
 }
@@ -116,7 +116,7 @@
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
-  gap: 5px;
+  gap: 4px;
   overflow-wrap: anywhere;
 }
 
@@ -179,7 +179,7 @@
   justify-content: flex-start;
   flex-flow: row wrap !important;
   align-items: center !important;
-  gap: 10px 12px !important;
+  gap: 4px 8px !important;
 }
 
 .front-desk-inline-link {

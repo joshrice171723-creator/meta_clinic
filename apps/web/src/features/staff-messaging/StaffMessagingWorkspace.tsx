@@ -127,10 +127,28 @@ function participantSummary(participants: StaffConversation["participants"]) {
   return participants
     .map((participant) =>
       typeof participant === "string"
-        ? participant
-        : participant.displayName || participant.email || "Unnamed participant",
+        ? participant.includes("@")
+          ? "Participant identity unavailable"
+          : participant
+        : participant.displayName || "Participant identity unavailable",
     )
     .join(" | ");
+}
+
+function participantDetails(participants: StaffConversation["participants"]) {
+  return participants.map((participant, index) =>
+    typeof participant === "string"
+      ? {
+          key: `${participant}:${index}`,
+          label: "Participant",
+          identity: participant,
+        }
+      : {
+          key: String(participant.id),
+          label: participant.displayName || "Participant identity unavailable",
+          identity: participant.email || "Exact identity unavailable",
+        },
+  );
 }
 
 function messageSenderKey(message: StaffMessage): string {
@@ -144,23 +162,20 @@ function messageSenderKey(message: StaffMessage): string {
 function groupConsecutiveMessages(messages: StaffMessage[]) {
   return messages.reduce<
     Array<{ key: string; senderKey: string; messages: StaffMessage[] }>
-  >(
-    (groups, message) => {
-      const senderKey = messageSenderKey(message);
-      const currentGroup = groups[groups.length - 1];
-      if (currentGroup?.senderKey === senderKey) {
-        currentGroup.messages.push(message);
-      } else {
-        groups.push({
-          key: `${senderKey}:${message.id}`,
-          senderKey,
-          messages: [message],
-        });
-      }
-      return groups;
-    },
-    [],
-  );
+  >((groups, message) => {
+    const senderKey = messageSenderKey(message);
+    const currentGroup = groups[groups.length - 1];
+    if (currentGroup?.senderKey === senderKey) {
+      currentGroup.messages.push(message);
+    } else {
+      groups.push({
+        key: `${senderKey}:${message.id}`,
+        senderKey,
+        messages: [message],
+      });
+    }
+    return groups;
+  }, []);
 }
 
 function shortMessageTime(value: string): string {
@@ -364,7 +379,11 @@ function MessageCard({
                   {(message.sender.trim() || "?").slice(0, 1)}
                 </Avatar>
                 <Typography
-                  sx={{ fontWeight: 650, overflowWrap: "anywhere", minWidth: 0 }}
+                  sx={{
+                    fontWeight: 650,
+                    overflowWrap: "anywhere",
+                    minWidth: 0,
+                  }}
                 >
                   {message.sender.trim() || "Unknown sender"}
                 </Typography>
@@ -944,6 +963,44 @@ export function StaffMessagingWorkspace({
                     {selectedConversation.kind} ·{" "}
                     {participantSummary(selectedConversation.participants)}
                   </Typography>
+                  <Accordion
+                    disableGutters
+                    elevation={0}
+                    sx={{
+                      mt: 0.5,
+                      bgcolor: "transparent",
+                      "&::before": { display: "none" },
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreRoundedIcon />}
+                      sx={{
+                        minHeight: 32,
+                        px: 0,
+                        "& .MuiAccordionSummary-content": { my: 0.25 },
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Exact participant identities
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ px: 0, pt: 0 }}>
+                      <Stack spacing={0.25}>
+                        {participantDetails(
+                          selectedConversation.participants,
+                        ).map((participant) => (
+                          <Typography
+                            key={participant.key}
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ overflowWrap: "anywhere" }}
+                          >
+                            {participant.label} · {participant.identity}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    </AccordionDetails>
+                  </Accordion>
                 </Box>
                 <Stack
                   direction="row"

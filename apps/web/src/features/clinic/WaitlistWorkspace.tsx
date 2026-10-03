@@ -130,6 +130,18 @@ function localTimePart(value: string) {
   return value.slice(11, 16);
 }
 
+function displayWaitlistTime(value: string) {
+  const time = new Date(value);
+  if (Number.isNaN(time.valueOf())) return "Time unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(time);
+}
+
 export function WaitlistWorkspace() {
   const { capabilities } = useClinic();
   const { registerBlocker } = useClinicNavigation();
@@ -560,8 +572,8 @@ export function WaitlistWorkspace() {
                 {queue.data.cancellations.map((slot) => (
                   <Typography key={slot.id} variant="body2">
                     {slot.status === "no_show" ? "No-show" : "Cancelled"} ·{" "}
-                    {new Date(slot.starts_at).toLocaleString()}–
-                    {new Date(slot.ends_at).toLocaleTimeString()}
+                    {displayWaitlistTime(slot.starts_at)} –{" "}
+                    {displayWaitlistTime(slot.ends_at)}
                   </Typography>
                 ))}
               </Stack>
@@ -581,15 +593,15 @@ export function WaitlistWorkspace() {
                   {entry.visit_type_name} · {entry.duration_minutes} min
                 </Typography>
                 <Typography variant="body2">
-                  Requested {new Date(entry.earliest_at).toLocaleString()} –{" "}
-                  {new Date(entry.latest_at).toLocaleString()}
+                  Requested {displayWaitlistTime(entry.earliest_at)} –{" "}
+                  {displayWaitlistTime(entry.latest_at)}
                 </Typography>
                 {entry.offer_starts_at && (
                   <Typography variant="body2">
-                    Offer: {new Date(entry.offer_starts_at).toLocaleString()} ·
+                    Offer: {displayWaitlistTime(entry.offer_starts_at)} ·
                     expires{" "}
                     {entry.offer_expires_at &&
-                      new Date(entry.offer_expires_at).toLocaleString()}
+                      displayWaitlistTime(entry.offer_expires_at)}
                   </Typography>
                 )}
                 {canBook && (
@@ -681,7 +693,7 @@ export function WaitlistWorkspace() {
                       >
                         Use{" "}
                         {slot.status === "no_show" ? "no-show" : "cancelled"}{" "}
-                        opening: {new Date(slot.starts_at).toLocaleString()}
+                        opening: {displayWaitlistTime(slot.starts_at)}
                       </Button>
                     ))}
               </Stack>
@@ -974,7 +986,7 @@ export function WaitlistWorkspace() {
                         )?.name
                       }
                       :{" "}
-                      {`${new Date(rule.starts_at!).toLocaleString()} – ${new Date(rule.ends_at!).toLocaleString()}`}{" "}
+                      {`${displayWaitlistTime(rule.starts_at!)} – ${displayWaitlistTime(rule.ends_at!)}`}{" "}
                       {rule.reason}
                     </Typography>
                     {rule.kind === "block" && (

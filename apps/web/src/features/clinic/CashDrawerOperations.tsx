@@ -962,6 +962,7 @@ export function CashDrawerOperations({
               }
               type="submit"
               variant="contained"
+              sx={{ alignSelf: "flex-start", minWidth: 160 }}
             >
               {busy === "open" ? "Opening…" : "Open drawer"}
             </Button>

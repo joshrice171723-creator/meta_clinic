@@ -12,9 +12,13 @@ import type {
   Patient,
 } from "../../api/contracts";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { type VisitModality } from "./TelehealthBookingFormat";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -404,37 +408,43 @@ export function ChartQuickJump() {
   ] as const;
 
   return (
-    <Paper
+    <Accordion
       component="nav"
       variant="outlined"
       className="chart-quick-jump"
       aria-label="Chart quick navigation"
+      disableGutters
+      elevation={0}
     >
-      <Typography variant="subtitle2" component="h2">
-        Sections in chart
-      </Typography>
-      <Stack direction="row" className="chart-quick-jump-links">
-        {links.map(([label, href]) => (
-          <Button
-            key={href}
-            href={href}
-            variant="text"
-            size="small"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              document.querySelector(href)?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
-              window.history.replaceState(null, "", href);
-            }}
-          >
-            {label}
-          </Button>
-        ))}
-      </Stack>
-    </Paper>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography variant="subtitle2" component="h2">
+          Chart details
+        </Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Stack direction="row" className="chart-quick-jump-links">
+          {links.map(([label, href]) => (
+            <Button
+              key={href}
+              href={href}
+              variant="text"
+              size="small"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                document.querySelector(href)?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+                window.history.replaceState(null, "", href);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -526,7 +536,7 @@ export function EncounterSectionRail({
       aria-label="Encounter sections"
     >
       <Typography variant="subtitle2" component="h2">
-        Encounter
+        Current encounter section
       </Typography>
       <Stack direction="row" className="encounter-section-links">
         {links.map(([label, href]) => (

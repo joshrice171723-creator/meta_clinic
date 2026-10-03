@@ -338,7 +338,7 @@ function ScopedAuditEvents() {
                 )}
                 {resource.data.events.map((event) => (
                   <Fragment key={event.id}>
-                    <TableRow>
+                    <TableRow hover>
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
                         {auditDateTime(
                           event.occurred_at,
@@ -349,14 +349,10 @@ function ScopedAuditEvents() {
                         <Typography variant="body2">
                           {event.actor_display_name || "Name unavailable"}
                         </Typography>
-                        {event.actor_display_name && (
-                          <Typography variant="caption" color="text.secondary">
-                            Current clinician name
-                          </Typography>
-                        )}
-                        <Typography variant="body2">
-                          {auditActor(event.actor_reference)} (
-                          {event.actor_reference})
+                        <Typography variant="caption" color="text.secondary">
+                          {event.actor_display_name
+                            ? "Current clinician name"
+                            : auditActor(event.actor_reference)}
                         </Typography>
                       </TableCell>
                       <TableCell>{auditAction(event.action_code)}</TableCell>

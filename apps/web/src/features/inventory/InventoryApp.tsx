@@ -6026,7 +6026,10 @@ function LotsScreen({
       );
   };
   return (
-    <div className="inventory-stack" aria-busy={loading}>
+    <div
+      className="inventory-stack inventory-stock-workspace"
+      aria-busy={loading}
+    >
       <Card className="inventory-stock-controls">
         <details className="inventory-stock-scan">
           <summary>Scan a product</summary>

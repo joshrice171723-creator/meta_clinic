@@ -1482,6 +1482,7 @@ function BookingFormEditor({
         <Box
           component="form"
           noValidate
+          sx={{ pb: onClose ? 10 : 0 }}
           onChange={() => {
             if (!outcomeUnconfirmed && !seriesOutcomeUnconfirmed)
               setSubmitError("");
@@ -1757,7 +1758,7 @@ function BookingFormEditor({
               }}
             />
             <Typography component="h3" variant="subtitle1">
-              Visit details
+              Visit type and format
             </Typography>
             <FormControl
               fullWidth
@@ -1824,6 +1825,9 @@ function BookingFormEditor({
                 }
               }}
             />
+            <Typography component="h3" variant="subtitle1">
+              Location and clinician
+            </Typography>
             <Box
               sx={{
                 display: "grid",
@@ -2134,6 +2138,13 @@ function BookingFormEditor({
                   {timePreview} — look right?
                 </Alert>
               )}
+              <Typography
+                component="h3"
+                variant="subtitle1"
+                sx={{ gridColumn: "1 / -1" }}
+              >
+                Optional details
+              </Typography>
               <TextField
                 fullWidth
                 label="Visit reason"

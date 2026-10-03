@@ -177,7 +177,10 @@ export function IntakeValueControl({
             : undefined
         }
         slotProps={{
-          inputLabel: { shrink: true },
+          inputLabel: {
+            shrink: true,
+            sx: { maxWidth: "100%", overflowWrap: "anywhere" },
+          },
           htmlInput: {
             min: field.min,
             max: field.max,

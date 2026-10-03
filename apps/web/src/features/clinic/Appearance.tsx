@@ -182,6 +182,7 @@ export function ClinicAppearanceScope({
           MuiTableCell: {
             styleOverrides: {
               root: { padding: "12px 14px" },
+              sizeSmall: { padding: "8px 12px" },
               head: {
                 color: tokens.muted,
                 fontSize: "0.8125rem",
@@ -189,6 +190,15 @@ export function ClinicAppearanceScope({
                 lineHeight: 1.35,
               },
               body: { fontSize: "0.875rem", lineHeight: 1.4 },
+            },
+          },
+          MuiTableRow: {
+            styleOverrides: {
+              root: {
+                "&.MuiTableRow-hover:hover, &:focus-within": {
+                  backgroundColor: tokens.soft,
+                },
+              },
             },
           },
           MuiChip: {
