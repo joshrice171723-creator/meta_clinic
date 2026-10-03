@@ -1,3 +1,5 @@
+import { featureTutorials } from "./featureTutorials";
+
 export type WalkthroughStep = {
   label: string;
   title: string;
@@ -158,6 +160,7 @@ const reminders: WalkthroughStep = {
 };
 
 export const productTours = {
+  ...featureTutorials,
   day: {
     title: "Follow the work through a clinic day.",
     introduction:
@@ -213,15 +216,19 @@ export const productTours = {
 
 export type ProductTourKey = keyof typeof productTours;
 
-const featureTours: Record<string, ProductTourKey> = {
+const featureTours: Partial<Record<string, ProductTourKey>> = {
+  "medication-workflows": "medications",
+  "optional-insurance": "insurance",
+  "labs-results": "labs",
+  "care-plans": "plans",
   scheduling: "scheduling",
   "tracking-board": "visits",
-  "team-workspace": "visits",
-  "clinical-notes": "visits",
-  "intake-forms": "visits",
-  "online-requests": "scheduling",
-  "patient-portal": "visits",
-  telehealth: "scheduling",
+  "team-workspace": "team",
+  "clinical-notes": "notes",
+  "intake-forms": "intake",
+  "online-requests": "requests",
+  "patient-portal": "portal",
+  telehealth: "telehealth",
   inventory: "inventory",
   "cash-billing": "billing",
   invoices: "billing",
@@ -240,6 +247,7 @@ export function growthTour(path: string): ProductTourKey | undefined {
     .split("/")
     .filter(Boolean);
   const topic = segments.at(-1) ?? "";
+  if (segments[0] === "ai" && segments.length === 1) return "ai";
   if (
     ["platform", "demo", "sandbox", "solutions"].includes(topic) &&
     segments.length === 1
@@ -281,12 +289,13 @@ export function growthTour(path: string): ProductTourKey | undefined {
     ].includes(segments[0])
   )
     return undefined;
+  if (topic === "telehealth") return "telehealth";
+  if (topic === "patient-portal") return "portal";
+  if (topic === "online-booking") return "requests";
   if (
     [
       "scheduling",
-      "online-booking",
       "recurring-appointments",
-      "telehealth",
     ].includes(topic)
   )
     return "scheduling";
@@ -301,16 +310,13 @@ export function growthTour(path: string): ProductTourKey | undefined {
     return "inventory";
   if (["billing", "payments", "invoices", "cash-pay"].includes(topic))
     return "billing";
+  if (["clinical-notes", "clinical-documentation"].includes(topic)) return "notes";
+  if (["patient-intake", "intake", "forms"].includes(topic)) return "intake";
+  if (["care-plans", "care-planning", "goals"].includes(topic)) return "plans";
   if (
     [
       "workflows",
       "patient-management",
-      "patient-intake",
-      "intake",
-      "forms",
-      "clinical-notes",
-      "clinical-documentation",
-      "patient-portal",
     ].includes(topic)
   )
     return "visits";

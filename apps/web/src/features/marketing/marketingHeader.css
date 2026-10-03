@@ -1,0 +1,267 @@
+.marketing-header {
+  color: #19392f;
+  background: #faf9f3;
+  border-bottom: 1px solid #d3ded1;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.marketing-header__inner {
+  width: min(100% - 64px, 1472px);
+  min-height: 88px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.marketing-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  color: #19392f;
+  font-family: "Iowan Old Style", "Baskerville", Georgia, serif;
+  font-size: 29px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.marketing-header__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: 29px;
+  height: 32px;
+}
+
+.marketing-header__mark span {
+  width: 13px;
+  height: 26px;
+  background: #19392f;
+  border-radius: 95% 5% 95% 5%;
+  transform: rotate(-25deg);
+}
+
+.marketing-header__mark span + span {
+  transform: rotate(25deg) scaleX(-1);
+}
+
+.marketing-header__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.marketing-header__group,
+.marketing-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.marketing-header__actions {
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.marketing-header.marketing-header .MuiButton-root {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.3;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.marketing-header.marketing-header .marketing-header__link,
+.marketing-header.marketing-header .marketing-header__signin {
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 9px;
+  border-radius: 6px;
+  color: #19392f;
+}
+
+.marketing-header.marketing-header .marketing-header__link:hover,
+.marketing-header.marketing-header .marketing-header__signin:hover,
+.marketing-header__group[data-active],
+.marketing-header.marketing-header .marketing-header__link[aria-current="page"] {
+  background: #e8efe4;
+  border-radius: 6px;
+}
+
+.marketing-header.marketing-header .marketing-header__demo,
+.marketing-header__drawer .marketing-header__demo {
+  min-height: 44px;
+  padding: 11px 18px;
+  border-radius: 6px;
+  background: #19392f;
+  color: #faf9f3;
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.marketing-header.marketing-header .marketing-header__demo:hover,
+.marketing-header__drawer .marketing-header__demo:hover {
+  background: #285746;
+}
+
+.marketing-header.marketing-header .marketing-header__toggle {
+  width: 44px;
+  height: 44px;
+  color: #19392f;
+}
+
+.marketing-header__menu.MuiPaper-root {
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  max-height: min(560px, calc(100vh - 120px));
+  border: 1px solid #d3ded1;
+  border-radius: 10px;
+  background: #faf9f3;
+  color: #19392f;
+  box-shadow: 0 12px 36px #19392f1f;
+}
+
+.marketing-header__menu .MuiMenuItem-root {
+  min-height: 42px;
+  padding: 10px 20px;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 14px;
+  white-space: normal;
+}
+
+.marketing-header__menu .MuiMenuItem-root.Mui-selected,
+.marketing-header__menu .MuiMenuItem-root:hover,
+.marketing-header__menu .MuiMenuItem-root.Mui-focusVisible {
+  background: #e8efe4;
+}
+
+.marketing-header__drawer.MuiPaper-root {
+  width: min(420px, 100%);
+  background: #faf9f3;
+  color: #19392f;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.marketing-header__drawer-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 24px;
+  border-bottom: 1px solid #d3ded1;
+  background: #faf9f3;
+  font-weight: 600;
+}
+
+.marketing-header__drawer-top .MuiIconButton-root {
+  width: 44px;
+  height: 44px;
+  color: inherit;
+}
+
+.marketing-header__drawer-nav {
+  padding: 16px 24px 32px;
+}
+
+.marketing-header__drawer-nav section,
+.marketing-header__drawer-direct {
+  border-top: 1px solid #d3ded1;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.marketing-header__drawer-nav h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #52665a;
+}
+
+.marketing-header__drawer .marketing-header__drawer-link {
+  display: flex;
+  justify-content: flex-start;
+  min-height: 44px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: #19392f;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  text-transform: none;
+}
+
+.marketing-header__drawer .marketing-header__drawer-link[aria-current="page"],
+.marketing-header__drawer .marketing-header__drawer-link:hover {
+  background: #e8efe4;
+}
+
+.marketing-header__drawer-direct .marketing-header__demo {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.marketing-header :focus-visible,
+.marketing-header__menu :focus-visible,
+.marketing-header__drawer :focus-visible {
+  outline: 2px solid #934e37;
+  outline-offset: 2px;
+}
+
+@media (min-width: 1400px) {
+  .marketing-header__nav {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .marketing-header__inner {
+    justify-content: space-between;
+    min-height: 76px;
+  }
+}
+
+@media (max-width: 600px) {
+  .marketing-header__inner {
+    width: calc(100% - 32px);
+    gap: 8px;
+  }
+
+  .marketing-header__brand {
+    font-size: 24px;
+    gap: 7px;
+  }
+
+  .marketing-header__actions {
+    gap: 4px;
+  }
+
+  .marketing-header.marketing-header .marketing-header__demo {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .marketing-header__brand {
+    font-size: 21px;
+  }
+
+  .marketing-header__mark {
+    display: none;
+  }
+}

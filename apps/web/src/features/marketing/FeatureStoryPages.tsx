@@ -331,10 +331,10 @@ export const stories: Record<string, Story> = {
   "optional-insurance": {
     eyebrow: "A choice for your model",
     title: "Choose whether insurance belongs in your clinic.",
-    lead: "The current clinic setup includes an insurance-workflow setting alongside cash billing. Coverage and claim records exist in the data layer; a dedicated claim workspace is still being developed.",
+    lead: "Review the clinic payment model and insurance-workflow setting before planning payer work alongside cash billing.",
     chapter: "Set the model, then build the workflow around it.",
     chapterLead:
-      "Clinic configuration and local records are the starting point. A payer submission screen is not available in the current app.",
+      "Start with the configured location profile and confirm the payer workflow available for your clinic.",
     workflows: [
       {
         title: "Choose the clinic setting",
@@ -461,13 +461,12 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
   if (!story || !feature) return null;
   const related = marketingFeatures.find((item) => item.slug === story.related);
   const tour = featureTour(slug);
-  const relatedTour = ["clinical-notes", "intake-forms", "patient-portal", "telehealth", "online-requests"].includes(slug);
 
   return (
     <main id="main" className={`meta-story meta-story--${story.layout}`}>
       <section className="meta-story__hero meta-story__wrap">
         <div className="meta-story__hero-copy">
-          <a className="meta-story__crumb" href="/meta-clinic#tools">
+          <a className="meta-story__crumb" href="/meta-clinic/resources">
             All features <span aria-hidden="true">/</span> {feature.label}
           </a>
           <p className="meta-story__eyebrow">{story.eyebrow}</p>
@@ -484,7 +483,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
       </section>
 
       {slug === "memberships-packages" && <MembershipWalkthrough />}
-      {tour && <ProductWalkthrough tour={tour} id={relatedTour ? "related-product-workflow" : "feature-workflows"} context={relatedTour ? `These shared workspace screens show the context around ${feature.label.toLowerCase()}. Explore the demo for the feature's full workflow.` : undefined} />}
+      {tour && <ProductWalkthrough tour={tour} id="feature-workflows" />}
 
       {!tour && slug !== "memberships-packages" && story.image && (
         <figure className="meta-story__product meta-story__wrap">
@@ -498,7 +497,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
         </figure>
       )}
 
-      {(!tour || relatedTour) && slug !== "memberships-packages" && <section
+      {!tour && slug !== "memberships-packages" && <section
         className="meta-story__work meta-story__wrap"
         id="feature-workflows"
       >

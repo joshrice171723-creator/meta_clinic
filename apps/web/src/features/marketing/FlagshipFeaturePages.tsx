@@ -17,7 +17,7 @@ export function isFlagshipSlug(value: string): value is FlagshipSlug {
 
 function Crumb({ current }: { current: string }) {
   return (
-    <a className="meta-flagship__crumb" href="/meta-clinic#tools">
+    <a className="meta-flagship__crumb" href="/meta-clinic/resources">
       All features <span aria-hidden="true">/</span> {current}
     </a>
   );
@@ -378,20 +378,19 @@ function ClinicalNotesPage() {
             </a>
           </div>
           <Screen
-            src="/marketing/captures/patient-directory-21-natural-records.png"
-            alt="Meta Clinic patient directory with sample records."
-            label="Patient workspace"
-            caption="Patient directory"
+            src="/marketing/captures/tutorial-note-history.png"
+            alt="History of Present Illness in the Meta Clinic note workspace."
+            label="Clinical documentation"
+            caption="Recorded history in a signed chart"
             className="meta-flagship__notes-screen"
           />
         </div>
       </section>
 
-      <ProductWalkthrough tour="visits" context="These screens show the patient and visit context around documentation. Explore the demo to see the encounter and note editor itself." />
+      <ProductWalkthrough tour="notes" id="notes-workflow" />
 
       <section
         className="meta-flagship__container meta-flagship__notes-work"
-        id="notes-workflow"
       >
         <div className="meta-flagship__notes-statement">
           <span>Documentation in context</span>

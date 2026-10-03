@@ -10,6 +10,8 @@ import {
 } from "./marketingPaths";
 import { CoreEvaluationPage, isCoreEvaluationPath } from "./CoreEvaluationPage";
 import { MembershipWalkthrough } from "./MembershipWalkthrough";
+import { TutorialLibrary } from "./TutorialLibrary";
+import { MarketingHeader } from "./MarketingHeader";
 import { ProductWalkthrough } from "./ProductWalkthrough";
 import { growthTour, productTours } from "./productWalkthroughs";
 import "./growthMarketingPage.css";
@@ -138,70 +140,6 @@ function ContactForm({ path }: { path: string }) {
         {pending ? "Sending request…" : "Request a conversation"}
       </Button>
     </form>
-  );
-}
-
-function Header() {
-  return (
-    <header className="growth-page__header">
-      <a
-        className="growth-page__brand"
-        href="/meta-clinic"
-        aria-label="Meta Clinic home"
-      >
-        <span className="growth-page__mark" aria-hidden="true">
-          <span />
-          <span />
-        </span>{" "}
-        Meta Clinic
-      </a>
-      <nav aria-label="Marketing navigation">
-        <details className="growth-page__nav-menu">
-          <summary>Platform</summary>
-          <div>
-            <a href="/meta-clinic/platform">Platform overview</a>
-            <a href="/meta-clinic/platform/scheduling">Scheduling</a>
-            <a href="/meta-clinic/platform/patient-intake">Patient intake</a>
-            <a href="/meta-clinic/platform/memberships">Memberships</a>
-            <a href="/meta-clinic/platform/inventory">Inventory</a>
-            <a href="/meta-clinic/platform/billing">Billing</a>
-            <a href="/meta-clinic/platform/workflows">Workflows</a>
-          </div>
-        </details>
-        <details className="growth-page__nav-menu">
-          <summary>Specialties</summary>
-          <div>
-            {priority.map((item) => (
-              <a href={marketingUrl(item.path)} key={item.path}>
-                {item.label}
-              </a>
-            ))}
-            <a href="/meta-clinic/infusion">Infusion</a>
-          </div>
-        </details>
-        <details className="growth-page__nav-menu">
-          <summary>Features</summary>
-          <div>
-            <a href="/meta-clinic/features/scheduling">Scheduling</a>
-            <a href="/meta-clinic/features/clinical-notes">Clinical notes</a>
-            <a href="/meta-clinic/features/inventory">Inventory</a>
-          </div>
-        </details>
-        <a href="/meta-clinic/ai">AI</a>
-        <a href="/meta-clinic/security">Security</a>
-        <a href="/meta-clinic/pricing">Pricing</a>
-        <a href="/meta-clinic/resources">Resources</a>
-        <a className="growth-page__mobile-signin" href="/login">
-          Sign in
-        </a>
-      </nav>
-      <a className="growth-page__signin" href="/login">
-        Sign in
-      </a>
-      <Button href="/meta-clinic/book-demo" variant="contained" size="small">
-        Book a demo
-      </Button>
-    </header>
   );
 }
 
@@ -813,8 +751,8 @@ export function GrowthMarketingPage({ path }: { path: string }) {
       <a className="growth-page__skip" href="#main">
         Skip to content
       </a>
-      <Header />
-      {internalPath && isCoreEvaluationPath(internalPath) ? (
+      <MarketingHeader />
+      {internalPath === "/resources" ? (<><TutorialLibrary /><Footer /></>) : internalPath && isCoreEvaluationPath(internalPath) ? (
         <>
           <CoreEvaluationPage
             page={page}
