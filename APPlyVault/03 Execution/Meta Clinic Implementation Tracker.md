@@ -519,7 +519,7 @@ MC-14 and overall scores are unchanged.
 
 ### Clinic workflow planning coverage — 2026-09-22 audit
 
-Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked from its owning item even when the plan itself is the only changed artifact. A plan is not implementation or acceptance evidence. The dedicated [assignment folder](../../docs/development/clinic-workflow-plans/README.md) currently contains three assignment briefs plus the organization-wide sandbox coverage matrix; earlier briefs remain at their established owning paths and are linked below.
+Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked from its owning item even when the plan itself is the only changed artifact. A plan is not implementation or acceptance evidence. The dedicated [assignment folder](../../docs/development/clinic-workflow-plans/README.md) contains assignment briefs and coverage matrices; earlier briefs remain at their established owning paths and are linked below.
 
 | Planning assignment or method | Current tracking and plan | Boundary |
 | --- | --- | --- |
@@ -529,6 +529,15 @@ Each saved `clinic-workflow-planning` assignment belongs in this tracker, linked
 | Weight-loss connected patient journey | MC-01–12/15 and the M1–M12 intake correction below; [single current patient-journey plan](../../PATIENT_JOURNEY_PLAN.md) | J0–J7 was locally proved; broader T01–T10 and intake-field acceptance retain separate evidence gaps. Both original plans are archived with their dated detail. |
 | Behavioral health and therapy | BH-01/BH-02 below; [skill assignment file](../../docs/development/clinic-workflow-plans/behavioral-health-therapy.md) and [detailed journey](../../docs/development/behavioral-health-journey.md) | BH-01 proof and D-080's selected individual-therapy/private-note development slice remain separate. Group and clinic privacy policy are unselected. |
 | Full application review | PR-01–10 below; [review and workflow-planning overlay](../../docs/product-review/meta-clinic-full-application-review.md) | The review uses the planning method; repository evidence does not identify it as a separate skill-produced assignment file. |
+| Local carrier tracking preparation | MC-11; [carrier preparation brief](../../docs/development/clinic-workflow-plans/carrier-tracking-preparation.md) | Existing source-only assignment: unsent preparation identity and provenance remain separate from carrier API, acknowledgement and receiving evidence. |
+| Configured lab unit mappings | MC-06; [historical mapping increment](../../docs/development/clinic-workflow-plans/configured-lab-unit-mappings.md) | The original string-membership implementation was partial; its dimensional-validation replacement is linked below. No clinical catalog or acceptance is inferred. |
+| Lab source provenance | MC-06; [source provenance brief](../../docs/development/clinic-workflow-plans/lab-source-provenance.md) | Supplied organization, method and times remain source metadata, not authenticated provider identity or clinical interpretation. |
+| Patient membership activity history | MC-09/MC-12; [patient history brief](../../docs/development/clinic-workflow-plans/patient-membership-history.md) | Patient visibility of existing events remains separate from entitlement, payment outcome and connected acceptance. |
+| Prescription reconciliation worklist pages | MC-10; [worklist paging brief](../../docs/development/clinic-workflow-plans/prescription-worklist-pages.md) | Read-only paging preserves original attempt ownership; it does not replay prescribing mutations or prove provider reconciliation. |
+| Saved day-end source reconciliation | MC-14; [saved comparison brief](../../docs/development/clinic-workflow-plans/saved-day-end-reconciliation.md) | Source comparisons and saved receipts do not settle payments, rewrite ledgers or establish financial certification. |
+| Configured UCUM dimensional validation | MC-06; [mechanical dimensional-validation brief](../../docs/development/clinic-workflow-plans/ucum-dimensional-validation.md) | Scoped source replacement for the partial mapping increment; unsupported units and verification gaps remain. No full UCUM implementation, conversion or FHIR acceptance is claimed. |
+
+These seven references restore omitted plan navigation only. Existing dated failure receipts, workflow scores, packet counts and acceptance gaps remain unchanged.
 
 **Companion implementation view:** [Implementation Atlas](../../records/implementation/2026-09-27-meta-clinic-tracker-atlas.html) renders the canonical MC dashboard and named overlay rows. It is a read-only visualization with dated fallback content; it does not replace this tracker or create completion evidence.
 
