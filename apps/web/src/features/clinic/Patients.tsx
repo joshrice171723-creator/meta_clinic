@@ -158,7 +158,11 @@ export function Patients({ id }: { id?: string }) {
             <PatientLookup />
           </Card>
         )}
-        <Card title="Browse patient directory">
+        <Card
+          title={
+            selectedSite ? `${selectedSite.name} patients` : "All patients"
+          }
+        >
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}
@@ -169,9 +173,6 @@ export function Patients({ id }: { id?: string }) {
           }}
         >
           <Box>
-            <Typography component="h2" variant="h6">
-              {selectedSite ? `${selectedSite.name} patients` : "All patients"}
-            </Typography>
             <Typography color="text.secondary" variant="body2">
               {selectedSite
                 ? `Browse patients assigned to ${selectedSite.name}.`
@@ -382,9 +383,6 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography component="h3" variant="subtitle1" sx={{ mb: 0.5 }}>
-          Search existing records
-        </Typography>
         <Typography color="text.secondary">
           Search by name or clinic reference, birth date, or phone number.
         </Typography>
@@ -942,6 +940,10 @@ function PatientRecord({
           <ActiveEncounterAction patientId={patient.id} />
         </Box>
       </Stack>
+      <PatientDetails
+        patient={patient}
+        onCoordinationSaved={onRegistrationSaved}
+      />
       {canInvitePortal && (
         <PatientPortalInvitation
           patient={patient}
@@ -1144,10 +1146,6 @@ function PatientRecord({
           </Dialog>
         </>
       )}
-      <PatientDetails
-        patient={patient}
-        onCoordinationSaved={onRegistrationSaved}
-      />
       <Typography component="h2" variant="h6" sx={{ mt: 2, mb: 1 }}>
         History and source records
       </Typography>
@@ -2856,6 +2854,18 @@ function PatientDetails({
           Care overview
         </Typography>
         <Stack spacing={2}>
+          <PatientClinicalHistory patientId={patient.id} compactOverview />
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(0, 1fr) minmax(0, 1fr)",
+              },
+              gap: 1.5,
+              alignItems: "start",
+            }}
+          >
           <Card title="Vital-sign history">
             {patient.vital_signs?.length ? (
               <Stack
@@ -2911,8 +2921,9 @@ function PatientDetails({
           <PatientCareCoordination
             patientId={patient.id}
             onSaved={onCoordinationSaved}
+            compactOverview
           />
-          <PatientClinicalHistory patientId={patient.id} />
+          </Box>
           <IntakeConsentEvidence patientId={patient.id} />
           <PatientLabReports
             patientId={patient.id}

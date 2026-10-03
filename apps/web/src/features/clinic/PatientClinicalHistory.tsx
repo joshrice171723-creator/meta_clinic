@@ -331,10 +331,12 @@ export function PatientClinicalHistory({
   patientId,
   encounterId,
   onChanged,
+  compactOverview = false,
 }: {
   patientId: number;
   encounterId?: number;
   onChanged?: () => void;
+  compactOverview?: boolean;
 }) {
   const { registerBlocker } = useClinicNavigation();
   const path = `/api/clinic/patients/${encodeURIComponent(String(patientId))}/clinical_history${
@@ -579,7 +581,9 @@ export function PatientClinicalHistory({
   if (!history.data) {
     return (
       <Paper variant="outlined" sx={{ p: 2 }}>
-        <Typography variant="h6">Clinical history</Typography>
+        <Typography component="h3" variant="h6">
+          Clinical history
+        </Typography>
         <LoadState error={history.error} />
         {history.error && (
           <Button size="small" onClick={history.refresh}>
@@ -610,9 +614,10 @@ export function PatientClinicalHistory({
       sx={{ p: { xs: 1.5, md: 2 } }}
     >
       <Stack spacing={1.5}>
-        <PatientCareGaps key={patientId} patientId={patientId} />
         <Box>
-          <Typography variant="h6">Clinical history</Typography>
+          <Typography component="h3" variant="h6">
+            Clinical history
+          </Typography>
           <Typography variant="body2" color="text.secondary">
             Current recorded allergies, medications, and conditions. Empty lists
             do not mean none reported.
@@ -636,14 +641,29 @@ export function PatientClinicalHistory({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" },
+            gridTemplateColumns: compactOverview
+              ? { xs: "1fr", lg: "minmax(0, 1.8fr) minmax(18rem, 1fr)" }
+              : "1fr",
             gap: 1.5,
+            alignItems: "start",
           }}
         >
-          {kinds.map((kind) => {
-            const records = lists?.[kind] || [];
-            const reviewItem = data.reviews[kind];
-            return (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+              alignItems: "start",
+            }}
+          >
+            {kinds.map((kind) => {
+              const records = lists?.[kind] || [];
+              const reviewItem = data.reviews[kind];
+              return (
               <Paper
                 key={kind}
                 variant="outlined"
@@ -659,7 +679,11 @@ export function PatientClinicalHistory({
                   }}
                 >
                   <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    <Typography
+                      component="h4"
+                      variant="subtitle1"
+                      sx={{ fontWeight: 700 }}
+                    >
                       {HISTORY_LABELS[kind]}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -759,12 +783,19 @@ export function PatientClinicalHistory({
                   </Stack>
                 </>
               </Paper>
-            );
-          })}
+              );
+            })}
+          </Box>
+          {compactOverview && (
+            <PatientCareGaps key={patientId} patientId={patientId} />
+          )}
         </Box>
+        {!compactOverview && (
+          <PatientCareGaps key={patientId} patientId={patientId} />
+        )}
         <Paper component="section" variant="outlined" sx={{ p: 1.25 }}>
           <Stack spacing={1}>
-            <Typography variant="subtitle1">
+            <Typography component="h4" variant="subtitle1">
               Patient-reported allergies, medications, and conditions
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -813,7 +844,7 @@ export function PatientClinicalHistory({
             spacing={0.5}
             sx={{ p: 1.25 }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 700 }}>
               Care needs
             </Typography>
             <Typography variant="body2" color="text.secondary">
