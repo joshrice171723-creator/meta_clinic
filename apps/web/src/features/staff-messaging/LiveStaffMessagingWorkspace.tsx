@@ -110,6 +110,22 @@ function displayTime(value: string | null): string {
   return Number.isNaN(time.valueOf()) ? value : time.toLocaleString();
 }
 
+function displayInboxTime(value: string | null): string {
+  if (!value) return "No messages";
+  const time = new Date(value);
+  if (Number.isNaN(time.valueOf())) return value;
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  };
+  if (time.getFullYear() !== new Date().getFullYear()) {
+    options.year = "numeric";
+  }
+  return new Intl.DateTimeFormat(undefined, options).format(time);
+}
+
 function participantLabel(participant: ApiParticipant): string {
   return participant.display_name
     ? `${participant.display_name} (${participant.email})`
@@ -136,7 +152,7 @@ function mapConversation(
         displayName: participant.display_name,
       }),
     ),
-    lastMessageAt: displayTime(conversation.last_message_at),
+    lastMessageAt: displayInboxTime(conversation.last_message_at),
     lastMessageClass: conversation.last_message_class || "routine",
     messages: messages.map((message) => {
       const sender = conversation.participants.find(
