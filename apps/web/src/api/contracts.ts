@@ -802,7 +802,39 @@ export type ImmunizationRevision = ClinicalRevisionBase & {
   administering_site_id: number | null;
   administering_site_label: string | null;
 };
+export type AsqInstrument = {
+  name: string;
+  version: string;
+  category: string;
+  source: string;
+  protocol_version: string;
+  protocol_source: string;
+  questions: { id: string; label: string; options: string[] }[];
+  dispositions: { code: string; label: string }[];
+};
+export type AssessmentFollowUpTask = {
+  id: number;
+  state: string;
+  owner_membership_id: number | null;
+  accepted_owner: boolean;
+};
+export type AsqHistory = {
+  id: number;
+  series_id: string;
+  revision: number;
+  encounter_id: number;
+  site_id: number;
+  assessed_at: string | null;
+  recorded_at: string;
+  source: string | null;
+  status: string;
+  result: string | null;
+  reviewer_membership_id: number | null;
+  reviewed_at: string | null;
+  comparable: boolean;
+};
 export type AssessmentRevision = ClinicalRevisionBase & {
+  asq_protocol?: Record<string, string> | null;
   category: ClinicAssessmentCode;
   instrument_name: string;
   instrument_version: string | null;
@@ -881,6 +913,9 @@ export type MedicationAdministrationLinkTarget = ClinicalPlanLinkTarget & {
   administering_site_label: string;
 };
 export type ClinicalPlanWorkspace = {
+  assessment_instruments?: AsqInstrument[];
+  asq_history?: AsqHistory[];
+  assessment_follow_up_tasks?: AssessmentFollowUpTask[];
   prior_care?: {
     kind: "care_plans" | "care_goals";
     id: number;

@@ -11,22 +11,16 @@ module Clinic
         sites = practice.sites.to_a.select { |candidate| ability.allowed_permission?("clinical_records.read", site: candidate) }
         sites.select! { |candidate| candidate.id == site.id } if site
         patients = practice.patients.accessible_by(ability, :read).select(:id)
+        latest_event_ids = PrescriptionEvent.where(practice:).where.not(kind: "review")
+          .joins(:medication_request_revision)
+          .where(clinic_medication_request_revisions: { practice_id: practice.id })
+          .group("clinic_medication_request_revisions.series_id")
+          .select("MAX(clinic_prescription_events.id)")
         attempts = PrescriptionTransmissionAttempt.where(practice:, patient_id: patients)
           .joins(:prescription_event, :medication_request_revision)
           .where(clinic_medication_request_revisions: { practice_id: practice.id, site_id: sites.map(&:id) })
           .where(clinic_prescription_events: { practice_id: practice.id, source: "simulation", kind: UNRESOLVED_KINDS })
-          .where(<<~SQL.squish)
-            NOT EXISTS (
-              SELECT 1 FROM clinic_prescription_events newer_event
-              INNER JOIN clinic_medication_request_revisions newer_revision
-                ON newer_revision.id = newer_event.medication_request_revision_id
-                AND newer_revision.practice_id = newer_event.practice_id
-              WHERE newer_event.practice_id = clinic_prescription_events.practice_id
-                AND newer_revision.series_id = clinic_medication_request_revisions.series_id
-                AND newer_event.kind <> 'review'
-                AND newer_event.id > clinic_prescription_events.id
-            )
-          SQL
+          .where(clinic_prescription_events: { id: latest_event_ids })
         count = attempts.count
         total_pages = [ (count.to_f / LIMIT).ceil, 1 ].max
         page = [ [ Integer(page), 1 ].max, total_pages ].min

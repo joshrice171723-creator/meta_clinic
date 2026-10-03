@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Select CI work conservatively; missing history and unknown paths run everything."""
+import argparse
+import json
+import subprocess
+from pathlib import PurePosixPath
+
+
+def classify(paths, full=False):
+    result = dict(full=full, backend=full, frontend=full)
+    for path in paths:
+        if path.startswith(("apps/api/test/", "apps/api/spec/")):
+            result["backend"] = True
+        elif path.startswith("apps/web/test/"):
+            result["frontend"] = True
+        elif PurePosixPath(path).suffix == ".md" and (
+            "/" not in path or path.startswith(("docs/", "records/", "APPlyVault/", "agent-harness/", ".agents/skills/"))
+            or path in ("apps/api/README.md", "apps/web/README.md")
+        ):
+            pass
+        else:
+            result = dict(full=True, backend=True, frontend=True)
+    return result
+
+
+def changed_paths(base, head):
+    # Both sides of renames must count: moving production code into tests is full.
+    return subprocess.check_output(
+        ["git", "diff", "--name-only", "--no-renames", "-z", base, head],
+    ).decode("utf-8", errors="surrogateescape").strip("\0").split("\0")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base", default="")
+    parser.add_argument("--head", default="HEAD")
+    parser.add_argument("--full", action="store_true")
+    parser.add_argument("--output")
+    args = parser.parse_args()
+    try:
+        if args.full or not args.base or set(args.base) == {"0"}:
+            scope = classify([], full=True)
+        else:
+            paths = [path for path in changed_paths(args.base, args.head) if path]
+            scope = classify(paths)
+    except (subprocess.CalledProcessError, OSError):
+        scope = classify([], full=True)
+    print(json.dumps(scope, sort_keys=True))
+    if args.output:
+        with open(args.output, "a", encoding="utf-8") as stream:
+            for key, value in scope.items():
+                stream.write(f"{key}={str(value).lower()}\n")
+
+
+if __name__ == "__main__":
+    main()

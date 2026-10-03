@@ -3,10 +3,12 @@ param(
   [string]$Server = 'ubuntu@aimetaclinic.com',
   [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files'),
   [ValidateSet('local', 'registry')][string]$ImageSource = 'local',
-  [switch]$BuildWebOnHost
+  [switch]$BuildWebOnHost,
+  [switch]$ReuseBuiltImages
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'build-receipt.ps1')
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $key = (Resolve-Path -LiteralPath $KeyPath).Path
 if (-not (Test-Path -LiteralPath $RecoveryDirectory -PathType Container)) {
@@ -14,6 +16,9 @@ if (-not (Test-Path -LiteralPath $RecoveryDirectory -PathType Container)) {
 }
 if ($BuildWebOnHost -and $ImageSource -ne 'local') {
   throw 'BuildWebOnHost requires local image transfer.'
+}
+if ($ReuseBuiltImages -and $ImageSource -ne 'local') {
+  throw 'ReuseBuiltImages requires local image transfer.'
 }
 
 Push-Location $root
@@ -46,44 +51,69 @@ if ($ImageSource -eq 'local' -and (Test-Path -LiteralPath $localImages)) {
   throw "Remove or inspect existing image archive: $localImages"
 }
 
+# Fail before expensive packaging if the existing configured access is unusable.
+& ssh -o BatchMode=yes -o ConnectTimeout=15 -i $key $Server 'true'
+if ($LASTEXITCODE -ne 0) { throw 'Release SSH preflight failed; no images built or host changes made.' }
+
 if ($ImageSource -eq 'local') {
   Push-Location $root
   try {
     $apiImage = "meta-clinic-api:$revision"
     $webImage = "meta-clinic-web:$revision"
-    & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $apiImage apps/api
-    if ($LASTEXITCODE -ne 0) { throw 'API image build failed.' }
-    if ($BuildWebOnHost) {
-      Push-Location (Join-Path $root 'apps\web')
-      try {
-        & pnpm.cmd install --frozen-lockfile --ignore-scripts
-        if ($LASTEXITCODE -ne 0) { throw 'Web locked install failed.' }
-        & pnpm.cmd run build
-        if ($LASTEXITCODE -ne 0) { throw 'Web host build failed.' }
-      } finally {
-        Pop-Location
-      }
-      $webContext = Join-Path $env:TEMP "meta-clinic-web-$revision-$([guid]::NewGuid().ToString('N'))"
-      $tempRoot = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
-      if (-not [System.IO.Path]::GetFullPath($webContext).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'Web build context escaped the temporary directory.'
-      }
-      try {
-        New-Item -ItemType Directory -Path $webContext | Out-Null
-        Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
-        $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
-        @{ revision = $revision; version = $version } | ConvertTo-Json -Compress |
-          Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
-        Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
-        Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
-        & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
-        if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
-      } finally {
-        if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
-      }
+    $receiptPath = Join-Path $env:TEMP "meta-clinic-build-$revision.json"
+    $fingerprint = if ($ReuseBuiltImages) { Get-ReleaseBuildIdentity $root $revision ([bool]$BuildWebOnHost) } else { $null }
+    $reuse = $ReuseBuiltImages -and (Test-ReleaseBuildReceipt $receiptPath $revision $fingerprint `
+      (Get-ReleaseImageIdentity $apiImage $revision) (Get-ReleaseImageIdentity $webImage $revision))
+    if ($reuse) {
+      Write-Output 'Reusing matched immutable images from a successful build receipt; hosted gates still run.'
     } else {
-      & docker build --platform linux/amd64 --add-host api:127.0.0.1 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
-      if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+      & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$revision" -t $apiImage apps/api
+      if ($LASTEXITCODE -ne 0) { throw 'API image build failed.' }
+      if ($BuildWebOnHost) {
+        Push-Location (Join-Path $root 'apps\web')
+        try {
+          & pnpm.cmd install --frozen-lockfile --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw 'Web locked install failed.' }
+          & pnpm.cmd run build
+          if ($LASTEXITCODE -ne 0) { throw 'Web host build failed.' }
+        } finally {
+          Pop-Location
+        }
+        $webContext = Join-Path $env:TEMP "meta-clinic-web-$revision-$([guid]::NewGuid().ToString('N'))"
+        $tempRoot = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+        if (-not [System.IO.Path]::GetFullPath($webContext).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+          throw 'Web build context escaped the temporary directory.'
+        }
+        try {
+          New-Item -ItemType Directory -Path $webContext | Out-Null
+          Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
+          $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
+          @{ revision = $revision; version = $version } | ConvertTo-Json -Compress |
+            Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
+          Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
+          Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
+          & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
+          if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
+        } finally {
+          if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
+        }
+      } else {
+        & docker build --platform linux/amd64 --add-host api:127.0.0.1 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
+        if ($LASTEXITCODE -ne 0) { throw 'Web image build failed.' }
+      }
+      # Capture after locked install, so dependency materialization does not cause
+      # a false cache miss on the next retry. A failed build never creates a receipt.
+      $apiId = Get-ReleaseImageIdentity $apiImage $revision
+      $webId = Get-ReleaseImageIdentity $webImage $revision
+      if (-not $apiId -or -not $webId) { throw 'Built image identity does not match this release.' }
+      if ($ReuseBuiltImages) {
+        $fingerprint = Get-ReleaseBuildIdentity $root $revision ([bool]$BuildWebOnHost)
+        if ($fingerprint) {
+          @{ schema = 1; revision = $revision; fingerprint = $fingerprint;
+             api_id = $apiId; web_id = $webId; built_at = [DateTimeOffset]::UtcNow.ToString('o') } |
+            ConvertTo-Json | Set-Content -LiteralPath $receiptPath -Encoding utf8NoBOM
+        }
+      }
     }
     & docker save -o $localImages $apiImage $webImage
     if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }

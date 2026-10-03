@@ -22,6 +22,33 @@ env:
   BUNDLE_FROZEN: "true"
 
 jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
+      backend: ${{ steps.scope.outputs.backend }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: scope
+        name: Select checks from the complete change
+        env:
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CHANGE_HEAD: ${{ github.sha }}
+          FULL_CHECK: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          args=()
+          if [ "$FULL_CHECK" = true ]; then args+=(--full); fi
+          python3 -B bin/test-ci-change-scope
+          python3 -B bin/ci-change-scope --base "$CHANGE_BASE" --head "$CHANGE_HEAD" --output "$GITHUB_OUTPUT" "${args[@]}"
+
   agent_docs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -52,6 +79,8 @@ jobs:
             --path .agents/skills
 
   scan_ruby:
+    needs: scope
+    if: ${{ needs.scope.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -77,6 +106,8 @@ jobs:
         run: bin/bundler-audit check --update
 
   lint:
+    needs: scope
+    if: ${{ needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -110,6 +141,8 @@ jobs:
         run: bin/rubocop -f github
 
   rails_test:
+    needs: scope
+    if: ${{ needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -181,6 +214,8 @@ jobs:
         run: bin/rails zeitwerk:check
 
   backend_contracts:
+    needs: scope
+    if: ${{ needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -249,6 +284,8 @@ jobs:
         run: ../../bin/verify-web
 
   frontend:
+    needs: scope
+    if: ${{ needs.scope.outputs.frontend == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -272,11 +309,17 @@ jobs:
           cache-dependency-path: apps/web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test
-      - run: pnpm run build
-      - run: pnpm audit --audit-level=high
+      - if: ${{ needs.scope.outputs.full == 'true' }}
+        run: pnpm run build
+      - if: ${{ needs.scope.outputs.full != 'true' }}
+        run: pnpm run typecheck
+      - if: ${{ needs.scope.outputs.full == 'true' }}
+        run: pnpm audit --audit-level=high
       - run: pnpm run format:check
 
   portable_delivery:
+    needs: scope
+    if: ${{ needs.scope.outputs.full == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     defaults:

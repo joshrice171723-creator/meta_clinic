@@ -156,7 +156,15 @@ module Clinic
           new_work: DEFINITIONS.keys.index_with { |kind| new_work_available?(practice, kind, site: encounter.site) },
           weight_context: weight_context(practice, patient, site: encounter.site, actor:),
           prior_orders: prior_orders(practice, actor, patient, encounter),
-          prior_care: prior_care(practice, actor, patient, encounter)
+          prior_care: prior_care(practice, actor, patient, encounter),
+          assessment_instruments: [ AsqAdultAssessment.catalog ],
+          asq_history: AsqAdultAssessment.history(practice:, actor:, patient:),
+          assessment_follow_up_tasks: Clinic::ClinicalTask.where(practice:, patient:, site_id: encounter.site_id,
+            task_kind: %w[safety_follow_up patient_call], state: Clinic::ClinicalTask::ACTIVE_STATES)
+            .includes(:assigned_to_membership).order(:id).limit(100).map do |task|
+              { id: task.id, state: task.state, owner_membership_id: task.assigned_to_membership_id,
+                accepted_owner: TaskContinuity.eligible?(task.assigned_to_membership, task) && task.pending_assignee_membership_id.nil? }
+            end
         }.merge(ClinicalPlanClosureWorkflow.workspace(practice:, actor:, patient:, encounter:))
       end
 
@@ -169,6 +177,7 @@ module Clinic
         values[:transmission_state] = "not_requested" if kind.to_sym == :medication_requests
         values[:requester_membership_id] = membership.id if kind.to_sym == :medication_requests
         prepare_values!(kind, practice, values, patient:, encounter:)
+        AsqAdultAssessment.normalize!(values, submitted: attributes.to_h.symbolize_keys, practice:, patient:, encounter:, actor:) if kind.to_sym == :assessments
         payload = { patient_id: patient.id, encounter_id: encounter.id, site_id: encounter.site_id,
           values: }
         outcome = Clinic::Idempotency.execute(
@@ -239,6 +248,7 @@ module Clinic
           end
           validate_revision_change!(kind, definition, previous, changes, values, reconcile_completion:)
           prepare_values!(kind, practice, values, patient:, encounter:)
+          AsqAdultAssessment.normalize!(values, submitted: changes, practice:, patient:, encounter:, actor:, previous:) if kind.to_sym == :assessments
           validate_references!(kind, practice, patient, encounter, values, previous:)
           record = definition.fetch(:klass).create!(
             values.merge(common_attributes(practice, patient, encounter, membership, request_key, values:,
@@ -276,6 +286,12 @@ module Clinic
           end
         end
         payload.merge!(immunization_administration_evidence(record)) if kind.to_sym == :immunizations
+        payload[:asq_protocol] = AsqAdultAssessment.protocol(record) if kind.to_sym == :assessments
+        if kind.to_sym == :assessments && AsqAdultAssessment.named?(instrument_name: record.instrument_name, instrument_version: record.instrument_version)
+          evidence = AsqAdultAssessment.response_evidence(record)
+          payload[:item_responses] = evidence[:items]
+          payload[:response_summary] = evidence[:observations]
+        end
         if %i[medication_requests service_requests].include?(kind.to_sym)
           payload[:completion_reconciliation_required] = record.status == "completed" && active_order_tasks(kind, record).exists?
         end
@@ -307,7 +323,13 @@ module Clinic
       private_class_method :normalized_attributes
 
       def revision_values(definition, record)
-        (COMMON_FIELDS + definition.fetch(:fields)).to_h { |field| [ field, record.public_send(field) ] }
+        values = (COMMON_FIELDS + definition.fetch(:fields)).to_h { |field| [ field, record.public_send(field) ] }
+        if record.is_a?(AssessmentRevision) && AsqAdultAssessment.named?(values)
+          evidence = AsqAdultAssessment.response_evidence(record)
+          values[:item_responses] = evidence[:items]
+          values[:response_summary] = evidence[:observations]
+        end
+        values
       end
       private_class_method :revision_values
 
@@ -395,7 +417,7 @@ module Clinic
           administration_reference = values[:medication_administration_id]
           MedicationAdministration.where(practice:, patient:, encounter:).find(administration_reference) if administration_reference.present?
         when :assessments
-          if values[:score_source] == "calculated"
+          if values[:score_source] == "calculated" && !AsqAdultAssessment.named?(values)
             score_fields = %i[category instrument_name instrument_version score_value score_source score_recorded_at
               response_source response_summary assessed_at assessment_state item_responses]
             unchanged_score = previous && score_fields.all? do |field|

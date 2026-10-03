@@ -42,6 +42,11 @@ import { useClinic } from "./Workspace";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ClinicalPlanClosurePanel } from "./ClinicalPlanClosurePanel";
 import { PrescriptionFulfillmentPanel } from "./PrescriptionFulfillmentPanel";
+import {
+  AsqAdultAssessmentFields,
+  AsqHistoryPanel,
+  asqItems,
+} from "./AsqAdultAssessmentFields";
 
 type ResourceKind = keyof ClinicalPlanWorkspaceContract["records"];
 type ClinicalRecord =
@@ -628,13 +633,28 @@ function recordDetails(kind: ResourceKind, record: ClinicalRecord) {
 function recordForm(kind: ResourceKind, record: ClinicalRecord): FormState {
   const meta = RESOURCE_META[kind];
   const values = record as unknown as Record<string, unknown>;
-  return Object.fromEntries(
+  const form = Object.fromEntries(
     Object.keys(meta.initial).map((name) => {
       const raw = values[name];
       const value = raw == null ? "" : String(raw);
       return [name, name.endsWith("_at") && value ? value.slice(0, 16) : value];
     }),
   );
+  if (kind === "assessments" && (record as AssessmentRevision).asq_protocol) {
+    form._asq_items = JSON.stringify(
+      (record as AssessmentRevision).item_responses,
+    );
+    const assessedAt = (record as AssessmentRevision).assessed_at;
+    if (assessedAt) {
+      const date = new Date(assessedAt);
+      form.assessed_at = new Date(
+        date.getTime() - date.getTimezoneOffset() * 60_000,
+      )
+        .toISOString()
+        .slice(0, 16);
+    }
+  }
+  return form;
 }
 
 export function clinicalPlanCreateBlockedReasons(
@@ -724,6 +744,14 @@ export function ClinicalPlanWorkspace({
   );
   const dirty = dialogOpen && JSON.stringify(form) !== JSON.stringify(baseline);
   const meta = RESOURCE_META[kind];
+  const namedInstrument =
+    kind === "assessments"
+      ? workspace.data?.assessment_instruments?.find(
+          (instrument) =>
+            instrument.name === form.instrument_name &&
+            instrument.version === form.instrument_version,
+        )
+      : undefined;
   const records = workspace.data?.records[kind] ?? [];
   const taskTarget = clinicalPlanTaskTarget();
   const taskRecord =
@@ -887,6 +915,7 @@ export function ClinicalPlanWorkspace({
     }
     if (
       kind === "assessments" &&
+      !namedInstrument &&
       form.status === "completed" &&
       (form.assessment_state !== "assessed" ||
         !form.assessed_at ||
@@ -900,6 +929,7 @@ export function ClinicalPlanWorkspace({
     }
     if (
       kind === "assessments" &&
+      !namedInstrument &&
       Boolean(form.score_source) !== Boolean(form.score_recorded_at)
     ) {
       setError("Enter a score source and when it was recorded together.");
@@ -907,6 +937,7 @@ export function ClinicalPlanWorkspace({
     }
     if (
       kind === "assessments" &&
+      !namedInstrument &&
       form.score_source &&
       !form.score_value?.trim()
     ) {
@@ -1000,15 +1031,31 @@ export function ClinicalPlanWorkspace({
       setError("Record why the immunization was not given.");
       return;
     }
-    const payload = Object.fromEntries(
-      Object.entries(form).map(([name, value]) => [
-        name,
-        meta.fields.find((field) => field.name === name)?.type ===
-          "datetime-local" && value
-          ? new Date(value).toISOString()
-          : value,
-      ]),
+    const payload: Record<string, unknown> = Object.fromEntries(
+      Object.entries(form)
+        .filter(
+          ([name]) =>
+            !name.startsWith("_asq_") &&
+            (!namedInstrument ||
+              ![
+                "score_value",
+                "score_source",
+                "score_recorded_at",
+                "interpretation",
+                "reviewer_membership_id",
+                "reviewed_at",
+                "assessment_state",
+              ].includes(name)),
+        )
+        .map(([name, value]) => [
+          name,
+          meta.fields.find((field) => field.name === name)?.type ===
+            "datetime-local" && value
+            ? new Date(value).toISOString()
+            : value,
+        ]),
     );
+    if (namedInstrument) payload.item_responses = asqItems(form);
     const requestKey = crypto.randomUUID();
     const path = editing
       ? `${base}/${kind}/${editing.series_id}`
@@ -1345,6 +1392,12 @@ export function ClinicalPlanWorkspace({
             administered, and the responses or observations. Category selection
             does not configure a scoring or follow-up rule.
           </Alert>
+        )}
+        {kind === "assessments" && data.assessment_instruments?.[0] && (
+          <AsqHistoryPanel
+            history={data.asq_history ?? []}
+            version={data.assessment_instruments[0].version}
+          />
         )}
         {records.length === 0 ? (
           <Typography color="text.secondary" variant="body2">
@@ -1804,146 +1857,219 @@ export function ClinicalPlanWorkspace({
                   </FormHelperText>
                 </FormControl>
               )}
-            {meta.fields.map((field) => {
-              const dynamicOptions =
-                kind === "medication_requests" &&
-                field.name === "dose_unit_code"
-                  ? data.medication_order_options.dose_units
-                  : kind === "medication_requests" &&
-                      field.name === "route_code"
-                    ? data.medication_order_options.routes
-                    : kind === "assessments" && field.name === "category"
-                      ? data.assessment_scope.map((code) => ({
-                          code,
-                          label: humanize(code),
-                        }))
-                      : null;
-              const required =
-                field.required ||
-                (kind === "immunizations" &&
-                  ((field.name === "occurrence_source" &&
-                    form.status !== "entered_in_error") ||
-                    (field.name === "refusal_reason" &&
-                      form.status === "not_done") ||
-                    (field.name === "administered_at" &&
-                      form.status === "completed") ||
-                    (field.name === "cvx_code" &&
-                      ["completed", "not_done"].includes(form.status)) ||
-                    (field.name === "lot_number" &&
-                      immunizationAdminEvidenceRequired) ||
-                    (field.name === "manufacturer" &&
-                      immunizationAdminEvidenceRequired) ||
-                    (field.name === "lot_expiration_date" &&
-                      immunizationAdminEvidenceRequired)));
-              const administrationDerived =
-                immunizationAdminEvidenceRequired &&
-                [
-                  "lot_number",
-                  "lot_expiration_date",
-                  "dose_text",
-                  "route_text",
-                  "administration_site_text",
-                  "administered_at",
-                ].includes(field.name);
-              return field.options || dynamicOptions ? (
-                <FormControl key={field.name} fullWidth required={required}>
-                  <InputLabel id={`clinical-${field.name}-label`}>
-                    {field.label}
-                  </InputLabel>
-                  <Select
-                    labelId={`clinical-${field.name}-label`}
+            {kind === "assessments" && !editing && (
+              <TextField
+                fullWidth
+                select
+                label="Assessment instrument"
+                value={namedInstrument?.version ?? ""}
+                disabled={busy || pendingAttempt !== null}
+                onChange={(event) => {
+                  const instrument = data.assessment_instruments?.find(
+                    (entry) => entry.version === event.target.value,
+                  );
+                  setForm((current) => ({
+                    ...current,
+                    instrument_name: instrument?.name ?? "",
+                    instrument_version: instrument?.version ?? "",
+                    category: instrument?.category ?? current.category,
+                    follow_up_plan: instrument
+                      ? JSON.stringify({ version: instrument.protocol_version })
+                      : "",
+                    _asq_items: "[]",
+                    score_value: "",
+                    score_source: "",
+                    score_recorded_at: "",
+                    interpretation: "",
+                    reviewer_membership_id: "",
+                    reviewed_at: "",
+                  }));
+                }}
+              >
+                <MenuItem value="">Other documented instrument</MenuItem>
+                {(data.assessment_instruments ?? [])
+                  .filter((instrument) =>
+                    data.assessment_scope.includes(
+                      instrument.category as AssessmentRevision["category"],
+                    ),
+                  )
+                  .map((instrument) => (
+                    <MenuItem
+                      key={instrument.version}
+                      value={instrument.version}
+                    >
+                      {instrument.name}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            )}
+            {namedInstrument && (
+              <AsqAdultAssessmentFields
+                instrument={namedInstrument}
+                form={form}
+                onChange={setForm}
+                tasks={data.assessment_follow_up_tasks ?? []}
+                disabled={busy || pendingAttempt !== null}
+              />
+            )}
+            {meta.fields
+              .filter(
+                (field) =>
+                  !namedInstrument ||
+                  ![
+                    "category",
+                    "instrument_name",
+                    "instrument_version",
+                    "score_value",
+                    "score_source",
+                    "score_recorded_at",
+                    "interpretation",
+                    "reviewer_membership_id",
+                    "reviewed_at",
+                    "assessment_state",
+                    "follow_up_plan",
+                  ].includes(field.name),
+              )
+              .map((field) => {
+                const dynamicOptions =
+                  kind === "medication_requests" &&
+                  field.name === "dose_unit_code"
+                    ? data.medication_order_options.dose_units
+                    : kind === "medication_requests" &&
+                        field.name === "route_code"
+                      ? data.medication_order_options.routes
+                      : kind === "assessments" && field.name === "category"
+                        ? data.assessment_scope.map((code) => ({
+                            code,
+                            label: humanize(code),
+                          }))
+                        : null;
+                const required =
+                  field.required ||
+                  (kind === "immunizations" &&
+                    ((field.name === "occurrence_source" &&
+                      form.status !== "entered_in_error") ||
+                      (field.name === "refusal_reason" &&
+                        form.status === "not_done") ||
+                      (field.name === "administered_at" &&
+                        form.status === "completed") ||
+                      (field.name === "cvx_code" &&
+                        ["completed", "not_done"].includes(form.status)) ||
+                      (field.name === "lot_number" &&
+                        immunizationAdminEvidenceRequired) ||
+                      (field.name === "manufacturer" &&
+                        immunizationAdminEvidenceRequired) ||
+                      (field.name === "lot_expiration_date" &&
+                        immunizationAdminEvidenceRequired)));
+                const administrationDerived =
+                  immunizationAdminEvidenceRequired &&
+                  [
+                    "lot_number",
+                    "lot_expiration_date",
+                    "dose_text",
+                    "route_text",
+                    "administration_site_text",
+                    "administered_at",
+                  ].includes(field.name);
+                return field.options || dynamicOptions ? (
+                  <FormControl key={field.name} fullWidth required={required}>
+                    <InputLabel id={`clinical-${field.name}-label`}>
+                      {field.label}
+                    </InputLabel>
+                    <Select
+                      labelId={`clinical-${field.name}-label`}
+                      label={field.label}
+                      value={form[field.name] ?? ""}
+                      onChange={(event) =>
+                        setForm((current) => {
+                          const value = event.target.value;
+                          if (
+                            kind === "immunizations" &&
+                            field.name === "occurrence_source"
+                          ) {
+                            return {
+                              ...current,
+                              occurrence_source: value,
+                              ...(value !== "administered_here"
+                                ? {
+                                    medication_administration_id: "",
+                                    lot_number: "",
+                                    lot_expiration_date: "",
+                                    administered_at: "",
+                                    dose_text: "",
+                                    route_text: "",
+                                    administration_site_text: "",
+                                    vis_edition_date: "",
+                                    vis_given_date: "",
+                                  }
+                                : {}),
+                            };
+                          }
+                          return { ...current, [field.name]: value };
+                        })
+                      }
+                    >
+                      {kind === "assessments" &&
+                        field.name === "score_source" &&
+                        editing &&
+                        (editing as AssessmentRevision).score_source ===
+                          "calculated" && (
+                          <MenuItem value="calculated" disabled>
+                            Calculated (historical source)
+                          </MenuItem>
+                        )}
+                      {(
+                        dynamicOptions ??
+                        field.options?.map((option) => ({
+                          code: option,
+                          label:
+                            field.name === "substitution_instruction" &&
+                            option === ""
+                              ? "Unresolved — draft only"
+                              : humanize(option),
+                        })) ??
+                        []
+                      ).map((option) => (
+                        <MenuItem
+                          key={option.code}
+                          value={option.code}
+                          disabled={
+                            kind === "immunizations" &&
+                            field.name === "occurrence_source" &&
+                            option.code === "administered_here" &&
+                            !immunizationAdministrationEnabled
+                          }
+                        >
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <TextField
+                    key={field.name}
                     label={field.label}
+                    required={required}
+                    multiline={field.multiline}
+                    minRows={field.multiline ? 2 : undefined}
+                    type={field.type ?? "text"}
+                    disabled={administrationDerived}
                     value={form[field.name] ?? ""}
                     onChange={(event) =>
-                      setForm((current) => {
-                        const value = event.target.value;
-                        if (
-                          kind === "immunizations" &&
-                          field.name === "occurrence_source"
-                        ) {
-                          return {
-                            ...current,
-                            occurrence_source: value,
-                            ...(value !== "administered_here"
-                              ? {
-                                  medication_administration_id: "",
-                                  lot_number: "",
-                                  lot_expiration_date: "",
-                                  administered_at: "",
-                                  dose_text: "",
-                                  route_text: "",
-                                  administration_site_text: "",
-                                  vis_edition_date: "",
-                                  vis_given_date: "",
-                                }
-                              : {}),
-                          };
-                        }
-                        return { ...current, [field.name]: value };
-                      })
+                      setForm((current) => ({
+                        ...current,
+                        [field.name]: event.target.value,
+                      }))
                     }
-                  >
-                    {kind === "assessments" &&
-                      field.name === "score_source" &&
-                      editing &&
-                      (editing as AssessmentRevision).score_source ===
-                        "calculated" && (
-                        <MenuItem value="calculated" disabled>
-                          Calculated (historical source)
-                        </MenuItem>
-                      )}
-                    {(
-                      dynamicOptions ??
-                      field.options?.map((option) => ({
-                        code: option,
-                        label:
-                          field.name === "substitution_instruction" &&
-                          option === ""
-                            ? "Unresolved — draft only"
-                            : humanize(option),
-                      })) ??
-                      []
-                    ).map((option) => (
-                      <MenuItem
-                        key={option.code}
-                        value={option.code}
-                        disabled={
-                          kind === "immunizations" &&
-                          field.name === "occurrence_source" &&
-                          option.code === "administered_here" &&
-                          !immunizationAdministrationEnabled
-                        }
-                      >
-                        {option.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              ) : (
-                <TextField
-                  key={field.name}
-                  label={field.label}
-                  required={required}
-                  multiline={field.multiline}
-                  minRows={field.multiline ? 2 : undefined}
-                  type={field.type ?? "text"}
-                  disabled={administrationDerived}
-                  value={form[field.name] ?? ""}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      [field.name]: event.target.value,
-                    }))
-                  }
-                  slotProps={
-                    field.type && field.type !== "text"
-                      ? { inputLabel: { shrink: true } }
-                      : undefined
-                  }
-                  fullWidth
-                />
-              );
-            })}
+                    slotProps={
+                      field.type && field.type !== "text"
+                        ? { inputLabel: { shrink: true } }
+                        : undefined
+                    }
+                    fullWidth
+                  />
+                );
+              })}
             {kind === "medication_requests" && (
               <Alert severity="info">
                 Authorized records and pharmacy transmission states are
