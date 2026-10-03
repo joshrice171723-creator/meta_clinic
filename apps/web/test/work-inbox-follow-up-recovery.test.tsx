@@ -167,7 +167,7 @@ for (const failure of ["network interrupted", "server unknown"] as const) {
       errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     const rendered = renderDiagnostics(page, errors);
-    await page.route("**/api/**", async (route) => {
+    await page.route(`${origin}/api/**`, async (route) => {
       const request = route.request();
       if (new URL(request.url()).pathname === "/api/csrf")
         return route.fulfill({
@@ -287,7 +287,7 @@ for (const kind of ["task", "follow-up"] as const) {
       eligible_assignees: [{ membership_id: 71, label: "Synthetic owner" }],
     };
     const summary = { open: 0, mine: 0, overdue: 0, unassigned: 0 };
-    await page.route("**/api/**", async (route) => {
+    await page.route(`${origin}/api/**`, async (route) => {
       const request = route.request(),
         path = new URL(request.url()).pathname;
       if (path === "/api/csrf")

@@ -8,6 +8,9 @@ canonical_for: recent-progress-and-history-index
 # Progress Log
 
 
+**2026-10-03 - Cloud cleanup packet reconciled:** Reconstructed and hash-verified the exact780-line InventoryApp private-screen deletion and three browser fixture repairs from the parent-relayed cloud packet. Separate source review confirms unchanged public exports/active purchasing/prices/drafts/recovery. Cloud reports33 mounted passes and55 post-cleanup inventory passes with two stale source assertions; raw archive remains unreceived. Cloud owns the separate two-file cycle/assertion fix; no duplicate local heavy checks or main/publication action. Local registration accepted synthetic patient1, preserving its receipt before continuing the connected journey. [Packet identities and limits](../../docs/development/clinic-workflow-plans/cash-inventory-repair-audit-20261003.md).
+
+
 **2026-10-03 - Temporal contact and drawer replay accepted locally:** Reproduced the remaining FIX-01 lookup/chart time-boundary defects on94d262d8, then repaired current-contact selection without writes in GET or an index backfill. Both affected API files pass14tests/213assertions with no failures/errors/skips; five-file Ruby lint and independent diff review pass. Strengthened existing FIX-19 proof confirms normalized exact replay and rejection/denial preserve drawer attribution, financial records and PaperTrail versions. Failed selector/session/reproduction attempts remain separate. Cloud UI ownership continues; its reported33 mounted passes still await artifact/hash reconciliation. Joshua reauthorized bounded queued Windows work for the connected Rails journey. No main merge, release or hosted-candidate acceptance is claimed. [Assignment and evidence](../../docs/development/clinic-workflow-plans/cash-inventory-repair-audit-20261003.md).
 
 

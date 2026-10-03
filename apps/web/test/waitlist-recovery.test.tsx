@@ -95,7 +95,7 @@ it("blocks pending and HTTP408-unknown navigation, then releases it after an exa
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/api/**", async (route) => {
+  await page.route(`${origin}/api/**`, async (route) => {
     const request = route.request(),
       path = new URL(request.url()).pathname;
     if (request.method() === "POST") {

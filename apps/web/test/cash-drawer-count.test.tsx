@@ -51,10 +51,14 @@ beforeAll(async () => {
           return `import React from "react";
           import {createRoot} from "react-dom/client";
           import {CashDrawerOperations} from "/src/features/clinic/CashDrawerOperations";
-          const invoice = {id: 705, status: "posted", currency: "USD", balance: "25"};
-          createRoot(document.getElementById("root")).render(React.createElement(CashDrawerOperations, {
-            invoice: null, onRecorded: () => {},
-          }));`;
+          function Fixture() {
+            const [refreshVersion, setRefreshVersion] = React.useState(0);
+            window.refreshDrawerFixture = () => setRefreshVersion(value => value + 1);
+            return React.createElement(CashDrawerOperations, {
+              invoice: null, onRecorded: () => {}, refreshVersion,
+            });
+          }
+          createRoot(document.getElementById("root")).render(React.createElement(Fixture));`;
         },
         configureServer(s) {
           s.middlewares.use("/cash-test", async (_request, response) => {
@@ -221,9 +225,13 @@ it.each(["unknown", "unknown_refreshed", "rejected"])(
         expect(await note.isDisabled()).toBe(true);
         expect(attempts).toHaveLength(1);
         if (outcome === "unknown_refreshed") {
-          await page
-            .getByRole("button", { name: "Refresh activity", exact: true })
-            .click();
+          // Refresh through the parent contract; "Refresh activity" belongs
+          // to an uncertain cash payment, not drawer reconciliation.
+          await page.evaluate(() =>
+            (
+              window as unknown as { refreshDrawerFixture: () => void }
+            ).refreshDrawerFixture(),
+          );
           await expect.poll(() => note.count()).toBe(0);
           const retained = page.getByRole("button", {
             name: "Retry drawer #707 reconciliation",
