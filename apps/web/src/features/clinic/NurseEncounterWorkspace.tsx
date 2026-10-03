@@ -1225,12 +1225,10 @@ export function NurseEncounterWorkspaceContent({
                 sx={{ display: activeWorkspace === "intake" ? "flex" : "none" }}
               >
                 {encounter.status === "completed" ? (
-                  <Alert severity="info">
-                    Review the saved answers and groups that were incomplete
-                    when the encounter was completed. Staff with intake access
-                    may save corrections as new revisions; corrections do not
-                    reopen the encounter.
-                  </Alert>
+                  <Typography variant="body2" color="text.secondary">
+                    Review the saved answers below. Authorized corrections are
+                    saved as new intake revisions and do not reopen the encounter.
+                  </Typography>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
                     Open any group to review its questions. Save and confirm
