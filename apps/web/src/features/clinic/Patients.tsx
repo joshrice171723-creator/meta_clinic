@@ -809,6 +809,7 @@ function PatientRecord({
   const [discardPending, setDiscardPending] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [mergeTarget, setMergeTarget] = useState("");
+  const mergeTargetValid = /^[1-9]\d*$/.test(mergeTarget);
   const [mergeReason, setMergeReason] = useState("");
   const [mergeError, setMergeError] = useState("");
   const [mergeBusy, setMergeBusy] = useState(false);
@@ -1043,10 +1044,10 @@ function PatientRecord({
                 </Alert>
                 <TextField
                   label="Canonical patient ID"
+                  error={mergeTarget !== "" && !mergeTargetValid}
+                  helperText="Enter the numeric patient ID from the directory, exactly as shown. Clinic references such as SBX-1-092 are not patient IDs."
                   value={mergeTarget}
-                  onChange={(event) =>
-                    setMergeTarget(event.target.value.replace(/\D/g, ""))
-                  }
+                  onChange={(event) => setMergeTarget(event.target.value)}
                   required
                 />
                 <TextField
@@ -1065,10 +1066,11 @@ function PatientRecord({
                 Cancel
               </Button>
               <Button
-                disabled={mergeBusy || !mergeTarget || !mergeReason.trim()}
+                disabled={mergeBusy || !mergeTargetValid || !mergeReason.trim()}
                 color="warning"
                 variant="contained"
                 onClick={async () => {
+                  if (!mergeTargetValid) return;
                   setMergeBusy(true);
                   setMergeError("");
                   try {

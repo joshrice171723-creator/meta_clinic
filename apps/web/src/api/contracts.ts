@@ -1771,6 +1771,7 @@ export type Clinician = {
   }[];
 };
 export type Encounter = {
+  late_arrival_minutes?: number | null;
   telehealth?: TelehealthSummary | null;
   id: number;
   patient_id: number;
@@ -1982,6 +1983,7 @@ export type ClinicTrackingBoardVisit = {
     token: string | null;
   } | null;
   encounter: {
+    late_arrival_minutes?: number | null;
     id: number;
     status: "open" | "completed";
     started_at: string;

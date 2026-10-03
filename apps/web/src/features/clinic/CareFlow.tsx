@@ -77,7 +77,11 @@ import {
 } from "./CareIndicators";
 import { useClinicNavigation } from "./clinicNavigation";
 import { ReviewOfSystems } from "./ReviewOfSystems";
-import { HistoryOfPresentIllness } from "./HistoryOfPresentIllness";
+import {
+  composeHistoryOfPresentIllness,
+  HistoryOfPresentIllness,
+  splitHistoryOfPresentIllness,
+} from "./HistoryOfPresentIllness";
 import { appendPrevisitNote, PrevisitNoteImport } from "./PrevisitNoteImport";
 import { VisitInstructionHandout } from "../../shared/VisitInstructionHandout";
 import { PatientClinicalHistory } from "./PatientClinicalHistory";
@@ -3901,12 +3905,21 @@ export function applySoapTemplate(
   sections: SoapNoteSections,
   template: NoteTemplate,
 ): SoapNoteSections {
-  return Object.fromEntries(
+  const next = Object.fromEntries(
     SOAP_SECTION_LABELS.map(([key]) => [
       key,
       template.sections[key].trim() ? template.sections[key] : sections[key],
     ]),
   ) as SoapNoteSections;
+  if (template.sections.subjective.trim()) {
+    const documented = splitHistoryOfPresentIllness(sections.subjective);
+    next.subjective = composeHistoryOfPresentIllness(
+      template.sections.subjective,
+      documented.hpi,
+      documented.selections,
+    );
+  }
+  return next;
 }
 
 export function SoapNoteForm({
@@ -5168,8 +5181,9 @@ export function SoapNoteForm({
         <DialogContent>
           <Typography>
             Applying {templateConfirmation?.label} will replace the sections
-            where it supplies prompt text. Review the replacement before you
-            save the unsigned draft.
+            where it supplies prompt text. Structured HPI fields and recorded
+            review-of-systems findings will be preserved; review all remaining
+            text before saving the unsigned draft.
           </Typography>
         </DialogContent>
         <DialogActions>

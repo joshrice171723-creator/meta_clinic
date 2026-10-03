@@ -1361,7 +1361,7 @@ export function ClinicalPlanWorkspace({
           </Button>
           {canReviewSetup && (
             <Link
-              href={`/clinic/setup?site_id=${encodeURIComponent(String(encounter.site_id))}`}
+              href={`/clinic/setup?site_id=${encodeURIComponent(String(encounter.site_id))}${kind === "assessments" ? "#assessment-setup" : ""}`}
               underline="hover"
             >
               Review clinic setup

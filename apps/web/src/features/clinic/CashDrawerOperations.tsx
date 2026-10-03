@@ -1,3 +1,4 @@
+import { BillingReceiptButton } from "./BillingDocumentPreview";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import {
@@ -999,16 +1000,13 @@ export function CashDrawerOperations({
               </Stack>
             )}
             {receiptPaymentId && (
-              <Button
-                component="a"
-                href={`/api/clinic/payment_events/${receiptPaymentId}/receipt`}
-                rel="noopener"
+              <BillingReceiptButton
+                paymentId={receiptPaymentId}
                 startIcon={<PrintOutlinedIcon />}
-                target="_blank"
                 variant="outlined"
               >
                 Print receipt
-              </Button>
+              </BillingReceiptButton>
             )}
             {drawer.status === "open" && (
               <>

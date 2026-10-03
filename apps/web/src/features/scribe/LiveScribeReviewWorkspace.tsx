@@ -209,6 +209,9 @@ export function LiveScribeReviewWorkspace() {
   recordingRef.current = recording;
   const locationSearch =
     typeof window === "undefined" ? "" : window.location.search;
+  const sampleSession =
+    isDemoFrame() &&
+    new URLSearchParams(locationSearch).get("demo_step") === "scribe_review";
   const compactRail = useMediaQuery("(max-width: 759.95px)");
   const scopeKey = `${membership_id ?? "none"}:${current_site?.id ?? "all"}`;
   const scopeRef = useRef(scopeKey);
@@ -1504,16 +1507,19 @@ export function LiveScribeReviewWorkspace() {
                   }
                   onClick={() =>
                     void (
-                      isDemoFrame() && !contextualClinicalEncounterId
+                      sampleSession && !contextualClinicalEncounterId
                         ? createSyntheticEncounter()
                         : createEncounter()
                     ).catch(() => undefined)
                   }
                   sx={{ minHeight: 44 }}
                 >
-                  {contextualClinicalEncounterId
-                    ? "Start linked session"
-                    : "Start session"}
+                  {pendingAction === "create" ||
+                  pendingAction === "create-synthetic"
+                    ? "Starting session…"
+                    : contextualClinicalEncounterId
+                      ? "Start linked session"
+                      : "Start session"}
                 </Button>
               </Stack>
               {!canWrite && (
@@ -1523,8 +1529,11 @@ export function LiveScribeReviewWorkspace() {
               )}
               {isDemoFrame() && !contextualClinicalEncounterId && (
                 <Typography variant="body2" color="text.secondary">
-                  Starts a sample visit session. Recording is unavailable in
-                  this demo.
+                  {sampleSession
+                    ? "Starts the guided sample visit session."
+                    : "Starts a session for the selected patient."}{" "}
+                  Recording is unavailable in this demo; supplied context and
+                  transcripts can be reviewed.
                 </Typography>
               )}
             </Stack>

@@ -26,8 +26,6 @@ module Clinic
       rescue ArgumentError
         raise InvalidLocalTime, "Local time is not valid."
       end
-      private_class_method :parse_local
-
       def self.resolve(timezone, local, occurrence, label)
         periods = TZInfo::Timezone.get(timezone).periods_for_local(local)
         raise InvalidLocalTime, "The #{label} falls in a daylight-saving time gap." if periods.empty?

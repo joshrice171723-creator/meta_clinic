@@ -1,3 +1,4 @@
+import { lateArrivalMessage } from "./arrivalTiming";
 import {
   Fragment,
   memo,
@@ -373,7 +374,10 @@ function operationalTiming(visit: BoardVisit, now: string, timezone: string) {
     if (visit.operationalState === "waiting_room") {
       const waiting = waitingMinutes(visit, now);
       return {
-        value: formatClockTime(visit.appointmentStartsAt, timezone),
+        value: formatClockTime(
+          visit.arrivedAt || visit.appointmentStartsAt,
+          timezone,
+        ),
         detail:
           waiting === null ? "Checked in" : `${durationLabel(waiting)} wait`,
       };
@@ -878,6 +882,15 @@ function TrackingBoardRow({
                   : stage.waiting
                     ? durationLabel(waitingMinutes(visit, now))
                     : "In care"}
+              </Typography>
+            )}
+            {lateArrivalMessage(visit.lateArrivalMinutes) && (
+              <Typography
+                variant="caption"
+                sx={{ display: "block" }}
+                color="text.secondary"
+              >
+                {lateArrivalMessage(visit.lateArrivalMinutes)}
               </Typography>
             )}
             {!timing && (

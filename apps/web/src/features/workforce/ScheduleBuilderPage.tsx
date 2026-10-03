@@ -51,9 +51,16 @@ export function ScheduleBuilderPage() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [publishError, setPublishError] = useState<string>();
   const [employeeId, setEmployeeId] = useState("");
   const [localStart, setLocalStart] = useState("");
   const [localEnd, setLocalEnd] = useState("");
+  const [dateInputRevision, setDateInputRevision] = useState(0);
+  const [editingShiftId, setEditingShiftId] = useState<string>();
+  const [shiftError, setShiftError] = useState<string>();
+  const [startError, setStartError] = useState<string>();
+  const [endError, setEndError] = useState<string>();
+  const [deleteShiftId, setDeleteShiftId] = useState<string>();
   const [roleName, setRoleName] = useState("");
   const [breakMinutes, setBreakMinutes] = useState("0");
   const [templateId, setTemplateId] = useState("");
@@ -240,9 +247,44 @@ export function ScheduleBuilderPage() {
       setBusy(false);
     }
   };
-  const saveShift = async (event: FormEvent) => {
+  const resetShiftEditor = () => {
+    setEditingShiftId(undefined);
+    setLocalStart("");
+    setLocalEnd("");
+    setRoleName("");
+    setBreakMinutes("0");
+    setShiftError(undefined);
+    setStartError(undefined);
+    setEndError(undefined);
+    setDateInputRevision((value) => value + 1);
+  };
+  const saveShift = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading || !draft || draft.site_id !== currentSiteId) return;
+    const form = new FormData(event.currentTarget);
+    const start = String(form.get("local_start") ?? "");
+    const end = String(form.get("local_end") ?? "");
+    const weekEnd = new Date(`${draft.week_start_on}T00:00:00Z`);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    const nextWeekDate = weekEnd.toISOString().slice(0, 10);
+    const validLocal = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    const nextStartError = !validLocal.test(start)
+      ? "Enter a complete start date and time."
+      : start.slice(0, 10) < draft.week_start_on ||
+          start >= `${nextWeekDate}T00:00`
+        ? `Start must fall within the week of ${draft.week_start_on}.`
+        : undefined;
+    const nextEndError = !validLocal.test(end)
+      ? "Enter a complete end date and time."
+      : end.slice(0, 10) < draft.week_start_on || end > `${nextWeekDate}T00:00`
+        ? `End must fall within the week of ${draft.week_start_on}.`
+        : start && end <= start
+          ? "End must be later than start. Overnight shifts must end within the selected week."
+          : undefined;
+    setStartError(nextStartError);
+    setEndError(nextEndError);
+    setShiftError(undefined);
+    if (nextStartError || nextEndError) return;
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
@@ -253,9 +295,10 @@ export function ScheduleBuilderPage() {
           method: "POST",
           body: {
             shift: {
+              id: editingShiftId,
               employment_id: employeeId,
-              local_start: localStart,
-              local_end: localEnd,
+              local_start: start,
+              local_end: end,
               start_occurrence: "only",
               end_occurrence: "only",
               role_name: roleName,
@@ -266,12 +309,10 @@ export function ScheduleBuilderPage() {
         },
       );
       setDraft(result.draft);
-      setLocalStart("");
-      setLocalEnd("");
-      setRoleName("");
+      resetShiftEditor();
       setNotice("Shift saved to the draft.");
     } catch (reason) {
-      setError(
+      setShiftError(
         reason instanceof Error ? reason.message : "Unable to save the shift.",
       );
     } finally {
@@ -282,6 +323,7 @@ export function ScheduleBuilderPage() {
     if (loading || !draft || draft.site_id !== currentSiteId) return;
     setBusy(true);
     setError(undefined);
+    setPublishError(undefined);
     try {
       await api(`/api/clinic/workforce/schedule-drafts/${draft.id}/publish`, {
         method: "POST",
@@ -294,16 +336,56 @@ export function ScheduleBuilderPage() {
       });
       setPublishOpen(false);
       setDraft(undefined);
-      setNotice(
-        "Schedule published. Employees can now see their assigned shifts.",
-      );
+      const publishedSiteId = draft.site_id;
+      const publishedWeek = draft.week_start_on;
       await load();
+      if (currentSiteIdRef.current === publishedSiteId)
+        setNotice(
+          `Schedule published for the week of ${publishedWeek}. Employees can now see their assigned shifts.`,
+        );
     } catch (reason) {
-      setError(
+      setPublishError(
         reason instanceof Error
           ? reason.message
           : "Unable to publish the schedule.",
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const editShift = (shift: NonNullable<ScheduleDraft["shifts"]>[number]) => {
+    setEditingShiftId(shift.id);
+    setEmployeeId(shift.employment_id);
+    setLocalStart(shift.local_start);
+    setLocalEnd(shift.local_end);
+    setRoleName(shift.role_name ?? "");
+    setBreakMinutes(String(shift.break_minutes));
+    setShiftError(undefined);
+    setStartError(undefined);
+    setEndError(undefined);
+    setDateInputRevision((value) => value + 1);
+  };
+  const deleteShift = async () => {
+    if (loading || !draft || draft.site_id !== currentSiteId || !deleteShiftId)
+      return;
+    setBusy(true);
+    setShiftError(undefined);
+    try {
+      const result = await api<{ draft: ScheduleDraft }>(
+        `/api/clinic/workforce/schedule-drafts/${draft.id}/shifts/${deleteShiftId}?expected_revision=${draft.revision}`,
+        { method: "DELETE" },
+      );
+      setDraft(result.draft);
+      if (editingShiftId === deleteShiftId) resetShiftEditor();
+      setDeleteShiftId(undefined);
+      setNotice("Shift removed from the draft.");
+    } catch (reason) {
+      setShiftError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to remove the shift.",
+      );
+      setDeleteShiftId(undefined);
     } finally {
       setBusy(false);
     }
@@ -339,7 +421,10 @@ export function ScheduleBuilderPage() {
               const expectedSiteId = currentSiteId;
               void loadDraft(event.target.value, expectedSiteId)
                 .then((nextDraft) => {
-                  if (nextDraft) setDraft(nextDraft);
+                  if (nextDraft) {
+                    setDraft(nextDraft);
+                    resetShiftEditor();
+                  }
                 })
                 .catch((reason: unknown) => {
                   if (currentSiteIdRef.current === expectedSiteId)
@@ -388,7 +473,10 @@ export function ScheduleBuilderPage() {
             variant="contained"
             startIcon={<PublishIcon />}
             disabled={busy || loading}
-            onClick={() => setPublishOpen(true)}
+            onClick={() => {
+              setPublishError(undefined);
+              setPublishOpen(true);
+            }}
           >
             Review and publish
           </Button>
@@ -411,6 +499,7 @@ export function ScheduleBuilderPage() {
                   <TableCell>Shift</TableCell>
                   <TableCell>Role</TableCell>
                   <TableCell align="right">Break</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -427,6 +516,29 @@ export function ScheduleBuilderPage() {
                     <TableCell>{shift.role_name || "Not specified"}</TableCell>
                     <TableCell align="right">
                       {shift.break_minutes} min
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack
+                        direction="row"
+                        sx={{ justifyContent: "flex-end" }}
+                        spacing={1}
+                      >
+                        <Button
+                          size="small"
+                          disabled={busy}
+                          onClick={() => editShift(shift)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          disabled={busy}
+                          onClick={() => setDeleteShiftId(shift.id)}
+                        >
+                          Delete
+                        </Button>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -447,8 +559,13 @@ export function ScheduleBuilderPage() {
             onSubmit={saveShift}
           >
             <Typography variant="h2" sx={{ mb: 2 }}>
-              Add shift
+              {editingShiftId ? "Edit shift" : "Add shift"}
             </Typography>
+            {shiftError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {shiftError}
+              </Alert>
+            )}
             <Box
               sx={{
                 display: "grid",
@@ -481,21 +598,38 @@ export function ScheduleBuilderPage() {
                 slotProps={{ htmlInput: { maxLength: 120 } }}
               />
               <TextField
-                required
+                key={`start-${dateInputRevision}`}
+                name="local_start"
                 label={`Starts (${draft.timezone})`}
                 type="datetime-local"
-                value={localStart}
-                onChange={(e) => setLocalStart(e.target.value)}
+                defaultValue={localStart}
+                error={Boolean(startError)}
+                helperText={
+                  startError ??
+                  `Use a date within ${draft.week_start_on} through the end of this week.`
+                }
+                onChange={(e) => {
+                  setLocalStart(e.target.value);
+                  setStartError(undefined);
+                }}
                 slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
-                required
+                key={`end-${dateInputRevision}`}
+                name="local_end"
                 label={`Ends (${draft.timezone})`}
                 type="datetime-local"
-                value={localEnd}
-                onChange={(e) => setLocalEnd(e.target.value)}
+                defaultValue={localEnd}
+                error={Boolean(endError)}
+                helperText={
+                  endError ??
+                  "End must be after start and within the selected week."
+                }
+                onChange={(e) => {
+                  setLocalEnd(e.target.value);
+                  setEndError(undefined);
+                }}
                 slotProps={{ inputLabel: { shrink: true } }}
-                helperText="An earlier end time is treated as overnight."
               />
               <TextField
                 label="Unpaid break (minutes)"
@@ -509,10 +643,19 @@ export function ScheduleBuilderPage() {
               type="submit"
               variant="contained"
               sx={{ mt: 2 }}
-              disabled={busy || !employeeId || !localStart || !localEnd}
+              disabled={busy || !employeeId}
             >
               Save shift
             </Button>
+            {editingShiftId && (
+              <Button
+                sx={{ mt: 2, ml: 1 }}
+                disabled={busy}
+                onClick={resetShiftEditor}
+              >
+                Cancel edit
+              </Button>
+            )}
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h2" sx={{ mb: 1 }}>
@@ -549,14 +692,12 @@ export function ScheduleBuilderPage() {
         <DialogTitle>Publish this schedule?</DialogTitle>
         <DialogContent>
           <Stack spacing={1}>
-            <Typography>
-              {draft?.shifts?.length ?? 0} shifts for the week of{" "}
-              {draft?.week_start_on}.
-            </Typography>
+            <Typography>{`${draft?.shifts?.length ?? 0} shifts for the week of ${draft?.week_start_on ?? ""}.`}</Typography>
             <Alert severity="info">
-              Publishing creates an immutable version. Later changes create and
-              publish another version; this one is retained.
+              Publishing makes this schedule available to employees. To change
+              it later, create a new draft and publish that schedule.
             </Alert>
+            {publishError && <Alert severity="error">{publishError}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -567,6 +708,24 @@ export function ScheduleBuilderPage() {
             disabled={busy || !draft?.shifts?.length}
           >
             {busy ? "Publishing…" : "Publish schedule"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={Boolean(deleteShiftId)}
+        onClose={() => !busy && setDeleteShiftId(undefined)}
+      >
+        <DialogTitle>Remove this draft shift?</DialogTitle>
+        <DialogContent>
+          This removes the shift from this draft. Published schedules are not
+          changed.
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={busy} onClick={() => setDeleteShiftId(undefined)}>
+            Cancel
+          </Button>
+          <Button color="error" disabled={busy} onClick={deleteShift}>
+            Remove shift
           </Button>
         </DialogActions>
       </Dialog>

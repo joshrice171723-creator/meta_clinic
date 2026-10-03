@@ -467,6 +467,7 @@ export function PracticeFeatureSettings({
   siteId?: number | null;
   onProfileSaved?: (finalized: boolean) => void;
 }) {
+  const hash = window.location.hash;
   const siteQuery = siteId ? `?site_id=${siteId}` : "";
   const { data, error, refresh } = useResource<{ features: PracticeFeatures }>(
     `/api/clinic/practice_features${siteQuery}`,
@@ -515,7 +516,7 @@ export function PracticeFeatureSettings({
 
   useEffect(() => {
     scopeGeneration.current += 1;
-    setReviewFinalizedChanges(false);
+    setReviewFinalizedChanges(window.location.hash === "#assessment-setup");
     previewGeneration.current += 1;
     setPreview(null);
     setPreviewing(false);
@@ -524,6 +525,15 @@ export function PracticeFeatureSettings({
     setSaving(false);
     setFeedback(null);
   }, [siteId]);
+  useEffect(() => {
+    if (hash === "#assessment-setup") setReviewFinalizedChanges(true);
+  }, [hash]);
+  useEffect(() => {
+    if (hash === "#assessment-setup" && features)
+      document
+        .getElementById("assessment-setup")
+        ?.scrollIntoView({ block: "start" });
+  }, [features, reviewFinalizedChanges, hash]);
   const signature = JSON.stringify([
     clinicType,
     serviceScope,
@@ -627,6 +637,7 @@ export function PracticeFeatureSettings({
             service and assessment changes remain available through the
             supported change review below.
           </Alert>
+          {feedback && <Alert severity={feedback.tone}>{feedback.text}</Alert>}
 
           <Stack spacing={1.5}>
             <Typography variant="subtitle1">Current settings</Typography>
@@ -644,7 +655,7 @@ export function PracticeFeatureSettings({
                   ? selectedServices.join(", ")
                   : "None selected"}
               </Typography>
-              <Typography>
+              <Typography id="assessment-setup">
                 <strong>Screening and assessment:</strong>{" "}
                 {!features.assessment_configured
                   ? "Not explicitly configured"
@@ -652,11 +663,15 @@ export function PracticeFeatureSettings({
                     ? selectedAssessments.join(", ")
                     : "None selected"}
               </Typography>
-              <Typography>
-                <strong>Insurance workflows:</strong>{" "}
-                {features.insurance_workflows_enabled
-                  ? "Enabled"
-                  : "Not enabled"}
+              <FormControlLabel
+                disabled
+                control={
+                  <Switch checked={features.insurance_workflows_enabled} />
+                }
+                label={`This ${siteId ? "location" : "clinic"} uses insurance workflows`}
+              />
+              <Typography variant="body2" color="text.secondary">
+                Insurance workflows are protected after setup is finalized.
               </Typography>
             </Stack>
           </Stack>
@@ -930,7 +945,7 @@ export function PracticeFeatureSettings({
         tone: "success",
         text: attempt.finalized
           ? "Setup finalized. Clinic-managed settings remain available."
-          : "Clinic profile saved. The selected starter forms and visit types are ready to configure.",
+          : `${siteId ? "Location" : "Clinic"} profile saved.`,
       });
       onProfileSaved?.(attempt.finalized);
       refresh();
@@ -1254,7 +1269,10 @@ export function PracticeFeatureSettings({
 
         <Divider />
 
-        <FormControl disabled={!canWrite || editingLocked}>
+        <FormControl
+          id="assessment-setup"
+          disabled={!canWrite || editingLocked}
+        >
           <FormLabel component="legend">
             3. Screening and assessment scope
           </FormLabel>
@@ -1321,33 +1339,38 @@ export function PracticeFeatureSettings({
 
         <Stack spacing={1}>
           <Typography variant="h3">4. Payment model</Typography>
+          <FormControlLabel
+            disabled={
+              !canWrite || editingLocked || features.finalized || isDemoFrame()
+            }
+            control={
+              <Switch
+                checked={insuranceEnabled}
+                onChange={(_, checked) => {
+                  setInsuranceEnabled(checked);
+                  setFeedback(null);
+                }}
+              />
+            }
+            label={`This ${siteId ? "location" : "clinic"} uses insurance workflows`}
+          />
+          {features.finalized && (
+            <Typography variant="body2" color="text.secondary">
+              Insurance workflows are protected after setup is finalized.
+            </Typography>
+          )}
           {isDemoFrame() ? (
             <Typography variant="body2" color="text.secondary">
               Cash-based care with memberships and direct patient payments.
             </Typography>
           ) : (
-            <>
-              <FormControlLabel
-                disabled={!canWrite || editingLocked || features.finalized}
-                control={
-                  <Switch
-                    checked={insuranceEnabled}
-                    onChange={(_, checked) => {
-                      setInsuranceEnabled(checked);
-                      setFeedback(null);
-                    }}
-                  />
-                }
-                label={`This ${siteId ? "location" : "clinic"} uses insurance workflows`}
-              />
-              <Typography variant="body2" color="text.secondary">
-                Cash prices, estimates, invoices, receipts, card payments,
-                refunds, credits, packages, and memberships remain part of the
-                base. Turn insurance on only when the clinic needs coverage,
-                eligibility, prior authorization, claims, remittance, denials,
-                and payer balances.
-              </Typography>
-            </>
+            <Typography variant="body2" color="text.secondary">
+              Cash prices, estimates, invoices, receipts, card payments,
+              refunds, credits, packages, and memberships remain part of the
+              base. Turn insurance on only when the clinic needs coverage,
+              eligibility, prior authorization, claims, remittance, denials, and
+              payer balances.
+            </Typography>
           )}
         </Stack>
 

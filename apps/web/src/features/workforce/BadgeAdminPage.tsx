@@ -396,8 +396,18 @@ export function BadgeAdminPage() {
             {kioskError && <Alert severity="error">{kioskError}</Alert>}
             <Typography color="text.secondary">
               The one-time enrollment code creates a secure, clock-only session.
-              It does not sign the device into the clinic workspace.
+              It does not sign the device into the clinic workspace. Open the
+              clock on the device you want to enroll, then enter the code there.
             </Typography>
+            <Button
+              href="/workforce/kiosk"
+              target="_blank"
+              rel="noreferrer"
+              variant="outlined"
+              sx={{ alignSelf: "start" }}
+            >
+              Open kiosk clock
+            </Button>
             {kiosks.map((kiosk) => (
               <Stack
                 key={kiosk.id}
