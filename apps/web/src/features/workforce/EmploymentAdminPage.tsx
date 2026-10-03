@@ -730,16 +730,20 @@ export function EmploymentAdminPage() {
   };
   const searchTerm = employeeSearch.trim().toLocaleLowerCase();
   const visibleEmployments = data.employments.filter((employment) =>
-    [
-      employment.staff_member.display_name,
-      employment.membership_summary.email_address,
-      ...employment.roles.map((role) => roleLabel(role.role_code)),
-      ...employment.sites.filter((site) => site.active).map((site) => site.name),
-      employment.active_for_work ? "active" : "inactive",
-    ]
-      .join(" ")
-      .toLocaleLowerCase()
-      .includes(searchTerm),
+    searchTerm === "active" || searchTerm === "inactive"
+      ? employment.active_for_work === (searchTerm === "active")
+      : [
+          employment.staff_member.display_name,
+          employment.membership_summary.email_address,
+          ...employment.roles.map((role) => roleLabel(role.role_code)),
+          ...employment.sites
+            .filter((site) => site.active)
+            .map((site) => site.name),
+          employment.active_for_work ? "active" : "inactive",
+        ]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(searchTerm),
   );
 
   return (
@@ -840,6 +844,13 @@ export function EmploymentAdminPage() {
           label="Search employees"
           size="small"
           value={employeeSearch}
+          disabled={
+            saving ||
+            unconfirmed !== null ||
+            dirty ||
+            bulkAccessBlocked ||
+            Object.values(individualAccessBlocked).some(Boolean)
+          }
           onChange={(event) => setEmployeeSearch(event.target.value)}
           placeholder="Name, email, role, site, status"
           slotProps={{ htmlInput: { maxLength: 120 } }}

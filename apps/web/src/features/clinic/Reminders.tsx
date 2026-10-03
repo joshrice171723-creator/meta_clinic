@@ -6,6 +6,7 @@ import { useClinic } from "./Workspace";
 import { clinicDateValue } from "./frontDeskModel";
 import type { Appointment, PatientReminder } from "../../api/contracts";
 import { AppointmentReminderBatch } from "./AppointmentReminderBatch";
+import { ClinicEmptyState } from "./ClinicEmptyState";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
@@ -686,22 +687,24 @@ function NeedsAttention({
   }
   if (reminders.length === 0) {
     return (
-      <Box sx={{ py: 3 }} role="status">
-        <Typography component="h3" variant="h6">
-          {query.trim()
-            ? "No matching reminders"
-            : "No reminders need attention"}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: "65ch" }}>
-          {query.trim()
-            ? "No reminders needing attention match this patient filter."
-            : "Delivery problems and patient requests for help or rescheduling will appear here."}
-        </Typography>
-        {query.trim() && (
-          <Button onClick={onClearFilter} sx={{ mt: 1 }}>
-            Clear patient filter
-          </Button>
-        )}
+      <Box role="status">
+        <ClinicEmptyState
+          title={
+            query.trim()
+              ? "No matching reminders"
+              : "No reminders need attention"
+          }
+          description={
+            query.trim()
+              ? "No reminders needing attention match this patient filter."
+              : "Delivery problems and patient requests for help or rescheduling will appear here."
+          }
+          action={
+            query.trim() ? (
+              <Button onClick={onClearFilter}>Clear patient filter</Button>
+            ) : undefined
+          }
+        />
       </Box>
     );
   }
@@ -784,17 +787,19 @@ function MessageHistory({
   if (resource.error) return <Alert severity="error">{resource.error}</Alert>;
   if (reminders.length === 0) {
     return (
-      <Box sx={{ py: 3 }} role="status">
-        <Typography variant="h6">
-          {reminderId
-            ? "Selected reminder was not found"
-            : "No messages with a recorded delivery attempt"}
-        </Typography>
-        <Typography color="text.secondary">
-          {reminderId
-            ? "It may have been removed or is outside your current clinic access."
-            : "Messages appear here after a delivery attempt is recorded."}
-        </Typography>
+      <Box role="status">
+        <ClinicEmptyState
+          title={
+            reminderId
+              ? "Selected reminder was not found"
+              : "No messages with a recorded delivery attempt"
+          }
+          description={
+            reminderId
+              ? "It may have been removed or is outside your current clinic access."
+              : "Messages appear here after a delivery attempt is recorded."
+          }
+        />
       </Box>
     );
   }

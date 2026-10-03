@@ -123,17 +123,22 @@ export function BulkRoleEditor({
   const locked = disabled || saving || unknown;
   const role = data.role_options.find((option) => String(option.id) === roleId);
   const dirty = selected.length > 0 || review !== null;
+  const searchTerm = query.trim().toLocaleLowerCase();
   const matchingEmployees = data.employments.filter((employee) =>
-    [
-      employee.staff_member.display_name,
-      employee.membership_summary.email_address,
-      ...employee.roles.map((grant) => grant.label),
-      ...employee.sites.filter((site) => site.active).map((site) => site.name),
-      employee.active_for_work ? "active" : "inactive",
-    ]
-      .join(" ")
-      .toLocaleLowerCase()
-      .includes(query.trim().toLocaleLowerCase()),
+    searchTerm === "active" || searchTerm === "inactive"
+      ? employee.active_for_work === (searchTerm === "active")
+      : [
+          employee.staff_member.display_name,
+          employee.membership_summary.email_address,
+          ...employee.roles.map((grant) => grant.label),
+          ...employee.sites
+            .filter((site) => site.active)
+            .map((site) => site.name),
+          employee.active_for_work ? "active" : "inactive",
+        ]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(searchTerm),
   );
   useEffect(() => {
     if (data.role_options.some((option) => String(option.id) === roleId))
@@ -444,12 +449,13 @@ export function BulkRoleEditor({
                 <Typography variant="caption" color="text.secondary">
                   {employee.active_for_work ? "Active" : "Inactive"} ·{" "}
                   {employee.roles.map((grant) => grant.label).join(", ") ||
-                    "No role recorded"} ·{" "}
+                    "No role recorded"}{" "}
+                  ·{" "}
                   {employee.sites
                     .filter((site) => site.active)
                     .map((site) => site.name)
-                    .join(", ") || "No eligible sites"} · Account{" "}
-                  {employee.membership_summary.id}
+                    .join(", ") || "No eligible sites"}{" "}
+                  · Account {employee.membership_summary.id}
                 </Typography>
                 {unavailableReason && (
                   <Typography variant="caption" color="text.secondary">

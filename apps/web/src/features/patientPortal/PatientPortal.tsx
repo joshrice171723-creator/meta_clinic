@@ -1244,9 +1244,9 @@ export function PatientPortal({
                             </Stack>
                           </Paper>
                           <Accordion
-                            id="billing-support"
                             variant="outlined"
                             disableGutters
+                            slotProps={{ transition: { timeout: 0 } }}
                             expanded={billingSupportOpen}
                             onChange={(_, expanded) =>
                               setBillingSupportOpen(expanded)
