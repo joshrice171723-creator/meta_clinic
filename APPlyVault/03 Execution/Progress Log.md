@@ -1496,3 +1496,7 @@ Separable existing-Bundler-before-JSON fix and three standalone CLI regressions 
 ## 2026-10-03 - Lifecycle bounded recovery source checkpoint
 
 Final two-file zombie/probe/listener/record-metadata repair is hash-verified and integrated with exact cloud15cases/67assertions focused POSIX proof. Earlier failed proposals remain history. Existing worker boot stays unchanged; configured lint31baselineoffenses remains failing. Canonical application start/stop/storage acceptance awaits resulting immutable candidate; Windows/whole-candidate/main/hosted acceptance is not claimed. OriginalQA and fixed modernization counts unchanged. See [[Meta Clinic Implementation Tracker]] and owning repair audit.
+
+## 2026-10-03 - Staff participant batching and room-race fixture checkpoints
+
+Staff conversation name batching is frozen/pushed3f3d4f44 with independent source review, unchanged query-growth assertion and four prepared precedence/time/fresh-request/tenant cases. Actual focused runtime/query counts/lint remain pending cloud. A separate scratch-only room-race fixture now supplies valid scheduling prerequisites, uses distinct patients/clinicians and requires actual room conflict plus one stored booking across two backend connections; it is a fixture correction, not a product-race defect. Runtime remains pending authorized cloud; no broad suites, main/deployment or originalQA/MZ count advancement. See [[Meta Clinic Implementation Tracker]] and owning repair audit for source hashes and evidence limits.

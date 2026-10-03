@@ -46,18 +46,53 @@ end
 raise "Address versions lost or duplicated" unless versions.uniq.size == 2
 puts "PASS: simultaneous address versions are serialized"
 
-site = practice.sites.first
-room = site.rooms.first
-results = race do |_index|
+site = practice.sites.create!(code: "BACKEND-RACE", status: "active", timezone_override: "UTC")
+room = site.rooms.create!(practice: practice, code: "BACKEND-RACE-ROOM", kind: "physical")
+visit_type = practice.visit_types.create!(code: "Synthetic backend room race")
+membership = practice.memberships.find_by!(user: actor)
+Development::GuidedClinicDemo.configure_site_profile!(practice: practice, site: site, membership: membership,
+  clinic_type: "primary_care", request_key: "backend-room-race-profile", finalize: true)
+starts_at = Time.utc(2031, 1, 1, 10)
+ends_at = starts_at + 30.minutes
+site.operating_hours.create!(practice: practice, day_of_week: starts_at.wday,
+  open_time: "08:00", close_time: "17:00", closed: false)
+department = practice.departments.create!(code: "BACKEND-RACE")
+booking_inputs = 2.times.map do |index|
+  user = User.create!(email_address: "synthetic-backend-room-race-#{index}@example.invalid", password: SecureRandom.hex(20))
+  clinician_membership = practice.memberships.create!(user: user)
+  clinician = practice.clinician_profiles.create!(membership: clinician_membership,
+    display_name: "Synthetic room race clinician #{index}")
+  clinician.assignments.create!(practice: practice, department: department, site: site,
+    effective_from: starts_at - 1.day, effective_until: ends_at + 1.day)
+  Clinic::Scheduling::CapacityRule.create!(practice: practice, site: site, clinician: clinician,
+    kind: "weekly", weekday: starts_at.wday, start_minute: 8 * 60, end_minute: 17 * 60, active: true)
+  race_patient = practice.patients.create!(display_name: "Synthetic room race patient #{index}", reference: "BACKEND-RACE-#{index}")
+  { patient: race_patient, booked_clinician: clinician }
+end
+raise "Room race visit setup is unavailable" unless Clinic::Configuration::StarterProfile.visit_available?(practice: practice, site: site, visit_type: visit_type)
+results = race do |index|
+  connection_id = ApplicationRecord.connection.select_value("SELECT pg_backend_pid()")
   begin
-    Clinic::Scheduling::BookAppointment.call(practice: practice, actor: actor, patient: patient, site: site, room: room,
-      starts_at: Time.utc(2031, 1, 1), ends_at: Time.utc(2031, 1, 1, 0, 30))
-    :accepted
-  rescue ArgumentError
-    :denied
+    appointment = Clinic::Scheduling::BookAppointment.call(practice: practice, actor: actor, **booking_inputs.fetch(index),
+      site: site, room: room, visit_type: visit_type, starts_at: starts_at, ends_at: ends_at)
+    { status: :accepted, appointment_id: appointment.id, connection_id: connection_id }
+  rescue ArgumentError => error
+    { status: :denied, error: error.message, connection_id: connection_id }
   end
 end
-raise "Overlapping reservations raced" unless results.sort == [ :accepted, :denied ]
+puts "Room race results: #{JSON.generate(results)}"
+room_conflicts = [
+  "This room is already booked for that time.",
+  "The selected room, clinician, chair, or equipment is already reserved for that interval."
+]
+accepted = results.select { |result| result.fetch(:status) == :accepted }
+denied = results.select { |result| result.fetch(:status) == :denied }
+booked_ids = practice.appointments.where(site: site, room: room, starts_at: starts_at, ends_at: ends_at,
+  status: %w[scheduled confirmed]).pluck(:id)
+unless accepted.one? && denied.one? && room_conflicts.include?(denied.first.fetch(:error)) &&
+    results.map { |result| result.fetch(:connection_id) }.uniq.size == 2 && booked_ids == [accepted.first.fetch(:appointment_id)]
+  raise "Room reservation race did not produce one booking and one overlap-specific denial: #{JSON.generate(results)}"
+end
 puts "PASS: simultaneous active room reservations exclude overlap"
 
 encounter = practice.encounters.first
