@@ -105,7 +105,7 @@ class QaWorkflowContractTest < Minitest::Test
     assert_equal "passed", event.dig("payload", "reported_outcome")
     assert_nil event.dig("payload", "accepted_verdict")
     assert_equal "reported", event.dig("payload", "provenance")
-    assert_equal "pinned_observation", event.dig("payload", "seal_state")
+    assert_equal "observation_recorded", event.dig("payload", "seal_state")
     assert event["payload"].frozen?
     assert_raises(FrozenError) { event["payload"]["actual"].replace("changed") }
   end
@@ -127,8 +127,9 @@ class QaWorkflowContractTest < Minitest::Test
     ["f" * 40, nil].each do |live|
       result = append(live:).first
       assert_equal run_binding["revision"], result["revision"]
-      assert_equal "interrupted_old_pin", result.dig("payload", "seal_state")
+      assert_equal "observation_recorded", result.dig("payload", "seal_state")
       assert_nil result.dig("payload", "accepted_verdict")
+      assert_equal live ? "deployment_changed" : "metadata_unavailable", result.dig("payload", "build_boundary")
     end
   end
 
@@ -145,6 +146,24 @@ class QaWorkflowContractTest < Minitest::Test
     assert_raises(Evidence::Conflict) { append(principal: "owner:900007") }
     assert_raises(Evidence::Conflict) { append(input: request.merge("revision" => "f" * 40)) }
     assert_raises(Evidence::Conflict) { append(input: request.merge("step_id" => "unknown")) }
+  end
+
+  def test_observation_after_deployment_preserves_captured_artifact_and_claim_revisions
+    captured = "f" * 40
+    result = append(input: request.merge("revision" => captured), files: artifacts.map { |item| item.merge("revision" => captured) }, live: captured).first
+    assert_equal captured, result["revision"]
+    assert_equal run_binding["revision"], result.dig("payload", "claim_revision")
+    assert_equal "same_observed_revision", result.dig("payload", "build_boundary")
+    assert_equal "observation_recorded", result.dig("payload", "seal_state")
+    assert_nil result.dig("payload", "accepted_verdict")
+  end
+
+  def test_unknown_capture_metadata_is_explicit_and_does_not_block_bound_evidence
+    result = append(input: request.merge("revision" => "unobserved"), files: artifacts.map { |item| item.merge("revision" => "unobserved") }, live: nil).first
+    assert_equal "unobserved", result["revision"]
+    assert_equal run_binding["revision"], result.dig("payload", "claim_revision")
+    assert_equal "metadata_unavailable", result.dig("payload", "build_boundary")
+    assert_nil result.dig("payload", "accepted_verdict")
   end
 
   def test_request_cannot_supply_authority_synthetic_status_or_verdict

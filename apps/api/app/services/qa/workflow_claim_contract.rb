@@ -44,22 +44,21 @@ module Qa
       C.text!(principal.fetch(:key), maximum: 100)
       C.object!(registry, %w[practice_id fixture_receipt_id])
       registry.each_value { |value| C.positive!(value) }
-      raise Conflict, "A clean observed target and its confirmed pin are required." unless revision == input["target_sha"] && pin_revision == revision
       raise ArgumentError, "Server time is required." unless now.is_a?(Time)
       transition = nil
       if active_run
         WorkflowEvidenceContract.validate_run!(active_run)
         if active_run["state"] == "claimed"
           expires = C.timestamp!(active_run["lease_expires_at"])
-          if active_run["revision"] == revision && expires > now
+          if expires > now
             raise Conflict, "Another workflow claim still holds the lease."
           end
           transition = { "run_id" => active_run["run_id"], "revision" => active_run["revision"],
-            "reason" => active_run["revision"] == revision ? "lease_expired" : "build_changed" }
+            "reason" => "lease_expired" }
         end
       end
       C.match!(run_id, C::KEY)
-      run = { "run_id" => run_id, "workflow_id" => request["workflow_id"], "revision" => revision,
+      run = { "run_id" => run_id, "workflow_id" => request["workflow_id"], "revision" => request["target_sha"],
         "principal_key" => principal.fetch(:key), "practice_id" => registry["practice_id"], "fixture_receipt_id" => registry["fixture_receipt_id"],
         "catalog_digest" => request["catalog_digest"], "claimed_at" => now.getutc.iso8601(6), "lease_expires_at" => (now + 900).getutc.iso8601(6), "state" => "claimed" }
       C.immutable_copy({ "run" => run, "prior_transition" => transition })

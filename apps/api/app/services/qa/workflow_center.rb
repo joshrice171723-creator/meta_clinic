@@ -28,25 +28,21 @@ module Qa
         raise Conflict, "No server-recorded exact-pair impact manifest is available." unless scope_event
         scope = scope_event.payload
         build = clean_build!
-        pin = Snapshot.find_by!(key: "pin")
-        pin.with_lock do
-          now = Time.current
-          plan = WorkflowClaimContract.plan(input: request, catalog:, scope:, principal:, registry:,
-            active_run: lease.data["run"], revision: build["revision"], pin_revision: pin.data["revision"], now:, run_id: "workflow-#{SecureRandom.uuid}")
-          if plan["prior_transition"]
-            seal!(user:, run: lease.data.fetch("run"), reason: plan["prior_transition"]["reason"])
-          end
-          archive_catalog!(user:, catalog:)
-          run = plan.fetch("run")
-          receipt = { "run" => run, "delivery" => "claim_recorded", "execution_authorized" => false }
-          Event.create!(user:, event_key: key, kind: "workflow_claimed", summary: "Workflow claim recorded: #{run['workflow_id']}", revision: run["revision"],
-            payload: { "principal_key" => principal[:key], "request_digest" => digest, "receipt" => receipt,
-              "scope_event_id" => scope_event.id, "scope_digest" => C.fingerprint(scope) })
-          lease.update!(data: { "run" => run })
-          raise Conflict, "Build changed while claiming; no claim was committed." unless clean_build!["revision"] == run["revision"]
-          WorkflowCenterAccess.authorize!(user:, token:, action: "claim_workflow")
-          receipt
+        now = Time.current
+        plan = WorkflowClaimContract.plan(input: request, catalog:, scope:, principal:, registry:,
+          active_run: lease.data["run"], revision: build["revision"], pin_revision: nil, now:, run_id: "workflow-#{SecureRandom.uuid}")
+        if plan["prior_transition"]
+          seal!(user:, run: lease.data.fetch("run"), reason: plan["prior_transition"]["reason"])
         end
+        archive_catalog!(user:, catalog:)
+        run = plan.fetch("run")
+        receipt = { "run" => run, "delivery" => "claim_recorded", "execution_authorized" => false, "submission_build_observation" => build }
+        Event.create!(user:, event_key: key, kind: "workflow_claimed", summary: "Workflow claim recorded: #{run['workflow_id']}", revision: run["revision"],
+          payload: { "principal_key" => principal[:key], "request_digest" => digest, "receipt" => receipt,
+            "scope_event_id" => scope_event.id, "scope_digest" => C.fingerprint(scope) })
+        lease.update!(data: { "run" => run })
+        WorkflowCenterAccess.authorize!(user:, token:, action: "claim_workflow")
+        receipt
       end
     end
 
@@ -77,25 +73,29 @@ module Qa
         raise Conflict, "Step does not declare text evidence." unless workflow["evidence_spec"].any? { |item| item["step_id"] == input["step_id"] && item["kind"] == "text" }
         sealed = Event.exists?(event_key: "workflow-seal:#{run_id}", kind: "workflow_run_sealed")
         run = run.merge("state" => "interrupted") if sealed
-        build_before = observed_revision
+        build_before = Workspace.build_observation(reported_revision: input["revision"])
         artifact = Event.create!(user:, event_key: "workflow-artifact:#{run_id}:#{input['request_key']}", kind: "workflow_artifact_recorded",
-          summary: "Workflow text evidence: #{run['workflow_id']}", revision: run["revision"], payload: artifact_input.merge(
+          summary: "Workflow text evidence: #{run['workflow_id']}", revision: input["revision"], payload: artifact_input.merge(
             run.slice("run_id", "workflow_id", "principal_key", "practice_id", "fixture_receipt_id", "catalog_digest"),
             "step_id" => input["step_id"], "digest" => Digest::SHA256.hexdigest(artifact_input["content"]), "observed_at" => input["observed_at"]))
-        observed = observed_revision
-        observed = nil if build_before != observed
+        build_after = Workspace.build_observation(reported_revision: input["revision"])
+        observed = build_after["revision"]
         artifact_data = artifact.payload.merge("id" => artifact.id, "revision" => artifact.revision)
         history = WorkflowEvidenceContract.append_observation(history: [], input: input.except("artifact").merge("artifact_ids" => [artifact.id]),
           run:, artifacts: [artifact_data], catalog:, live_revision: observed, principal_key: principal[:key], now: Time.current)
         event = history.fetch(0)
         observation = Event.create!(user:, **event.symbolize_keys, summary: "Workflow observation recorded: #{run['workflow_id']}")
-        if event.dig("payload", "seal_state") == "interrupted_old_pin"
-          seal!(user:, run:, reason: "build_changed_or_unavailable")
-          lease.update!(data: { "run" => run.merge("state" => "interrupted") }) if lease.data.dig("run", "run_id") == run_id
+        boundary = if input["revision"] == "unobserved" || [build_before, build_after].any? { |item| item["revision"].nil? }
+          "metadata_unavailable"
+        elsif [build_before, build_after].any? { |item| item["revision"] != input["revision"] }
+          "deployment_changed"
+        else
+          "same_observed_revision"
         end
-        receipt = { "observation_event_id" => observation.id, "artifact_event_id" => artifact.id, "revision" => run["revision"],
-          "seal_state" => event.dig("payload", "seal_state"), "accepted_verdict" => nil, "delivery" => "evidence_recorded" }
-        Event.create!(user:, event_key: key, kind: "workflow_evidence_committed", summary: "Workflow evidence receipt: #{run['workflow_id']}", revision: run["revision"],
+        receipt = { "observation_event_id" => observation.id, "artifact_event_id" => artifact.id, "revision" => input["revision"],
+          "seal_state" => event.dig("payload", "seal_state"), "accepted_verdict" => nil, "delivery" => "evidence_recorded",
+          "build_boundary" => boundary, "server_build_observations" => [build_before, build_after] }
+        Event.create!(user:, event_key: key, kind: "workflow_evidence_committed", summary: "Workflow evidence receipt: #{run['workflow_id']}", revision: input["revision"],
           payload: { "principal_key" => principal[:key], "request_digest" => digest, "receipt" => receipt })
         WorkflowCenterAccess.authorize!(user:, token:, action: "record_evidence")
         receipt
@@ -112,8 +112,7 @@ module Qa
           Snapshot.insert_all([{ key: LEASE_KEY, data: {}, created_at: Time.current, updated_at: Time.current }], unique_by: :key)
           lease = Snapshot.find_by!(key: LEASE_KEY)
           lease.with_lock do
-            pin = Snapshot.find_by(key: "pin")
-            pin ? pin.with_lock { yield principal, lease } : yield(principal, lease)
+            yield principal, lease
           end
         end
       end
@@ -143,18 +142,9 @@ module Qa
     end
 
     def self.clean_build!
-      build = Workspace.build
-      C.match!(build["revision"], C::SHA)
-      raise Conflict, "A clean exact build is required." if build["dirty"] || build["error"]
-      build
+      Workspace.build_observation
     end
 
-    def self.observed_revision
-      build = Workspace.build
-      pin_revision = Snapshot.find_by(key: "pin")&.data&.fetch("revision", nil)
-      build["revision"] if !build["dirty"] && !build["error"] && build["revision"].is_a?(String) && build["revision"].match?(C::SHA) && pin_revision == build["revision"]
-    end
-
-    private_class_method :locked, :check_replay!, :archive_catalog!, :seal!, :clean_build!, :observed_revision
+    private_class_method :locked, :check_replay!, :archive_catalog!, :seal!, :clean_build!
   end
 end

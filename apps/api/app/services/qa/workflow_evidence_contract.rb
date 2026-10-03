@@ -31,7 +31,7 @@ module Qa
       %w[request_key run_id].each { |field| C.match!(input[field], C::KEY) }
       C.workflow!(input["workflow_id"])
       C.match!(input["step_id"], /\A[a-z][a-z0-9_-]{0,79}\z/)
-      C.match!(input["revision"], C::SHA)
+      C.match!(input["revision"], /\A(?:[0-9a-f]{40}|unobserved)\z/)
       C.timestamp!(input["observed_at"])
       %w[expected actual].each { |field| C.text!(input[field], maximum: 5000) }
       raise ArgumentError, "Observation outcome is reported, never an accepted verdict." unless %w[passed failed blocked inconclusive].include?(input["reported_outcome"])
@@ -52,7 +52,7 @@ module Qa
       validate_run!(run)
       raise Conflict, "Only the bound claiming principal can attach evidence." unless principal_key == run["principal_key"]
       raise ArgumentError, "Server time is required." unless now.is_a?(Time)
-      %w[run_id workflow_id revision].each do |field|
+      %w[run_id workflow_id].each do |field|
         raise Conflict, "Evidence belongs to a different run, workflow or pin." unless request[field] == run[field]
       end
       event_key = "workflow-evidence:#{run['run_id']}:#{request['request_key']}"
@@ -64,7 +64,7 @@ module Qa
         recorded = previous.first
         binding_fields = %w[principal_key practice_id fixture_receipt_id catalog_digest run_id workflow_id]
         binding = recorded.fetch("payload").slice(*binding_fields)
-        unless recorded["kind"] == "workflow_observation_recorded" && recorded["revision"] == run["revision"] &&
+        unless recorded["kind"] == "workflow_observation_recorded" && recorded["revision"] == request["revision"] &&
             recorded.dig("payload", "request_digest") == digest && binding == run.slice(*binding_fields)
           raise Conflict, "Idempotency key records different content or binding."
         end
@@ -79,26 +79,34 @@ module Qa
       raise Conflict, "Observation must fall within the claimed lease and not in the future." unless observed >= started && observed <= expires && observed <= now
       raise Conflict, "Evidence cannot be appended to a finished run." unless %w[claimed interrupted].include?(run["state"])
       C.match!(live_revision, C::SHA) unless live_revision.nil?
-      interrupted = run["state"] == "interrupted" || live_revision != run["revision"]
-      raise Conflict, "Lease expired; acquire a new run for new observations." if !interrupted && expires <= now
+      boundary = if live_revision.nil? || request["revision"] == "unobserved"
+        "metadata_unavailable"
+      elsif live_revision != request["revision"]
+        "deployment_changed"
+      else
+        "same_observed_revision"
+      end
+      raise Conflict, "Lease expired; acquire a new run for new observations." if expires <= now
       unless C.list!(artifacts, minimum: 1, maximum: 20).map { |item| item["id"] }.sort == request["artifact_ids"].sort
         raise Conflict, "Resolve every artifact exactly once from server storage."
       end
       artifacts.each do |artifact|
-        %w[run_id workflow_id revision principal_key practice_id fixture_receipt_id catalog_digest].each do |field|
+        %w[run_id workflow_id principal_key practice_id fixture_receipt_id catalog_digest].each do |field|
           raise Conflict, "Artifact binding differs from the run." unless artifact[field] == run[field]
         end
+        raise Conflict, "Artifact revision differs from its reported capture revision." unless artifact["revision"] == request["revision"]
         raise Conflict, "Artifact belongs to another step." unless artifact["step_id"] == request["step_id"]
         C.match!(artifact["digest"], C::DIGEST)
       end
       event = {
-        "event_key" => event_key, "kind" => "workflow_observation_recorded", "revision" => run["revision"],
+        "event_key" => event_key, "kind" => "workflow_observation_recorded", "revision" => request["revision"],
         "payload" => run.slice("run_id", "workflow_id", "principal_key", "practice_id", "fixture_receipt_id", "catalog_digest").merge(
           "schema_version" => 1, "request_digest" => digest, "step_id" => request["step_id"],
           "observed_at" => request["observed_at"], "recorded_at" => now.getutc.iso8601(6),
           "expected" => request["expected"], "actual" => request["actual"], "reported_outcome" => request["reported_outcome"],
           "artifact_ids" => request["artifact_ids"], "artifact_digests" => artifacts.sort_by { |item| item["id"] }.map { |item| item.slice("id", "digest") },
-          "build_at_receipt" => live_revision, "seal_state" => interrupted ? "interrupted_old_pin" : "pinned_observation",
+          "build_at_receipt" => live_revision, "claim_revision" => run["revision"], "build_boundary" => boundary,
+          "seal_state" => run["state"] == "interrupted" ? "interrupted" : "observation_recorded",
           "provenance" => "reported", "accepted_verdict" => nil)
       }
       C.immutable_copy([*history, event])

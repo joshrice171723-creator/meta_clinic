@@ -47,12 +47,12 @@ class QaWorkflowClaimTest < Minitest::Test
     assert_equal original["revision"], expired.dig("prior_transition", "revision")
   end
 
-  def test_deployment_interrupts_old_pin_before_new_scoped_claim
+  def test_deployment_or_missing_metadata_does_not_release_another_claim
     original = plan.fetch("run").merge("revision" => "b" * 40)
-    next_claim = plan(active: original)
-    assert_equal "build_changed", next_claim.dig("prior_transition", "reason")
-    assert_equal "b" * 40, next_claim.dig("prior_transition", "revision")
-    assert_equal "d" * 40, next_claim.dig("run", "revision")
+    assert_raises(Qa::WorkflowClaimContract::Conflict) { plan(active: original) }
+    assert_raises(Qa::WorkflowClaimContract::Conflict) { plan(active: original, revision: nil, pin: nil) }
+    assert_equal "d" * 40, plan(revision: nil, pin: nil).dig("run", "revision")
+    assert_equal "d" * 40, plan(pin: "e" * 40).dig("run", "revision")
   end
 
   def test_missing_or_untouched_scope_is_not_claimable_but_explicit_fix_claim_is
@@ -66,9 +66,7 @@ class QaWorkflowClaimTest < Minitest::Test
     assert_equal "unknown", @scope["workflows"].first["status"]
   end
 
-  def test_wrong_pair_duplicate_workflow_or_wrong_pin_cannot_claim
-    assert_raises(Qa::WorkflowClaimContract::Conflict) { plan(pin: "e" * 40) }
-    assert_raises(Qa::WorkflowClaimContract::Conflict) { plan(revision: nil) }
+  def test_wrong_pair_or_duplicate_workflow_cannot_claim
     @scope["workflows"] *= 2
     assert_raises(ArgumentError) { plan }
     @scope["workflows"] = @scope["workflows"].take(1)
