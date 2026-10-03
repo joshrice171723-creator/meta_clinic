@@ -35,7 +35,7 @@ module Clinic
           reject_badge! unless badge.pin_matches?(pin)
         end
 
-        transitions = RecordPunch.allowed_transitions(employment: employment)
+        transitions = RecordPunch.allowed_transitions(employment: employment, at: now)
         break_tracking_enabled = values.fetch("break_tracking_enabled", false)
         transitions -= %w[break_start break_end] unless break_tracking_enabled
         break_target_minutes = positive_minutes(values["break_duration_minutes"]) if break_tracking_enabled

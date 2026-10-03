@@ -106,6 +106,43 @@ class WorkforceClockTest < ActiveSupport::TestCase
     assert_equal 2, Clinic::Workforce::Punch.where(employment: @employment).count
   end
 
+  test "challenge transitions use the explicit terminal time rather than a simulated future" do
+    now = Time.current.change(usec: 0)
+    travel_to now do
+      started_at = now - 2.hours
+      open_punch = Clinic::Workforce::Punch.create!(practice: @practice, site: @site, employment: @employment,
+        event_type: "clock_in", occurred_at_utc: started_at, time_zone: "UTC",
+        utc_offset_seconds: 0, local_date: started_at.to_date, source: "manager_correction",
+        request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(32), correlation_id: SecureRandom.uuid,
+        received_at: started_at, result_snapshot: {}, created_at: started_at, updated_at: started_at)
+      card = Clinic::Workforce::CalculateTimecard.call(employment: @employment,
+        period_start: Clinic::Workforce::CalculateTimecard.current_period_start(practice: @practice),
+        actor_membership: @manager_membership)
+      Clinic::Workforce::AdjustmentRequest.create!(practice: @practice, employment: @employment,
+        timecard_version: card, status: "approved", correction_type: "add_segment",
+        proposed_changes: { "site_id" => @site.id, "started_at_utc" => started_at.utc.iso8601,
+          "ended_at_utc" => (now + 1.hour).utc.iso8601, "resolves_open_punch_id" => open_punch.id },
+        reason: "Synthetic future correction boundary", requested_by_membership: @employee_membership,
+        requested_at: now - 30.minutes, reviewed_by_membership: @manager_membership, reviewed_at: now - 20.minutes,
+        decision_reason: "Synthetic clock boundary verification", request_key: SecureRandom.uuid,
+        payload_digest: SecureRandom.hex(32), source_lock_version: card.lock_version)
+      badge = Clinic::Workforce::IssueBadge.call(employment: @employment, actor_membership: @manager_membership)
+      original = Current.method(:business_time)
+      begin
+        Current.define_singleton_method(:business_time) { now + 2.hours }
+        resolved = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk,
+          badge_token: badge.token, input_method: "manual", now: now)
+        assert_includes resolved.permitted_transitions, "clock_out"
+        assert_not_includes resolved.permitted_transitions, "clock_in"
+        result = Clinic::Workforce::RecordPunch.call(kiosk_session: @kiosk, challenge_token: resolved.token,
+          event_type: "clock_out", request_key: SecureRandom.uuid, now: now)
+        assert_equal "clock_out", result.punch.event_type
+      ensure
+        Current.define_singleton_method(:business_time, original)
+      end
+    end
+  end
+
   private
 
   def settings
