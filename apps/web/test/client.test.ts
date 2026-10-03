@@ -354,4 +354,31 @@ describe("form contracts", () => {
       ),
     ).toBe("/portal");
   });
+  it.each([
+    "/clinic/work",
+    "/clinic/waitlist",
+    "/clinic/recalls",
+    "/clinic/refills",
+    "/clinic/audit",
+    "/clinic/scribe",
+    "/clinic/subscriptions",
+    "/clinic/subscriptions/patient-preview",
+    "/clinic/growth",
+    "/clinic/memberships",
+    "/clinic/updates",
+    "/clinic/patients/new",
+    "/clinic/setup/settings",
+  ])(
+    "restores the current clinic workspace %s without unsafe query values",
+    (path) => {
+      expect(loginDestination(path)).toBe(path);
+      expect(
+        loginDestination(`${path}?patient_id=7&next=https://example.invalid`),
+      ).toBe(`${path}?patient_id=7`);
+      expect(loginDestination(`//example.invalid${path}?patient_id=7`)).toBe(
+        "/portal",
+      );
+      expect(loginDestination(`${path}\\evil?patient_id=7`)).toBe("/portal");
+    },
+  );
 });

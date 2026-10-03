@@ -312,7 +312,12 @@ module Clinic
             unit_code: optional_string(row[:supplied_unit_code].presence || row[:unit_code], field: "#{field}.unit_code", maximum: 80),
             interpretation: optional_string(row[:interpretation], field: "#{field}.interpretation", maximum: 80),
             reference_range: optional_string(row[:reference_range], field: "#{field}.reference_range", maximum: 200),
-            flag: optional_string(row[:flag], field: "#{field}.flag", maximum: 80)
+            flag: optional_string(row[:flag], field: "#{field}.flag", maximum: 80),
+            performing_organization: optional_string(row[:performing_organization], field: "#{field}.performing_organization", maximum: 200),
+            issuing_organization: optional_string(row[:issuing_organization], field: "#{field}.issuing_organization", maximum: 200),
+            method: optional_string(row[:method], field: "#{field}.method", maximum: 200),
+            resulted_at: optional_string(row[:resulted_at], field: "#{field}.resulted_at", maximum: 80),
+            received_at: optional_string(row[:received_at], field: "#{field}.received_at", maximum: 80)
           }
         end
         {

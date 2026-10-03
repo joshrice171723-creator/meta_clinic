@@ -183,7 +183,7 @@ describe("provider encounter workflow", () => {
       boardVisitId: undefined,
     });
     expect(recentEncounterPath(7)).toBe(
-      "/api/clinic/patients/7/encounters?page=1&per_page=10",
+      "/api/clinic/patients/7/encounters?status=open&page=1&per_page=10",
     );
     expect(encounterDetailPath(7, 9)).toBe(
       "/api/clinic/encounters/9?patient_id=7",
@@ -709,7 +709,10 @@ describe("provider encounter workflow", () => {
 
   it("keeps SOAP save reconciliation inside the confirmed chart workspace", () => {
     const source = readFileSync(
-      new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
+      new URL(
+        "../src/features/clinic/CareSoapNoteWorkspace.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
     const completion = source.slice(

@@ -9,7 +9,9 @@ class InventoryDeliveryPreparationsTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "delivery-preparation@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Synthetic delivery preparation clinic")
     @membership = Clinic::Membership.create!(practice: @practice, user: @user)
-    %w[inventory.read procurement.read procurement.submit].each { |permission| grant_permissions!(@membership, permission) }
+    %w[inventory.read inventory.configure procurement.read procurement.submit].each { |permission| grant_permissions!(@membership, permission) }
+    Clinic::Inventory::Profile.revise!(practice: @practice, actor: @user, status: "synthetic",
+      reason: "Synthetic configured inventory for preparation acceptance")
     @supplier = @practice.inventory_suppliers.create!(name: "Synthetic disconnected supplier")
     @product = @practice.pharmacy_products.create!(name: "Synthetic order item", sku: "SYN-PREP", ndc: "11111111111", stock_unit: "each", quantity_scale: 0, package_size: 10, unit_reference: "each")
     @order = @practice.inventory_purchase_orders.create!(actor: @user, supplier: @supplier,
@@ -91,6 +93,23 @@ class InventoryDeliveryPreparationsTest < ActionDispatch::IntegrationTest
     set_permission!(@membership, "procurement.read", false)
     get endpoint
     assert_response :forbidden
+  end
+
+  test "service enforces procurement submission independently of catalog permission" do
+    get endpoint
+    assert_response :success
+    intent = intent_for(response.parsed_body.fetch("data"))
+    grant_permissions!(@membership, "inventory.catalog")
+    set_permission!(@membership, "procurement.submit", false)
+
+    assert_no_difference "Clinic::Inventory::DeliveryPreparation.count" do
+      assert_raises(ArgumentError) do
+        Clinic::Inventory::PrepareOrderDelivery.call(practice: @practice, actor: @user,
+          order_id: @order.id, input: intent)
+      end
+    end
+    assert_equal "approved", @order.reload.status
+    assert_empty @order.events
   end
 
   test "attempt snapshot and identity reject model and SQL mutation or deletion" do

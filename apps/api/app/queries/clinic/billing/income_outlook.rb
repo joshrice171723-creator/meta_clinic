@@ -36,10 +36,7 @@ module Clinic
             end
             has_history = history.any? { |row| row[:invoice_count].positive? }
             average = has_history ? (history.sum { |row| row[:net_charges].to_d } / 3).round(2) : nil
-            outstanding = Clinic::InvoiceLine.where(invoice_id: scoped.select(:id)).sum(:posted_amount) -
-              Clinic::PaymentAllocation.where(practice: practice, invoice_id: scoped.select(:id)).sum(:amount) -
-              Clinic::CreditNote.where(practice: practice, invoice_id: scoped.select(:id)).sum(:amount)
-            outstanding = [outstanding, 0].max.to_d
+            outstanding = scoped.sum(Arel.sql(Dashboard::OUTSTANDING_BALANCE_SQL)).to_d
             installment = (outstanding / months).floor(2)
             {
               currency: currency, history: history,

@@ -81,12 +81,18 @@ class LabResultProvenanceTest < ActionDispatch::IntegrationTest
   end
 
   test "invalid supplied timestamps or oversized organization are rejected with no report write" do
-    [ { resulted_at: "not a time" }, { resulted_at: "2026-02-30T15:30:00Z" }, { received_at: "2026-09-06T15:30:00" }, { performing_organization: "X" * 201 } ].each do |invalid|
+    [ [ { resulted_at: "not a time" }, :unprocessable_entity ],
+      [ { resulted_at: "2026-02-30T15:30:00Z" }, :unprocessable_entity ],
+      [ { received_at: "2026-09-06T15:30:00" }, :unprocessable_entity ],
+      [ { performing_organization: "X" * 201 }, :bad_request ] ].each do |invalid, expected_status|
       input = create_input
       input[:lab_report][:results] = [ result.merge(invalid) ]
       before = [ Clinic::Care::LabReport.count, Clinic::Care::LabReportVersion.count, Clinic::Care::LabSpecimen.count ]
       post reports_path, params: input, headers: csrf_headers, as: :json
-      assert_response :unprocessable_entity
+      assert_response expected_status
+      if invalid.key?(:performing_organization)
+        assert_equal "results[0].performing_organization", response.parsed_body.fetch("field")
+      end
       assert_equal before, [ Clinic::Care::LabReport.count, Clinic::Care::LabReportVersion.count, Clinic::Care::LabSpecimen.count ]
       assert_nil response.parsed_body["report"]
     end

@@ -1,3 +1,50 @@
+import {
+  links,
+  screenDescriptions,
+  screenForPath,
+  screenTitle,
+} from "./inventoryNavigation";
+import {
+  inventoryMutationAttempt,
+  inventoryOutcomeUnconfirmed,
+  inventoryMutationResponseOwned,
+  inventoryUsesAcknowledgement,
+  type PendingInventoryMutation,
+} from "./inventoryMutationRecovery";
+import {
+  benchmarkPackagePrice,
+  facilityAddress,
+  facilityCanReceivePurchaseOrder,
+  mergePurchaseCartDraft,
+  money,
+  nonNegative,
+  onOrderUnits,
+  purchaseOrderDestination,
+  purchaseOrderFacilities,
+  purchaseOrderGroups,
+  purchaseOrderGroupStatus,
+  purchaseOrderGroupTotal,
+  purchaseOrderStatusTone,
+  recordedPackagePrice,
+  recordedPackageTerms,
+  replenishmentCandidates,
+  supplierOffersFor,
+  supplierProductFor,
+  validDecimal,
+  type PurchaseCartDraft,
+} from "./inventoryPurchasing";
+export {
+  inventoryMutationAttempt,
+  inventoryOutcomeUnconfirmed,
+  type PendingInventoryMutation,
+} from "./inventoryMutationRecovery";
+export {
+  benchmarkPackagePrice,
+  mergePurchaseCartDraft,
+  purchaseOrderGroups,
+  type InventoryPurchaseOrderGroup,
+  type PurchaseCartDraft,
+} from "./inventoryPurchasing";
 import { CarrierTrackingPreparation } from "./CarrierTrackingPreparation";
 import { OrderDeliveryPreparation } from "./OrderDeliveryPreparation";
 import { quoteFeeEvidenceLabel } from "./quoteFeeEvidence";
@@ -62,9 +109,6 @@ import type {
   InventoryRecall,
   InventoryCategory,
   Decimal,
-  InventorySupplierProduct,
-  InventoryFacility,
-  InventoryPurchaseOrder,
   InventoryPurchaseCart,
   NadacBenchmark,
   GudidResult,
@@ -75,7 +119,6 @@ import {
   decimalCeilDivide,
   decimalCompare,
   decimalDisplay,
-  decimalMoney,
   decimalMultiply,
   decimalSubtract,
   decimalSum,
@@ -87,23 +130,6 @@ import { InventoryScanInput } from "./InventoryScanInput";
 import { OrderReconciliation } from "./OrderReconciliation";
 import "./inventory.css";
 
-type Screen =
-  | "catalog"
-  | "catalog_new"
-  | "configure"
-  | "locations"
-  | "supplier_pricing"
-  | "replenishment"
-  | "purchasing"
-  | "purchase_order_new"
-  | "shipment_new"
-  | "receiving"
-  | "lots"
-  | "activity"
-  | "exceptions"
-  | "recalls"
-  | "counts"
-  | "controlled";
 type Notice = {
   tone: "success" | "error";
   title: string;
@@ -123,33 +149,6 @@ type InventoryMutationResult = {
   id?: number | string;
   adjustment?: InventoryAdjustmentReceipt;
 };
-export type PendingInventoryMutation = {
-  key: string;
-  endpoint: string;
-  intent: string;
-};
-
-export function inventoryMutationAttempt(
-  pending: PendingInventoryMutation | null,
-  endpoint: string,
-  body: Record<string, unknown>,
-  createKey: () => string = () => crypto.randomUUID(),
-): PendingInventoryMutation | null {
-  const intent = JSON.stringify({ endpoint, body });
-  if (pending && (pending.endpoint !== endpoint || pending.intent !== intent))
-    return null;
-  return { key: pending?.key ?? createKey(), endpoint, intent };
-}
-
-export function inventoryOutcomeUnconfirmed(reason: unknown): boolean {
-  return (
-    !(reason instanceof ApiError) ||
-    reason.code === "outcome_unconfirmed" ||
-    reason.status >= 500 ||
-    (reason.status === 409 && /outcome is unconfirmed/i.test(reason.message))
-  );
-}
-
 export function inventoryMovementViewState(
   total: number,
   visible: number,
@@ -165,92 +164,6 @@ function readableEventLabel(value: string): string {
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
-
-const links: {
-  screen: Screen;
-  href: string;
-  label: string;
-  short: string;
-  group: "Monitor" | "Procure" | "Operate" | "Exceptions";
-}[] = [
-  {
-    screen: "catalog",
-    href: "/clinic/inventory",
-    label: "Inventory overview",
-    short: "Overview",
-    group: "Monitor",
-  },
-  {
-    screen: "replenishment",
-    href: "/clinic/inventory/replenishment",
-    label: "Plan replenishment",
-    short: "Plan order",
-    group: "Procure",
-  },
-  {
-    screen: "purchasing",
-    href: "/clinic/inventory/purchasing",
-    label: "Orders & delivery",
-    short: "Orders",
-    group: "Procure",
-  },
-  {
-    screen: "supplier_pricing",
-    href: "/clinic/inventory/suppliers",
-    label: "Suppliers & pricing",
-    short: "Suppliers",
-    group: "Procure",
-  },
-  {
-    screen: "receiving",
-    href: "/clinic/inventory/receiving",
-    label: "Receive & put away",
-    short: "Receive",
-    group: "Operate",
-  },
-  {
-    screen: "lots",
-    href: "/clinic/inventory/lots",
-    label: "Stock by lot",
-    short: "Stock detail",
-    group: "Monitor",
-  },
-  {
-    screen: "activity",
-    href: "/clinic/inventory/activity",
-    label: "Movement ledger",
-    short: "Activity",
-    group: "Operate",
-  },
-  {
-    screen: "exceptions",
-    href: "/clinic/inventory/exceptions",
-    label: "Exception queue",
-    short: "Exceptions",
-    group: "Exceptions",
-  },
-  {
-    screen: "recalls",
-    href: "/clinic/inventory/recalls",
-    label: "Recall cases",
-    short: "Recalls",
-    group: "Exceptions",
-  },
-  {
-    screen: "counts",
-    href: "/clinic/inventory/counts",
-    label: "Cycle counts",
-    short: "Counts",
-    group: "Operate",
-  },
-  {
-    screen: "controlled",
-    href: "/clinic/inventory/controlled",
-    label: "Controlled reconciliation",
-    short: "Controlled",
-    group: "Exceptions",
-  },
-];
 
 const inventoryCategories: Array<{
   value: InventoryCategory;
@@ -271,28 +184,6 @@ function inventoryCategoryLabel(category: InventoryCategory): string {
     "Other"
   );
 }
-
-const screenDescriptions: Record<Screen, string> = {
-  catalog: "Monitor availability, lot exceptions, and replenishment signals.",
-  catalog_new: "Add a product definition before ordering or receiving stock.",
-  configure:
-    "Record the inventory operating configuration before posting stock.",
-  locations:
-    "Manage stock storage, quarantine, returns, and controlled locations.",
-  supplier_pricing: "",
-  replenishment: "Turn low-stock signals into reviewed purchase requests.",
-  purchasing: "Track purchase orders from draft through completion.",
-  purchase_order_new:
-    "Create a reviewed purchase order for any active catalog item.",
-  shipment_new: "Record a delivered shipment against a sent purchase order.",
-  receiving: "Verify deliveries, lot details, and quarantine exceptions.",
-  lots: "Review exact balances by lot and storage location.",
-  activity: "Trace every stock movement to its source and operator.",
-  exceptions: "Assign and review expiry, stock, hold, and delivery exceptions.",
-  recalls: "Keep affected lots held until disposition is recorded.",
-  counts: "Run assigned blind counts and reconcile every frozen bin position.",
-  controlled: "Resolve count variances with an independent reviewer.",
-};
 
 const inventoryConfigurationReasons = [
   { value: "initial_setup", label: "Initial clinic inventory setup" },
@@ -316,48 +207,8 @@ const purchaseOrderReasons = [
 
 const purchaseOrderCurrency = "USD";
 
-function screenForPath(path: string): Screen {
-  const value = path.replace(/\/$/, "");
-  if (value === "/clinic/inventory/catalog/new") return "catalog_new";
-  if (value === "/clinic/inventory/configure") return "configure";
-  if (value === "/clinic/inventory/locations") return "locations";
-  if (value === "/clinic/inventory/suppliers") return "supplier_pricing";
-  if (value === "/clinic/inventory/purchasing/new") return "purchase_order_new";
-  if (value === "/clinic/inventory/shipments/new") return "shipment_new";
-  return links.find((link) => link.href === value)?.screen ?? "catalog";
-}
-function screenTitle(screen: Screen) {
-  return (
-    {
-      catalog: "Inventory overview",
-      catalog_new: "Add catalog item",
-      configure: "Configure inventory",
-      locations: "Storage locations",
-      supplier_pricing: "Suppliers & pricing",
-      replenishment: "Plan replenishment",
-      purchasing: "Orders & delivery",
-      purchase_order_new: "Create purchase order",
-      shipment_new: "Record delivered shipment",
-      receiving: "Receive & put away",
-      lots: "Stock by lot",
-      activity: "Movement ledger",
-      exceptions: "Exception queue",
-      recalls: "Recall case management",
-      counts: "Cycle counts",
-      controlled: "Controlled reconciliation",
-    } satisfies Record<Screen, string>
-  )[screen];
-}
-
 function number(value: number | string) {
   return decimalDisplay(String(value));
-}
-function nonNegative(value: Decimal): Decimal {
-  return decimalCompare(value, "0") < 0 ? "0" : value;
-}
-function validDecimal(value: string, allowZero = false) {
-  if (!/^-?\d+(?:\.\d+)?$/.test(value.trim())) return false;
-  return decimalCompare(value, "0") >= (allowZero ? 0 : 1);
 }
 type InferredInventoryUnits = {
   stockUnit: "each" | "tablet" | "capsule" | "vial" | "mL" | "g" | "package";
@@ -433,11 +284,6 @@ function unitLabel(data: InventoryData, productId: string) {
 }
 function packageFor(data: Pick<InventoryData, "packages">, packageId?: string) {
   return data.packages.find((item) => item.id === packageId);
-}
-function money(value: Decimal, currency?: string) {
-  if (currency === "UNK")
-    return `${decimalMoney(value)} (currency unconfirmed)`;
-  return `${currency ? `${currency} ` : ""}${decimalMoney(value)}`;
 }
 export function inventoryDate(value?: string, timezone?: string) {
   if (!value) return "—";
@@ -538,143 +384,6 @@ export function recallViewState(
     workflowStage: hasExactBatch ? workflowStage : Math.min(workflowStage, 4),
   };
 }
-function onOrderUnits(data: InventoryData, productId: string): Decimal {
-  return decimalSum(
-    data.purchase_orders
-      .filter((order) => !["cancelled", "complete"].includes(order.status))
-      .flatMap((order) => order.lines)
-      .filter((line) => line.product_id === productId)
-      .map((line) =>
-        nonNegative(decimalSubtract(line.ordered_units, line.received_units)),
-      ),
-  );
-}
-function replenishmentCandidates(data: InventoryData) {
-  return data.products.filter(
-    (item) =>
-      decimalCompare(
-        decimalAdd(item.available_units, onOrderUnits(data, item.id)),
-        item.reorder_point_units,
-      ) < 0,
-  );
-}
-function recordedPackagePrice(
-  data: InventoryData,
-  productId: string,
-): Decimal | undefined {
-  return recordedPackageTerms(data, productId)?.packagePrice;
-}
-function recordedPackageTerms(
-  data: InventoryData,
-  productId: string,
-): { packagePrice: Decimal; currency: string } | undefined {
-  const line = data.purchase_orders
-    .flatMap((order) => order.lines)
-    .find((line) => line.product_id === productId);
-  return line
-    ? { packagePrice: line.package_price, currency: line.currency }
-    : undefined;
-}
-export function benchmarkPackagePrice(
-  item: Pick<
-    InventoryData["products"][number],
-    "base_unit" | "units_per_package"
-  >,
-  benchmark?: NadacBenchmark,
-): Decimal | undefined {
-  if (
-    !benchmark?.nadac_per_unit ||
-    !benchmark.pricing_unit ||
-    !validDecimal(benchmark.nadac_per_unit, true) ||
-    !validDecimal(item.units_per_package)
-  )
-    return undefined;
-  const unitKey = (value: string) => {
-    const normalized = value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z]/g, "");
-    if (
-      [
-        "ea",
-        "each",
-        "tablet",
-        "tablets",
-        "capsule",
-        "capsules",
-        "vial",
-        "vials",
-        "package",
-        "packages",
-      ].includes(normalized)
-    )
-      return "count";
-    if (["ml", "milliliter", "milliliters"].includes(normalized)) return "ml";
-    if (["g", "gm", "gram", "grams"].includes(normalized)) return "g";
-    return normalized;
-  };
-  if (unitKey(item.base_unit) !== unitKey(benchmark.pricing_unit))
-    return undefined;
-  return decimalMultiply(benchmark.nadac_per_unit, item.units_per_package);
-}
-function supplierProductFor(
-  data: InventoryData,
-  productId: string,
-  supplierId: string,
-): InventorySupplierProduct | undefined {
-  const item = product(data, productId);
-  return data.supplier_products?.find(
-    (row) =>
-      row.supplier_id === supplierId &&
-      row.available !== false &&
-      (row.product_id === productId ||
-        (row.product_id == null &&
-          Boolean(item?.ndc) &&
-          row.ndc === item?.ndc)),
-  );
-}
-function supplierOffersFor(data: InventoryData, productId: string) {
-  const item = product(data, productId);
-  return (data.supplier_products ?? []).filter(
-    (row) =>
-      (row.product_id === productId ||
-        (row.product_id == null &&
-          Boolean(item?.ndc) &&
-          row.ndc === item?.ndc)) &&
-      row.available !== false,
-  );
-}
-function facilityCanReceivePurchaseOrder(record: InventoryFacility) {
-  return (
-    record.status === "active" &&
-    Boolean(
-      record.address_line1?.trim() &&
-      record.city?.trim() &&
-      record.state?.trim() &&
-      record.postal_code?.trim() &&
-      record.country?.trim(),
-    )
-  );
-}
-function purchaseOrderFacilities(data: Pick<InventoryData, "sites">) {
-  return (data.sites ?? []).filter((record) => record.status === "active");
-}
-function facilityAddress(record?: InventoryFacility) {
-  if (!record) return "";
-  return [
-    record.address_line1,
-    record.address_line2,
-    [record.city, record.state].filter(Boolean).join(", "),
-    record.postal_code,
-    record.country,
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
-function purchaseOrderDestination(data: InventoryData, _productId: string) {
-  return purchaseOrderFacilities(data).find(facilityCanReceivePurchaseOrder);
-}
-
 function Card({
   title,
   eyebrow,
@@ -2536,6 +2245,16 @@ export function InventoryApp({ path }: { path: string }) {
     screen === "purchase_order_new" || screen === "replenishment";
   const routeScope =
     typeof window === "undefined" ? "" : window.location.search;
+  const mutationOwner = useRef({ mounted: true, scope: path + routeScope });
+  const busyRunOwner = useRef(0);
+  mutationOwner.current.scope = path + routeScope;
+
+  useEffect(() => {
+    mutationOwner.current.mounted = true;
+    return () => {
+      mutationOwner.current.mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!uncertainMutation || typeof window === "undefined") return;
@@ -2928,6 +2647,8 @@ export function InventoryApp({ path }: { path: string }) {
       return;
     }
     const requestKey = attempt.key;
+    const requestScope = mutationOwner.current.scope;
+    const requestRun = ++busyRunOwner.current;
     setBusy(true);
     setNotice(null);
     try {
@@ -2948,19 +2669,7 @@ export function InventoryApp({ path }: { path: string }) {
           acknowledged?: boolean;
         } & InventoryMutationResult
       >(
-        [
-          "lots",
-          "purchasing",
-          "receiving",
-          "replenishment",
-          "purchase_order_new",
-          "shipment_new",
-          "exceptions",
-          "recalls",
-          "counts",
-          "controlled",
-          "activity",
-        ].includes(screen)
+        inventoryUsesAcknowledgement(screen)
           ? `${endpoint}?response=ack`
           : endpoint,
         {
@@ -2968,21 +2677,9 @@ export function InventoryApp({ path }: { path: string }) {
           body: requestBody,
         },
       );
-      if (
-        [
-          "lots",
-          "purchasing",
-          "receiving",
-          "replenishment",
-          "purchase_order_new",
-          "shipment_new",
-          "exceptions",
-          "recalls",
-          "counts",
-          "controlled",
-          "activity",
-        ].includes(screen)
-      ) {
+      if (!inventoryMutationResponseOwned(mutationOwner.current, requestScope))
+        return;
+      if (inventoryUsesAcknowledgement(screen)) {
         if (payload.acknowledged !== true)
           throw new Error(
             "The inventory action response could not be confirmed.",
@@ -3004,23 +2701,10 @@ export function InventoryApp({ path }: { path: string }) {
             : successDetail,
       });
       afterSuccess?.(payload);
-      if (
-        [
-          "lots",
-          "purchasing",
-          "receiving",
-          "replenishment",
-          "purchase_order_new",
-          "shipment_new",
-          "exceptions",
-          "recalls",
-          "counts",
-          "controlled",
-          "activity",
-        ].includes(screen)
-      )
-        await load();
+      if (inventoryUsesAcknowledgement(screen)) await load();
     } catch (reason) {
+      if (!inventoryMutationResponseOwned(mutationOwner.current, requestScope))
+        return;
       const outcomeUnconfirmed = inventoryOutcomeUnconfirmed(reason);
       if (outcomeUnconfirmed) setUncertainMutation(attempt);
       setNotice({
@@ -3036,7 +2720,8 @@ export function InventoryApp({ path }: { path: string }) {
             : "The server rejected this action.",
       });
     } finally {
-      setBusy(false);
+      if (mutationOwner.current.mounted && busyRunOwner.current === requestRun)
+        setBusy(false);
     }
   };
 
@@ -4201,47 +3886,6 @@ function ReplenishmentScreen({
   );
 }
 
-export type PurchaseCartDraft = {
-  reason: string;
-  destinationId: string;
-  lineQuantities: Record<string, string>;
-};
-
-export function mergePurchaseCartDraft(
-  previousCart: InventoryPurchaseCart | null | undefined,
-  cart: InventoryPurchaseCart | null | undefined,
-  draft: PurchaseCartDraft,
-): PurchaseCartDraft {
-  const sameCart = Boolean(previousCart?.id && previousCart.id === cart?.id);
-  return {
-    reason:
-      sameCart && draft.reason !== (previousCart?.reason ?? "")
-        ? draft.reason
-        : (cart?.reason ?? ""),
-    destinationId:
-      sameCart &&
-      draft.destinationId !== (previousCart?.destination_site_id ?? "")
-        ? draft.destinationId
-        : (cart?.destination_site_id ?? ""),
-    lineQuantities: Object.fromEntries(
-      (cart?.items ?? []).map((item) => {
-        const previousItem = previousCart?.items.find(
-          (candidate) => candidate.id === item.id,
-        );
-        const draftQuantity = draft.lineQuantities[item.id];
-        return [
-          item.id,
-          sameCart &&
-          draftQuantity !== undefined &&
-          draftQuantity !== previousItem?.requested_packages
-            ? draftQuantity
-            : item.requested_packages,
-        ];
-      }),
-    ),
-  };
-}
-
 function PurchaseCartWorkspace({
   data,
   busy,
@@ -5156,64 +4800,6 @@ function ShipmentCreateScreen({
       </div>
     </div>
   );
-}
-
-export type InventoryPurchaseOrderGroup = {
-  id: string;
-  checkoutGroupId: string | null;
-  orders: InventoryPurchaseOrder[];
-};
-
-export function purchaseOrderGroups(
-  orders: InventoryPurchaseOrder[],
-): InventoryPurchaseOrderGroup[] {
-  const groups = new Map<string, InventoryPurchaseOrderGroup>();
-  orders.forEach((order) => {
-    const checkoutGroupId = order.checkout_group_id ?? null;
-    const id = checkoutGroupId ?? `order:${order.id}`;
-    const group = groups.get(id) ?? { id, checkoutGroupId, orders: [] };
-    group.orders.push(order);
-    groups.set(id, group);
-  });
-  return Array.from(groups.values()).sort((left, right) =>
-    (right.orders[0]?.created_at ?? "").localeCompare(
-      left.orders[0]?.created_at ?? "",
-    ),
-  );
-}
-
-function purchaseOrderStatusTone(
-  status: string,
-): "neutral" | "success" | "warning" | "danger" | "blue" {
-  if (status === "complete") return "success";
-  if (["cancelled", "rejected"].includes(status)) return "danger";
-  if (status === "draft") return "warning";
-  return "blue";
-}
-
-function purchaseOrderGroupStatus(orders: InventoryPurchaseOrder[]): {
-  label: string;
-  tone: "neutral" | "success" | "warning" | "danger" | "blue";
-} {
-  const statuses = orders.map((order) => order.status);
-  if (statuses.every((status) => status === "complete"))
-    return { label: "Complete", tone: "success" };
-  if (statuses.every((status) => status === "cancelled"))
-    return { label: "Cancelled", tone: "danger" };
-  if (statuses.every((status) => status === "draft"))
-    return { label: "Needs review", tone: "warning" };
-  return { label: "In progress", tone: "blue" };
-}
-
-function purchaseOrderGroupTotal(group: InventoryPurchaseOrderGroup): string {
-  const currencies = Array.from(
-    new Set(
-      group.orders.flatMap((order) => order.lines.map((line) => line.currency)),
-    ),
-  );
-  return currencies.length === 1
-    ? money(decimalSum(group.orders.map((order) => order.total)), currencies[0])
-    : "Multiple currencies";
 }
 
 function PurchasingScreen({

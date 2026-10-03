@@ -63,6 +63,7 @@ module Clinic
           .group("clinic_invoices.currency").sum(:amount)
         credit_totals = Clinic::CreditNote.joins(:invoice).merge(posted_invoices)
           .group("clinic_invoices.currency").sum(:amount)
+        balance_totals = posted_invoices.group(:currency).sum(Arel.sql(Dashboard::OUTSTANDING_BALANCE_SQL))
         refund_totals = Clinic::RefundEvent.joins(:payment_event)
           .merge(Clinic::PaymentEvent.where(practice: @practice, patient: @patient))
           .group("clinic_payment_events.currency").sum(:amount)
@@ -79,7 +80,7 @@ module Clinic
             invoiced_amount: decimal(invoiced),
             allocated_amount: decimal(allocated),
             credited_amount: decimal(credited),
-            balance_amount: decimal([invoiced - allocated - credited, BigDecimal("0")].max),
+            balance_amount: decimal(balance_totals.fetch(currency, BigDecimal("0"))),
             refunded_amount: decimal(refund_totals.fetch(currency, BigDecimal("0")))
           }
         end

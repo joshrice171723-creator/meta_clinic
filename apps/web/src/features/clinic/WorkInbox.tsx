@@ -41,6 +41,7 @@ import {
 } from "./patientFlowActions";
 import type { LabFollowUp } from "./PatientLabReports";
 import { useClinic } from "./Workspace";
+import { useClinicNavigation } from "./clinicNavigation";
 import { PrescriptionReconciliationWorklist } from "./PrescriptionReconciliationWorklist";
 import { useClinicRealtimeTopic } from "./ClinicRealtime";
 import {
@@ -458,7 +459,10 @@ function localDateTimeValue(value: string | null) {
 function mutationFailure(error: unknown) {
   const apiError = error instanceof ApiError ? error : undefined;
   const outcomeUnknown =
-    apiError?.code === "outcome_unconfirmed" || (apiError?.status ?? 0) >= 500;
+    !apiError ||
+    apiError.status === 408 ||
+    apiError.code === "outcome_unconfirmed" ||
+    apiError.status >= 500;
   const stale = apiError?.code === "stale_record";
   return {
     outcomeUnknown,
@@ -943,72 +947,120 @@ function TaskActions({
   );
 }
 
+type FollowUpAttempt = {
+  action: "assign" | "complete";
+  path: string;
+  method: string;
+  body: { follow_up: Record<string, unknown> };
+  followUp: EncounterFollowUpItem;
+  actorMembershipId: number;
+};
+type FollowUpController = {
+  attempt: FollowUpAttempt | null;
+  inFlight: boolean;
+  busy: string;
+  error: string;
+  listeners: Set<() => void>;
+  notify: () => void;
+};
+function createFollowUpController(onChange: () => void = () => {}) {
+  const controller: FollowUpController = {
+    attempt: null,
+    inFlight: false,
+    busy: "",
+    error: "",
+    listeners: new Set(),
+    notify: () => {
+      controller.listeners.forEach((listener) => listener());
+      onChange();
+    },
+  };
+  return controller;
+}
+
 function EncounterFollowUpActions({
   followUp,
   actorMembershipId,
   onChanged,
+  controller: sharedController,
 }: {
   followUp: EncounterFollowUpItem;
   actorMembershipId: number;
   onChanged: () => void;
+  controller?: FollowUpController;
 }) {
   const [assigneeId, setAssigneeId] = useState(
     followUp.assigned_to_membership_id?.toString() || "",
   );
   const [outcome, setOutcome] = useState("");
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
-  const attempts = useRef(new Map<string, string>());
+  const localController = useRef<FollowUpController | null>(null);
+  if (!localController.current)
+    localController.current = createFollowUpController();
+  const controller = sharedController ?? localController.current;
+  const [, redraw] = useState(0);
+  useEffect(() => {
+    const update = () => redraw((value) => value + 1);
+    controller.listeners.add(update);
+    return () => {
+      controller.listeners.delete(update);
+    };
+  }, [controller]);
+  const pendingAttempt = controller.attempt;
+  const busy = controller.busy;
+  const error = controller.error;
 
   async function mutate(
     action: "assign" | "complete",
     values: Record<string, unknown> = {},
+    exactRetry = false,
   ) {
-    const signature = JSON.stringify([action, values]);
-    const requestKey = attempts.current.get(signature) || crypto.randomUUID();
-    attempts.current.set(signature, requestKey);
-    setBusy(action);
-    setError("");
-    try {
-      if (action === "assign") {
-        await api(`/api/clinic/encounters/${followUp.encounter_id}/follow_up`, {
-          method: "PUT",
-          body: {
-            follow_up: {
-              request_key: requestKey,
-              expected_version: followUp.version,
-              status: followUp.status,
-              plan: followUp.plan,
-              follow_up_appointment_id: followUp.follow_up_appointment?.id,
-              due_at: followUp.due_at,
-              assigned_to_membership_id: values.assigned_to_membership_id,
-            },
-          },
-        });
-      } else {
-        await api(
-          `/api/clinic/operations/encounter_follow_ups/${followUp.id}`,
-          {
-            method: "PATCH",
-            body: {
-              follow_up: {
+    if (controller.inFlight || (controller.attempt && !exactRetry)) return;
+    const attempt = controller.attempt ?? {
+      action,
+      followUp: structuredClone(followUp),
+      actorMembershipId,
+      path:
+        action === "assign"
+          ? `/api/clinic/encounters/${followUp.encounter_id}/follow_up`
+          : `/api/clinic/operations/encounter_follow_ups/${followUp.id}`,
+      method: action === "assign" ? "PUT" : "PATCH",
+      body: {
+        follow_up:
+          action === "assign"
+            ? {
+                request_key: crypto.randomUUID(),
+                expected_version: followUp.version,
+                status: followUp.status,
+                plan: followUp.plan,
+                follow_up_appointment_id: followUp.follow_up_appointment?.id,
+                due_at: followUp.due_at,
+                assigned_to_membership_id: values.assigned_to_membership_id,
+              }
+            : {
                 action: "complete",
-                request_key: requestKey,
+                request_key: crypto.randomUUID(),
                 expected_version: followUp.version,
                 outcome,
               },
-            },
-          },
-        );
-      }
-      attempts.current.delete(signature);
+      },
+    };
+    controller.inFlight = true;
+    controller.attempt = attempt;
+    controller.busy = attempt.action;
+    controller.error = "";
+    controller.notify();
+    try {
+      await api(attempt.path, { method: attempt.method, body: attempt.body });
+      controller.attempt = null;
       onChanged();
     } catch (reason) {
       const failure = mutationFailure(reason);
-      if (!failure.outcomeUnknown) attempts.current.delete(signature);
-      setError(failure.message);
+      if (!failure.outcomeUnknown && !exactRetry) controller.attempt = null;
+      controller.error = failure.message;
     } finally {
-      setBusy("");
+      controller.inFlight = false;
+      controller.busy = "";
+      controller.notify();
     }
   }
 
@@ -1019,7 +1071,7 @@ function EncounterFollowUpActions({
           <Button
             size="small"
             variant="contained"
-            disabled={Boolean(busy)}
+            disabled={Boolean(busy) || Boolean(pendingAttempt)}
             onClick={() =>
               mutate("assign", { assigned_to_membership_id: actorMembershipId })
             }
@@ -1035,6 +1087,7 @@ function EncounterFollowUpActions({
             labelId={`follow-up-assignee-${followUp.id}`}
             label="Owner"
             value={assigneeId}
+            disabled={Boolean(busy) || Boolean(pendingAttempt)}
             onChange={(event) => setAssigneeId(String(event.target.value))}
           >
             {followUp.eligible_assignees.map((candidate) => (
@@ -1054,6 +1107,7 @@ function EncounterFollowUpActions({
           variant="outlined"
           disabled={
             Boolean(busy) ||
+            Boolean(pendingAttempt) ||
             !assigneeId ||
             assigneeId === followUp.assigned_to_membership_id?.toString()
           }
@@ -1069,18 +1123,24 @@ function EncounterFollowUpActions({
           size="small"
           label="Resolution outcome"
           value={outcome}
+          disabled={Boolean(busy) || Boolean(pendingAttempt)}
           onChange={(event) => setOutcome(event.target.value)}
           sx={{ minWidth: { sm: 280 } }}
         />
         <Button
           size="small"
           variant="outlined"
-          disabled={Boolean(busy) || !outcome.trim()}
+          disabled={Boolean(busy) || Boolean(pendingAttempt) || !outcome.trim()}
           onClick={() => mutate("complete")}
         >
           {busy === "complete" ? "Resolving…" : "Resolve"}
         </Button>
       </Stack>
+      {pendingAttempt && !busy && (
+        <Button onClick={() => void mutate(pendingAttempt.action, {}, true)}>
+          Retry exact follow-up action
+        </Button>
+      )}
       {error && <Alert severity="error">{error}</Alert>}
     </Stack>
   );
@@ -1389,12 +1449,14 @@ function InboxRow({
   onChanged,
   hideTaskClaim = false,
   taskController,
+  followUpController,
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
   hideTaskClaim?: boolean;
   taskController?: PatientFlowTaskController;
+  followUpController?: FollowUpController;
 }) {
   const Icon =
     item.icon === "lab"
@@ -1517,6 +1579,7 @@ function InboxRow({
         {item.mutation?.kind === "follow_up" && work && (
           <EncounterFollowUpActions
             followUp={item.mutation.followUp}
+            controller={followUpController}
             actorMembershipId={work.actor_membership_id}
             onChanged={onChanged}
           />
@@ -1559,11 +1622,13 @@ function PatientFlowCard({
   work,
   onChanged,
   taskController,
+  followUpController,
 }: {
   item: InboxItem;
   work?: FollowUpResponse;
   onChanged: (message?: string) => void;
   taskController?: PatientFlowTaskController;
+  followUpController?: FollowUpController;
 }) {
   const context = useClinic();
   const localController = useRef<PatientFlowTaskController | null>(null);
@@ -1654,6 +1719,7 @@ function PatientFlowCard({
             onChanged={onChanged}
             hideTaskClaim
             taskController={sharedController}
+            followUpController={followUpController}
           />
         </Box>
       </CardContent>
@@ -1743,9 +1809,11 @@ export function WorkInbox() {
 
 function ScopedWorkInbox() {
   const { capabilities, current_site, practice, user_id } = useClinic();
+  const { registerBlocker } = useClinicNavigation();
   // Scope survives filters/pages and card movement between columns, but remains
   // isolated by the existing practice/user/site/capability WorkInbox key.
   const taskControllers = useRef(new Map<number, PatientFlowTaskController>());
+  const followUpControllers = useRef(new Map<number, FollowUpController>());
   const [, redrawTaskOutcomes] = useState(0);
   const taskController = (taskId: number) => {
     let controller = taskControllers.current.get(taskId);
@@ -1757,15 +1825,53 @@ function ScopedWorkInbox() {
     }
     return controller;
   };
+  const followUpController = (followUpId: number) => {
+    let controller = followUpControllers.current.get(followUpId);
+    if (!controller) {
+      controller = createFollowUpController(() =>
+        redrawTaskOutcomes((value) => value + 1),
+      );
+      followUpControllers.current.set(followUpId, controller);
+    }
+    return controller;
+  };
+  useEffect(() => {
+    const warning = () =>
+      [...taskControllers.current.values()].some(
+        (controller) =>
+          controller.inFlight.current || controller.unknownAttempt !== null,
+      ) ||
+      [...followUpControllers.current.values()].some(
+        (controller) => controller.attempt !== null,
+      )
+        ? "A Patient Flow task or follow-up is pending or unconfirmed. Confirm its exact outcome before leaving."
+        : null;
+    const unregister = registerBlocker(warning, { preventNavigation: true });
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      const message = warning();
+      if (!message) return;
+      event.preventDefault();
+      event.returnValue = message;
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [registerBlocker]);
   useDemoNavigationBlocker(() => {
-    const blocked = [...taskControllers.current.values()].some(
-      (controller) =>
-        controller.inFlight.current || controller.unknownAttempt !== null,
-    );
+    const blocked =
+      [...taskControllers.current.values()].some(
+        (controller) =>
+          controller.inFlight.current || controller.unknownAttempt !== null,
+      ) ||
+      [...followUpControllers.current.values()].some(
+        (controller) => controller.attempt !== null,
+      );
     return {
       blocked,
       message: blocked
-        ? "A Patient Flow task is pending or unconfirmed. Confirm its exact outcome before leaving."
+        ? "A Patient Flow task or follow-up is pending or unconfirmed. Confirm its exact outcome before leaving."
         : null,
     };
   });
@@ -2376,6 +2482,67 @@ function ScopedWorkInbox() {
   return (
     <Stack spacing={2.5} sx={{ mb: 3.5 }}>
       {notice && <Alert severity="success">{notice}</Alert>}
+      {[...taskControllers.current.values()].some(
+        (controller) => controller.unknownAttempt,
+      ) ||
+      [...followUpControllers.current.values()].some(
+        (controller) => controller.attempt && !controller.busy,
+      ) ? (
+        <Paper
+          component="section"
+          variant="outlined"
+          sx={{ p: 2 }}
+          aria-label="Unconfirmed inbox actions"
+        >
+          <Typography component="h2" variant="h6">
+            Confirm unresolved work
+          </Typography>
+          <Typography variant="body2">
+            These exact actions remain available even when a refreshed queue or
+            filter no longer shows their rows.
+          </Typography>
+          {[...taskControllers.current.entries()].map(([id, controller]) => {
+            const pending = controller.unknownAttempt;
+            return pending ? (
+              <Box key={`task-${id}`} sx={{ mt: 2 }}>
+                <Typography>
+                  {pending.task.patient_display_name} —{" "}
+                  {taskTitle(pending.task)}
+                </Typography>
+                <TaskActions
+                  task={pending.task}
+                  actorMembershipId={pending.actorMembershipId}
+                  availableTasks={work.data?.clinical_tasks ?? []}
+                  controller={controller}
+                  onChanged={(message) => {
+                    setNotice(message ?? "");
+                    setRefreshRevision((value) => value + 1);
+                  }}
+                />
+              </Box>
+            ) : null;
+          })}
+          {[...followUpControllers.current.entries()].map(
+            ([id, controller]) => {
+              const pending = controller.attempt;
+              return pending && !controller.busy ? (
+                <Box key={`follow-up-${id}`} sx={{ mt: 2 }}>
+                  <Typography>
+                    {pending.followUp.patient_display_name} — Encounter
+                    follow-up
+                  </Typography>
+                  <EncounterFollowUpActions
+                    followUp={pending.followUp}
+                    actorMembershipId={pending.actorMembershipId}
+                    controller={controller}
+                    onChanged={() => setRefreshRevision((value) => value + 1)}
+                  />
+                </Box>
+              ) : null;
+            },
+          )}
+        </Paper>
+      ) : null}
       <Box>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -2827,6 +2994,13 @@ function ScopedWorkInbox() {
                               taskController={
                                 item.mutation?.kind === "task"
                                   ? taskController(item.mutation.task.id)
+                                  : undefined
+                              }
+                              followUpController={
+                                item.mutation?.kind === "follow_up"
+                                  ? followUpController(
+                                      item.mutation.followUp.id,
+                                    )
                                   : undefined
                               }
                               onChanged={(message) => {

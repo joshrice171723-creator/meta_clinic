@@ -339,7 +339,7 @@ module Clinic
 
         attributes = fields.index_with { |field| current.public_send(field) }
         relation.create!(attributes.merge(practice: current_practice,
-          effective_from: now - 1.microsecond, effective_until: now))
+          effective_from: now - Rational(1, 1_000_000), effective_until: now))
         true
       end
 

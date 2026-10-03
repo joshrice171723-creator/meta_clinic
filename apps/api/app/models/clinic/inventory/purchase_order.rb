@@ -5,6 +5,11 @@ module Clinic
       STATUSES = %w[draft submitted approved rejected sent partially_received complete cancelled].freeze
       include Clinic::TenantScoped
       include Clinic::Auditable
+      # PaperTrail clears its reification helper after an update. Keep that
+      # helper separate from the persisted optimistic workflow version.
+      self.version_association_name = :paper_trail_version
+      attr_accessor :paper_trail_version
+
       belongs_to :supplier, class_name: "Clinic::Inventory::Supplier", optional: true
       belongs_to :receiving_site, class_name: "Clinic::Site", optional: true
       belongs_to :purchase_cart, class_name: "Clinic::Inventory::PurchaseCart", optional: true
@@ -17,8 +22,7 @@ module Clinic
       validates :destination_address, length: { maximum: 500 }, allow_blank: true
       validates :status, inclusion: { in: STATUSES }
 
-      # PaperTrail exposes a `version` helper, so make this workflow's
-      # optimistic version column explicit like the other versioned models.
+      # The workflow's public version remains the persisted domain column.
       def version
         self[:version]
       end

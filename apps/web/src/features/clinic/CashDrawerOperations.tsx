@@ -245,6 +245,26 @@ export function CashDrawerOperations({
   const closeAttempt = useRef<{ signature: string; requestKey: string } | null>(
     null,
   );
+  const [reconcileAttempt, setReconcileAttempt] = useState<{
+    drawerId: number;
+    note: string;
+    requestKey: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!reconcileAttempt) return;
+    const warning =
+      "Cash drawer reconciliation is pending confirmation. Leave and discard its retry details?";
+    const unregister = registerBlocker(() => warning);
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [reconcileAttempt, registerBlocker]);
   const cashRecoveryLoading = durableRecoveryEnabled && !recovery.ready;
   const restoredCashAttempt =
     recovery.ready &&
@@ -596,44 +616,74 @@ export function CashDrawerOperations({
   };
 
   const reconcileDrawer = async () => {
+    if (busy !== null) return;
     if (
-      !drawer ||
-      drawer.status !== "closed" ||
       capabilities.billing_cash_reconcile !== true ||
-      !reconciliationNote.trim()
+      (!reconcileAttempt && (!drawer || drawer.status !== "closed" || !reconciliationNote.trim()))
     ) {
       setError(
         "A manager reconciliation note is required for a closed drawer.",
       );
       return;
     }
+    const attempt = reconcileAttempt ?? {
+      drawerId: drawer!.id,
+      note: reconciliationNote.trim(),
+      requestKey: requestKey(),
+    };
+    setReconcileAttempt(attempt);
     setBusy("reconcile");
     setError("");
     try {
-      await api(`/api/clinic/cash_drawers/${drawer.id}/reconcile`, {
+      await api(`/api/clinic/cash_drawers/${attempt.drawerId}/reconcile`, {
         method: "POST",
         body: {
           drawer: {
-            reconciliation_note: reconciliationNote.trim(),
-            request_key: requestKey(),
+            reconciliation_note: attempt.note,
+            request_key: attempt.requestKey,
           },
         },
       });
+      setReconcileAttempt(null);
       setReconciliationNote("");
       setNotice(
         "Drawer discrepancy reconciled and preserved for review history.",
       );
       drawers.refresh();
     } catch (reason) {
-      reportError(reason, "The drawer reconciliation could not be recorded.");
+      if (
+        reason instanceof ApiError &&
+        [400, 403, 404, 422].includes(reason.status)
+      ) {
+        setReconcileAttempt(null);
+        reportError(reason, "The drawer reconciliation could not be recorded.");
+      } else {
+        setError(
+          `${reason instanceof Error ? reason.message : "The drawer reconciliation outcome is unconfirmed."} Retry this same reconciliation to confirm its outcome.`,
+        );
+      }
     } finally {
       setBusy(null);
     }
   };
 
+  const reconciliationRecovery = reconcileAttempt && (
+    <Alert
+      severity="warning"
+      action={
+        <Button color="inherit" disabled={busy !== null} onClick={() => void reconcileDrawer()}>
+          Retry drawer #{reconcileAttempt.drawerId} reconciliation
+        </Button>
+      }
+    >
+      Drawer #{reconcileAttempt.drawerId} reconciliation is pending confirmation. Retry its original note and request to confirm the outcome.
+    </Alert>
+  );
+
   if (!drawers.data) {
     return (
       <Paper component="section" variant="outlined" sx={{ mt: 3, p: 2.5 }}>
+        {reconciliationRecovery}
         <Typography component="h2" variant="h2">
           Cash drawer
         </Typography>
@@ -662,6 +712,7 @@ export function CashDrawerOperations({
   if (closeoutError) {
     return (
       <Paper component="section" variant="outlined" sx={{ mt: 3, p: 2.5 }}>
+        {reconciliationRecovery}
         <Typography component="h2" variant="h2">
           Cash drawer
         </Typography>
@@ -691,6 +742,7 @@ export function CashDrawerOperations({
       </Box>
       <Divider />
       <Stack spacing={2} sx={{ p: 2.5 }}>
+        {reconciliationRecovery}
         {closeoutRoute && drawer && (
           <Typography variant="body2">
             Closeout session #{drawer.id} ·{" "}
@@ -827,6 +879,7 @@ export function CashDrawerOperations({
                     required
                     value={reconciliationNote}
                     disabled={
+                      reconcileAttempt !== null ||
                       pendingCashAttempt !== null ||
                       cashRecoveryLoading ||
                       busy !== null
@@ -847,7 +900,9 @@ export function CashDrawerOperations({
                   >
                     {busy === "reconcile"
                       ? "Reconciling…"
-                      : "Reconcile discrepancy"}
+                      : reconcileAttempt
+                        ? "Retry same reconciliation"
+                        : "Reconcile discrepancy"}
                   </Button>
                 </Stack>
               )}

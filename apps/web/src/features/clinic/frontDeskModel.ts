@@ -1,4 +1,5 @@
 import type { Appointment, ClinicSite } from "../../api/contracts";
+import { businessNow } from "../../shared/businessDate";
 
 export type FrontDeskAppointment = Appointment & {
   queue_context?: {
@@ -146,7 +147,8 @@ export function appointmentActions(appointment: FrontDeskAppointment) {
     appointment.status,
   );
   const startsAt = Date.parse(appointment.starts_at);
-  const hasStarted = Number.isFinite(startsAt) && startsAt <= Date.now();
+  const hasStarted =
+    Number.isFinite(startsAt) && startsAt <= businessNow().valueOf();
   return {
     canConfirm: !hasEncounter && appointment.status === "scheduled",
     canStartVisit: !hasEncounter && activeAppointment,

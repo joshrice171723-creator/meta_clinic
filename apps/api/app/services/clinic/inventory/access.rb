@@ -13,6 +13,10 @@ module Clinic
         end
       end
 
+      def self.with_procurement_submission(practice_id, actor)
+        with_authorization(practice_id, actor, "catalog", "procurement.submit") { |profile| yield profile }
+      end
+
       def self.with_authorization(practice_id, actor, action, authorization_action, site: nil)
         raise ArgumentError, "Unsupported inventory action." unless ACTIONS.include?(action)
         Clinic::Practice.transaction do

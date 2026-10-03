@@ -35,7 +35,7 @@ import type {
   BillingInvoiceDetail,
   BillingInvoiceSummary,
 } from "../../api/contracts";
-import { api } from "../../api/client";
+import { api, ApiError } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import {
@@ -46,6 +46,7 @@ import { SubscriptionBilling } from "./subscriptions/SubscriptionBilling";
 import { stripeSetupReturnMarker } from "./billing/StripeConnectPanel";
 import { patientReferenceLabel } from "./patientReference";
 import { invoiceLocationLabel } from "./billingSourceLocation";
+import { useClinicNavigation } from "./clinicNavigation";
 import { BillingSupportRequestQueue } from "./BillingSupportRequestQueue";
 import {
   ExternalPaymentForm,
@@ -71,6 +72,7 @@ export type BillingInvoiceSort =
   "recent" | "oldest" | "balance_desc" | "total_desc";
 
 type AuditedBillingInvoiceDetail = BillingInvoiceDetail & {
+  updated_at: string;
   audit_timeline: {
     id: number;
     event: string;
@@ -447,9 +449,29 @@ export function BillingDashboard() {
     bottom: number;
   } | null>(null);
   const checkoutReturnHandled = useRef(false);
-  const postAttemptRef = useRef<{
+  const [postAttempt, setPostAttempt] = useState<{
     invoiceId: number;
     requestKey: string;
+    updatedAt: string;
+  } | null>(null);
+  const { registerBlocker } = useClinicNavigation();
+  useEffect(() => {
+    if (!postAttempt) return;
+    const warning = `Invoice #${postAttempt.invoiceId} posting is pending confirmation. Leave and discard its retry details?`;
+    const unregister = registerBlocker(() => warning);
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = warning;
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", warn);
+    };
+  }, [postAttempt, registerBlocker]);
+  const postReviewRef = useRef<{
+    invoiceId: number;
+    updatedAt: string;
   } | null>(null);
   const visibleInvoices = data?.recent_invoices ?? [];
   const supportsPatientIdentity =
@@ -581,63 +603,62 @@ export function BillingDashboard() {
     };
   }, [invoiceOpen, selectedInvoice?.id]);
 
-  if (context.capabilities.billing_read !== true)
-    return (
-      <>
-        <h1>Billing</h1>
-        <p role="alert">Billing access is not enabled for this account.</p>
-      </>
-    );
-  if (!data)
-    return error ? (
-      <div className="billing-page">
-        <LoadState error={error} />
-        <Button onClick={refresh} variant="outlined">
-          Retry billing dashboard
-        </Button>
-      </div>
-    ) : (
-      <LoadState />
-    );
-  if (data.schema_version !== "clinic-billing-v1")
-    return (
-      <LoadState error="Unable to verify the billing response. Reload and try again." />
-    );
-
-  const primaryCurrency =
-    data.metrics.currencies.find((item) => item.currency === currency) ??
-    data.metrics.currencies[0] ??
-    null;
-  const primaryOpenInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
-  const openQueueCount = totalOpenInvoiceCount(data.metrics.currencies);
-  const checkoutQueue = data.unbilled_encounters;
   const clearActionState = () => {
     setConfirmAction(null);
     setActionError("");
+    postReviewRef.current = null;
   };
 
-  const postInvoice = async () => {
-    if (!selectedInvoice || busyAction) return;
+  const postInvoice = async (retryOriginal = false) => {
+    if (busyAction) return;
+    if (postAttempt && !retryOriginal && selectedInvoice?.id !== postAttempt.invoiceId) {
+      setActionError(`Confirm the pending posting for invoice #${postAttempt.invoiceId} before posting another invoice.`);
+      return;
+    }
+    let attempt = postAttempt;
+    if (!attempt) {
+      const review = postReviewRef.current;
+      if (retryOriginal || !selectedInvoice || !review || review.invoiceId !== selectedInvoice.id) {
+        setActionError("Load and review the current invoice lines before posting.");
+        return;
+      }
+      attempt = {
+        invoiceId: selectedInvoice.id,
+        requestKey: crypto.randomUUID(),
+        updatedAt: review.updatedAt,
+      };
+    }
     setBusyAction("post");
     setActionError("");
-    const attempt =
-      postAttemptRef.current?.invoiceId === selectedInvoice.id
-        ? postAttemptRef.current
-        : { invoiceId: selectedInvoice.id, requestKey: crypto.randomUUID() };
-    postAttemptRef.current = attempt;
+    setPostAttempt(attempt);
     try {
-      await api(`/api/clinic/invoices/${selectedInvoice.id}/post`, {
+      await api(`/api/clinic/invoices/${attempt.invoiceId}/post`, {
         method: "POST",
-        body: { invoice_post: { request_key: attempt.requestKey } },
+        body: {
+          invoice_post: {
+            request_key: attempt.requestKey,
+            expected_updated_at: attempt.updatedAt,
+          },
+        },
       });
-      postAttemptRef.current = null;
+      setPostAttempt(null);
       setActionMessage(
-        `Invoice #${selectedInvoice.id} was posted to the ledger.`,
+        `Invoice #${attempt.invoiceId} was posted to the ledger.`,
       );
       clearActionState();
       refresh();
       detailResource.refresh();
     } catch (reason) {
+      if (
+        reason instanceof ApiError &&
+        [400, 404, 422].includes(reason.status)
+      ) {
+        setPostAttempt(null);
+        postReviewRef.current = null;
+        setConfirmAction(null);
+        refresh();
+        detailResource.refresh();
+      }
       setActionError(
         reason instanceof Error
           ? reason.message
@@ -647,6 +668,50 @@ export function BillingDashboard() {
       setBusyAction(null);
     }
   };
+
+  const postingRecovery = postAttempt && (
+    <Alert
+      severity="warning"
+      action={
+        <Button color="inherit" disabled={Boolean(busyAction)} onClick={() => void postInvoice(true)}>
+          Retry invoice #{postAttempt.invoiceId} posting
+        </Button>
+      }
+    >
+      Invoice #{postAttempt.invoiceId} posting is pending confirmation. Retry the original posting before posting another invoice.
+    </Alert>
+  );
+
+  if (context.capabilities.billing_read !== true)
+    return (
+      <>
+        <h1>Billing</h1>
+        <p role="alert">Billing access is not enabled for this account.</p>
+      </>
+    );
+  if (!data)
+    return (
+      <div className="billing-page">
+        {postingRecovery}
+        <LoadState error={error} />
+        {error && <Button onClick={refresh} variant="outlined">Retry billing dashboard</Button>}
+      </div>
+    );
+  if (data.schema_version !== "clinic-billing-v1")
+    return (
+      <>
+        {postingRecovery}
+        <LoadState error="Unable to verify the billing response. Reload and try again." />
+      </>
+    );
+
+  const primaryCurrency =
+    data.metrics.currencies.find((item) => item.currency === currency) ??
+    data.metrics.currencies[0] ??
+    null;
+  const primaryOpenInvoiceCount = primaryCurrency?.open_invoice_count ?? 0;
+  const openQueueCount = totalOpenInvoiceCount(data.metrics.currencies);
+  const checkoutQueue = data.unbilled_encounters;
 
   const queueItems: {
     filter: BillingInvoiceFilter;
@@ -700,6 +765,7 @@ export function BillingDashboard() {
           )}
         </div>
       </header>
+      {postingRecovery}
       {checkingCheckoutReturn && (
         <Alert severity="info" role="status">
           Checking payment status… A return from Stripe does not confirm that a
@@ -1121,6 +1187,7 @@ export function BillingDashboard() {
           Invoice details
         </DialogTitle>
         <DialogContent dividers>
+          {postingRecovery}
           <section className="clinic-card billing-invoice-detail">
             <div className="billing-section-heading">
               <div>
@@ -1266,7 +1333,24 @@ export function BillingDashboard() {
                         <Button
                           className="billing-primary-button"
                           type="button"
+                          disabled={
+                            selectedDetail?.id !== selectedInvoice.id ||
+                            selectedDetail.status !== "draft" ||
+                            !selectedDetail.updated_at ||
+                            (postAttempt !== null && postAttempt.invoiceId !== selectedInvoice.id) ||
+                            Boolean(busyAction)
+                          }
                           onClick={() => {
+                            if (
+                              selectedDetail?.id !== selectedInvoice.id ||
+                              !selectedDetail.updated_at
+                            ) {
+                              return;
+                            }
+                            postReviewRef.current = {
+                              invoiceId: selectedInvoice.id,
+                              updatedAt: selectedDetail.updated_at,
+                            };
                             setActionError("");
                             setConfirmAction("post");
                           }}

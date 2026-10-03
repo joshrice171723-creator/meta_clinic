@@ -17,6 +17,8 @@ class ClinicSchedulingPolicySeriesTest < ActionDispatch::IntegrationTest
     @patient_two = @practice.patients.create!(display_name: "Synthetic Two", reference: "SCHED-TWO")
     @patient_three = @practice.patients.create!(display_name: "Synthetic Three", reference: "SCHED-THREE")
     @visit_type = @practice.visit_types.create!(code: "Follow up")
+    Development::GuidedClinicDemo.configure_site_profile!(practice: @practice, site: @site, membership: @membership,
+      clinic_type: "primary_care", request_key: "series-original-profile", finalize: true)
     @start = ActiveSupport::TimeZone[@practice.timezone].local(2026, 11, 4, 9)
     Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
       kind: "weekly", weekday: @start.wday, start_minute: 540, end_minute: 660, active: true)
@@ -126,6 +128,38 @@ class ClinicSchedulingPolicySeriesTest < ActionDispatch::IntegrationTest
       Clinic::Scheduling::AppointmentSeriesChange.where(series_id: id).order(:id).pluck(:action)
   end
 
+  test "future series previews use a reassigned occurrence's current site and clinician" do
+    series, moved, other_clinician, other_site = reassigned_series
+    @practice.appointments.create!(patient: @patient_two, site: @site, booked_clinician: @clinician,
+      visit_type: @visit_type, room: @room_one, starts_at: @start + 1.hour, ends_at: @start + 90.minutes,
+      status: "scheduled", visit_modality: "in_person")
+
+    rows = Clinic::Scheduling::ManageSeries.preview_change(series: series, actor: @user,
+      from_sequence: 1, local_time: "10:00")
+
+    assert rows.all? { |row| row[:conflict].nil? }
+    Clinic::Scheduling::ManageSeries.change_future(series: series, actor: @user, from_sequence: 1,
+      local_time: "10:00", room: nil, reason: "Synthetic current assignment change",
+      expected_versions: rows.map { |row| { appointment_id: row[:appointment_id], updated_at: row[:expected_updated_at].iso8601(6) } },
+      request_key: "reassigned-series-change")
+    moved.reload
+    assert_equal other_site.id, moved.site_id
+    assert_equal other_clinician.id, moved.booked_clinician_id
+    assert_equal @start + 1.hour, moved.starts_at
+  end
+
+  test "future series preview reports conflicts on the reassigned clinician" do
+    series, moved, other_clinician, other_site = reassigned_series
+    @practice.appointments.create!(patient: @patient_two, site: other_site, booked_clinician: other_clinician,
+      visit_type: @visit_type, starts_at: @start + 1.hour, ends_at: @start + 90.minutes,
+      status: "scheduled", visit_modality: "in_person")
+
+    rows = Clinic::Scheduling::ManageSeries.preview_change(series: series, actor: @user,
+      from_sequence: 1, local_time: "10:00")
+
+    assert_match "clinician is already booked", rows.find { |row| row[:appointment_id] == moved.id }.fetch(:conflict)
+  end
+
   test "a daylight saving gap is shown as a conflict instead of shifting the series" do
     enable_policy(recurrence: true)
     first = ActiveSupport::TimeZone[@practice.timezone].local(2027, 3, 7, 2, 30)
@@ -212,6 +246,28 @@ class ClinicSchedulingPolicySeriesTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def reassigned_series
+    enable_policy(recurrence: true)
+    post "/api/clinic/appointment_series", params: series_body(request_key: "reassigned-series"),
+      headers: csrf_headers, as: :json
+    assert_response :created
+    series = Clinic::Scheduling::AppointmentSeries.find(response.parsed_body.dig("series", "id"))
+    other_site = @practice.sites.create!(code: "REASSIGNED", status: "active")
+    Development::GuidedClinicDemo.configure_site_profile!(practice: @practice, site: other_site, membership: @membership,
+      clinic_type: "primary_care", request_key: "series-reassigned-profile", finalize: true)
+    other_user = User.create!(email_address: "reassigned-series-clinician@example.invalid", password: SecureRandom.hex(20))
+    other_membership = @practice.memberships.create!(user: other_user)
+    other_clinician = @practice.clinician_profiles.create!(membership: other_membership, display_name: "Synthetic Reassigned Clinician")
+    other_room = other_site.rooms.create!(practice: @practice, code: "REASSIGNED-ROOM", kind: "physical")
+    Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: other_site, clinician: other_clinician,
+      kind: "weekly", weekday: @start.wday, start_minute: 540, end_minute: 660, active: true)
+    moved = series.occurrences.order(:sequence).first.appointment
+    Clinic::Scheduling::RescheduleAppointment.call(appointment: moved, actor: @user, starts_at: moved.starts_at,
+      ends_at: moved.ends_at, site: other_site, booked_clinician: other_clinician, room: other_room,
+      expected_updated_at: moved.updated_at, request_key: "reassign-series-occurrence")
+    [ series, moved, other_clinician, other_site ]
+  end
 
   def headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
   def policy_path = "/api/clinic/facilities/#{@site.id}/scheduling_policy"

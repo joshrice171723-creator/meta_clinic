@@ -135,7 +135,7 @@ module Clinic
         @receipt = if params[:receipt_id].present?
           receipts.find(requested_id!(params[:receipt_id], :receipt_id))
         else
-          receipts.where(kind: %w[cash_payment subscription_payment]).order(:issued_at, :id).first!
+          receipts.where(kind: %w[cash_payment subscription_payment card_payment]).order(:issued_at, :id).first!
         end
         @payment = payment
         @practice = current_practice

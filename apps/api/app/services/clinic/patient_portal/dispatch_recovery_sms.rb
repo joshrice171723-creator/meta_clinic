@@ -69,7 +69,9 @@ module Clinic
           identity.invitation_digest, Identity.digest_token(token)
         )
 
-        contact.practice_id == identity.practice_id && contact.patient_id == identity.patient_id &&
+        current_contact = Clinic::Care::CurrentPatientContact.call(patient: identity.patient, contact_type: "phone", at: at)
+        current_contact&.id == contact.id &&
+          contact.practice_id == identity.practice_id && contact.patient_id == identity.patient_id &&
           contact.contact_type_phone? && contact.effective_from <= at &&
           (contact.effective_until.nil? || contact.effective_until > at)
       end

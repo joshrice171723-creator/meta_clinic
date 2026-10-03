@@ -47,6 +47,72 @@ class ClinicPatientNameLookupS1Test < ActionDispatch::IntegrationTest
     assert_equal [ @patient.id ], response.parsed_body.fetch("patients").pluck("id")
   end
 
+  test "phone lookup uses the latest version even when the previous number was preferred" do
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: Time.current)
+
+    get "/api/clinic/patients/lookup", params: { phone: "15558675309" }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("patients")
+
+    get "/api/clinic/patients/lookup", params: { phone: "12025550127" }, headers: @headers
+    assert_response :success
+    row = response.parsed_body.fetch("patients").sole
+    assert_equal @patient.id, row.fetch("id")
+    assert_equal "ending 0127", row.fetch("phone_hint")
+  end
+
+  test "a phone removal suppresses historical phone matching and masked output" do
+    now = Time.current
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+1 (555) 867-5309",
+      preferred: true, effective_from: now - Rational(1, 1_000_000), effective_until: now)
+
+    get "/api/clinic/patients/lookup", params: { phone: "15558675309" }, headers: @headers
+    assert_response :success
+    assert_empty response.parsed_body.fetch("patients")
+
+    get "/api/clinic/patients/lookup", params: { id: @patient.id }, headers: @headers
+    assert_response :success
+    assert_nil response.parsed_body.fetch("patients").sole.fetch("phone_hint")
+  end
+
+  test "registration removal appends a closure and preserves the original phone" do
+    grant_permissions!(@practice.memberships.first!, "patients.identity.read", "patients.write", "patients.read")
+    original = @patient.contacts.sole
+    original_attributes = original.attributes
+
+    travel_to(Time.current + 1.minute) do
+      now = Current.business_time
+      assert_difference -> { @patient.contacts.count }, 1 do
+        patch "/api/clinic/patients/#{@patient.id}", params: { clinic_patient: {
+          display_name: @patient.display_name, reference: @patient.reference,
+          contact_type: "phone", contact_value: "", request_key: "remove-current-phone"
+        } }, headers: csrf_headers, as: :json
+        assert_response :success
+      end
+      closure = @patient.contacts.order(:id).last
+      assert_equal original_attributes, original.reload.attributes
+      assert_equal original.contact_value, closure.contact_value
+      assert_equal now, closure.effective_until
+      assert_equal Rational(1, 1_000_000), closure.effective_until.to_r - closure.effective_from.to_r
+      assert_nil Clinic::Care::CurrentPatientContact.call(patient: @patient, contact_type: "phone")
+
+      get "/api/clinic/patients/lookup", params: { phone: "15558675309" }, headers: @headers
+      assert_response :success
+      assert_empty response.parsed_body.fetch("patients")
+    end
+  end
+
+  test "a future phone version does not supersede the current effective version early" do
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: 1.day.from_now)
+
+    get "/api/clinic/patients/lookup", params: { phone: "15558675309" }, headers: @headers
+    assert_response :success
+    assert_equal @patient.id, response.parsed_body.fetch("patients").sole.fetch("id")
+    assert_equal "ending 5309", Clinic::Care::PatientIdentitySearch.masked_phone(@patient)
+  end
+
   test "booking name queries immediately find synthetic names independently of their references" do
     mercer = @practice.patients.create!(display_name: "SYN_Mercer, Alex", reference: "LOOKUP-111-A")
     vale = @practice.patients.create!(display_name: "SYN_Vale, Briar", reference: "LOOKUP-111-B")

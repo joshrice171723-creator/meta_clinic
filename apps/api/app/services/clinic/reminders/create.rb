@@ -15,6 +15,7 @@ module Clinic
         raise ArgumentError, "The appointment must belong to the selected patient." if appointment && appointment.patient_id != patient.id
         endpoint = select_endpoint(practice, patient, endpoint_id, channel)
         scheduled_at = scheduled_at.to_time
+        expires_at = (expires_at || scheduled_at + 7.days).to_time
         timezone = practice.timezone
         dedupe_key = request_key.to_s
         source_type = appointment ? "Clinic::Appointment" : "Clinic::Patient"
@@ -26,7 +27,8 @@ module Clinic
         ApplicationRecord.transaction do
           existing = Clinic::PatientReminder.find_by(practice: practice, dedupe_key: dedupe_key)
           if existing
-            return existing if compatible?(existing, patient:, category:, channel:, endpoint:, scheduled_at:, content: message_content)
+            return existing if compatible?(existing, patient:, category:, channel:, endpoint:, scheduled_at:,
+              source_type:, source_id:, expires_at:, content: message_content)
 
             raise ArgumentError, "This reminder request key was already used for different data."
           end
@@ -37,7 +39,7 @@ module Clinic
             safe_preview: SAFE_PREVIEWS.fetch(category.to_s), content: message_content,
             scheduled_at: scheduled_at, timezone: timezone,
             local_schedule_label: scheduled_at.in_time_zone(timezone).strftime("%b %-d, %Y at %-I:%M %p %Z"),
-            status: "scheduled", dedupe_key: dedupe_key, expires_at: expires_at || scheduled_at + 7.days,
+            status: "scheduled", dedupe_key: dedupe_key, expires_at: expires_at,
             policy_decision_code: "created_pending_dispatch", policy_version: Policy::VERSION
           )
           reminder.create_outbox!(practice: practice, idempotency_key: "reminder:#{practice.id}:#{dedupe_key}", available_at: scheduled_at)
@@ -47,7 +49,8 @@ module Clinic
         end
       rescue ActiveRecord::RecordNotUnique
         retry_existing = Clinic::PatientReminder.find_by!(practice: practice, dedupe_key: request_key)
-        return retry_existing if compatible?(retry_existing, patient:, category:, channel:, endpoint:, scheduled_at:, content: message_content)
+        return retry_existing if compatible?(retry_existing, patient:, category:, channel:, endpoint:, scheduled_at:,
+          source_type:, source_id:, expires_at:, content: message_content)
         raise ArgumentError, "This reminder request key was already used for different data."
       end
 
@@ -71,10 +74,11 @@ module Clinic
       end
       private_class_method :endpoint_type
 
-      def self.compatible?(record, patient:, category:, channel:, endpoint:, scheduled_at:, content:)
+      def self.compatible?(record, patient:, category:, channel:, endpoint:, scheduled_at:, source_type:, source_id:, expires_at:, content:)
         record.patient_id == patient.id && record.category == category.to_s && record.channel == channel.to_s &&
           record.communication_endpoint_id == endpoint.id && record.scheduled_at.to_i == scheduled_at.to_i &&
-          record.content == content
+          record.source_type == source_type && record.source_id == source_id &&
+          record.expires_at&.utc&.iso8601(6) == expires_at.utc.iso8601(6) && record.content == content
       end
       private_class_method :compatible?
     end

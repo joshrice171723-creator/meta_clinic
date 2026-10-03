@@ -96,11 +96,100 @@ class ReminderExceptionQueueTest < ActionDispatch::IntegrationTest
 
     assert_equal "Reconcile the delivery outcome before any resend. Do not send a duplicate while delivery is uncertain.",
       request.message.requested_action
-    task = Clinic::ClinicalTask.find_by!(source_type: "reminder", source_id: reminder.id)
+    task = Clinic::ClinicalTask.find_by!(practice: @practice, source_type: "message", source_id: request.id)
     assert_equal @patient.id, task.patient_id
     assert_equal @membership.id, task.assigned_to_membership_id
     assert_equal "staff_request", task.task_kind
     assert_equal "open", task.state
+  end
+
+  test "distinct reminder requests retain independent task ownership and completion" do
+    reminder = failed_reminder(@practice, @user, @patient, @endpoint, "independent-handoffs")
+    legacy = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, task_kind: "staff_request",
+      state: "open", pool_code: "clinical", source_type: "reminder", source_id: reminder.id,
+      assigned_to_membership: @membership, recorded_by_membership: @membership)
+    coworker = @conversation.members.active.where.not(membership_id: @membership.id).first!.membership
+    due_at = 2.days.from_now
+    send_request = lambda do |key, owner|
+      Clinic::Messaging::SendStaffMessage.call(
+        practice: @practice, actor: @user, conversation: @conversation,
+        request_key: key, body: "Review this reminder follow-up.", message_class: "time_sensitive",
+        response_due_at: due_at, assignee_membership_id: owner.id,
+        requested_action: "Review the reminder", linked_object_type: "patient_reminder", linked_object_id: reminder.id
+      )
+    end
+    first = send_request.call("independent-reminder-first", @membership).request
+    second = send_request.call("independent-reminder-second", coworker).request
+    first_task = Clinic::ClinicalTask.find_by!(practice: @practice, source_type: "message", source_id: first.id)
+    second_task = Clinic::ClinicalTask.find_by!(practice: @practice, source_type: "message", source_id: second.id)
+    assert_not_equal first_task.id, second_task.id
+    assert_equal [ @membership.id, coworker.id ], [ first_task.assigned_to_membership_id, second_task.assigned_to_membership_id ]
+    assert_equal [ "open", "open" ], [ first_task.state, second_task.state ]
+
+    replay = send_request.call("independent-reminder-first", @membership)
+    assert_equal first.id, replay.request.id
+    assert_equal 1, Clinic::ClinicalTask.where(practice: @practice, source_type: "message", source_id: first.id).count
+
+    resolve!(first)
+    assert_equal "completed", first_task.reload.state
+    assert_equal "open", second_task.reload.state
+    assert_equal coworker.id, second_task.assigned_to_membership_id
+    assert_equal "open", second.reload.state
+    assert_equal [ "reminder", reminder.id, "open", @membership.id ],
+      [ legacy.reload.source_type, legacy.source_id, legacy.state, legacy.assigned_to_membership_id ]
+  end
+
+  test "staff request tasks finalize only through their source request" do
+    message = Clinic::Messaging::SendStaffMessage.call(practice: @practice, actor: @user, conversation: @conversation,
+      request_key: "source-managed-request", body: "Review the encounter follow-up.", message_class: "time_sensitive",
+      response_due_at: 1.day.from_now, assignee_membership_id: @membership.id,
+      linked_object_type: "encounter", linked_object_id: @encounter.id)
+    request = message.request
+    task = Clinic::ClinicalTask.find_by!(practice: @practice, source_type: "message", source_id: request.id)
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @user, task:, action: "claim",
+      expected_version: task.lock_version, request_key: "source-managed-request-claim")
+    %w[complete cancel reopen].each do |action|
+      error = assert_raises(ArgumentError) do
+        Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @user, task: task.reload,
+          action:, expected_version: task.lock_version, request_key: "source-managed-request-#{action}",
+          resolution_code: action == "complete" ? "completed" : nil)
+      end
+      assert_match(/source workspace/, error.message)
+      assert_equal "claimed", task.reload.state
+      assert_equal "open", request.reload.state
+    end
+    reminder = create_reminder(@practice, @user, @patient, @endpoint, "legacy-manual-reconciliation")
+    legacy = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter,
+      site: @site, task_kind: "staff_request", source_type: "reminder", source_id: reminder.id,
+      pool_code: "clinical", state: "claimed", assigned_to_membership: @membership, recorded_by_membership: @membership)
+    refute Clinic::Care::TaskContinuity.source_managed?(legacy)
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @user, task: legacy,
+      action: "complete", expected_version: legacy.lock_version, request_key: "legacy-manual-reconciliation-complete",
+      resolution_code: "completed")
+    assert_equal "completed", legacy.reload.state
+    assert_equal "open", request.reload.state
+
+    prerequisite = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter,
+      site: @site, task_kind: "record_request", source_type: "manual", pool_code: "clinical", state: "claimed",
+      assigned_to_membership: @membership, recorded_by_membership: @membership)
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @user, task: task.reload,
+      action: "dependencies", expected_version: task.lock_version, request_key: "source-managed-prerequisite",
+      dependency_ids: [ prerequisite.id ])
+    event_count = task.events.count
+    error = assert_raises(ArgumentError) { resolve!(request) }
+    assert_match(/prerequisite/, error.message)
+    assert_equal "open", request.reload.state
+    assert_nil request.resolved_at
+    assert_nil request.resolution_code
+    assert_equal "claimed", task.reload.state
+    assert_nil task.completed_at
+    assert_equal event_count, task.events.count
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @user, task: prerequisite,
+      action: "complete", expected_version: prerequisite.lock_version,
+      request_key: "source-managed-prerequisite-complete", resolution_code: "completed")
+    resolve!(request)
+    assert_equal "completed", task.reload.state
+    assert_equal "resolved", request.reload.state
   end
 
   test "patient-linked staff requests share one task lifecycle with the work queue" do

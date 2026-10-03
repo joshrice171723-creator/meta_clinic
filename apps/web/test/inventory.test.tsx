@@ -649,10 +649,9 @@ describe("inventory integration", () => {
   });
 
   it("keeps every canonical inventory screen on the same APPly-backed surface", () => {
-    const source = readFileSync(
-      "src/features/inventory/InventoryApp.tsx",
-      "utf8",
-    );
+    const source = ["InventoryApp.tsx", "inventoryNavigation.ts"]
+      .map((file) => readFileSync(`src/features/inventory/${file}`, "utf8"))
+      .join("\n");
     const supplierSource = readFileSync(
       "src/features/inventory/SupplierPricing.tsx",
       "utf8",

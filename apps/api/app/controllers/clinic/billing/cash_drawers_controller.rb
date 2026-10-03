@@ -63,12 +63,14 @@ module Clinic
         session = current_practice.cash_drawer_sessions.lock.find(requested_id!(params[:id], :id))
         raise ArgumentError, "Only a closed cash drawer can be reconciled." unless session.status == "closed"
         raise ArgumentError, "A reconciliation note is required." unless input[:reconciliation_note].to_s.strip.present?
+        note = required_string!(input[:reconciliation_note], field: :reconciliation_note, maximum: 1000)
         if session.reconciliation_status == "reconciled"
           raise ArgumentError, "The cash drawer is already reconciled." unless session.reconciliation_request_key == request_key
+          raise ArgumentError, "Reconciliation details do not match the original request." unless session.reconciliation_note == note
           return render json: { drawer: CashDrawer.call(session) }
         end
         session.update!(reconciliation_status: "reconciled", reconciled_by: current_user, reconciled_at: Time.current,
-          reconciliation_note: required_string!(input[:reconciliation_note], field: :reconciliation_note, maximum: 1000), reconciliation_request_key: request_key)
+          reconciliation_note: note, reconciliation_request_key: request_key)
         render json: { drawer: CashDrawer.call(session.reload) }
       end
 

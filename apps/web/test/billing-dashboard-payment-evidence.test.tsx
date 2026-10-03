@@ -6,10 +6,170 @@ import { fileURLToPath } from "node:url";
 let server: ViteDevServer;
 let browser: Browser;
 let base: string;
+
+// Keep the envelope aligned with Clinic::Billing::Dashboard.call.
+function dashboardFixture(invoices: Array<{ status: string }>) {
+  return {
+    schema_version: "clinic-billing-v1",
+    practice: { id: 701, name: "Synthetic practice", timezone: "UTC" },
+    period: { start: "2026-10-01", end: "2026-11-01" },
+    metrics: {
+      invoice_count: invoices.length,
+      posted_count: invoices.filter((invoice) => invoice.status === "posted")
+        .length,
+      draft_count: invoices.filter((invoice) => invoice.status === "draft")
+        .length,
+      void_count: invoices.filter((invoice) => invoice.status === "void")
+        .length,
+      currencies: [],
+    },
+    recent_invoices: invoices,
+    invoice_pagination: {
+      total: invoices.length,
+      total_pages: invoices.length ? 1 : 0,
+      page: 1,
+      per_page: 25,
+    },
+    recent_payments: [],
+    payment_activity: [],
+    payment_count: 0,
+    card_collection: {
+      available: false,
+      reason: "Synthetic checkout is unavailable.",
+    },
+    pending_online_payments: [],
+    collection_worklist: { limit: 50, total_count: 0, items: [] },
+    unbilled_encounters: { available: false, total: null, items: [] },
+  };
+}
+
+it.each(["success", "stale", "unknown"])(
+  "posts the reviewed draft with exact retry data after a %s outcome",
+  async (outcome) => {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(5000);
+    page.setDefaultNavigationTimeout(30000);
+    let reviewedAt = "2026-10-03T10:00:00.000000Z";
+    let status = "draft";
+    const attempts: Array<{
+      invoice_post: { request_key: string; expected_updated_at: string };
+    }> = [];
+    await page.route(`${base}/api/**`, async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/clinic/invoices/705/post") {
+        const payload = route.request().postDataJSON();
+        attempts.push(payload);
+        if (attempts.length === 1 && outcome === "unknown") {
+          await route.abort("failed");
+          return;
+        }
+        if (attempts.length === 1 && outcome === "stale") {
+          reviewedAt = "2026-10-03T10:01:00.000000Z";
+          await route.fulfill({
+            status: 422,
+            json: {
+              error: "This invoice changed after review.",
+              code: "invalid_request",
+            },
+          });
+          return;
+        }
+        expect(payload.invoice_post.expected_updated_at).toBe(reviewedAt);
+        status = "posted";
+        await route.fulfill({ json: { invoice: { id: 705, status } } });
+        return;
+      }
+      const invoice = {
+        id: 705,
+        patient_id: 706,
+        status,
+        currency: "USD",
+        total: "30.00",
+        allocated: "0.00",
+        credited: "0.00",
+        balance: "30.00",
+        created_at: reviewedAt,
+        patient: {
+          id: 706,
+          display_name: "Synthetic review patient",
+          reference: "SYN-REVIEW",
+        },
+      };
+      const body =
+        path === "/api/csrf"
+          ? { csrf_token: "synthetic-token" }
+          : path === "/api/clinic/billing"
+            ? dashboardFixture([invoice])
+            : path === "/api/clinic/invoices/705"
+              ? {
+                  invoice: {
+                    ...invoice,
+                    updated_at: reviewedAt,
+                    total_amount: "30.00",
+                    allocated_amount: "0.00",
+                    credit_amount: "0.00",
+                    balance_amount: "30.00",
+                    lines: [],
+                    credits: [],
+                    audit_timeline: [],
+                    online_payment: { state: "unavailable", eligible: false },
+                  },
+                }
+              : null;
+      if (!body) throw new Error(`Unexpected synthetic request: ${path}`);
+      await route.fulfill({ json: body });
+    });
+    try {
+      await page.goto(`${base}/qa?invoice_id=705`);
+      const review = page.getByRole("button", {
+        name: "Post invoice to ledger",
+        exact: true,
+      });
+      await expect.poll(() => review.isEnabled()).toBe(true);
+      await review.click();
+      await page
+        .getByRole("button", { name: "Post invoice", exact: true })
+        .click();
+      if (outcome === "stale") {
+        await page
+          .getByText("This invoice changed after review.", { exact: true })
+          .waitFor();
+        await expect.poll(() => review.isEnabled()).toBe(true);
+        await review.click();
+        await page
+          .getByRole("button", { name: "Post invoice", exact: true })
+          .click();
+      } else if (outcome === "unknown") {
+        await page.getByRole("alert").filter({ hasText: /fetch/i }).waitFor();
+        await page
+          .getByRole("button", { name: "Post invoice", exact: true })
+          .click();
+      }
+      await page
+        .getByText("Invoice #705 was posted to the ledger.", { exact: true })
+        .waitFor();
+      expect(attempts[0].invoice_post.expected_updated_at).toBe(
+        "2026-10-03T10:00:00.000000Z",
+      );
+      expect(attempts[0].invoice_post.request_key).toBeTruthy();
+      if (outcome === "unknown") expect(attempts[1]).toEqual(attempts[0]);
+      if (outcome === "stale") {
+        expect(attempts[1].invoice_post.expected_updated_at).toBe(reviewedAt);
+        expect(attempts[1].invoice_post.request_key).not.toBe(
+          attempts[0].invoice_post.request_key,
+        );
+      }
+    } finally {
+      await page.close();
+    }
+  },
+  45000,
+);
 const modules: Record<string, string> = {
   "./Workspace": `const clinic = {practice: {id: 701}, user_id: 702, membership_id: 703,
     sites: [{id: 704, name: "Synthetic site"}], capabilities: {billing_read: true,
-    patient_identity_read: true, billing_payment_record: new URLSearchParams(location.search).has("cash")}};
+    patient_identity_read: true, billing_invoice_post: true,
+    billing_payment_record: new URLSearchParams(location.search).has("cash")}};
     export const useClinic = () => clinic;`,
   "./BillingInsights": `export const BillingCollectionContext = () => null;
     export const BillingCollectionWorklist = () => null;
@@ -22,11 +182,142 @@ const modules: Record<string, string> = {
     export const invoicePaymentReturnMarker = () => null;
     export const clearInvoicePaymentReturnMarker = () => {};`,
 };
+
+it("retains a committed posting retry when refresh and search hide the original invoice", async () => {
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  const attempts: Array<{ invoiceId: number; payload: unknown }> = [];
+  const statuses: Record<number, string> = { 705: "draft", 706: "draft" };
+  const invoice = (id: number) => ({
+    id,
+    patient_id: 707,
+    status: statuses[id],
+    currency: "USD",
+    total: "30.00",
+    allocated: "0.00",
+    credited: "0.00",
+    balance: "30.00",
+    created_at: "2026-10-03T10:00:00.000000Z",
+    patient: {
+      id: 707,
+      display_name: "Synthetic retry patient",
+      reference: "SYN-POST-RETRY",
+    },
+  });
+  await page.route(`${base}/api/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const post = url.pathname.match(
+      /^\/api\/clinic\/invoices\/(705|706)\/post$/,
+    );
+    if (post) {
+      const id = Number(post[1]);
+      attempts.push({ invoiceId: id, payload: route.request().postDataJSON() });
+      statuses[id] = "posted";
+      if (attempts.length === 1) await route.abort("failed");
+      else await route.fulfill({ json: { invoice: { id, status: "posted" } } });
+      return;
+    }
+    const detail = url.pathname.match(/^\/api\/clinic\/invoices\/(705|706)$/);
+    let body: unknown;
+    if (url.pathname === "/api/csrf") body = { csrf_token: "synthetic-token" };
+    else if (url.pathname === "/api/clinic/billing") {
+      const q = url.searchParams.get("q");
+      body = dashboardFixture(
+        [705, 706].filter((id) => !q || q === String(id)).map(invoice),
+      );
+    } else if (detail) {
+      body = {
+        invoice: {
+          ...invoice(Number(detail[1])),
+          updated_at: "2026-10-03T10:00:00.000000Z",
+          total_amount: "30.00",
+          allocated_amount: "0.00",
+          credit_amount: "0.00",
+          balance_amount: "30.00",
+          lines: [],
+          credits: [],
+          audit_timeline: [],
+          online_payment: { state: "unavailable", eligible: false },
+        },
+      };
+    } else throw new Error(`Unexpected synthetic request: ${url.pathname}`);
+    await route.fulfill({ json: body });
+  });
+  try {
+    await page.goto(`${base}/qa?invoice_id=705`);
+    const review = page.getByRole("button", {
+      name: "Post invoice to ledger",
+      exact: true,
+    });
+    await expect.poll(() => review.isEnabled()).toBe(true);
+    await review.click();
+    await page
+      .getByRole("button", { name: "Post invoice", exact: true })
+      .click();
+    await page.getByRole("alert").filter({ hasText: /fetch/i }).waitFor();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    const retry = page.getByRole("button", {
+      name: "Retry invoice #705 posting",
+      exact: true,
+    });
+    await expect.poll(() => retry.isEnabled()).toBe(true);
+    await page
+      .getByLabel("Search invoices by number, patient name or reference")
+      .fill("706");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("button", { name: "#706", exact: true }).click();
+    await page
+      .getByText("Loading invoice detail.", { exact: true })
+      .waitFor({ state: "hidden" });
+    await expect.poll(() => review.isDisabled()).toBe(true);
+    expect(attempts).toHaveLength(1);
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await retry.click();
+    await expect.poll(() => retry.count()).toBe(0);
+    expect(attempts[1]).toEqual(attempts[0]);
+    await page.getByRole("button", { name: "#706", exact: true }).click();
+    await expect.poll(() => review.isEnabled()).toBe(true);
+    await review.click();
+    await page
+      .getByRole("button", { name: "Post invoice", exact: true })
+      .click();
+    await page
+      .getByText("Invoice #706 was posted to the ledger.", { exact: true })
+      .waitFor();
+    expect(attempts.map((attempt) => attempt.invoiceId)).toEqual([
+      705, 705, 706,
+    ]);
+  } finally {
+    await page.close();
+  }
+}, 20000);
+
 beforeAll(async () => {
   server = await createServer({
     configFile: false,
     root: fileURLToPath(new URL("../", import.meta.url)),
     server: { host: "127.0.0.1", port: 0 },
+    optimizeDeps: {
+      entries: [],
+      noDiscovery: true,
+      include: [
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "react-dom",
+        "react-dom/client",
+        "@mui/material",
+        "@emotion/react",
+        "@emotion/styled",
+        "@mui/icons-material/CreditCardOutlined",
+        "@mui/icons-material/Refresh",
+        "@mui/icons-material/ArrowForward",
+        "@mui/icons-material/AccountBalanceWalletOutlined",
+        "@mui/icons-material/PrintOutlined",
+        "@mui/icons-material/ExpandMore",
+      ],
+    },
     plugins: [
       {
         name: "billing-payment-evidence-test",
@@ -71,14 +362,14 @@ beforeAll(async () => {
     executablePath: process.env.BROWSER_EXECUTABLE_PATH || "/usr/bin/chromium",
     headless: true,
   });
-}, 15000);
+}, 60000);
 
 it.each(["America/Chicago", "Asia/Tokyo"])(
   "#87 keeps the recorded payment time through reload in browser timezone %s",
   async (timezoneId) => {
     const page = await browser.newPage({ timezoneId, locale: "en-US" });
     const recordedAt = "2026-09-28T09:47:00Z";
-    const expectedTime = "Sep 28, 2026, 4:47 AM";
+    const expectedTime = "Sep 28, 2026, 4:47 AM (America/Chicago)";
     await page.clock.install({ time: new Date("2026-09-28T10:23:00Z") });
     await page.route(`${base}/api/**`, async (route) => {
       const path = new URL(route.request().url()).pathname;
@@ -88,7 +379,12 @@ it.each(["America/Chicago", "Asia/Tokyo"])(
           path === "/api/csrf"
             ? { csrf_token: "synthetic-token" }
             : {
-                practice: { id: 701, timezone: "America/Chicago" },
+                ...dashboardFixture([]),
+                practice: {
+                  id: 701,
+                  name: "Synthetic practice",
+                  timezone: "America/Chicago",
+                },
                 payment_count: 1,
                 payment_activity: [
                   {
@@ -99,7 +395,7 @@ it.each(["America/Chicago", "Asia/Tokyo"])(
                     refunded: "0.00",
                     net_amount: "25.00",
                     created_at: recordedAt,
-                    method: "cash",
+                    method: "Cash",
                     allocations: [{ invoice_id: 705, amount: "25.00" }],
                     receipts: [
                       {
@@ -145,7 +441,7 @@ it.each(["America/Chicago", "Asia/Tokyo"])(
 afterAll(async () => {
   await browser?.close();
   await server?.close();
-});
+}, 60000);
 
 async function fixture(
   page: Page,
@@ -169,8 +465,10 @@ async function fixture(
     credited,
     balance,
     age_days: 1,
-    age_bucket: "0_30",
+    age_bucket: "0-30 days",
     created_at: "2026-09-28T12:00:00Z",
+    source_site_id: null,
+    source_site_name: "Shared / unassigned",
     patient: {
       id: 706,
       display_name: "Synthetic evidence patient",
@@ -184,40 +482,68 @@ async function fixture(
     if (url.pathname === "/api/csrf") body = { csrf_token: "synthetic-token" };
     else if (url.pathname === "/api/clinic/billing")
       body = {
-        schema_version: "clinic-billing-v1",
-        practice: { id: 701, name: "Synthetic practice", timezone: "UTC" },
+        ...dashboardFixture([invoice]),
         period: { start: "2026-09-01", end: "2026-10-01" },
-        metrics: { draft_count: 0, currencies: [] },
-        recent_invoices: [invoice],
-        invoice_pagination: { total: 1, total_pages: 1, page: 1 },
-        pending_online_payments: [],
-        unbilled_encounters: { available: false, total: null, items: [] },
       };
     else if (url.pathname === "/api/clinic/invoices/705")
       body = {
         invoice: {
           id: 705,
           patient_id: 706,
+          encounter_id: null,
           status: "posted",
           currency: "USD",
+          rounding_policy_version: "v1",
+          created_at: "2026-09-28T12:00:00Z",
+          updated_at: "2026-09-28T12:00:00.000000Z",
+          source_site_id: null,
+          source_site_name: "Shared / unassigned",
           total_amount: "30.00",
           allocated_amount: "25.00",
           credit_amount: credited,
           balance_amount: balance,
-          lines: [],
-          allocations: [],
+          adjustment_limits: {
+            credit_available_amount: credited === "5.00" ? "25.00" : "30.00",
+            void_eligible: false,
+          },
+          lines: [
+            {
+              id: 710,
+              quantity: "1.0",
+              unit_amount: "30.00",
+              posted_amount: "30.00",
+              billing_service_id: null,
+              description: "Synthetic invoice charge",
+            },
+          ],
           credits:
             credited === "5.00"
               ? [
                   {
                     id: 711,
+                    invoice_id: 705,
                     amount: "5.00",
+                    currency: "USD",
+                    adjustment_type: "credit",
                     reason: "Synthetic recorded credit",
+                    issued_at: "2026-09-28T12:00:00Z",
+                    issued_by_membership_id: 703,
                   },
                 ]
               : [],
           audit_timeline: [],
-          online_payment: { state: "unavailable", eligible: false },
+          void_reason: null,
+          voided_at: null,
+          voided_by_membership_id: null,
+          online_payment: {
+            state: balance === "0.00" ? "paid" : "unavailable",
+            eligible: false,
+            can_cancel: false,
+            amount: balance,
+            currency: "USD",
+            reason: balance === "0.00" ? "no_balance" : "stripe_unavailable",
+            collection_intent_id: null,
+          },
         },
       };
     else if (url.pathname === "/api/clinic/cash_drawers")
@@ -232,6 +558,15 @@ async function fixture(
             cash_received: "25",
             cash_refunded: "0",
             expected_cash: "25",
+            counted_cash: null,
+            discrepancy: null,
+            discrepancy_explanation: null,
+            opened_at: "2026-09-28T12:00:00Z",
+            closed_at: null,
+            reconciliation_status: "pending",
+            reconciled_by_id: null,
+            reconciled_at: null,
+            reconciliation_note: null,
           },
         ],
       };

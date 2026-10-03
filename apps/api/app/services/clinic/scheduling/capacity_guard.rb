@@ -10,7 +10,6 @@ module Clinic
         clinician&.lock!
         site.lock!
         raise ArgumentError, "Choose an active site before scheduling this appointment." unless site.status == "active"
-        return unless clinician
         if room
           raise ArgumentError, "The room must belong to the selected site." unless room.practice_id == practice.id && room.site_id == site.id
           raise ArgumentError, "Choose a physical room for an in-person appointment." unless room.kind == "physical"
@@ -19,34 +18,36 @@ module Clinic
         end
         raise ArgumentError, "Choose an end after the start." unless starts_at && ends_at && ends_at > starts_at
         check_site_hours!(practice: practice, site: site, starts_at: starts_at, ends_at: ends_at)
-        check_clinician_assignment!(practice: practice, clinician: clinician, site: site,
-          starts_at: starts_at, ends_at: ends_at)
-        rules = CapacityRule.where(practice: practice, clinician: clinician, active: true)
-        if rules.where(kind: "block").where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
-          raise ArgumentError, "The clinician has blocked time in this interval."
-        end
-        weekly = rules.where(kind: "weekly").to_a
-        weekly_for_site = weekly.select { |rule| rule.site_id == site.id }
-        raise ArgumentError, "The clinician has no capacity configured for this site." if weekly_for_site.empty? && !capacity_override
+        allocation = 1
+        if clinician
+          check_clinician_assignment!(practice: practice, clinician: clinician, site: site,
+            starts_at: starts_at, ends_at: ends_at)
+          rules = CapacityRule.where(practice: practice, clinician: clinician, active: true)
+          if rules.where(kind: "block").where("starts_at < ? AND ends_at > ?", ends_at, starts_at).exists?
+            raise ArgumentError, "The clinician has blocked time in this interval."
+          end
+          weekly = rules.where(kind: "weekly").to_a
+          weekly_for_site = weekly.select { |rule| rule.site_id == site.id }
+          raise ArgumentError, "The clinician has no capacity configured for this site." if weekly_for_site.empty? && !capacity_override
 
-        timezone = site_timezone(practice, site)
-        start_local = starts_at.in_time_zone(timezone)
-        end_local = ends_at.in_time_zone(timezone)
-        start_minute = start_local.hour * 60 + start_local.min
-        end_minute = end_local.hour * 60 + end_local.min
-        fits = start_local.to_date == end_local.to_date && weekly_for_site.any? { |rule|
-          rule.site_id == site.id && rule.weekday == start_local.wday && rule.start_minute <= start_minute && rule.end_minute >= end_minute
-        }
-        raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits || capacity_override
-        appointments = practice.appointments.where(booked_clinician_id: clinician.id, status: %w[scheduled confirmed])
-        appointments = appointments.where.not(id: appointment_id) if appointment_id
-        overlapping = appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).to_a
-        if overbook
-          raise ArgumentError, "Overbooking requires exactly one existing clinician appointment." unless overlapping.one?
-          allocation = overlapping.first.clinician_allocation == 1 ? 2 : 1
-        else
-          raise ArgumentError, "This clinician is already booked for that time." if overlapping.any?
-          allocation = 1
+          timezone = site_timezone(practice, site)
+          start_local = starts_at.in_time_zone(timezone)
+          end_local = ends_at.in_time_zone(timezone)
+          start_minute = start_local.hour * 60 + start_local.min
+          end_minute = end_local.hour * 60 + end_local.min
+          fits = start_local.to_date == end_local.to_date && weekly_for_site.any? { |rule|
+            rule.site_id == site.id && rule.weekday == start_local.wday && rule.start_minute <= start_minute && rule.end_minute >= end_minute
+          }
+          raise ArgumentError, "This time is outside the clinician's capacity template for this site." unless fits || capacity_override
+          appointments = practice.appointments.where(booked_clinician_id: clinician.id, status: %w[scheduled confirmed])
+          appointments = appointments.where.not(id: appointment_id) if appointment_id
+          overlapping = appointments.where("starts_at < ? AND ends_at > ?", ends_at, starts_at).to_a
+          if overbook
+            raise ArgumentError, "Overbooking requires exactly one existing clinician appointment." unless overlapping.one?
+            allocation = overlapping.first.clinician_allocation == 1 ? 2 : 1
+          else
+            raise ArgumentError, "This clinician is already booked for that time." if overlapping.any?
+          end
         end
         if patient
           patient.lock!
@@ -56,15 +57,16 @@ module Clinic
             raise ArgumentError, "This patient already has an appointment during that time."
           end
         end
-        offers = WaitlistEntry.where(practice: practice, clinician: clinician, state: "offered")
-          .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, ends_at, starts_at)
-        offers = offers.where.not(id: waitlist_entry_id) if waitlist_entry_id
-        raise ArgumentError, "This time is held for a waitlist offer. Choose another time or release that offer." if offers.exists?
-        holds = ScheduleHold.where(practice: practice, clinician: clinician, state: "active")
-          .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, ends_at, starts_at)
-        holds = holds.where.not(id: schedule_hold_id) if schedule_hold_id
-        raise ArgumentError, "This time is held pending booking. Choose another time or release that hold." if holds.exists?
-
+        if clinician
+          offers = WaitlistEntry.where(practice: practice, clinician: clinician, state: "offered")
+            .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, ends_at, starts_at)
+          offers = offers.where.not(id: waitlist_entry_id) if waitlist_entry_id
+          raise ArgumentError, "This time is held for a waitlist offer. Choose another time or release that offer." if offers.exists?
+          holds = ScheduleHold.where(practice: practice, clinician: clinician, state: "active")
+            .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, ends_at, starts_at)
+          holds = holds.where.not(id: schedule_hold_id) if schedule_hold_id
+          raise ArgumentError, "This time is held pending booking. Choose another time or release that hold." if holds.exists?
+        end
         if room
           room_appointments = practice.appointments.where(room: room, status: %w[scheduled confirmed])
           room_appointments = room_appointments.where.not(id: appointment_id) if appointment_id

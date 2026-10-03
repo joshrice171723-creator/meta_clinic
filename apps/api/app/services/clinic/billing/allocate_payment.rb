@@ -38,7 +38,8 @@ module Clinic
           raise ArgumentError, "Invoice currency does not match the payment currency." unless payment.currency == invoice.currency
           invoice_total = invoice.lines.sum(:posted_amount)
           invoice_allocated = invoice.payment_allocations.to_a.sum { |allocation| allocation.amount }
-          raise ArgumentError, "Invoice cannot be allocated more than its posted total." if invoice_allocated + allocation_amount > invoice_total
+          invoice_credited = invoice.credit_notes.sum(:amount)
+          raise ArgumentError, "Invoice cannot be allocated more than its remaining balance." if invoice_allocated + invoice_credited + allocation_amount > invoice_total
 
           allocation_attributes = { practice: practice, patient: patient, invoice: invoice, amount: allocation_amount }
           allocation_attributes.merge!(created_at: created_at, updated_at: created_at) if created_at

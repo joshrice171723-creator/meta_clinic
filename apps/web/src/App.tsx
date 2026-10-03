@@ -45,7 +45,7 @@ import {
   clinicRouteHref,
   scrollToClinicAnchor,
   clinicTarget,
-  confirmClinicNavigation,
+  createClinicNavigationGuard,
   useClinicNavigation,
   type ClinicHomeView,
   type ClinicNavigateOptions,
@@ -721,7 +721,7 @@ function ClinicApplication({
     ),
   );
   const routeRef = useRef(route);
-  const blockerRef = useRef(new Set<() => string | null>());
+  const blockerRef = useRef(createClinicNavigationGuard());
   const historyIndexRef = useRef(
     Number.isSafeInteger(window.history.state?.clinicIndex)
       ? window.history.state.clinicIndex
@@ -731,20 +731,15 @@ function ClinicApplication({
   routeRef.current = route;
 
   const registerBlocker = useCallback(
-    (blocker: (() => string | null) | null) => {
-      if (blocker) blockerRef.current.add(blocker);
-      return () => {
-        if (blocker) blockerRef.current.delete(blocker);
-      };
-    },
+    (
+      blocker: (() => string | null) | null,
+      options?: { preventNavigation?: boolean },
+    ) => blockerRef.current.registerBlocker(blocker, options),
     [],
   );
   const confirmNavigation = useCallback(
     (options?: { includeBeforeUnload?: boolean }) => {
-      return confirmClinicNavigation(
-        [...blockerRef.current].map((blocker) => blocker()),
-        options?.includeBeforeUnload,
-      );
+      return blockerRef.current.confirmNavigation(options);
     },
     [],
   );

@@ -143,13 +143,24 @@ module Clinic
       end
 
       def self.complete_contact_tasks!(follow_up:, member:)
-        follow_up.contact_attempts.includes(:clinical_task).each do |attempt|
-          task = attempt.clinical_task
-          next unless task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES)
-
+        tasks = follow_up.contact_attempts.includes(:clinical_task).map(&:clinical_task).sort_by(&:id)
+        tasks.each(&:lock!)
+        pending = tasks.select { |task| task.state.in?(Clinic::ClinicalTask::ACTIVE_STATES) }
+        until pending.empty?
+          task = pending.find do |candidate|
+            candidate.dependencies.includes(:prerequisite).all? do |edge|
+              edge.prerequisite.state == "completed" && edge.prerequisite.resolution_code == "completed"
+            end
+          end
+          unless task
+            TaskContinuity.ensure_unblocked!(pending.first)
+            raise ArgumentError, "Resolve the linked prerequisite work before completing this follow-up."
+          end
+          TaskContinuity.ensure_unblocked!(task)
           task.update!(state: "completed", resolution_code: "completed", completed_by_membership: member,
             completed_at: Current.business_time)
           TaskContinuity.record!(task, member, "complete")
+          pending.delete(task)
         end
       end
       private_class_method :complete_contact_tasks!
@@ -194,10 +205,13 @@ module Clinic
         else
           optional_text(note, "follow_up_note")
         end
-        normalized_due_at = if priority.in?(%w[urgent critical])
-          due_at || raise(ArgumentError, "Urgent and critical results require a follow-up due time.")
+        if priority.in?(%w[urgent critical]) && due_at.nil?
+          raise ArgumentError, "Urgent and critical results require a follow-up due time."
         end
-        { disposition: normalized_disposition, instructions:, priority:, due_at: normalized_due_at }
+        if priority == "routine" && !due_at.nil?
+          raise ArgumentError, "Escalation due times apply only to urgent and critical results."
+        end
+        { disposition: normalized_disposition, instructions:, priority:, due_at: }
       end
       private_class_method :normalize_decision
 

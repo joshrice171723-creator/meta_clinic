@@ -17,7 +17,10 @@ export type ClinicNavigateOptions = {
 type ClinicNavigationValue = {
   confirmNavigation?: (options?: { includeBeforeUnload?: boolean }) => boolean;
   navigate: (href: string, options?: ClinicNavigateOptions) => boolean;
-  registerBlocker: (blocker: (() => string | null) | null) => () => void;
+  registerBlocker: (
+    blocker: (() => string | null) | null,
+    options?: { preventNavigation?: boolean },
+  ) => () => void;
 };
 
 const ClinicNavigationContext = createContext<ClinicNavigationValue>({
@@ -38,6 +41,35 @@ export function confirmClinicNavigation(
     warnings.push("Leave this workspace and discard unsaved changes?");
   const message = [...new Set(warnings)].join("\n\n");
   return !message || window.confirm(message);
+}
+
+export function createClinicNavigationGuard() {
+  const blockers = new Set<() => string | null>();
+  const hardBlockers = new Set<() => string | null>();
+  return {
+    registerBlocker(
+      blocker: (() => string | null) | null,
+      options?: { preventNavigation?: boolean },
+    ) {
+      if (blocker) {
+        blockers.add(blocker);
+        if (options?.preventNavigation) hardBlockers.add(blocker);
+      }
+      return () => {
+        if (blocker) {
+          blockers.delete(blocker);
+          hardBlockers.delete(blocker);
+        }
+      };
+    },
+    confirmNavigation(options?: { includeBeforeUnload?: boolean }) {
+      if ([...hardBlockers].some((blocker) => Boolean(blocker()))) return false;
+      return confirmClinicNavigation(
+        [...blockers].map((blocker) => blocker()),
+        options?.includeBeforeUnload,
+      );
+    },
+  };
 }
 
 export function normalizeClinicPath(pathname: string) {

@@ -20,6 +20,8 @@ import type { Patient } from "../../api/contracts";
 import { businessTimeAfter } from "../../shared/businessDate";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
+import { useClinicNavigation } from "./clinicNavigation";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import { WaitlistAvailability } from "./WaitlistAvailability";
 import { WeeklyCapacityRules } from "./WeeklyCapacityRules";
 import type {
@@ -129,6 +131,7 @@ function localTimePart(value: string) {
 
 export function WaitlistWorkspace() {
   const { capabilities } = useClinic();
+  const { registerBlocker } = useClinicNavigation();
   const queue = useResource<Queue>("/api/clinic/waitlist");
   const capacity = useResource<{
     rules: Rule[];
@@ -223,6 +226,30 @@ export function WaitlistWorkspace() {
   >([]);
   const [uncertain, setUncertain] = useState(false);
   const attempt = useRef<Attempt | null>(null);
+  useEffect(() => {
+    const warning = () =>
+      attempt.current
+        ? "A waitlist or capacity change is pending or unconfirmed. Retry the exact request before leaving."
+        : null;
+    const unregister = registerBlocker(warning, { preventNavigation: true });
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      const message = warning();
+      if (!message) return;
+      event.preventDefault();
+      event.returnValue = message;
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [registerBlocker]);
+  useDemoNavigationBlocker(() => ({
+    blocked: attempt.current !== null,
+    message: attempt.current
+      ? "A waitlist or capacity change is pending or unconfirmed. Retry the exact request before leaving."
+      : null,
+  }));
   const canBook =
     capabilities.appointments_book === true ||
     capabilities.appointments === true;
@@ -291,7 +318,9 @@ export function WaitlistWorkspace() {
       capacity.refresh();
     } catch (value) {
       const unknown =
+        uncertain ||
         !(value instanceof ApiError) ||
+        value.status === 408 ||
         value.status >= 500 ||
         value.code === "outcome_unconfirmed";
       setUncertain(unknown);

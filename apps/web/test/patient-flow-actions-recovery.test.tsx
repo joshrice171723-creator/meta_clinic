@@ -74,6 +74,26 @@ beforeAll(async () => {
       "../../tmp/patient-flow-actions-runtime/vite-cache",
     ),
     server: { host: "127.0.0.1", port: 0, hmr: false },
+    optimizeDeps: {
+      entries: [],
+      noDiscovery: true,
+      include: [
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "react-dom",
+        "react-dom/client",
+        "@mui/material",
+        "@mui/material/Alert",
+        "@emotion/react",
+        "@emotion/styled",
+        "@mui/icons-material/AssignmentOutlined",
+        "@mui/icons-material/DescriptionOutlined",
+        "@mui/icons-material/ForumOutlined",
+        "@mui/icons-material/PaymentOutlined",
+        "@mui/icons-material/ScienceOutlined",
+      ],
+    },
     oxc: { jsx: { runtime: "automatic" } },
     plugins: [
       {
@@ -272,11 +292,23 @@ it("pending top claim blocks the separate detail action without another mutation
   }
 });
 
-for (const failure of ["server unknown", "mismatched receipt"] as const) {
+for (const failure of [
+  "server unknown",
+  "mismatched receipt",
+  "network interrupted",
+  "request timeout",
+] as const) {
   it(`${failure} blocks detail conflicts and permits only explicit exact claim retry`, async () => {
     let responses = 0;
     const f = await open(async (route, body) => {
       responses += 1;
+      if (responses === 1 && failure === "network interrupted")
+        return route.abort("failed");
+      if (responses === 1 && failure === "request timeout")
+        return route.fulfill({
+          status: 408,
+          json: { error: "Synthetic timeout" },
+        });
       if (responses === 1 && failure === "server unknown")
         return route.fulfill({
           status: 503,

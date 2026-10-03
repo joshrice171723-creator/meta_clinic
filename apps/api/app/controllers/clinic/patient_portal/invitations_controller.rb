@@ -6,7 +6,7 @@ module Clinic
       def create
         input = parameter_hash!(:patient_portal_invitation, %i[patient_id])
         patient = current_practice.patients.find(requested_id!(input[:patient_id], :patient_id))
-        contact = patient.contacts.contact_type_email.where(effective_until: nil).order(created_at: :desc, id: :desc).first
+        contact = Clinic::Care::CurrentPatientContact.call(patient: patient, contact_type: "email")
         raise ArgumentError, "Record a current patient email before creating portal access." unless contact
 
         result = InviteIdentity.call(practice: current_practice, patient:, email_address: contact.contact_value,

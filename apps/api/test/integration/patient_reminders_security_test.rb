@@ -102,6 +102,34 @@ class PatientRemindersSecurityTest < ActionDispatch::IntegrationTest
     assert_equal "synthetic", row.fetch("delivery_attempts").sole.fetch("provider")
   end
 
+  test "reminder replay binds the appointment and expiry without changing the saved reminder" do
+    scheduled_at = 1.day.from_now
+    first = @practice.appointments.create!(patient: @patient, starts_at: scheduled_at + 1.day,
+      ends_at: scheduled_at + 1.day + 30.minutes, status: "scheduled")
+    second = @practice.appointments.create!(patient: @patient, starts_at: scheduled_at + 2.days,
+      ends_at: scheduled_at + 2.days + 30.minutes, status: "scheduled")
+    input = { reminder: { request_key: "source-expiry-replay", patient_id: @patient.id, appointment_id: first.id,
+      category: "appointment", channel: "email", scheduled_at: scheduled_at.iso8601(6),
+      endpoint_id: @endpoint.id, expires_at: (scheduled_at + 1.day).iso8601(6) } }
+    post "/api/clinic/reminders", params: input, headers: csrf_headers, as: :json
+    assert_response :created
+    saved_id = response.parsed_body.fetch("id")
+    count = @practice.patient_reminders.count
+    post "/api/clinic/reminders", params: input, headers: csrf_headers, as: :json
+    assert_response :created
+    assert_equal saved_id, response.parsed_body.fetch("id")
+    [ { appointment_id: second.id }, { appointment_id: nil },
+      { expires_at: (scheduled_at + 2.days).iso8601(6) } ].each do |changed|
+      post "/api/clinic/reminders", params: input.deep_merge(reminder: changed), headers: csrf_headers, as: :json
+      assert_response :unprocessable_entity
+      assert_match(/already used for different data/, response.parsed_body.fetch("error"))
+      assert_equal count, @practice.patient_reminders.count
+    end
+    saved = @practice.patient_reminders.find(saved_id)
+    assert_equal [ "Clinic::Appointment", first.id ], [ saved.source_type, saved.source_id ]
+    assert_equal Time.iso8601(input[:reminder][:expires_at]), saved.expires_at
+  end
+
   test "appointment SMS dispatch is suppressed when reminder consent is not recorded" do
     @patient.create_communication_preference!(
       practice: @practice,

@@ -9,14 +9,14 @@ module Clinic
           context = patient_context(request.message)
           return unless context
 
-          source_type, source_id = source_identity(request.message, context)
           task = Clinic::ClinicalTask.find_or_initialize_by(
             practice_id: request.practice_id,
-            source_type:,
-            source_id:
+            source_type: "message",
+            source_id: request.id
           )
           return if task.new_record? && !ACTIVE_REQUEST_STATES.include?(request.state)
 
+          task.lock! if task.persisted?
           assign_context(task, request, context)
           apply_state(task, request, actor_membership)
           task.save!
@@ -44,10 +44,6 @@ module Clinic
             encounter = Clinic::Encounter.find_by(practice_id: message.practice_id, id: message.linked_object_id)
             encounter && { patient: encounter.patient, encounter:, site: encounter.site }
           end
-        end
-
-        def source_identity(message, context)
-          context[:reminder] ? [ "reminder", context.fetch(:reminder).id ] : [ "message", message.request.id ]
         end
 
         def assign_context(task, request, context)
@@ -82,6 +78,7 @@ module Clinic
             task.assign_attributes(state: "in_progress", resolution_code: nil,
               completed_by_membership: nil, completed_at: nil)
           when "resolved"
+            TaskContinuity.ensure_unblocked!(task)
             task.assign_attributes(state: "completed",
               resolution_code: normalized_resolution(request.resolution_code),
               completed_by_membership: actor_membership || request.assignee_membership,

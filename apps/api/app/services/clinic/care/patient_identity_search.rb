@@ -16,8 +16,7 @@ module Clinic
         end
 
         def tokens_for(patient)
-          phone = patient.contacts.where(contact_type: "phone", effective_until: nil)
-            .order(preferred: :desc, effective_from: :desc, id: :desc).pick(:contact_value)
+          phone = CurrentPatientContact.call(patient: patient, contact_type: "phone")&.contact_value
           date_of_birth = Clinic::Care::PatientDemographics.where(
             practice_id: patient.practice_id, patient_id: patient.id
           ).pick(:date_of_birth)
@@ -35,8 +34,7 @@ module Clinic
         end
 
         def masked_phone(patient)
-          value = patient.contacts.where(contact_type: "phone", effective_until: nil)
-            .order(preferred: :desc, effective_from: :desc, id: :desc).pick(:contact_value)
+          value = CurrentPatientContact.call(patient: patient, contact_type: "phone")&.contact_value
           digits = value.to_s.scan(/\d/).join
           digits.present? ? "ending #{digits.last(4)}" : nil
         end

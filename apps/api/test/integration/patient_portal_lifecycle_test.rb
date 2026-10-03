@@ -422,6 +422,78 @@ class PatientPortalRecoverySmsTest < ActiveSupport::TestCase
     assert_includes observed.fetch(:body), "purpose=recovery"
   end
 
+  test "recovery selects the newest phone rather than an older preferred version" do
+    current = @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: Time.current)
+
+    Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+    delivery = @identity.recovery_deliveries.sole
+    assert_equal current.id, delivery.patient_contact_id
+    destination = nil
+    provider = Object.new
+    provider.define_singleton_method(:deliver) do |to:, body:|
+      destination = to
+      { status: :accepted, provider_message_id: "SM#{'2' * 32}" }
+    end
+
+    result = Clinic::PatientPortal::DispatchRecoverySms.call(delivery_id: delivery.id, provider: provider)
+
+    assert_predicate result, :accepted?
+    assert_equal "+12025550127", destination
+  end
+
+  test "removing a phone prevents a new recovery invitation or delivery" do
+    now = Time.current
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550126",
+      preferred: true, effective_from: now - Rational(1, 1_000_000), effective_until: now)
+
+    result = Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+
+    assert_equal true, result.fetch(:accepted)
+    assert_nil result.fetch(:recovery_path)
+    assert_nil @identity.reload.invitation_digest
+    assert_empty @identity.recovery_deliveries
+  end
+
+  test "a queued recovery delivery cannot use a replaced phone version" do
+    Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+    delivery = @identity.recovery_deliveries.sole
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: Time.current)
+    provider = Object.new
+    provider.define_singleton_method(:deliver) { |**| raise "A replaced contact must not receive recovery." }
+
+    result = Clinic::PatientPortal::DispatchRecoverySms.call(delivery_id: delivery.id, provider: provider)
+
+    assert_predicate result, :cancelled?
+    assert_equal "recovery_request_superseded", result.failure_code
+    assert_nil result.token
+  end
+
+  test "a queued recovery delivery cannot use a removed phone version" do
+    Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+    delivery = @identity.recovery_deliveries.sole
+    now = Time.current
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550126",
+      preferred: true, effective_from: now - Rational(1, 1_000_000), effective_until: now)
+    provider = Object.new
+    provider.define_singleton_method(:deliver) { |**| raise "A removed contact must not receive recovery." }
+
+    result = Clinic::PatientPortal::DispatchRecoverySms.call(delivery_id: delivery.id, provider: provider)
+
+    assert_predicate result, :cancelled?
+    assert_nil result.token
+  end
+
+  test "recovery honors the effective time of a future phone replacement" do
+    @patient.contacts.create!(practice: @practice, contact_type: "phone", contact_value: "+12025550127",
+      preferred: false, effective_from: 1.day.from_now)
+
+    Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
+
+    assert_equal "+12025550126", @identity.recovery_deliveries.sole.patient_contact.contact_value
+  end
+
   test "an interrupted provider attempt becomes unknown without a duplicate send" do
     Clinic::PatientPortal::RequestRecovery.call(contact: @user.email_address, preview: false)
     delivery = @identity.recovery_deliveries.sole

@@ -110,6 +110,7 @@ module Clinic
         if follow_up_payload
           payload[:follow_up_disposition] = follow_up_payload.fetch(:disposition)
           payload[:follow_up_note] = follow_up_payload[:instructions]
+          payload[:follow_up_due_at] = follow_up_payload[:due_at] if follow_up_payload[:due_at]
         end
         outcome = Clinic::Idempotency.execute(
           practice:, actor:, operation_code: "lab_report.version.review", request_key:, payload:, resource: version,

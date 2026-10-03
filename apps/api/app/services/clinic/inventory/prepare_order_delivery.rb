@@ -13,7 +13,7 @@ module Clinic
         reason = input.fetch(:reason).to_s.strip
         raise ArgumentError, "Record a preparation reason (1–200 characters)." unless reason.length.between?(1, 200)
         intent = Digest::SHA256.hexdigest(JSON.generate([ actor.id, order_id.to_s, version, digest, reason ]))
-        Access.with_authorization(practice.id, actor, "catalog", "procurement.submit") do
+        Access.with_procurement_submission(practice.id, actor) do
           Access.retry_lock(practice.id, key)
           order = PurchaseOrder.where(practice_id: practice.id).lock.find(order_id)
           existing = DeliveryPreparation.where(practice_id: practice.id, request_key: key).first

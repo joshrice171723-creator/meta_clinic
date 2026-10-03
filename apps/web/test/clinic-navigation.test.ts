@@ -1,14 +1,52 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clinicRoute,
   clinicRouteHref,
   clinicTarget,
+  createClinicNavigationGuard,
   normalizeClinicPath,
 } from "../src/features/clinic/clinicNavigation";
 
 const readSource = (path: string | URL) =>
   readFileSync(path, "utf8").replaceAll("\r\n", "\n");
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("clinic navigation write protection", () => {
+  it("denies unresolved navigation even when discard would be accepted, then releases it on cleanup", () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("window", { confirm });
+    const guard = createClinicNavigationGuard();
+    const unregister = guard.registerBlocker(() => "Unknown write", {
+      preventNavigation: true,
+    });
+    expect(guard.confirmNavigation()).toBe(false);
+    expect(confirm).not.toHaveBeenCalled();
+    unregister();
+    unregister();
+    expect(guard.confirmNavigation()).toBe(true);
+  });
+
+  it("retains existing discard decisions and does not block an unrelated guard", () => {
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("window", { confirm });
+    const guard = createClinicNavigationGuard();
+    let unresolved = true;
+    guard.registerBlocker(() => (unresolved ? "Pending write" : null), {
+      preventNavigation: true,
+    });
+    expect(createClinicNavigationGuard().confirmNavigation()).toBe(true);
+    unresolved = false;
+    const unregister = guard.registerBlocker(() => "Unsaved draft");
+    expect(guard.confirmNavigation()).toBe(true);
+    expect(confirm).toHaveBeenCalledWith("Unsaved draft");
+    confirm.mockReturnValue(false);
+    expect(guard.confirmNavigation()).toBe(false);
+    unregister();
+    expect(guard.confirmNavigation()).toBe(true);
+  });
+});
 
 describe("clinic-local navigation", () => {
   it("retains the advertised anchor and query through canonical routing", () => {
@@ -194,7 +232,10 @@ describe("clinic-local navigation", () => {
 
   it("guards in-app SOAP navigation while retaining hard auth exits", () => {
     const careFlow = readSource(
-      new URL("../src/features/clinic/CareFlow.tsx", import.meta.url),
+      new URL(
+        "../src/features/clinic/CareSoapNoteWorkspace.tsx",
+        import.meta.url,
+      ),
     );
     const app = readSource(new URL("../src/App.tsx", import.meta.url));
     expect(careFlow).toContain("registerBlocker(");

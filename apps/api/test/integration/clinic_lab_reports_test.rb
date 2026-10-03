@@ -234,6 +234,16 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert_nil version.reload.reviewed_at
     assert_nil version.follow_up
 
+    unsupported_due = review_params("follow-up-review-unsupported-due").deep_merge(review: {
+      follow_up_disposition: "required", follow_up_note: "Review repeat results.",
+      follow_up_due_at: "2026-09-20T17:15:00Z"
+    })
+    post review_path(report, version), params: unsupported_due, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_match(/only to urgent and critical/, response.parsed_body.fetch("error"))
+    assert_nil version.reload.reviewed_at
+    assert_nil version.follow_up
+
     review = review_params("follow-up-review-required").deep_merge(
       review: {
         follow_up_disposition: "required",
@@ -245,6 +255,7 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     first_payload = response.parsed_body.dig("version", "follow_up")
     assert_equal "open", first_payload.fetch("state")
     assert_equal "Repeat the lab in two weeks and review the result.", first_payload.fetch("instructions")
+    assert_nil first_payload.fetch("due_at")
     assert_nil first_payload.fetch("outcome")
     assert_equal @membership.id, first_payload.fetch("recorded_by")
     assert_nil first_payload.fetch("completed_at")
@@ -300,6 +311,119 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     assert_raises(ActiveRecord::StatementInvalid) do
       Clinic::Care::LabResultFollowUp.where(id: completed.fetch("id")).update_all(outcome: "Rewritten outcome")
     end
+  end
+
+  test "lab follow-up completion preserves all contact tasks until their prerequisites finish" do
+    grant_permissions!(@membership, "encounters.write")
+    report = create_report(patient: @patient, key: "contact-prerequisite", issued_at: Time.utc(2026, 9, 6, 18),
+      title: "Contact prerequisite report")
+    version = report.current_version
+    post review_path(report, version), params: review_params("contact-prerequisite-review").deep_merge(
+      review: { follow_up_disposition: "required", follow_up_note: "Contact patient and review records." }
+    ), headers: csrf_headers, as: :json
+    assert_response :success
+    follow_up = version.reload.follow_up
+    tasks = 2.times.map do |index|
+      Clinic::Care::LabResultFollowUps.attempt_contact(practice: @practice, actor: @actor, patient: @patient,
+        report:, version:, follow_up:, request_key: "contact-prerequisite-attempt-#{index}", contact_method: "phone",
+        outcome: "not_reached", attempted_at: 1.minute.ago, next_action_due_at: 1.day.from_now).value.clinical_task
+    end
+    prerequisite = Clinic::ClinicalTask.create!(practice: @practice, patient: @patient, encounter: @encounter,
+      site: @site, task_kind: "record_request", pool_code: "clinical", state: "claimed", source_type: "manual",
+      assigned_to_membership: @membership, recorded_by_membership: @membership)
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @actor, task: tasks.last,
+      action: "dependencies", expected_version: tasks.last.lock_version,
+      request_key: "contact-prerequisite-link", dependency_ids: [ prerequisite.id ])
+    event_count = Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id)).count
+    completion = { follow_up: { request_key: "contact-prerequisite-complete", outcome: "Follow-up reviewed." } }
+    post complete_follow_up_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_match(/prerequisite/, response.parsed_body.fetch("error"))
+    assert_equal "open", follow_up.reload.state
+    assert_nil follow_up.completed_at
+    assert_equal [ "claimed", "claimed" ], tasks.map { |task| task.reload.state }
+    assert_equal event_count, Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id)).count
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @actor, task: prerequisite,
+      action: "complete", expected_version: prerequisite.lock_version, request_key: "contact-prerequisite-resolved",
+      resolution_code: "completed")
+    post complete_follow_up_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "completed", follow_up.reload.state
+    assert_equal [ "completed", "completed" ], tasks.map { |task| task.reload.state }
+    assert_equal event_count + 2, Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id)).count
+    post complete_follow_up_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal event_count + 2, Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id)).count
+  end
+
+  test "lab contact tasks complete internal prerequisites before older dependent tasks" do
+    grant_permissions!(@membership, "encounters.write")
+    report = create_report(patient: @patient, key: "contact-internal-prerequisite", issued_at: Time.utc(2026, 9, 6, 18),
+      title: "Internal contact prerequisite report")
+    version = report.current_version
+    post review_path(report, version), params: review_params("contact-internal-review").deep_merge(
+      review: { follow_up_disposition: "required", follow_up_note: "Finish both contact actions." }
+    ), headers: csrf_headers, as: :json
+    assert_response :success
+    follow_up = version.reload.follow_up
+    tasks = 2.times.map do |index|
+      Clinic::Care::LabResultFollowUps.attempt_contact(practice: @practice, actor: @actor, patient: @patient,
+        report:, version:, follow_up:, request_key: "contact-internal-attempt-#{index}", contact_method: "phone",
+        outcome: "not_reached", attempted_at: 1.minute.ago, next_action_due_at: 1.day.from_now).value.clinical_task
+    end
+    assert_operator tasks.first.id, :<, tasks.last.id
+    Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @actor, task: tasks.first,
+      action: "dependencies", expected_version: tasks.first.lock_version,
+      request_key: "contact-internal-link", dependency_ids: [ tasks.last.id ])
+    cycle = assert_raises(ArgumentError) do
+      Clinic::Care::NurseWorkflow.transition_task(practice: @practice, actor: @actor, task: tasks.last,
+        action: "dependencies", expected_version: tasks.last.lock_version,
+        request_key: "contact-internal-cycle", dependency_ids: [ tasks.first.id ])
+    end
+    assert_match(/cycle/, cycle.message)
+    assert_empty tasks.last.dependencies
+    event_count = Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id)).count
+    completion = { follow_up: { request_key: "contact-internal-complete", outcome: "Both contact actions reviewed." } }
+    post complete_follow_up_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "completed", follow_up.reload.state
+    assert_equal [ "completed", "completed" ], tasks.map { |task| task.reload.state }
+    completed_ids = Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id), action: "complete").order(:id).pluck(:task_id)
+    assert_equal [ tasks.last.id, tasks.first.id ], completed_ids
+    assert_equal [ tasks.last.id ], tasks.first.dependencies.pluck(:prerequisite_id)
+    post complete_follow_up_path(report, version), params: completion, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal event_count + 2, Clinic::ClinicalTaskEvent.where(task_id: tasks.map(&:id)).count
+  end
+
+  test "routine follow-up rejects escalation due input and preserves valid retries" do
+    report = create_report(patient: @patient, key: "routine-due-time", issued_at: Time.utc(2026, 9, 6, 18),
+      title: "Routine due time report")
+    version = report.current_version
+    post review_path(report, version), params: review_params("routine-due-time-review"), headers: csrf_headers, as: :json
+    assert_response :success
+    decision = { follow_up: { request_key: "routine-due-time-decision", disposition: "required",
+      note: "Review repeat results.", due_at: "2026-09-20T17:15:00Z" } }
+    post record_follow_up_path(report, version), params: decision, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_match(/only to urgent and critical/, response.parsed_body.fetch("error"))
+    assert_nil version.reload.follow_up
+    decision[:follow_up].delete(:due_at)
+    post record_follow_up_path(report, version), params: decision, headers: csrf_headers, as: :json
+    assert_response :created
+    follow_up = response.parsed_body.dig("version", "follow_up")
+    assert_nil follow_up.fetch("due_at")
+    assert_nil version.reload.follow_up.due_at
+    post record_follow_up_path(report, version), params: decision, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal follow_up.fetch("id"), response.parsed_body.dig("version", "follow_up", "id")
+    changed = decision.deep_dup
+    changed[:follow_up][:due_at] = "2026-09-21T17:15:00Z"
+    post record_follow_up_path(report, version), params: changed, headers: csrf_headers, as: :json
+    assert_response :unprocessable_entity
+    assert_match(/only to urgent and critical/, response.parsed_body.fetch("error"))
+    assert_nil version.reload.follow_up.due_at
+    assert_equal 1, Clinic::Care::LabResultFollowUp.where(lab_report_version: version).count
   end
 
   test "reviewed current versions accept one standalone decision with tenant and permission boundaries" do
@@ -464,6 +588,15 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
       follow_up.values_at("priority", "due_at", "escalated_by")
     assert follow_up.fetch("escalated_at").present?
 
+    post review_path(report, version), params: review, headers: csrf_headers, as: :json
+    assert_response :success
+    changed_due = review.deep_dup
+    changed_due[:review][:follow_up_due_at] = "2026-09-06T18:15:00Z"
+    post review_path(report, version), params: changed_due, headers: csrf_headers, as: :json
+    assert_response :conflict
+    assert_equal "idempotency_conflict", response.parsed_body.fetch("code")
+    assert_equal Time.iso8601("2026-09-06T17:15:00Z"), version.reload.follow_up.due_at
+
     get follow_up_queue_path, headers: @headers
     assert_response :success
     assert_equal "critical", response.parsed_body.dig("items", 0, "version", "result_priority")
@@ -490,6 +623,7 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
   end
 
   test "T07 typed and absent results round trip while receipt acknowledgment does not review or close work" do
+    refute Clinic::Configuration::LabUnitMappings.snapshot(practice: @practice).fetch(:configured)
     request = create_params(request_key: "journey-partial-results")
     request[:lab_report].merge!(status: "preliminary", results: [
       { name: "Synthetic measurement", code: "1234-5", code_system: "http://loinc.org", code_version: "synthetic", value: "1.2500", value_kind: "numeric", unit: "mg/L", unit_code: "mg/L", interpretation: "H", reference_range: "Source range" },
@@ -503,11 +637,21 @@ class ClinicLabReportsTest < ActionDispatch::IntegrationTest
     report = @practice.lab_reports.find(response.parsed_body.dig("report", "id"))
     version = report.current_version
     assert_equal "1.2500", version.results.first.fetch("value")
-    assert_equal [ "http://loinc.org", "mg/L", "H" ], version.results.first.values_at("code_system", "unit_code", "interpretation")
+    assert_equal [ "http://loinc.org", "mg/L", "mg/L", nil, "H" ],
+      version.results.first.values_at("code_system", "unit", "supplied_unit_code", "unit_code", "interpretation")
+    assert_equal "unconfigured", version.results.first.dig("unit_validation", "status")
     assert_equal "urn:synthetic:lab", version.results.second.fetch("value_code_system")
     assert_equal ["", "Specimen processing continues"], version.results.third.values_at("value", "absent_reason")
     assert_equal ["boolean", "true"], version.results.fourth.values_at("value_kind", "value")
     assert_equal ["range", "1.0-2.5"], version.results.fifth.values_at("value_kind", "value")
+
+    get "#{reports_path}/#{report.id}", headers: @headers
+    assert_response :success
+    saved_result = response.parsed_body.dig("report", "current_version", "results").first
+    assert_equal [ "http://loinc.org", "mg/L", "mg/L", nil, "H" ],
+      saved_result.values_at("code_system", "unit", "supplied_unit_code", "unit_code", "interpretation")
+    assert_equal "unconfigured", saved_result.dig("unit_validation", "status")
+    assert_equal saved_result, version.reload.results.first
 
     body = { lab_action: { kind: "acknowledged", request_key: "journey-partial-ack" } }
     assert_difference "Clinic::Care::LabReportAction.count", 1 do

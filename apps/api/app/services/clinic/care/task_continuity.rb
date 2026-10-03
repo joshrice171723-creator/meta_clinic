@@ -4,7 +4,8 @@ module Clinic
       module_function
 
       def source_managed?(task)
-        task.source_type.in?(%w[order handoff lab_follow_up])
+        task.source_type.in?(%w[order handoff lab_follow_up]) ||
+          (task.task_kind == "staff_request" && task.source_type == "message")
       end
 
       def eligible?(membership, task)

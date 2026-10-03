@@ -4,11 +4,11 @@ module Clinic
       MESSAGE = "If a matching portal account with a mobile number exists, a secure recovery link will be sent by text message."
 
       def self.call(contact:, preview:, now: Current.business_time)
-        identity = Identity.includes(patient: :contacts).joins(:user)
+        identity = Identity.includes(:patient).joins(:user)
           .find_by(users: { email_address: contact.to_s.strip.downcase })
         return generic_result unless eligible?(identity)
 
-        phone_contact = current_phone_contact(identity.patient, at: now)
+        phone_contact = Clinic::Care::CurrentPatientContact.call(patient: identity.patient, contact_type: "phone", at: now)
         return generic_result unless phone_contact
         return generic_result unless RecoverySmsConfig.configured? || preview
 
@@ -51,14 +51,6 @@ module Clinic
           Clinic::DeploymentAccess.practice_enabled?(identity.practice_id)
       end
       private_class_method :eligible?
-
-      def self.current_phone_contact(patient, at:)
-        patient.contacts.select do |contact|
-          contact.contact_type_phone? && contact.effective_from <= at &&
-            (contact.effective_until.nil? || contact.effective_until > at)
-        end.sort_by { |contact| [ contact.preferred? ? 1 : 0, contact.effective_from, contact.id ] }.last
-      end
-      private_class_method :current_phone_contact
 
       def self.local_path(token)
         "/patient-portal/activate#token=#{ERB::Util.url_encode(token)}&purpose=recovery"
