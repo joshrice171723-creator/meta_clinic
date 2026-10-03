@@ -44,8 +44,9 @@ reading this file. Keep the user's selected main model and reasoning effort.
    ```
 
 6. If a code failure is established, inspect its exact scope and requirements before
-   one bounded repair. `pnpm run typecheck` and `pnpm run build` are non-test web
-   checks, run from `apps/web` through the resource queue after required dependency
+   one bounded repair. Choose `pnpm run typecheck` for type evidence alone or
+   `pnpm run build` when bundle evidence is required; build already runs typecheck,
+   so do not run both for unchanged source. Run from `apps/web` through the resource queue after required dependency
    preparation. `python bin/verify-agent-harness` checks this tooling structurally.
    Do not use `pnpm test`, Rails tests, browser test scripts, or broad `agent-check
    --run` selections without explicit test authorization. Never weaken checks.
