@@ -1193,6 +1193,7 @@ export type BillingInvoiceDetail = BillingLocationProvenance & {
   online_payment: InvoiceOnlinePayment;
 };
 export type InvoiceOnlinePayment = {
+  synthetic_collection?: { enabled: boolean; eligible: boolean };
   collection_intent_id: number | null;
   state:
     | "available"

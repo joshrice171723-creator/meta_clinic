@@ -110,23 +110,3 @@ module Workforce
     def require_kiosk_availability
       return unless Rails.env.production?
 
-      guided_clock = GuidedDemoAccess.hosted? && GuidedDemoAccess.allowed?(request)
-      # Existing public staging opt-in can issue codes in the ordinary workspace.
-      # Redemption stays on that database and never enables ordinary production.
-      public_staging_clock = DevelopmentAccess.public_staging_demo? &&
-        request.host == "aimetaclinic.com" &&
-        (request.origin == request.base_url || ((request.get? || request.head?) && request.origin.nil?))
-      head :not_found unless guided_clock || public_staging_clock
-    end
-
-    def current_kiosk_session!
-      token = cookies.encrypted[KIOSK_COOKIE]
-      record = if token.present?
-        Clinic::Workforce::KioskSession.includes(:practice, :site, :kiosk_enrollment)
-          .find_by(session_digest: Clinic::Workforce::IssueBadge.digest(token))
-      end
-      raise Clinic::Workforce::EnrollKiosk::Rejected, "This kiosk is not enrolled" unless record&.active?(at: Time.current)
-      record
-    end
-  end
-end

@@ -4,7 +4,8 @@ param(
   [string]$RecoveryDirectory = (Join-Path $env:USERPROFILE 'Desktop\06 - Secure Files'),
   [ValidateSet('local', 'registry')][string]$ImageSource = 'local',
   [switch]$BuildWebOnHost,
-  [switch]$ReuseBuiltImages
+  [switch]$ReuseBuiltImages,
+  [switch]$StreamImages
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,9 @@ if ($BuildWebOnHost -and $ImageSource -ne 'local') {
 }
 if ($ReuseBuiltImages -and $ImageSource -ne 'local') {
   throw 'ReuseBuiltImages requires local image transfer.'
+}
+if ($StreamImages -and ($ImageSource -ne 'local' -or $PSVersionTable.PSVersion -lt [version]'7.4')) {
+  throw 'StreamImages requires local image transfer and PowerShell 7.4 or newer.'
 }
 
 Push-Location $root
@@ -79,23 +83,39 @@ if ($ImageSource -eq 'local') {
         } finally {
           Pop-Location
         }
-        $webContext = Join-Path $env:TEMP "meta-clinic-web-$revision-$([guid]::NewGuid().ToString('N'))"
-        $tempRoot = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
-        if (-not [System.IO.Path]::GetFullPath($webContext).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
-          throw 'Web build context escaped the temporary directory.'
-        }
-        try {
-          New-Item -ItemType Directory -Path $webContext | Out-Null
-          Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
-          $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
+        if ($StreamImages) {
+          $webRoot = Join-Path $root 'apps\web'
+          $version = (Get-Content -Raw (Join-Path $webRoot 'package.json') | ConvertFrom-Json).version
           @{ revision = $revision; version = $version; dirty = $false } | ConvertTo-Json -Compress |
-            Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
-          Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
-          Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
-          & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
-          if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
-        } finally {
-          if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
+            Set-Content -LiteralPath (Join-Path $webRoot 'dist\build.json') -Encoding utf8NoBOM
+          $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+          try {
+            $PSNativeCommandUseErrorActionPreference = $true
+            & tar.exe -cf - -C $webRoot dist nginx.conf Dockerfile.prebuilt |
+              & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage -f Dockerfile.prebuilt -
+            if ($LASTEXITCODE -ne 0) { throw 'Web image stream packaging failed.' }
+          } finally {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+          }
+        } else {
+          $webContext = Join-Path $env:TEMP "meta-clinic-web-$revision-$([guid]::NewGuid().ToString('N'))"
+          $tempRoot = [System.IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+          if (-not [System.IO.Path]::GetFullPath($webContext).StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Web build context escaped the temporary directory.'
+          }
+          try {
+            New-Item -ItemType Directory -Path $webContext | Out-Null
+            Copy-Item -LiteralPath (Join-Path $root 'apps\web\dist') -Destination (Join-Path $webContext 'dist') -Recurse
+            $version = (Get-Content -Raw (Join-Path $root 'apps\web\package.json') | ConvertFrom-Json).version
+            @{ revision = $revision; version = $version; dirty = $false } | ConvertTo-Json -Compress |
+              Set-Content -LiteralPath (Join-Path $webContext 'dist\build.json') -Encoding utf8NoBOM
+            Copy-Item -LiteralPath (Join-Path $root 'apps\web\nginx.conf') -Destination $webContext
+            Copy-Item -LiteralPath (Join-Path $root 'apps\web\Dockerfile.prebuilt') -Destination (Join-Path $webContext 'Dockerfile')
+            & docker build --platform linux/amd64 --add-host api:127.0.0.1 --label "org.opencontainers.image.revision=$revision" -t $webImage $webContext
+            if ($LASTEXITCODE -ne 0) { throw 'Web image packaging failed.' }
+          } finally {
+            if (Test-Path -LiteralPath $webContext) { Remove-Item -LiteralPath $webContext -Recurse -Force }
+          }
         }
       } else {
         & docker build --platform linux/amd64 --add-host api:127.0.0.1 --build-arg "RELEASE_REVISION=$revision" --label "org.opencontainers.image.revision=$revision" -t $webImage apps/web
@@ -115,16 +135,29 @@ if ($ImageSource -eq 'local') {
         }
       }
     }
-    & docker save -o $localImages $apiImage $webImage
-    if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
+    if (-not $StreamImages) {
+      & docker save -o $localImages $apiImage $webImage
+      if ($LASTEXITCODE -ne 0) { throw 'Could not save matched images.' }
+    }
   } finally {
     Pop-Location
   }
   try {
-    & scp -o BatchMode=yes -i $key $localImages "${Server}:$remoteImages"
-    if ($LASTEXITCODE -ne 0) { throw 'Could not transfer matched images.' }
-    & ssh -o BatchMode=yes -i $key $Server "sudo docker load -i $remoteImages"
-    if ($LASTEXITCODE -ne 0) { throw 'Could not load matched images on the host.' }
+    if ($StreamImages) {
+      $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+      try {
+        $PSNativeCommandUseErrorActionPreference = $true
+        & docker save $apiImage $webImage | & ssh -o BatchMode=yes -i $key $Server 'sudo docker load'
+        if ($LASTEXITCODE -ne 0) { throw 'Could not stream matched images to the host.' }
+      } finally {
+        $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+      }
+    } else {
+      & scp -o BatchMode=yes -i $key $localImages "${Server}:$remoteImages"
+      if ($LASTEXITCODE -ne 0) { throw 'Could not transfer matched images.' }
+      & ssh -o BatchMode=yes -i $key $Server "sudo docker load -i $remoteImages"
+      if ($LASTEXITCODE -ne 0) { throw 'Could not load matched images on the host.' }
+    }
   } finally {
     if (Test-Path -LiteralPath $localImages) { Remove-Item -LiteralPath $localImages }
     & ssh -o BatchMode=yes -i $key $Server "rm -f $remoteImages" | Out-Null

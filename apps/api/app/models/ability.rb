@@ -278,7 +278,9 @@ class Ability
 
   def site_scoped_conditions(subject, site_ids)
     conditions = { practice_id: practice_id(@practice) }
-    if subject.column_names.include?("site_id")
+    if subject == Clinic::Site
+      conditions[:id] = site_ids
+    elsif subject.column_names.include?("site_id")
       conditions[:site_id] = site_ids
     elsif subject == Clinic::EncounterNote
       conditions[:encounter] = { site_id: site_ids }

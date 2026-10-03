@@ -79,8 +79,9 @@ export function QaChangeImpact({
         </>
       )}
       <Typography variant="body2">
-        {summary.affected} affected · {summary.untouched} untouched ·{" "}
-        {summary.unknown} unknown
+        Change-impact mapping: {summary.affected} affected · {summary.untouched}{" "}
+        untouched · {summary.unknown} unknown. These are impact counts, not QA
+        verdict counts.
       </Typography>
       <Typography variant="body2">
         Re-QA scope (affected + claimed fixes):{" "}

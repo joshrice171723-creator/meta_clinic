@@ -31,5 +31,16 @@ module Development
     def self.local_practice?(practice)
       active.exists?(practice_id: practice.respond_to?(:id) ? practice.id : practice)
     end
+
+    def self.synthetic_practice?(practice)
+      return false unless GuidedDemoAccess.enabled?
+      return true if local_practice?(practice)
+      return false unless practice.organization && DemoLesson.exists?(
+        lesson_key: DemoLessonCatalog::SANDBOX_COMPANION_KEY, practice_id: practice.id)
+
+      primary = DemoLesson.find_by(lesson_key: DemoLessonCatalog::SANDBOX_KEY,
+        practice_id: practice.organization.practice_ids)
+      primary && active.exists?(practice_id: primary.practice_id, lesson_key: DemoLessonCatalog::SANDBOX_KEY)
+    end
   end
 end

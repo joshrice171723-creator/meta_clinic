@@ -16,6 +16,7 @@ module Development
           prepare_site!(practice:, site:, site_index: index + 1, actor: run.operator_user)
         end
       end
+      DemoSandboxReminderContacts.prepare!(run)
     end
 
     def self.prepare_site!(practice:, site:, site_index:, actor:)
