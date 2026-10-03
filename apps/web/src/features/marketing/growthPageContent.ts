@@ -1,4 +1,5 @@
 import { marketingInternalPath, marketingPaths, marketingUrl } from "./marketingPaths";
+import { isUnavailableMarketingPath } from "./marketingAvailability";
 import { getEditorialPageBrief } from "./EditorialPageBriefs";
 import { getPlatformAiPageBrief } from "./PlatformAiPageBriefs";
 import { getSpecialtyPageBrief } from "./SpecialtyPageBriefs";
@@ -851,7 +852,7 @@ function getGrowthPageInternal(path: string): GrowthPage | null {
 
 export function getGrowthPage(path: string): GrowthPage | null {
   const internalPath = marketingInternalPath(path);
-  if (internalPath === null) return null;
+  if (internalPath === null || isUnavailableMarketingPath(internalPath)) return null;
   const page = getGrowthPageInternal(internalPath);
   if (!page) return null;
   return {
@@ -860,7 +861,9 @@ export function getGrowthPage(path: string): GrowthPage | null {
     canonicalPath: marketingUrl(page.canonicalPath),
     primaryCta: { ...page.primaryCta, path: marketingUrl(page.primaryCta.path) },
     secondaryCta: { ...page.secondaryCta, path: marketingUrl(page.secondaryCta.path) },
-    links: page.links.map((link) => ({ ...link, path: marketingUrl(link.path) })),
+    links: page.links
+      .filter((link) => !isUnavailableMarketingPath(link.path))
+      .map((link) => ({ ...link, path: marketingUrl(link.path) })),
     children: page.children.map((child) => ({ ...child, path: marketingUrl(child.path) })),
   };
 }

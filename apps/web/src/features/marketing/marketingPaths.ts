@@ -1,4 +1,6 @@
-export const marketingPaths = [
+import { isUnavailableMarketingPath } from "./marketingAvailability";
+
+const marketingDraftPaths = [
   { path: "/", group: "Core", phase: "launch" },
   { path: "/about", group: "Company", phase: "launch" },
   { path: "/affiliate-program", group: "Company", phase: "later" },
@@ -285,6 +287,10 @@ export const marketingPaths = [
   { path: "/weight-loss/telehealth-scheduling", group: "Weight Loss", phase: "later" },
   { path: "/weight-loss/weight-tracking", group: "Weight Loss", phase: "later" },
 ] as const;
+
+export const marketingPaths = marketingDraftPaths.filter(
+  (entry) => !isUnavailableMarketingPath(entry.path),
+);
 
 const marketingPathSet = new Set<string>(marketingPaths.map((entry) => entry.path));
 

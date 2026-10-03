@@ -25,6 +25,7 @@ import { DemoFrameBoundary } from "./features/demo/DemoFrameBoundary";
 import { DemoEntryLoading } from "./features/demo/DemoEntry";
 import { LoadingFeedback } from "./shared/LoadingFeedback";
 import { hasGrowthPage } from "./features/marketing/marketingPaths";
+import { isUnavailableMarketingPath } from "./features/marketing/marketingAvailability";
 import { isDemoFrame } from "./features/demo/frame";
 import {
   SessionGuard,
@@ -945,6 +946,8 @@ function Application() {
     publicClinicServices !== null;
   const marketingFeature = /^\/meta-clinic\/features\/([a-z0-9-]+)$/.exec(path);
   const growthMarketing = hasGrowthPage(path) && path !== "/meta-clinic";
+  const unavailableMarketing =
+    path.startsWith("/meta-clinic/") && isUnavailableMarketingPath(path);
   const marketingClinicFeature =
     /^\/meta-clinic\/(primary-care|membership-care|urgent-care|weight-management|hormone-health|behavioral-health|rehabilitation-pt|aesthetics|infusion)\/features\/([a-z0-9-]+)$/.exec(
       path,
@@ -976,7 +979,8 @@ function Application() {
     marketingFeature !== null ||
     marketingClinicFeature !== null ||
     marketingClinicType !== null ||
-    growthMarketing;
+    growthMarketing ||
+    unavailableMarketing;
   const [session, setSession] = useState<SessionBootstrap>({});
   useEffect(() => {
     if (publicMembershipRoute) {
@@ -1118,6 +1122,12 @@ function Application() {
         <MembershipPatientView
           capture={new URLSearchParams(window.location.search).has("capture")}
         />
+      </RouteBoundary>
+    );
+  if (unavailableMarketing)
+    return (
+      <RouteBoundary root>
+        <MetaClinicMarketing unavailable />
       </RouteBoundary>
     );
   if (growthMarketing)
