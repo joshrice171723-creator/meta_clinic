@@ -190,6 +190,9 @@ export function DemoJourney() {
   const [navigationRetry, setNavigationRetry] = useState<(() => void) | null>(
     null,
   );
+  const [discardNavigation, setDiscardNavigation] = useState<
+    (() => void) | null
+  >(null);
   const [preparingSandbox, setPreparingSandbox] = useState(false);
   const [sandboxElapsed, setSandboxElapsed] = useState(0);
   const [lastSandboxDuration, setLastSandboxDuration] = useState<number | null>(
@@ -298,11 +301,10 @@ export function DemoJourney() {
     setPreparingLesson(null);
   };
 
-  useEffect(() => {
-    setNavigationRetry(null);
-  }, [run?.id, run?.account?.user_id]);
-
-  const approveNavigation = async (retry: () => void) => {
+  const approveNavigation = async (
+    retry: () => void,
+    reloadOnTimeout = false,
+  ) => {
     if (!run?.account) return false;
     const current = generation.current;
     setBusy(true);
@@ -317,10 +319,12 @@ export function DemoJourney() {
         current,
       );
       if (current !== generation.current) return false;
-      if (!allowed)
+      if (!allowed) {
         setError(
-          "Navigation was not approved. Your current workspace and changes are still open. Resolve any pending or unconfirmed action before leaving.",
+          "The workspace reported unfinished work. Stay here or discard changes and leave.",
         );
+        setDiscardNavigation(() => retry);
+      }
       return allowed;
     } catch (reason) {
       if (current === generation.current) {
@@ -330,8 +334,19 @@ export function DemoJourney() {
             "Navigation could not be confirmed. Your workspace is still open.",
           ),
         );
-        if (reason instanceof NavigationConfirmationTimeout)
-          setNavigationRetry(() => retry);
+        if (
+          reason instanceof NavigationConfirmationTimeout &&
+          reloadOnTimeout
+        ) {
+          setError(
+            "The workspace did not confirm navigation in time. Reopening the workspace under the selected account. Unsaved local changes may be lost.",
+          );
+          setNavigationRetry(
+            () => () => setFrameRevision((value) => value + 1),
+          );
+          return true;
+        }
+        setDiscardNavigation(() => retry);
       }
       return false;
     } finally {
@@ -363,8 +378,15 @@ export function DemoJourney() {
     restart = false,
     account: SandboxAccountKey = run?.account?.key ?? selectedAccount,
     careModel: SandboxCareModel = "primary_care",
+    discard = false,
   ) => {
     if (accountBusy.current) return;
+    if (lesson_key === null && run?.lesson_key && !discard) {
+      setDiscardNavigation(
+        () => () => void selectLesson(null, false, account, careModel, true),
+      );
+      return;
+    }
     if (lesson_key === "sandbox" && !canEnterCareModel(account, careModel)) {
       setError(
         "Choose Admin for Weight management, or Primary care for this account.",
@@ -375,8 +397,9 @@ export function DemoJourney() {
     if (
       run?.sandbox &&
       run.account &&
+      !discard &&
       !(await approveNavigation(
-        () => void selectLesson(lesson_key, restart, account, careModel),
+        () => void selectLesson(lesson_key, restart, account, careModel, true),
       ))
     ) {
       accountBusy.current = false;
@@ -464,6 +487,10 @@ export function DemoJourney() {
     } catch (reason) {
       if (current !== generation.current) return;
       const failure = message(reason, "This lesson could not be opened.");
+      if (lesson_key === null)
+        setNavigationRetry(
+          () => () => void selectLesson(null, false, account, careModel, true),
+        );
       setError(
         startingSandbox && sandboxStartedAt.current !== null
           ? `${failure} Preparation ran for ${durationLabel(Date.now() - sandboxStartedAt.current)}.`
@@ -507,7 +534,7 @@ export function DemoJourney() {
     window.addEventListener("message", openCatalog);
     return () => window.removeEventListener("message", openCatalog);
   }, [run, busy, selectLesson]);
-  const switchAccount = async (account: SandboxAccountKey) => {
+  const switchAccount = async (account: SandboxAccountKey, discard = false) => {
     if (
       !run?.account ||
       busy ||
@@ -520,9 +547,12 @@ export function DemoJourney() {
     setError(null);
     const current = ++generation.current;
     try {
-      const allowed = await approveNavigation(
-        () => void switchAccount(account),
-      );
+      const allowed =
+        discard ||
+        (await approveNavigation(
+          () => void switchAccount(account, true),
+          true,
+        ));
       if (!allowed || current !== generation.current) return;
       setSwitching(true);
       const response = await api<DemoRunResponse>("/api/demo/run/view", {
@@ -538,13 +568,15 @@ export function DemoJourney() {
       setState({ status: "ready", value: response });
       setFrameRevision((value) => value + 1);
     } catch (reason) {
-      if (current === generation.current)
+      if (current === generation.current) {
         setError(
           message(
             reason,
             "The account could not be switched. Refresh before trying again.",
           ),
         );
+        setNavigationRetry(() => () => void switchAccount(account, true));
+      }
     } finally {
       accountBusy.current = false;
       setBusy(false);
@@ -874,10 +906,14 @@ export function DemoJourney() {
       {error && (
         <Alert
           severity="error"
+          onClose={() => {
+            setError(null);
+            setNavigationRetry(null);
+          }}
           action={
             navigationRetry && !busy ? (
               <Button color="inherit" onClick={navigationRetry}>
-                Retry confirmation
+                Retry navigation
               </Button>
             ) : undefined
           }
@@ -891,6 +927,38 @@ export function DemoJourney() {
           prompt in the workspace; your account has not changed.
         </Alert>
       )}
+      <Dialog
+        open={discardNavigation !== null}
+        onClose={() => setDiscardNavigation(null)}
+        aria-labelledby="demo-discard-navigation-title"
+        aria-describedby="demo-discard-navigation-description"
+      >
+        <DialogTitle id="demo-discard-navigation-title">
+          Leave this workspace?
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="demo-discard-navigation-description">
+            Unsaved changes in this workspace will be discarded. Saved clinic
+            data is preserved. A submitted action may still complete; leaving
+            does not cancel or undo it.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDiscardNavigation(null)}>Stay here</Button>
+          <Button
+            color="warning"
+            variant="contained"
+            onClick={() => {
+              const leave = discardNavigation;
+              setDiscardNavigation(null);
+              setError(null);
+              leave?.();
+            }}
+          >
+            Discard changes and leave
+          </Button>
+        </DialogActions>
+      </Dialog>
       {!restartOpen && sandboxProgress}
       {progressError && (
         <Alert
@@ -947,7 +1015,7 @@ export function DemoJourney() {
                     size="small"
                     label="Account"
                     value={run.account.key}
-                    disabled={busy || frameLoading || frameFailed}
+                    disabled={busy}
                     onChange={(event) =>
                       void switchAccount(
                         event.target.value as SandboxAccountKey,

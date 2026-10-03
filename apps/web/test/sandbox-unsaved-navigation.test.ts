@@ -46,14 +46,10 @@ it("clean frames need no prompt and ordinary navigation retains its existing beh
   expect(dispatch).not.toHaveBeenCalled();
 });
 
-it("patient component drafts require explicit discard consent without a clinic provider", () => {
+it("clean patient frames do not prompt for untouched autofilled fields", () => {
   confirm.mockReturnValue(false);
-  expect(confirmUnregisteredDemoNavigation()).toBe(false);
-  expect(confirm).toHaveBeenCalledOnce();
-  expect(confirm.mock.calls[0][0]).toContain("unsaved changes");
-  confirm.mockReset().mockReturnValue(true);
   expect(confirmUnregisteredDemoNavigation()).toBe(true);
-  expect(confirm).toHaveBeenCalledOnce();
+  expect(confirm).not.toHaveBeenCalled();
 });
 
 it("pending or uncertain patient submissions veto switching without a discard escape", () => {

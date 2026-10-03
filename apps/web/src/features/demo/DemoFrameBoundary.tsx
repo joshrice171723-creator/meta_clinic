@@ -59,14 +59,9 @@ export function confirmUnregisteredDemoNavigation(
   blockers: DemoNavigationBlockers = { blocked: false, messages: [] },
 ) {
   if (blockers.blocked) return false;
-  // Patient dialogs do not register clinic blockers. Require explicit discard
-  // consent even when no beforeunload handler reports their component draft.
-  return confirmClinicNavigation(
-    blockers.messages.length
-      ? blockers.messages
-      : ["Switch accounts and discard any unsaved changes?"],
-    true,
-  );
+  // Clean frames, including untouched password-manager autofill, need no prompt.
+  // The shell offers an explicit discard escape when a draft or operation blocks.
+  return confirmClinicNavigation(blockers.messages, true);
 }
 
 function confirmLessonCatalogNavigation() {
