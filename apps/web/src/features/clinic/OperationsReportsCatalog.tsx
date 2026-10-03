@@ -390,12 +390,8 @@ function OpenClinicalWork({ siteId }: { siteId?: number }) {
             By recorded owner
           </Typography>
           {report.owners.map((owner) => (
-            <Typography
-              key={owner.membership_id ?? "unassigned"}
-              variant="body2"
-            >
-              {owner.label}: {owner.total} active · {owner.overdue_count} past
-              due
+            <Typography key={owner.membership_id ?? "unassigned"} variant="body2">
+              {owner.label}: {owner.total} active · {owner.overdue_count} past due
             </Typography>
           ))}
           <Button
@@ -850,8 +846,8 @@ function DailyVisitsByState({
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests
-            above the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
         </Stack>
       )}
@@ -973,8 +969,8 @@ function DailyPaymentActivity({ date }: { date: string }) {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests
-            above the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1059,8 +1055,8 @@ function DailyInvoices({ date }: { date: string }) {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests
-            above the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/billing"
@@ -1150,8 +1146,8 @@ function DailyStockMovements({ date }: { date: string }) {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests
-            above the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           <Button
             href="/clinic/inventory/activity"
@@ -1262,8 +1258,8 @@ function DailyCashDrawers({ date }: { date: string }) {
           <Typography>
             {report.open_count} still open;{" "}
             {report.awaiting_reconciliation_count} closed awaiting
-            reconciliation; {report.variance_count} closed with a variance (this
-            count can overlap with reconciliation).
+            reconciliation; {report.variance_count} closed with a variance
+            (this count can overlap with reconciliation).
           </Typography>
           {report.records.map((row) => (
             <Stack key={row.id} spacing={0.5}>
@@ -1636,8 +1632,8 @@ function CurrentStockReport() {
           />
           <Typography variant="caption" color="text.secondary">
             The issued CSV captures all matching source rows in one consistent
-            snapshot. Screen pagination does not limit the export; requests
-            above the export resource limits fail explicitly.
+            snapshot. Screen pagination does not limit the export; requests above
+            the export resource limits fail explicitly.
           </Typography>
           {report.pharmacy_units.map((row) => (
             <Typography key={row.unit} variant="body2">
