@@ -1,5 +1,7 @@
 # Workflow-center contracts (dormant)
 
+The legacy workflow-center gate below remains closed. The separately authorized five-action Muse API, Ed25519 enrollment, archived evidence and direct-verdict contracts are documented in [MUSE_API.md](../../../../../ops/qa/MUSE_API.md). It reuses this server-owned fixture registry and does not activate the legacy executor.
+
 These contracts and closed-gate transaction adapters extend the read-only [change-impact foundation](../../../../web/src/features/qa/CHANGE_IMPACT.md). Two new routes call a permanently closed activation gate; no live write is enabled. No authorization grant, credential, schedule or executable workflow is added. The real catalog remains `unconfigured`; no Muse bridge was read or synthesized.
 
 ## Canonical catalog boundary

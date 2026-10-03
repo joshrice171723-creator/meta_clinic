@@ -14416,7 +14416,7 @@ ALTER SEQUENCE public.qa_events_id_seq OWNED BY public.qa_events.id;
 CREATE TABLE public.qa_evidence (
     id bigint NOT NULL,
     user_id bigint NOT NULL,
-    issue_number integer NOT NULL,
+    issue_number integer,
     revision character varying NOT NULL,
     caption character varying NOT NULL,
     content_type character varying NOT NULL,
@@ -14425,7 +14425,9 @@ CREATE TABLE public.qa_evidence (
     phase character varying DEFAULT 'after'::character varying NOT NULL,
     context jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT qa_evidence_size CHECK (((issue_number > 0) AND ((octet_length(image) >= 1) AND (octet_length(image) <= 4194304))))
+    workflow_ids jsonb DEFAULT '[]'::jsonb NOT NULL,
+    CONSTRAINT qa_evidence_size CHECK ((((octet_length(image) >= 1) AND (octet_length(image) <= 4194304)) AND (COALESCE((issue_number > 0), false) OR ((issue_number IS NULL) AND (jsonb_array_length(workflow_ids) > 0))))),
+    CONSTRAINT qa_evidence_workflow_ids_array CHECK ((jsonb_typeof(workflow_ids) = 'array'::text))
 );
 
 
@@ -14446,6 +14448,78 @@ CREATE SEQUENCE public.qa_evidence_id_seq
 --
 
 ALTER SEQUENCE public.qa_evidence_id_seq OWNED BY public.qa_evidence.id;
+
+
+--
+-- Name: qa_muse_credentials; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_muse_credentials (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    approved_by_id bigint NOT NULL,
+    identity character varying DEFAULT 'muse'::character varying NOT NULL,
+    fingerprint character varying NOT NULL,
+    public_key_pem text NOT NULL,
+    scopes jsonb DEFAULT '[]'::jsonb NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    last_used_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT qa_muse_credential_identity CHECK (((identity)::text = 'muse'::text)),
+    CONSTRAINT qa_muse_credential_scopes_array CHECK ((jsonb_typeof(scopes) = 'array'::text))
+);
+
+
+--
+-- Name: qa_muse_credentials_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_muse_credentials_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_muse_credentials_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_muse_credentials_id_seq OWNED BY public.qa_muse_credentials.id;
+
+
+--
+-- Name: qa_muse_nonces; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.qa_muse_nonces (
+    id bigint NOT NULL,
+    credential_id bigint NOT NULL,
+    nonce character varying NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: qa_muse_nonces_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.qa_muse_nonces_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: qa_muse_nonces_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.qa_muse_nonces_id_seq OWNED BY public.qa_muse_nonces.id;
 
 
 --
@@ -16661,6 +16735,20 @@ ALTER TABLE ONLY public.qa_events ALTER COLUMN id SET DEFAULT nextval('public.qa
 --
 
 ALTER TABLE ONLY public.qa_evidence ALTER COLUMN id SET DEFAULT nextval('public.qa_evidence_id_seq'::regclass);
+
+
+--
+-- Name: qa_muse_credentials id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_credentials ALTER COLUMN id SET DEFAULT nextval('public.qa_muse_credentials_id_seq'::regclass);
+
+
+--
+-- Name: qa_muse_nonces id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_nonces ALTER COLUMN id SET DEFAULT nextval('public.qa_muse_nonces_id_seq'::regclass);
 
 
 --
@@ -19039,6 +19127,22 @@ ALTER TABLE ONLY public.qa_events
 
 ALTER TABLE ONLY public.qa_evidence
     ADD CONSTRAINT qa_evidence_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: qa_muse_credentials qa_muse_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_credentials
+    ADD CONSTRAINT qa_muse_credentials_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: qa_muse_nonces qa_muse_nonces_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_nonces
+    ADD CONSTRAINT qa_muse_nonces_pkey PRIMARY KEY (id);
 
 
 --
@@ -23783,6 +23887,55 @@ CREATE INDEX index_qa_evidence_on_user_id ON public.qa_evidence USING btree (use
 
 
 --
+-- Name: index_qa_muse_credentials_on_approved_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_muse_credentials_on_approved_by_id ON public.qa_muse_credentials USING btree (approved_by_id);
+
+
+--
+-- Name: index_qa_muse_credentials_on_fingerprint; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_muse_credentials_on_fingerprint ON public.qa_muse_credentials USING btree (fingerprint);
+
+
+--
+-- Name: index_qa_muse_credentials_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_muse_credentials_on_user_id ON public.qa_muse_credentials USING btree (user_id);
+
+
+--
+-- Name: index_qa_muse_credentials_one_active_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_muse_credentials_one_active_identity ON public.qa_muse_credentials USING btree (identity) WHERE (revoked_at IS NULL);
+
+
+--
+-- Name: index_qa_muse_nonces_on_credential_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_muse_nonces_on_credential_id ON public.qa_muse_nonces USING btree (credential_id);
+
+
+--
+-- Name: index_qa_muse_nonces_on_credential_id_and_nonce; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_qa_muse_nonces_on_credential_id_and_nonce ON public.qa_muse_nonces USING btree (credential_id, nonce);
+
+
+--
+-- Name: index_qa_muse_nonces_on_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_muse_nonces_on_expires_at ON public.qa_muse_nonces USING btree (expires_at);
+
+
+--
 -- Name: index_qa_service_tokens_on_digest; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -23836,6 +23989,13 @@ CREATE UNIQUE INDEX index_qa_tasks_on_request_key ON public.qa_tasks USING btree
 --
 
 CREATE INDEX index_qa_tasks_on_user_id ON public.qa_tasks USING btree (user_id);
+
+
+--
+-- Name: index_qa_workflow_evidence_revision_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_qa_workflow_evidence_revision_digest ON public.qa_evidence USING btree (revision, digest) WHERE (issue_number IS NULL);
 
 
 --
@@ -31402,6 +31562,14 @@ ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
 
 
 --
+-- Name: qa_muse_credentials fk_rails_421d687536; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_credentials
+    ADD CONSTRAINT fk_rails_421d687536 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_billing_receipts fk_rails_4259348069; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32714,6 +32882,14 @@ ALTER TABLE ONLY public.clinic_workforce_export_batches
 
 
 --
+-- Name: qa_muse_credentials fk_rails_99049b20f7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_credentials
+    ADD CONSTRAINT fk_rails_99049b20f7 FOREIGN KEY (approved_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_stripe_checkouts fk_rails_99067e40f4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -33479,6 +33655,14 @@ ALTER TABLE ONLY public.clinic_inventory_receipts
 
 ALTER TABLE ONLY public.clinic_inventory_shipment_lines
     ADD CONSTRAINT fk_rails_c6b9d2d625 FOREIGN KEY (practice_id, purchase_order_line_id) REFERENCES public.clinic_inventory_purchase_order_lines(practice_id, id);
+
+
+--
+-- Name: qa_muse_nonces fk_rails_c7045cc59a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.qa_muse_nonces
+    ADD CONSTRAINT fk_rails_c7045cc59a FOREIGN KEY (credential_id) REFERENCES public.qa_muse_credentials(id);
 
 
 --
@@ -35624,6 +35808,7 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261002000100'),
 ('20261002003000'),
 ('20261001000300'),
 ('20261001000200'),

@@ -9,6 +9,7 @@ module Qa
     def self.read(user: nil, token: nil)
       principal = principal(user, token)
       build = Workspace.build
+      MuseWrites.expire_stale_claims!(build:)
       pin = Snapshot.find_by(key: "pin")&.data
       mirror = Snapshot.find_by(key: KEY)&.data
       state = Workspace.state
@@ -21,10 +22,11 @@ module Qa
       revision = build["revision"]
       diff = "https://github.com/#{Workspace::REPOSITORY}/compare/#{old}...#{revision}" if old&.match?(SHA) && revision&.match?(SHA) && old != revision
       { build:, pin:, diff_url: diff,
-        ledger: { source: mirror ? "Muse KNOWN_ISSUES.md" : "Historical import; fresh Muse ledger unavailable", imported_at: mirror&.fetch("imported_at"),
+        ledger: { source: mirror ? mirror.fetch("source_label", "Muse KNOWN_ISSUES.md") : "Historical import; fresh Muse ledger unavailable", imported_at: mirror&.fetch("imported_at", nil),
           counts:, defects:, pending_requests: Task.where(kind: "coordination").where("payload ->> 'office_action' = 'file_defect'").where.not(id: recorded_tasks).order(created_at: :desc).limit(100).map { |task| OfficeWork.task_json(task, principal:) } },
         coverage: { workflows: coverage.map { |item| item.merge("stale_build" => item["revision"].blank? || item["revision"] != revision || build["dirty"] == true) },
-          pointer: mirror ? mirror["pointer"] : state["coverage_pointer"], imported_at: mirror&.fetch("imported_at"), source: mirror ? "Muse COVERAGE_STATE.json / WORKFLOWS.md" : "Historical import", expected_total: 116 },
+          pointer: mirror ? mirror["pointer"] : state["coverage_pointer"], imported_at: mirror&.fetch("imported_at", nil), source: mirror ? mirror.fetch("source_label", "Muse COVERAGE_STATE.json / WORKFLOWS.md") : "Historical import", expected_total: 116 },
+        retest_requests: (Snapshot.find_by(key: MuseWrites::RETEST_SNAPSHOT)&.data&.fetch("requests", []) || []).map { |item| item.merge("ready" => item["requested_on_build"] != revision && revision.present? && build["dirty"] == false && old == revision) },
         batches: batches.map { |batch| batch.merge("poll" => Snapshot.find_by(key: "office:batch:#{batch['id']}")&.data) },
         active_batch: batches.find { |batch| !%w[completed closed retested cancelled].include?(batch["status"]) },
         capabilities: { file_defect: principal.present?, request_retest: principal.present?, poll_batch: principal.present?, import_ledger: principal&.fetch(:name) == "muse" } }

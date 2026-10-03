@@ -1464,6 +1464,7 @@ export type ClinicWorkspaceContext = {
   capabilities: ClinicCapabilities;
   current_site: ClinicSite | null;
   sites: ClinicSite[];
+  setup_incomplete_sites?: ClinicSite[];
 };
 export type ServiceDisableImpact = {
   status: "available" | "partial" | "restricted" | "not_mapped" | "unavailable";

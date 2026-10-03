@@ -2,6 +2,14 @@ module Clinic
   class ContextController < ApiController
     def show
       sites = context_sites.order(:code, :id)
+      setup_incomplete_sites = if current_ability.practice_scope_for?("facilities.write")
+        current_practice.sites.order(:code, :id).filter_map do |site|
+          payload = FacilitySerializer.site(site)
+          payload unless payload[:finalized]
+        end
+      else
+        []
+      end
       current_site = sites.find_by(id: session[:clinic_site_id])
       session.delete(:clinic_site_id) if session[:clinic_site_id].present? && current_site.nil?
       if current_site.nil? && sites.one?
@@ -100,7 +108,8 @@ module Clinic
           roles: allowed?("roles.manage")
         },
         current_site: current_site && FacilitySerializer.site(current_site),
-        sites: sites.map { |site| FacilitySerializer.site(site) }
+        sites: sites.map { |site| FacilitySerializer.site(site) },
+        setup_incomplete_sites:
       }
     end
 

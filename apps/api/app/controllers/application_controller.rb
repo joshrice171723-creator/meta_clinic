@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::Base
   protect_from_forgery with: :exception
   before_action :prevent_caching
+  prepend_before_action :reject_muse_signature_outside_api
   around_action :use_business_date
 
   rescue_from Identity::SessionAudit::Unavailable do
@@ -18,6 +19,13 @@ class ApplicationController < ActionController::Base
   end
 
   private
+
+  def reject_muse_signature_outside_api
+    return if controller_path == "qa/muse_writes"
+    return unless %w[X-Muse-Key-Fingerprint X-Muse-Timestamp X-Muse-Nonce X-Muse-Signature].any? { |name| request.headers[name].present? }
+
+    render json: { error: "Muse signatures authorize only the five Muse QA write actions.", code: "muse_scope_denied" }, status: :forbidden
+  end
 
   def use_business_date
     Current.workspace_tools_owner_session = DevelopmentAccess.hosted_owner_session(request)

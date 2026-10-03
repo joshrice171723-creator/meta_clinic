@@ -2,6 +2,13 @@ Rails.application.routes.draw do
   post "stripe/connect/webhook", to: "stripe_webhooks#create"
   post "api/integrations/telehealth/daily/events", to: "integrations/telehealth/daily_events#create"
   post "api/integrations/telehealth/twilio/events", to: "integrations/telehealth/twilio_events#create"
+  post "qa/api/enrollment/approve", to: "qa/muse_enrollments#approve"
+  post "qa/api/enrollment/revoke", to: "qa/muse_enrollments#revoke"
+  post "qa/api/workflow/claim", to: "qa/muse_writes#claim"
+  post "qa/api/verdict", to: "qa/muse_writes#verdict"
+  post "qa/api/defect", to: "qa/muse_writes#defect"
+  post "qa/api/test-data/prepare", to: "qa/muse_writes#prepare_test_data"
+  post "qa/api/retest-request", to: "qa/muse_writes#retest_request"
   scope path: "api", as: "api" do
   get "qa", to: "qa/workspace#show"
   post "qa/workflow-center/claims", to: "qa/workflow_center#claim"

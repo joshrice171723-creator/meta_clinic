@@ -28,6 +28,13 @@ import {
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import { useOfficeRequest, useOfficeLink } from "./officeTransport";
 
+type ArchivedEvidence = {
+  kind: "observation" | "screenshot";
+  text?: string;
+  id?: number;
+  url?: string;
+  sha256?: string;
+};
 type Defect = {
   id: number | string;
   title: string;
@@ -38,6 +45,7 @@ type Defect = {
   expected?: string;
   actual?: string;
   evidence_refs?: (number | string)[];
+  evidence?: ArchivedEvidence[];
   evidence_notes?: string;
   notes?: string;
   repair_attempts?: number | null;
@@ -58,6 +66,8 @@ type Workflow = {
   evidence_ref?: string;
   notes?: string;
   stale_build?: boolean;
+  seal?: { reason?: string };
+  evidence?: ArchivedEvidence[];
 };
 type Batch = {
   id?: string | number;
@@ -129,6 +139,12 @@ const workflowIds = Array.from(
 );
 const label = (value?: string | null) =>
   value?.replaceAll("_", " ") || "Not recorded";
+const workflowLabel = (item?: Workflow) =>
+  item?.status === "expired"
+    ? item.seal?.reason === "build_changed"
+      ? "Expired — build changed"
+      : "Expired — build unavailable or dirty"
+    : label(item?.result ?? item?.status ?? "unassessed");
 const time = (value?: string | null) =>
   value && Number.isFinite(Date.parse(value))
     ? new Date(value).toLocaleString()
@@ -181,6 +197,16 @@ export function QaOfficeQa({
         throw new Error("QA ledger projection is unavailable.");
       if (!active.current || request !== version.current) return;
       setSnapshot(received);
+      setWorkflow((previous) =>
+        previous
+          ? {
+              ...received.coverage.workflows.find(
+                (item) => item.id === previous.id,
+              ),
+              id: previous.id,
+            }
+          : undefined,
+      );
       setReadError("");
       setSelected((previous) =>
         previous
@@ -537,8 +563,8 @@ export function QaOfficeQa({
           )}
           <Typography variant="caption">
             Green: current-build pass · blue: recorded work in progress · red:
-            failed · hatched: older or missing revision · gray: unassessed. No
-            progress is inferred from elapsed time.
+            failed · amber: expired claim · hatched: older or missing revision ·
+            gray: unassessed. No progress is inferred from elapsed time.
           </Typography>
           <Box
             sx={{
@@ -556,20 +582,22 @@ export function QaOfficeQa({
                   item.revision !== revision ||
                   build?.dirty === true);
               const color =
-                /^(pass|passed)$/i.test(result) && !stale
-                  ? "#cce9ce"
-                  : /^(in_progress|working|running)$/i.test(result) && !stale
-                    ? "#cfe2f5"
-                    : /^(failed|fail)$/i.test(result) && !stale
-                      ? "#f5d4cf"
-                      : "#eceeea";
+                result === "expired"
+                  ? "#ffe2a8"
+                  : /^(pass|passed)$/i.test(result) && !stale
+                    ? "#cce9ce"
+                    : /^(in_progress|working|running)$/i.test(result) && !stale
+                      ? "#cfe2f5"
+                      : /^(failed|fail)$/i.test(result) && !stale
+                        ? "#f5d4cf"
+                        : "#eceeea";
               return (
                 <Button
                   key={id}
                   size="small"
                   variant="outlined"
-                  aria-label={`${id}: ${label(result)}${stale ? ", stale revision" : ""}; impact: ${impactLabel(impactRow(impact.scope, id))}`}
-                  title={`${id}: ${impactLabel(impactRow(impact.scope, id))}`}
+                  aria-label={`${id}: ${workflowLabel(item)}${stale ? ", stale revision" : ""}; impact: ${impactLabel(impactRow(impact.scope, id))}`}
+                  title={`${id}: ${workflowLabel(item)}; ${impactLabel(impactRow(impact.scope, id))}`}
                   onClick={() => setWorkflow({ ...item, id })}
                   sx={{
                     fontSize: 10,
@@ -887,6 +915,13 @@ export function QaOfficeQa({
                 </a>
               ) : null,
             )}
+            {selected?.evidence
+              ?.filter((item) => item.kind === "observation")
+              .map((item, index) => (
+                <Typography key={index} sx={{ whiteSpace: "pre-wrap" }}>
+                  {item.text}
+                </Typography>
+              ))}
             {selected?.notes && (
               <Box>
                 <Typography variant="subtitle2">
@@ -928,7 +963,7 @@ export function QaOfficeQa({
         <DialogContent>
           <Stack spacing={1}>
             <Typography>
-              {label(workflow?.result ?? workflow?.status ?? "unassessed")}
+              {workflowLabel(workflow)}
               {workflow?.revision !== revision &&
               (workflow?.result || workflow?.status)
                 ? " · stale or missing revision"
@@ -947,6 +982,22 @@ export function QaOfficeQa({
             <Typography sx={{ whiteSpace: "pre-wrap" }}>
               {workflow?.notes ?? "No notes supplied."}
             </Typography>
+            {workflow?.evidence?.map((item, index) =>
+              item.kind === "observation" ? (
+                <Typography key={index} sx={{ whiteSpace: "pre-wrap" }}>
+                  {item.text}
+                </Typography>
+              ) : item.id ? (
+                <a
+                  key={index}
+                  href={officeLink(`/api/qa/evidence/${item.id}`)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Archived screenshot #{item.id} · SHA-256 {item.sha256}
+                </a>
+              ) : null,
+            )}
             {secureLink(workflow?.evidence_ref) && (
               <a href={workflow!.evidence_ref} target="_blank" rel="noreferrer">
                 Recorded workflow evidence

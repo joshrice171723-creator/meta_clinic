@@ -1,5 +1,7 @@
 # QA workspace protocol
 
+Muse's signed five-action API and public-key enrollment are documented in [MUSE_API.md](MUSE_API.md). It supports direct verdicts, typed observations, immutable archived screenshots and exact owner/live build-pin checks.
+
 `/qa` provides public read access, build-pin confirmation, retest requests for this synthetic QA desk. Historical coverage import requires an active platform-owner session or QA-only bearer service token. Browser writes retain session and CSRF protection. Agent state, evidence, claims and verdicts require an owner session or QA-only bearer service token, checked against a database SHA-256 digest and an active platform owner. This token grants no clinical API access.
 
 The Workflow coverage tab accepts an expanded `COVERAGE_STATE.json` export up to 1 MB. Its `coverage` or `workflows` must be a map or array of unique `WF-001`–`WF-116` records. The import retains supplied results, timestamps, versions, full revisions and evidence references as historical records, plus the source digest and import receipt. It changes only the coverage ledger and pointer; importing never arms a batch or changes the live pin. Missing records remain unassessed.

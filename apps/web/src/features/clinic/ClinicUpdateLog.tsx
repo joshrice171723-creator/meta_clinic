@@ -3,6 +3,14 @@ import { version as clinicVersion } from "../../../package.json";
 
 const changes = [
   [
+    "QA results and evidence",
+    "Muse can record exact-build QA results directly with a scoped signing key. Screenshot evidence is archived, and claims from replaced builds are shown as expired.",
+  ],
+  [
+    "Location setup recovery",
+    "Setup administrators can see unfinished locations and return to clinic setup from the location selector.",
+  ],
+  [
     "Visitor sandbox reset",
     "Reset Sandbox now rebuilds the shared clinic baseline when a different registered visitor starts the reset.",
   ],
@@ -130,8 +138,8 @@ export function ClinicUpdateLog() {
           cross-visitor journey succeeds on the deployed revision.
         </li>
         <li>
-          Version 0.2.0: confirm the exact build revision in /build.json.
-          The separate private QA findings and retests are tracked at
+          Version 0.2.0: confirm the exact build revision in /build.json. The
+          separate private QA findings and retests are tracked at
           /qa?view=atlas; Atlas Build coverage is not a QA pass rate. The
           repository record at
           records/audits/2026-09-28-qa-handoff-value-selection.md preserves
@@ -166,11 +174,11 @@ export function ClinicUpdateLog() {
         <li>
           Recheck #168 without merging two clinical meanings. A medication
           entered in encounter Intake must persist in the saved questionnaire
-          and reappear there after reload. The chart's Current medicines list
-          is a separate reconciled medication-statement record. Intake does not
-          automatically create that record in 0.2.0. Record a defect only if
-          the intake answer itself disappears; a future reconciliation flow
-          requires separate product and clinical direction.
+          and reappear there after reload. The chart's Current medicines list is
+          a separate reconciled medication-statement record. Intake does not
+          automatically create that record in 0.2.0. Record a defect only if the
+          intake answer itself disappears; a future reconciliation flow requires
+          separate product and clinical direction.
         </li>
         <li>
           Retest the original steps for the prior 70-finding audit against this
@@ -203,27 +211,27 @@ export function ClinicUpdateLog() {
           synthetic patient account.
         </li>
         <li>
-          Inspect BUG-044, BUG-045, BUG-049, BUG-052, BUG-055, BUG-057,
-          BUG-058, BUG-069, and BUG-070 on their original screens. Confirm the
-          new clinic credential link, permission matrix, palette/site/template
-          wording, and distinct write-off, void, and credit explanations.
+          Inspect BUG-044, BUG-045, BUG-049, BUG-052, BUG-055, BUG-057, BUG-058,
+          BUG-069, and BUG-070 on their original screens. Confirm the new clinic
+          credential link, permission matrix, palette/site/template wording, and
+          distinct write-off, void, and credit explanations.
         </li>
         <li>
-          Open runtime questions: BUG-036 Reset Sandbox previously returned
-          404; repeat the reset and check restored baseline and visitor
-          isolation. BUG-067 previously locked the QA Gate Test session on a
-          clinic switch; capture the context response and session state before
-          and after. For BUG-003, BUG-032, and BUG-051, include the exact
-          synthetic actor, profile, location assignment, and service state.
-          Preserve authorization and session guards while investigating.
+          Open runtime questions: BUG-036 Reset Sandbox previously returned 404;
+          repeat the reset and check restored baseline and visitor isolation.
+          BUG-067 previously locked the QA Gate Test session on a clinic switch;
+          capture the context response and session state before and after. For
+          BUG-003, BUG-032, and BUG-051, include the exact synthetic actor,
+          profile, location assignment, and service state. Preserve
+          authorization and session guards while investigating.
         </li>
         <li>
-          Release gate follow-up: the first 0.1.9 candidate failed while
-          opening a newly prepared Sandbox and rolled back automatically. The
-          shared prepared Sandbox behavior was restored for this revision.
-          Open it after registering a visitor, switch location, reset it, and
-          verify a second visitor can enter the prepared Sandbox. A reset also
-          replaces another visitor's synthetic changes.
+          Release gate follow-up: the first 0.1.9 candidate failed while opening
+          a newly prepared Sandbox and rolled back automatically. The shared
+          prepared Sandbox behavior was restored for this revision. Open it
+          after registering a visitor, switch location, reset it, and verify a
+          second visitor can enter the prepared Sandbox. A reset also replaces
+          another visitor's synthetic changes.
         </li>
         <li>
           The audit records 23 source-backed fixes, implementations, or
@@ -241,14 +249,15 @@ export function ClinicUpdateLog() {
           the visible page.
         </li>
         <li>
-          Booking defaults (#21): Schedule &gt; Book appointment uses the current
-          real time rounded up to the next 15-minute interval, with a 30-minute
-          duration. Retest while viewing September 1, 2026, and today; choose
-          Start new appointment if a saved draft appears. Confirm the fresh
-          times follow the current clock, then close without booking. Held slots,
-          clicked slots, and Schedule another at this time retain their selected
-          times. Existing saved drafts still require review and remain unchanged
-          until cleared. This default does not guarantee slot availability.
+          Booking defaults (#21): Schedule &gt; Book appointment uses the
+          current real time rounded up to the next 15-minute interval, with a
+          30-minute duration. Retest while viewing September 1, 2026, and today;
+          choose Start new appointment if a saved draft appears. Confirm the
+          fresh times follow the current clock, then close without booking. Held
+          slots, clicked slots, and Schedule another at this time retain their
+          selected times. Existing saved drafts still require review and remain
+          unchanged until cleared. This default does not guarantee slot
+          availability.
         </li>
         <li>
           Location setup: a new location becomes the selected site after it is
@@ -259,7 +268,8 @@ export function ClinicUpdateLog() {
           Encounter signing: completed encounters open their chart workspace so
           the Signing destination contains the draft, signing, or correction
           controls, loading state, or access state instead of an empty anchor.
-          Retest Avery Example Encounter #1 and confirm the persisted-note state.
+          Retest Avery Example Encounter #1 and confirm the persisted-note
+          state.
         </li>
         <li>
           Encounter navigation: Return to tracking board now performs a direct
@@ -274,13 +284,15 @@ export function ClinicUpdateLog() {
         <li>
           Duplicate patients: authorized staff can merge an empty duplicate into
           a canonical patient. Records with linked activity or portal identity
-          are blocked for reconciliation rather than silently moved. Registration
-          details remain on the hidden record and must be copied manually.
+          are blocked for reconciliation rather than silently moved.
+          Registration details remain on the hidden record and must be copied
+          manually.
         </li>
         <li>
           Provider assignment: the tracking board now projects active clinician
           accounts with a current site assignment at the encounter location.
-          Confirm QA Test Clinician appears, can be assigned, and remains after reload.
+          Confirm QA Test Clinician appears, can be assigned, and remains after
+          reload.
         </li>
         <li>
           Workforce badges: issuing a badge now validates the selected employee
@@ -301,7 +313,8 @@ export function ClinicUpdateLog() {
         </li>
         <li>
           Inventory receiving: an empty Destination links to Storage locations.
-          Create an active leaf, return, and confirm the receipt destination persists.
+          Create an active leaf, return, and confirm the receipt destination
+          persists.
         </li>
         <li>
           Schedule cancellation: appointment details consistently show Cancel
@@ -317,8 +330,8 @@ export function ClinicUpdateLog() {
         </li>
         <li>
           Booking draft recovery: earlier-session drafts are explicit; drafts at
-          least 24 hours old show their saved timestamp and a stale warning. Review
-          the recovered intent or choose Start new appointment.
+          least 24 hours old show their saved timestamp and a stale warning.
+          Review the recovered intent or choose Start new appointment.
         </li>
         <li>
           Payment times: cash payment, allocation, and receipt rows now share
@@ -393,8 +406,8 @@ export function ClinicUpdateLog() {
         </li>
         <li>
           Day-end combines live reports and source-action links and now saves an
-          attributed closeout review. Save one, reload, and inspect its
-          captured totals and discrepancy notes.
+          attributed closeout review. Save one, reload, and inspect its captured
+          totals and discrepancy notes.
         </li>
       </Box>
     </Stack>

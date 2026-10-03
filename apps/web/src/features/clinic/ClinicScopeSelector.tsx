@@ -1,4 +1,4 @@
-import { MenuItem, Stack, TextField } from "@mui/material";
+import { Alert, Button, MenuItem, Stack, TextField } from "@mui/material";
 import type { ClinicWorkspaceContext } from "../../api/contracts";
 
 const neutralSelectSx = {
@@ -66,6 +66,7 @@ export function ClinicScopeSelector({
     (practice) =>
       String(practice.organization?.id ?? "independent") === organizationKey,
   );
+  const setupIncompleteSites = context.setup_incomplete_sites ?? [];
   return (
     <Stack
       className="clinic-scope-selector"
@@ -132,40 +133,65 @@ export function ClinicScopeSelector({
         ))}
       </TextField>
       {onLocationChange && (
-        <TextField
-          select
-          id="clinic-location"
-          label="Location"
-          size="small"
-          fullWidth
-          value={context.current_site?.id ?? ""}
-          disabled={disabled || context.sites.length < 2}
-          sx={neutralSelectSx}
-          slotProps={{
-            inputLabel: { shrink: true },
-            select: {
-              displayEmpty: true,
-              MenuProps: neutralMenuProps,
-              title:
-                context.current_site?.name ||
-                context.current_site?.code ||
-                "No location selected",
-            },
-          }}
-          onChange={(event) => onLocationChange(Number(event.target.value))}
-        >
-          <MenuItem value="" disabled>
-            {context.sites.length
-              ? "Choose a location"
-              : "No accessible locations"}
-          </MenuItem>
-          {context.sites.map((site) => (
-            <MenuItem key={site.id} value={site.id}>
-              {site.name || site.code}
-              {site.finalized === false ? " — Setup incomplete" : ""}
+        <>
+          <TextField
+            select
+            id="clinic-location"
+            label="Location"
+            size="small"
+            fullWidth
+            value={context.current_site?.id ?? ""}
+            disabled={disabled || context.sites.length < 2}
+            sx={neutralSelectSx}
+            slotProps={{
+              inputLabel: { shrink: true },
+              select: {
+                displayEmpty: true,
+                MenuProps: neutralMenuProps,
+                title:
+                  context.current_site?.name ||
+                  context.current_site?.code ||
+                  "No location selected",
+              },
+            }}
+            onChange={(event) => onLocationChange(Number(event.target.value))}
+          >
+            <MenuItem value="" disabled>
+              {context.sites.length
+                ? "Choose a location"
+                : "No accessible locations"}
             </MenuItem>
-          ))}
-        </TextField>
+            {context.sites.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                {site.name || site.code}
+                {site.finalized === false ? " — Setup incomplete" : ""}
+              </MenuItem>
+            ))}
+          </TextField>
+          {(context.sites.length === 0 ||
+            setupIncompleteSites.some(
+              (site) => site.id === context.current_site?.id,
+            )) &&
+            setupIncompleteSites.length > 0 &&
+            context.capabilities.clinic_setup_write === true && (
+              <Alert
+                severity="warning"
+                action={
+                  <Button color="inherit" href="/clinic/setup">
+                    Complete clinic setup
+                  </Button>
+                }
+              >
+                {setupIncompleteSites
+                  .map((site) => site.name || site.code)
+                  .join(", ")}{" "}
+                {setupIncompleteSites.length === 1 ? "isn't" : "aren't"}{" "}
+                finalized yet — complete clinic setup to open{" "}
+                {setupIncompleteSites.length === 1 ? "its" : "their"}{" "}
+                workspaces.
+              </Alert>
+            )}
+        </>
       )}
     </Stack>
   );

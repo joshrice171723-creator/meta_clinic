@@ -12,7 +12,7 @@
   [
     "api",
     "POST",
-    "/api/owner/clinics/:id/owner_invitation(.:format)"
+    "/api/qa/office/work/:id/transition(.:format)"
   ],
   [
     "api_clinic",
@@ -48,6 +48,11 @@
     "api_clinic_appointments",
     "GET",
     "/api/clinic/appointments(.:format)"
+  ],
+  [
+    "api_clinic_audit_events",
+    "GET",
+    "/api/clinic/audit_events(.:format)"
   ],
   [
     "api_clinic_billing",
@@ -108,6 +113,11 @@
     "api_clinic_context",
     "GET",
     "/api/clinic/context(.:format)"
+  ],
+  [
+    "api_clinic_day_end_reviews",
+    "GET",
+    "/api/clinic/day_end_reviews(.:format)"
   ],
   [
     "api_clinic_document",
@@ -285,9 +295,24 @@
     "/api/clinic/inventory/shipments(.:format)"
   ],
   [
+    "api_clinic_inventory_management_supplier_catalog_products",
+    "GET",
+    "/api/clinic/inventory/supplier-catalog-products(.:format)"
+  ],
+  [
     "api_clinic_inventory_management_supplier_pricing",
     "GET",
     "/api/clinic/inventory/supplier-pricing(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_supplier_products_manual_quote",
+    "POST",
+    "/api/clinic/inventory/supplier-products/manual-quote(.:format)"
+  ],
+  [
+    "api_clinic_inventory_management_supplier_quote_requests",
+    "POST",
+    "/api/clinic/inventory/supplier-quote-requests(.:format)"
   ],
   [
     "api_clinic_inventory_management_suppliers",
@@ -318,6 +343,11 @@
     "api_clinic_lab_reports_review_queue",
     "GET",
     "/api/clinic/lab_reports/review_queue(.:format)"
+  ],
+  [
+    "api_clinic_lab_unit_mappings",
+    "GET",
+    "/api/clinic/lab_unit_mappings(.:format)"
   ],
   [
     "api_clinic_membership_enrollment",
@@ -355,6 +385,21 @@
     "/api/clinic/note_templates(.:format)"
   ],
   [
+    "api_clinic_offering_text_batch",
+    "GET",
+    "/api/clinic/offering_text_batches/:id(.:format)"
+  ],
+  [
+    "api_clinic_offering_text_batches",
+    "GET",
+    "/api/clinic/offering_text_batches(.:format)"
+  ],
+  [
+    "api_clinic_offering_text_batches_catalog",
+    "GET",
+    "/api/clinic/offering_text_batches/catalog(.:format)"
+  ],
+  [
     "api_clinic_operation_receipt",
     "GET",
     "/api/clinic/operation_receipts/:request_key(.:format)"
@@ -363,6 +408,11 @@
     "api_clinic_operations",
     "PATCH",
     "/api/clinic/operations/encounter_follow_ups/:id(.:format)"
+  ],
+  [
+    "api_clinic_operations_configuration_manifest",
+    "GET",
+    "/api/clinic/operations/configuration_manifest(.:format)"
   ],
   [
     "api_clinic_operations_follow_ups",
@@ -510,6 +560,16 @@
     "/api/clinic/practice_features(.:format)"
   ],
   [
+    "api_clinic_practice_features_history",
+    "GET",
+    "/api/clinic/practice_features/history(.:format)"
+  ],
+  [
+    "api_clinic_prescription_reconciliation_worklist",
+    "GET",
+    "/api/clinic/prescription_reconciliation_worklist(.:format)"
+  ],
+  [
     "api_clinic_realtime_events",
     "GET",
     "/api/clinic/realtime/events(.:format)"
@@ -535,14 +595,79 @@
     "/api/clinic/reminders/:id(.:format)"
   ],
   [
+    "api_clinic_reminder_policy",
+    "GET",
+    "/api/clinic/reminder_policy(.:format)"
+  ],
+  [
     "api_clinic_reminders",
     "GET",
     "/api/clinic/reminders(.:format)"
   ],
   [
+    "api_clinic_report_export",
+    "GET",
+    "/api/clinic/report_exports/:id(.:format)"
+  ],
+  [
+    "api_clinic_report_exports",
+    "GET",
+    "/api/clinic/report_exports(.:format)"
+  ],
+  [
+    "api_clinic_reports_current_stock",
+    "GET",
+    "/api/clinic/reports/current_stock(.:format)"
+  ],
+  [
+    "api_clinic_reports_daily_cash_drawers",
+    "GET",
+    "/api/clinic/reports/daily_cash_drawers(.:format)"
+  ],
+  [
+    "api_clinic_reports_daily_invoices",
+    "GET",
+    "/api/clinic/reports/daily_invoices(.:format)"
+  ],
+  [
+    "api_clinic_reports_daily_payment_activity",
+    "GET",
+    "/api/clinic/reports/daily_payment_activity(.:format)"
+  ],
+  [
+    "api_clinic_reports_daily_stock_movements",
+    "GET",
+    "/api/clinic/reports/daily_stock_movements(.:format)"
+  ],
+  [
     "api_clinic_reports_daily_visits_by_state",
     "GET",
     "/api/clinic/reports/daily_visits_by_state(.:format)"
+  ],
+  [
+    "api_clinic_reports_open_clinical_work",
+    "GET",
+    "/api/clinic/reports/open_clinical_work(.:format)"
+  ],
+  [
+    "api_clinic_reports_payment_collection_activity",
+    "GET",
+    "/api/clinic/reports/payment_collection_activity(.:format)"
+  ],
+  [
+    "api_clinic_reports_prescription_simulator_activity",
+    "GET",
+    "/api/clinic/reports/prescription_simulator_activity(.:format)"
+  ],
+  [
+    "api_clinic_reports_reminder_delivery_activity",
+    "GET",
+    "/api/clinic/reports/reminder_delivery_activity(.:format)"
+  ],
+  [
+    "api_clinic_reports_scribe_activity",
+    "GET",
+    "/api/clinic/reports/scribe_activity(.:format)"
   ],
   [
     "api_clinic_role_grants",
@@ -593,6 +718,16 @@
     "api_clinic_scribe_templates",
     "GET",
     "/api/clinic/scribe/templates(.:format)"
+  ],
+  [
+    "api_clinic_service_inquiries",
+    "GET",
+    "/api/clinic/service_inquiries(.:format)"
+  ],
+  [
+    "api_clinic_service_inquiry",
+    "PATCH",
+    "/api/clinic/service_inquiries/:id(.:format)"
   ],
   [
     "api_clinic_service_offering",
@@ -663,6 +798,11 @@
     "api_clinic_subscription_catalog_storefront_preview",
     "GET",
     "/api/clinic/subscription_catalog/storefront_preview(.:format)"
+  ],
+  [
+    "api_clinic_subscription_catalog_template",
+    "POST",
+    "/api/clinic/subscription_catalog/template(.:format)"
   ],
   [
     "api_clinic_subscriptions",
@@ -850,6 +990,11 @@
     "/api/csrf(.:format)"
   ],
   [
+    "api_demo_feedback",
+    "POST",
+    "/api/demo/feedback(.:format)"
+  ],
+  [
     "api_demo_lesson",
     "POST",
     "/api/demo/lesson(.:format)"
@@ -883,6 +1028,11 @@
     "api_demo_run_view",
     "POST",
     "/api/demo/run/view(.:format)"
+  ],
+  [
+    "api_demo_sandbox_prepare",
+    "POST",
+    "/api/demo/sandbox/prepare(.:format)"
   ],
   [
     "api_demo_visitor",
@@ -958,6 +1108,11 @@
     "api_owner_password_reset_requests",
     "POST",
     "/api/owner_password_reset_requests(.:format)"
+  ],
+  [
+    "api_owner_review_packets",
+    "POST",
+    "/api/owner/review_packets(.:format)"
   ],
   [
     "api_paperwork",
@@ -1100,6 +1255,116 @@
     "/api/public/page_visits(.:format)"
   ],
   [
+    "api_qa",
+    "GET",
+    "/api/qa(.:format)"
+  ],
+  [
+    "api_qa_baseline",
+    "POST",
+    "/api/qa/baseline(.:format)"
+  ],
+  [
+    "api_qa_coverage",
+    "POST",
+    "/api/qa/coverage(.:format)"
+  ],
+  [
+    "api_qa_events",
+    "POST",
+    "/api/qa/events(.:format)"
+  ],
+  [
+    "api_qa_evidence",
+    "POST",
+    "/api/qa/evidence(.:format)"
+  ],
+  [
+    "api_qa_notifications",
+    "GET",
+    "/api/qa/notifications(.:format)"
+  ],
+  [
+    "api_qa_office",
+    "GET",
+    "/api/qa/office(.:format)"
+  ],
+  [
+    "api_qa_office_actors",
+    "GET",
+    "/api/qa/office/actors(.:format)"
+  ],
+  [
+    "api_qa_office_check_ins",
+    "POST",
+    "/api/qa/office/check-ins(.:format)"
+  ],
+  [
+    "api_qa_office_enrollments",
+    "POST",
+    "/api/qa/office/enrollments(.:format)"
+  ],
+  [
+    "api_qa_office_position",
+    "POST",
+    "/api/qa/office/position(.:format)"
+  ],
+  [
+    "api_qa_office_qa",
+    "GET",
+    "/api/qa/office/qa(.:format)"
+  ],
+  [
+    "api_qa_office_qa_batches_poll",
+    "POST",
+    "/api/qa/office/qa/batches/poll(.:format)"
+  ],
+  [
+    "api_qa_office_qa_defects",
+    "POST",
+    "/api/qa/office/qa/defects(.:format)"
+  ],
+  [
+    "api_qa_office_qa_ledger",
+    "POST",
+    "/api/qa/office/qa/ledger(.:format)"
+  ],
+  [
+    "api_qa_office_qa_retests",
+    "POST",
+    "/api/qa/office/qa/retests(.:format)"
+  ],
+  [
+    "api_qa_office_work",
+    "GET",
+    "/api/qa/office/work(.:format)"
+  ],
+  [
+    "api_qa_pin",
+    "POST",
+    "/api/qa/pin(.:format)"
+  ],
+  [
+    "api_qa_room",
+    "GET",
+    "/api/qa/room(.:format)"
+  ],
+  [
+    "api_qa_room_messages",
+    "POST",
+    "/api/qa/room/messages(.:format)"
+  ],
+  [
+    "api_qa_state",
+    "POST",
+    "/api/qa/state(.:format)"
+  ],
+  [
+    "api_qa_tasks",
+    "GET",
+    "/api/qa/tasks(.:format)"
+  ],
+  [
     "api_qa_workflow_center_claims",
     "POST",
     "/api/qa/workflow-center/claims(.:format)"
@@ -1140,6 +1405,11 @@
     "/api/clinic/workforce/timecards/:id/approve(.:format)"
   ],
   [
+    "assign_site_api_clinic_clinician",
+    "POST",
+    "/api/clinic/clinicians/:id/assign_site(.:format)"
+  ],
+  [
     "batch_preview_api_clinic_reminders",
     "POST",
     "/api/clinic/reminders/batch_preview(.:format)"
@@ -1153,6 +1423,11 @@
     "billing_ledger_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/billing_ledger(.:format)"
+  ],
+  [
+    "billing_statement_api_clinic_patient",
+    "GET",
+    "/api/clinic/patients/:id/billing_statement(.:format)"
   ],
   [
     "bind_clinical_encounter_api_clinic_scribe_encounter",
@@ -1310,6 +1585,11 @@
     "/api/clinic/documents/:id/download(.:format)"
   ],
   [
+    "download_api_clinic_report_export",
+    "GET",
+    "/api/clinic/report_exports/:id/download(.:format)"
+  ],
+  [
     "draft_api_clinic_invoice",
     "PATCH",
     "/api/clinic/invoices/:id/draft(.:format)"
@@ -1360,6 +1640,11 @@
     "/api/clinic/scribe/recordings/:id/interrupt(.:format)"
   ],
   [
+    "invoice_comparison_api_clinic_cash_pay_estimate",
+    "GET",
+    "/api/clinic/cash_pay_estimates/:id/invoice_comparison(.:format)"
+  ],
+  [
     "issue_api_clinic_cash_pay_estimate",
     "POST",
     "/api/clinic/cash_pay_estimates/:id/issue(.:format)"
@@ -1378,6 +1663,11 @@
     "lookup_api_clinic_pharmacy_index",
     "POST",
     "/api/clinic/pharmacy/lookup(.:format)"
+  ],
+  [
+    "merge_api_clinic_patient",
+    "POST",
+    "/api/clinic/patients/:id/merge(.:format)"
   ],
   [
     "nadac_api_clinic_pharmacy_index",
@@ -1450,9 +1740,19 @@
     "/api/clinic/invoices/:id/post(.:format)"
   ],
   [
+    "preview_api_clinic_day_end_reviews",
+    "GET",
+    "/api/clinic/day_end_reviews/preview(.:format)"
+  ],
+  [
     "previous_signed_soap_api_clinic_patient",
     "GET",
     "/api/clinic/patients/:id/previous_signed_soap(.:format)"
+  ],
+  [
+    "provenance_configuration_api_clinic_document_category",
+    "GET",
+    "/api/clinic/document_categories/:id/provenance_configuration(.:format)"
   ],
   [
     "provider_assignment_api_clinic_encounter",
@@ -1473,6 +1773,41 @@
     "punches_status",
     "GET",
     "/api/workforce/kiosk/punches/status(.:format)"
+  ],
+  [
+    "qa_api_defect",
+    "POST",
+    "/qa/api/defect(.:format)"
+  ],
+  [
+    "qa_api_enrollment_approve",
+    "POST",
+    "/qa/api/enrollment/approve(.:format)"
+  ],
+  [
+    "qa_api_enrollment_revoke",
+    "POST",
+    "/qa/api/enrollment/revoke(.:format)"
+  ],
+  [
+    "qa_api_retest_request",
+    "POST",
+    "/qa/api/retest-request(.:format)"
+  ],
+  [
+    "qa_api_test_data_prepare",
+    "POST",
+    "/qa/api/test-data/prepare(.:format)"
+  ],
+  [
+    "qa_api_verdict",
+    "POST",
+    "/qa/api/verdict(.:format)"
+  ],
+  [
+    "qa_api_workflow_claim",
+    "POST",
+    "/qa/api/workflow/claim(.:format)"
   ],
   [
     "quote_api_patient_portal_subscriptions",
@@ -1533,6 +1868,11 @@
     "record_follow_up_api_clinic_patient_lab_report",
     "POST",
     "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/follow_up(.:format)"
+  ],
+  [
+    "record_follow_up_contact_attempt_api_clinic_patient_lab_report",
+    "POST",
+    "/api/clinic/patients/:patient_id/lab_reports/:id/versions/:version_id/follow_up/contact_attempts(.:format)"
   ],
   [
     "recover_api_clinic_reminders",
@@ -1700,6 +2040,11 @@
     "/api/clinic/invoices/:id/void(.:format)"
   ],
   [
+    "write_offs_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/write_offs(.:format)"
+  ],
+  [
     null,
     "DELETE",
     "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
@@ -1727,6 +2072,26 @@
   [
     null,
     "GET",
+    "/api/clinic/facilities/:site_id/operational_policy(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/facilities/:site_id/operational_policy/history(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/facilities/:site_id/resource_compatibility(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/facilities/:site_id/resource_compatibility/services/:offering_id/availability(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/facilities/:site_id/scheduling_policy(.:format)"
   ],
   [
@@ -1737,7 +2102,22 @@
   [
     null,
     "GET",
+    "/api/clinic/inventory/purchase-orders/:id/delivery-preparations(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/inventory/purchase-orders/:id/reconciliation(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/inventory/shipments/:id/carrier-preparations(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/patients/:patient_id/documents/:document_id/provenance(.:format)"
   ],
   [
     null,
@@ -1797,7 +2177,47 @@
   [
     null,
     "GET",
+    "/api/public/clinic_services/:slug(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/public/clinic_services/:slug/logo(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/public/membership_storefronts/:slug(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/qa/atlas.json(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/qa/batches.json(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/qa/evidence/:id(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/qa/issues.json(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/qa/retest.json(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/qa/status.json(.:format)"
   ],
   [
     null,
@@ -1837,6 +2257,16 @@
   [
     null,
     "PATCH",
+    "/api/clinic/facilities/:site_id/operational_policy(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/facilities/:site_id/resource_compatibility/resources/:resource_id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
     "/api/clinic/facilities/:site_id/scheduling_policy(.:format)"
   ],
   [
@@ -1868,6 +2298,16 @@
     null,
     "PATCH",
     "/api/clinic/inventory/purchase-cart/items/:id(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/inventory/supplier-products/:id/manual-quote(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/lab_unit_mappings(.:format)"
   ],
   [
     null,
@@ -1943,6 +2383,11 @@
     null,
     "PATCH",
     "/api/clinic/practice_features(.:format)"
+  ],
+  [
+    null,
+    "PATCH",
+    "/api/clinic/reminder_policy(.:format)"
   ],
   [
     null,
@@ -2027,6 +2472,16 @@
   [
     null,
     "POST",
+    "/api/clinic/day_end_reviews(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/document_categories/:id/provenance_configuration(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/encounters/:encounter_id/medication_administrations(.:format)"
   ],
   [
@@ -2043,6 +2498,11 @@
     null,
     "POST",
     "/api/clinic/facilities/:id/rooms(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/facilities/:site_id/resource_compatibility(.:format)"
   ],
   [
     null,
@@ -2137,6 +2597,11 @@
   [
     null,
     "POST",
+    "/api/clinic/inventory/purchase-orders/:id/delivery-preparations(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/inventory/purchase-orders/:id/invoices(.:format)"
   ],
   [
@@ -2177,6 +2642,16 @@
   [
     null,
     "POST",
+    "/api/clinic/inventory/shipments/:id/carrier-preparations(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/inventory/shipments/:id/events(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/membership_enrollment(.:format)"
   ],
   [
@@ -2188,6 +2663,16 @@
     null,
     "POST",
     "/api/clinic/membership_enrollment/:id/payment(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/offering_text_batches(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/offering_text_batches/:id/items/:item/:operation(.:format)"
   ],
   [
     null,
@@ -2208,6 +2693,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/clinical_history/:kind(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/documents/:document_id/provenance(.:format)"
   ],
   [
     null,
@@ -2368,6 +2858,11 @@
     null,
     "POST",
     "/api/clinic/reminders(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/report_exports(.:format)"
   ],
   [
     null,
@@ -2622,6 +3117,16 @@
   [
     null,
     "POST",
+    "/api/owner/clinics/:id/owner_invitation(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/owner/review_packets/:id/decision(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/patient_portal/appointment_requests(.:format)"
   ],
   [
@@ -2677,6 +3182,11 @@
   [
     null,
     "POST",
+    "/api/public/clinic_services/:slug/inquiries(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/public/membership_storefronts/:slug/accounts(.:format)"
   ],
   [
@@ -2693,6 +3203,41 @@
     null,
     "POST",
     "/api/public/membership_storefronts/:slug/prospects(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/issues/:id/priority(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/notifications/:id/receipt(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/tasks(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/tasks/:id/accept(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/tasks/:id/approval(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/tasks/:id/recover(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/qa/tasks/:id/transition(.:format)"
   ],
   [
     null,
@@ -2722,6 +3267,16 @@
   [
     null,
     "PUT",
+    "/api/clinic/facilities/:site_id/resource_compatibility/services/:offering_id(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/lab_unit_mappings(.:format)"
+  ],
+  [
+    null,
+    "PUT",
     "/api/clinic/membership_prospects/:id(.:format)"
   ],
   [
@@ -2743,6 +3298,11 @@
     null,
     "PUT",
     "/api/clinic/practice_features(.:format)"
+  ],
+  [
+    null,
+    "PUT",
+    "/api/clinic/service_inquiries/:id(.:format)"
   ],
   [
     null,

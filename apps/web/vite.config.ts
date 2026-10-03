@@ -151,6 +151,7 @@ export default defineConfig({
     strictPort: true,
     // Preserve Host and Origin so Rails remains the CSRF authority.
     proxy: {
+      "/qa/api": { target: "http://127.0.0.1:" + apiPort, changeOrigin: false },
       "/api": { target: "http://127.0.0.1:" + apiPort, changeOrigin: false },
       "/qa/status.json": {
         target: "http://127.0.0.1:" + apiPort,

@@ -4,6 +4,7 @@
 # Use this to limit dissemination of sensitive information.
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
+  :evidence, # Signed screenshot source URLs may contain short-lived credentials.
   :payload, # Encrypted working-copy values and pending operation bodies.
   :metadata, # Supplied document source/issuer/dates and correction text are encrypted separately from file bytes.
   :pin, :badge, :challenge, :enrollment_code, :activation_code,

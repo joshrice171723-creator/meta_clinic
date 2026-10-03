@@ -33,7 +33,8 @@ class BoundariesTest < ActiveSupport::TestCase
     actual = Rails.application.routes.routes.reject { |route| route.path.spec.to_s.start_with?("/rails/") }
       .map { |route| [ route.name, route.verb, route.path.spec.to_s ] }.sort_by(&:to_json)
     assert_equal expected, actual
-    actual.each { |_, _, path| assert path.start_with?("/api/") || ["/up(.:format)", "/stripe/connect/webhook(.:format)"].include?(path), path }
+    muse_paths = %w[enrollment/approve enrollment/revoke workflow/claim verdict defect test-data/prepare retest-request].map { |action| "/qa/api/#{action}(.:format)" }
+    actual.each { |_, _, path| assert path.start_with?("/api/") || (["/up(.:format)", "/stripe/connect/webhook(.:format)"] + muse_paths).include?(path), path }
   end
 
   test "models retain their original storage identities and resolve domain associations" do

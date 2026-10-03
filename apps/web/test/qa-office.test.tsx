@@ -229,7 +229,7 @@ async function open(
       });
     return route.abort();
   });
-  await page.goto(`${base}qa?view=office`);
+  await page.goto(`${base}qa?view=office`, { timeout: 60_000 });
   await page.getByRole("navigation", { name: "QA workspace" }).waitFor();
   return { page, writes };
 }
@@ -708,6 +708,14 @@ it("shows only current-revision workflow passes and preserves unavailable histor
             source: "Historical import",
             workflows: [
               {
+                id: "WF-004",
+                status: "expired",
+                result: "expired",
+                revision: "b".repeat(40),
+                seal: { reason: "build_changed" },
+              },
+              { id: "WF-005", result: "failed", revision },
+              {
                 id: "WF-001",
                 result: "passed",
                 revision,
@@ -755,6 +763,22 @@ it("shows only current-revision workflow passes and preserves unavailable histor
         .getByRole("button", { name: "Request retest" })
         .isDisabled(),
     ).toBe(true);
+    await page.keyboard.press("Escape");
+    const expired = page.getByRole("button", {
+      name: /WF-004: Expired .* build changed, stale revision/,
+    });
+    await expired.waitFor();
+    expect(
+      await expired.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    ).toBe("rgb(255, 226, 168)");
+    const failed = page.getByRole("button", { name: "WF-005: failed" });
+    expect(
+      await failed.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    ).not.toBe("rgb(255, 226, 168)");
     expect(writes).toEqual([]);
   } finally {
     await page.close();
