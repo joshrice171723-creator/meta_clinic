@@ -451,7 +451,12 @@ it("uses current collection records and clears context for unavailable identity,
           (r) => new URL(r.url()).pathname === "/api/clinic/invoices/13552",
         ),
       ]);
-      await refresh.click();
+      const identityRefresh = dialog.getByRole("button", {
+        name: "Refresh saved invoice detail",
+        exact: true,
+      });
+      if (await identityRefresh.count()) await identityRefresh.click();
+      else await refresh.click();
       await reads;
       if (state.invoiceId !== 13552) {
         // A mismatched saved invoice must expose no actionable checkout controls.

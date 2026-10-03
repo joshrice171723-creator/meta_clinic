@@ -1315,6 +1315,20 @@ export function BillingDashboard() {
                     recording another.
                   </Alert>
                 )}
+                {selectedDetail && selectedDetail.id !== selectedInvoice.id && (
+                  <Alert severity="warning">
+                    The saved invoice detail does not match this selection.
+                    Collection actions are unavailable until it is refreshed.
+                    <Button
+                      onClick={() => {
+                        refresh();
+                        detailResource.refresh();
+                      }}
+                    >
+                      Refresh saved invoice detail
+                    </Button>
+                  </Alert>
+                )}
                 {selectedDetail && selectedDetail.id === selectedInvoice.id && (
                   <InvoiceCheckoutControls
                     key={selectedInvoice.id}
