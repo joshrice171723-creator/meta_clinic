@@ -1183,6 +1183,33 @@
   padding: 16px;
   border-radius: 8px;
 }
+.clinic-theme .billing-dashboard .billing-checkout-queue {
+  margin-bottom: 16px;
+  border: 1px solid var(--clinic-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.clinic-theme .billing-dashboard .billing-checkout-queue::before {
+  display: none;
+}
+.clinic-theme
+  .billing-dashboard
+  .billing-checkout-queue
+  .MuiAccordionSummary-root {
+  min-height: 48px;
+  color: var(--clinic-text);
+  font-weight: 650;
+}
+.clinic-theme
+  .billing-dashboard
+  .billing-checkout-queue
+  .MuiAccordionDetails-root {
+  padding: 8px 16px 16px;
+  border-top: 1px solid var(--clinic-border);
+}
+.clinic-theme .billing-dashboard .billing-checkout-queue .billing-subtitle {
+  margin: 0 0 12px;
+}
 .clinic-theme .billing-dashboard .billing-ledger-toolbar {
   gap: 12px;
   margin-top: 16px;

@@ -3522,9 +3522,28 @@ export function CatalogScreen({
           </Alert>
         )}
         {data.products.length === 0 && (
-          <p className="inventory-empty-state" role="status">
-            No products match this view. Change the search or reset the view.
-          </p>
+          <div
+            className="inventory-empty-state inventory-empty-state--compact"
+            role="status"
+          >
+            <strong>No products match this view</strong>
+            <p>
+              Change the search or clear the filters to review recorded products.
+            </p>
+            {activeFilter && (
+              <Button
+                variant="outlined"
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setQuery("");
+                  void onRead({ q: "", status: "all", sort: "name", page: 1 });
+                }}
+              >
+                Clear catalog filters
+              </Button>
+            )}
+          </div>
         )}
         <div className="inventory-table-wrap">
           <table>
@@ -3754,7 +3773,7 @@ function InventoryFirstRunWizard({ data }: { data: InventoryCatalogData }) {
   return (
     <details className="inventory-first-run" open={remainingSteps > 0}>
       <summary>
-        First inventory run ┬╖ {remainingSteps} step
+        First inventory run · {remainingSteps} step
         {remainingSteps === 1 ? "" : "s"} remaining
       </summary>
       <section aria-labelledby="inventory-first-run-title">
@@ -3898,16 +3917,22 @@ function ReplenishmentScreen({
   if (!item)
     return (
       <Card title="Replenishment suggestions">
-        <p>
-          {requestedProductId
-            ? requestedProduct
-              ? `${requestedProduct.name} is not below its projected reorder point.`
-              : "The requested product was not found."
-            : "No products are below their projected reorder point."}
-        </p>
-        <a className="inventory-button outline" href="/clinic/inventory">
-          Return to catalog
-        </a>
+        <div
+          className="inventory-empty-state inventory-empty-state--compact"
+          role="status"
+        >
+          <strong>No replenishment item is available</strong>
+          <p>
+            {requestedProductId
+              ? requestedProduct
+                ? `${requestedProduct.name} is not below its projected reorder point.`
+                : "The requested product was not found."
+              : "No products are below their projected reorder point."}
+          </p>
+          <Button variant="outlined" href="/clinic/inventory">
+            Return to catalog
+          </Button>
+        </div>
       </Card>
     );
   const submit = (event: FormEvent) => {
@@ -7150,23 +7175,26 @@ function LotsScreen({
   };
   return (
     <div className="inventory-stack" aria-busy={loading}>
-      <Card title="Find stock positions">
-        <InventoryScanInput
-          context="transfer"
-          disabled={loading || busy || readBlocked || Boolean(error)}
-          label="Scan a product for transfer"
-          manualFallback="Search for the product below, then select the exact lot and location."
-          onMatch={(match) =>
-            window.location.assign(
-              `/clinic/inventory/lots?product_id=${encodeURIComponent(match.product_id)}&scan=1`,
-            )
-          }
-          onClear={() => {
-            setSelectedId("");
-            setQuantity("");
-            setReason("");
-          }}
-        />
+      <Card className="inventory-stock-controls">
+        <details className="inventory-stock-scan">
+          <summary>Scan a product</summary>
+          <InventoryScanInput
+            context="transfer"
+            disabled={loading || busy || readBlocked || Boolean(error)}
+            label="Scan a product for transfer"
+            manualFallback="Search for the product below, then select the exact lot and location."
+            onMatch={(match) =>
+              window.location.assign(
+                `/clinic/inventory/lots?product_id=${encodeURIComponent(match.product_id)}&scan=1`,
+              )
+            }
+            onClear={() => {
+              setSelectedId("");
+              setQuantity("");
+              setReason("");
+            }}
+          />
+        </details>
         {page.product_name && (
           <p>
             Product: {page.product_name}.{" "}
@@ -7239,99 +7267,135 @@ function LotsScreen({
           </Alert>
         )}
       </Card>
-      <div className="inventory-metrics">
+      <div
+        className="inventory-stock-totals"
+        role="group"
+        aria-label="Matching stock totals"
+      >
         {data.unit_totals.map((total) => (
-          <Metric
-            key={total.stock_unit}
-            label={`${total.stock_unit} available`}
-            value={number(total.available_units)}
-            detail={`${number(total.on_hand_units)} ${total.stock_unit} on hand · ${number(total.unavailable_units)} ${total.stock_unit} unavailable across all matching positions`}
-          />
+          <div key={total.stock_unit}>
+            <strong>
+              {number(total.available_units)} {total.stock_unit} available
+            </strong>
+            <span>
+              {number(total.on_hand_units)} {total.stock_unit} on hand ·{" "}
+              {number(total.unavailable_units)} {total.stock_unit} unavailable
+            </span>
+          </div>
         ))}
       </div>
       <Card title="Stock by lot and location">
         {data.balances.length === 0 && (
-          <p role="status">
-            No stock positions match this view. Change the filters or receive
-            stock.
-          </p>
+          <div
+            className="inventory-empty-state inventory-empty-state--compact"
+            role="status"
+          >
+            <strong>
+              {page.total_count > 0 && page.filtered_count === 0
+                ? "No stock positions match these filters"
+                : "No stock positions are recorded"}
+            </strong>
+            <p>
+              {page.total_count > 0
+                ? "Clear or change the filters to review recorded stock."
+                : "Received stock appears here after its lot and storage location are recorded."}
+            </p>
+            {page.total_count > 0 && (page.query || page.status !== "all") ? (
+              <Button
+                variant="outlined"
+                disabled={loading || busy || readBlocked}
+                onClick={() =>
+                  void onRead({ q: "", stock_status: "all", page: 1 })
+                }
+              >
+                Clear stock filters
+              </Button>
+            ) : page.total_count === 0 &&
+              capability(data, "inventory.receive") ? (
+              <Button variant="outlined" href="/clinic/inventory/receiving">
+                Open receiving
+              </Button>
+            ) : null}
+          </div>
         )}
-        <div className="inventory-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Product / lot</th>
-                <th>Location</th>
-                <th>On hand (stock units)</th>
-                <th>Available (stock units)</th>
-                <th>Status</th>
-                <th>Lot history</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.balances.map((balance) => {
-                const item = product(data, balance.product_id)!;
-                const lotItem = lot(data, balance.lot_id)!;
-                const loc = location(data, balance.location_id)!;
-                return (
-                  <tr
-                    key={balance.id}
-                    className={balance.id === selected?.id ? "selected" : ""}
-                  >
-                    <td>
-                      <Button
-                        type="button"
-                        disabled={busy || loading || readBlocked}
-                        sx={{
-                          textTransform: "none",
-                          textAlign: "left",
-                          justifyContent: "flex-start",
-                        }}
-                        onClick={() => {
-                          setSelectedId(balance.id);
-                          setQuantity(scanScoped ? "" : "1");
-                          setReason("");
-                        }}
-                      >
-                        {item.name}
-                      </Button>
-                      <small>
-                        Lot {lotItem.lot_number} · expires{" "}
-                        {inventoryDate(lotItem.expiration_date, data.timezone)}
-                      </small>
-                    </td>
-                    <td>
-                      {loc.name}
-                      <small>{loc.areas[0]}</small>
-                    </td>
-                    <td className="numeric">
-                      {number(balance.on_hand_units)} {item.base_unit}
-                    </td>
-                    <td className="numeric">
-                      {number(balance.available_units)} {item.base_unit}
-                    </td>
-                    <td>
-                      <Badge
-                        tone={
-                          lotItem.status === "active" ? "success" : "danger"
-                        }
-                      >
-                        {lotItem.status}
-                      </Badge>
-                    </td>
-                    <td>
-                      <a
-                        href={`/clinic/inventory/activity?lot_id=${balance.lot_id}`}
-                      >
-                        View lot ledger
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {data.balances.length > 0 && (
+          <div className="inventory-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product / lot</th>
+                  <th>Location</th>
+                  <th>On hand (stock units)</th>
+                  <th>Available (stock units)</th>
+                  <th>Status</th>
+                  <th>Lot history</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.balances.map((balance) => {
+                  const item = product(data, balance.product_id)!;
+                  const lotItem = lot(data, balance.lot_id)!;
+                  const loc = location(data, balance.location_id)!;
+                  return (
+                    <tr
+                      key={balance.id}
+                      className={balance.id === selected?.id ? "selected" : ""}
+                    >
+                      <td>
+                        <Button
+                          type="button"
+                          disabled={busy || loading || readBlocked}
+                          sx={{
+                            textTransform: "none",
+                            textAlign: "left",
+                            justifyContent: "flex-start",
+                          }}
+                          onClick={() => {
+                            setSelectedId(balance.id);
+                            setQuantity(scanScoped ? "" : "1");
+                            setReason("");
+                          }}
+                        >
+                          {item.name}
+                        </Button>
+                        <small>
+                          Lot {lotItem.lot_number} · expires{" "}
+                          {inventoryDate(lotItem.expiration_date, data.timezone)}
+                        </small>
+                      </td>
+                      <td>
+                        {loc.name}
+                        <small>{loc.areas[0]}</small>
+                      </td>
+                      <td className="numeric">
+                        {number(balance.on_hand_units)} {item.base_unit}
+                      </td>
+                      <td className="numeric">
+                        {number(balance.available_units)} {item.base_unit}
+                      </td>
+                      <td>
+                        <Badge
+                          tone={
+                            lotItem.status === "active" ? "success" : "danger"
+                          }
+                        >
+                          {lotItem.status}
+                        </Badge>
+                      </td>
+                      <td>
+                        <a
+                          href={`/clinic/inventory/activity?lot_id=${balance.lot_id}`}
+                        >
+                          View lot ledger
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
       {page.page_count > 1 && (
         <nav className="inventory-pagination" aria-label="Stock pagination">
@@ -7831,9 +7895,41 @@ function InventoryExceptionsScreen({
           </table>
         </div>
         {!data.exceptions.length && (
-          <p className="inventory-empty" role="status">
-            No active hazards match this view.
-          </p>
+          <div
+            className="inventory-empty-state inventory-empty-state--compact"
+            role="status"
+          >
+            <strong>
+              {page.filtered_count === 0 && page.total_count > 0
+                ? "No active hazards match these filters"
+                : "No active hazards are recorded"}
+            </strong>
+            <p>
+              {page.filtered_count === 0 && page.total_count > 0
+                ? "Clear or change the filters to review active hazards."
+                : "There are no active inventory exceptions to review."}
+            </p>
+            {page.total_count > 0 &&
+              (page.query ||
+                page.status !== "all" ||
+                page.category !== "all") && (
+                <Button
+                  variant="outlined"
+                  disabled={readDisabled}
+                  onClick={() => {
+                    setQuery("");
+                    void onRead({
+                      q: "",
+                      exception_status: "all",
+                      category: "all",
+                      page: 1,
+                    });
+                  }}
+                >
+                  Clear exception filters
+                </Button>
+              )}
+          </div>
         )}
         {page.page_count > 1 && (
           <nav

@@ -145,6 +145,46 @@
   padding: 20px;
   min-width: 0;
 }
+.inventory-stock-controls {
+  padding: 12px 16px;
+}
+.inventory-stock-scan {
+  margin-bottom: 10px;
+}
+.inventory-stock-scan summary {
+  width: fit-content;
+  color: var(--inventory-blue);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+.inventory-stock-scan[open] summary {
+  margin-bottom: 12px;
+}
+.inventory-stock-controls .inventory-toolbar {
+  margin-top: 0;
+}
+.inventory-stock-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 10px 0;
+  color: var(--inventory-muted);
+  font-size: 12px;
+}
+.inventory-stock-totals > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+.inventory-stock-totals strong {
+  color: var(--inventory-ink);
+  font-variant-numeric: tabular-nums;
+}
+.inventory-stock-totals span {
+  font-variant-numeric: tabular-nums;
+}
 .inventory-card h2 {
   font-size: 17px;
   line-height: 1.2;
@@ -1212,6 +1252,30 @@ a.inventory-info:hover {
   max-width: 56ch;
   margin: 6px auto 0;
   color: var(--inventory-muted);
+  font-size: 13px;
+}
+.inventory-empty-state--compact {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 14px 16px;
+  border-style: solid;
+  text-align: left;
+}
+.inventory-empty-state--compact p {
+  margin: 0;
+}
+.inventory-empty-state--compact .MuiButton-root {
+  min-height: 40px;
+  margin-top: 4px;
+  text-transform: none;
+}
+.inventory-empty {
+  margin: 0;
+  padding: 12px 14px;
+  color: var(--inventory-muted);
+  background: var(--inventory-background);
+  border-inline-start: 3px solid var(--inventory-border);
   font-size: 13px;
 }
 .inventory-field {
