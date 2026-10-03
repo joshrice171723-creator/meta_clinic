@@ -84,6 +84,13 @@ unchanged.
 ./ops/lightsail/release.ps1 -KeyPath '<path to the owner Lightsail SSH key>' -BuildWebOnHost
 ```
 
+For a local disk with insufficient space for the image archive, add `-StreamImages`
+on PowerShell 7.4 or newer. With `-BuildWebOnHost`, it streams the generated web
+bundle into Docker rather than copying it into a temporary packaging directory.
+It then pipes the matched images directly over SSH into the host's Docker loader.
+Packaging, export or SSH errors stop the release; host image
+identity, encrypted recovery, migration and rollout checks still run.
+
 Optional prebuilt mode: first run **Publish portable containers** on `main`
 and wait for both API and web jobs to pass for its exact commit. Give host root
 a GitHub Container Registry credential with `read:packages` only. Keep it in
