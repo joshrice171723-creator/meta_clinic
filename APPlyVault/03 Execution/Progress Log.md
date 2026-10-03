@@ -140,6 +140,11 @@ The [fixed-fe6 inventory](../../records/progress/2026/09/2026-09-30-fe6-requirem
 
 The [canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md) and [fe6 score report](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) now label retained aggregate numbers as disputed historical planning estimates, not measured product completion or release gates. The [fixed-fe6 requirement inventory](../../records/progress/2026/09/2026-09-30-fe6-requirement-inventory-and-estimate-correction.md) records actual source-present mechanisms, partial/missing scope, undefined/external choices and unrun runtime verification. No stable atomic requirement denominator or justified weights exist; overall measured completion is undefined and further subjective awards are frozen. Historical numeric cells, arithmetic and records are preserved without another guessed percentage. This documentation-only correction does not credit later source, change application code, run tests or authorize merge/deployment. Relay owns integration of the correction branch.
 
+## 2026-09-30 — Fixed fe6db4c0 source-only score
+
+[Canonical tracker](Meta%20Clinic%20Implementation%20Tracker.md): **Build 80.5%→91.1%; local Validation 49.5% unchanged; External/human 0% unchanged**, only at `fe6db4c0764b1dc9a4d33b354bf744d6fc5c3f12`. [All-row evidence and ranked remaining mechanisms](../../records/progress/2026/09/2026-09-30-tracker-score-batch-fe6db4c0.md) records 1,208→1,366 Build points (+135 retained deliveries, +23 existing-source corrections in MC03/13) and 742 Validation points over the unchanged 15-row denominator. Office earns zero. Full matrices retain per-question task linkage, response/carrier evidence, scheduling resources, repeating allowances and broader migration/export gaps with undefined policy separated.
+
+Candidate preserves externally merged main 7ded/Office; PR66 is closed. This source-only batch has no new app tests/build/lint, schema/runtime or release pass. Existing receipts remain historical at tested bytes. At these estimates 59 more row points are needed for 95; no forecast award, main merge, deployment or new PR. Relay receives the isolated three-file documentation branch for its current product integration branch.
 
 ## 2026-09-30 — Fixed 6099fc55 source assessment
 
