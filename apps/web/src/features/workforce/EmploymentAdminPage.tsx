@@ -470,6 +470,8 @@ export function EmploymentAdminPage() {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [directorySelection, setDirectorySelection] = useState<number[]>([]);
   const [bulkRoleOpen, setBulkRoleOpen] = useState(false);
+  const bulkRoleSummaryRef = useRef<HTMLDivElement>(null);
+  const focusBulkRoleHeadingOnEnter = useRef(false);
   const [bulkSelectionRequest, setBulkSelectionRequest] = useState<{
     sequence: number;
     ids: number[];
@@ -548,10 +550,6 @@ export function EmploymentAdminPage() {
   const frontDeskRole = data.role_options.find(
     (role) => role.role_code === "front-desk-coordinator",
   );
-  const defaultBulkRole =
-    data.role_options.find(
-      (role) => role.role_code === "workforce-employee",
-    ) ?? data.role_options[0];
   const clinicianSetupNeeded =
     setupRoleCode === "clinician" ||
     data.role_options.find((role) => String(role.id) === roleVersionId)
@@ -798,11 +796,7 @@ export function EmploymentAdminPage() {
     bulkAccessBlocked ||
     Object.values(individualAccessBlocked).some(Boolean);
   const beginBulkRoleChange = () => {
-    if (
-      !defaultBulkRole ||
-      !directorySelection.length ||
-      selectionActionsBlocked
-    )
+    if (!directorySelection.length || selectionActionsBlocked)
       return;
     bulkSelectionSequence.current += 1;
     setBulkSelectionRequest({
@@ -810,6 +804,7 @@ export function EmploymentAdminPage() {
       ids: [...directorySelection],
     });
     setDirectorySelection([]);
+    focusBulkRoleHeadingOnEnter.current = true;
     setBulkRoleOpen(true);
   };
 
@@ -941,13 +936,12 @@ export function EmploymentAdminPage() {
             }}
           >
             <Typography variant="body2" role="status">
-              {directorySelection.length} employees selected for{" "}
-              {defaultBulkRole?.label ?? "a role change"}.
+              {directorySelection.length} employees selected for role changes.
             </Typography>
             <Stack direction="row" spacing={1}>
               <Button
                 variant="contained"
-                disabled={selectionActionsBlocked || !defaultBulkRole}
+                disabled={selectionActionsBlocked}
                 onClick={beginBulkRoleChange}
               >
                 Open role editor
@@ -968,23 +962,18 @@ export function EmploymentAdminPage() {
         >
           {visibleEmployments.map((employment) => {
             const accountStatus = clinicAccountStatus(employment);
-            const alreadyHasDefaultRole =
-              Boolean(defaultBulkRole) &&
-              employment.roles.length > 0 &&
-              employment.roles.every(
-                (grant) => grant.role_version_id === defaultBulkRole?.id,
-              );
+            const hasCompatibleRoleOption = data.role_options.some((role) =>
+              sameRoleScope(employment, role),
+            );
             const bulkUnavailableReason = !employment.active_for_work
               ? "Inactive employee"
               : accountStatus === "inactive"
                 ? "Clinic account inactive"
                 : accountStatus === "unknown"
                   ? "Clinic account status unavailable"
-                  : !defaultBulkRole || !sameRoleScope(employment, defaultBulkRole)
-                    ? "Different access scope for the default role"
-                    : alreadyHasDefaultRole
-                      ? "Default role is already saved"
-                      : null;
+                  : !hasCompatibleRoleOption
+                    ? "No role option matches this access scope"
+                    : null;
             return (
               <Stack
                 key={employment.id}
@@ -1119,11 +1108,24 @@ export function EmploymentAdminPage() {
           onChange={(_, expanded) => setBulkRoleOpen(expanded)}
           disableGutters
           variant="outlined"
+          slotProps={{
+            transition: {
+              onEntered: () => {
+                if (!focusBulkRoleHeadingOnEnter.current) return;
+                focusBulkRoleHeadingOnEnter.current = false;
+                const heading = bulkRoleSummaryRef.current;
+                heading?.scrollIntoView({ behavior: "smooth", block: "start" });
+                heading?.focus({ preventScroll: true });
+              },
+            },
+          }}
         >
           <AccordionSummary
+            ref={bulkRoleSummaryRef}
             expandIcon={<ExpandMoreIcon />}
             id="bulk-role-editor-heading"
             aria-controls="bulk-role-editor-content"
+            sx={{ scrollMarginTop: 16 }}
           >
             <Stack spacing={0.25}>
               <Typography variant="h3">Bulk role changes</Typography>
