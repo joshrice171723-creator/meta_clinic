@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   currentPatientAttempt,
+  isDefiniteLabMutationRejection,
   isCurrentPatientRequest,
 } from "../src/features/clinic/PatientLabReports";
+import { ApiError } from "../src/api/client";
 
 const patientLabReportsSource = readFileSync(
   new URL("../src/features/clinic/PatientLabReports.tsx", import.meta.url),
@@ -11,6 +13,24 @@ const patientLabReportsSource = readFileSync(
 );
 
 describe("PatientLabReports patient scope", () => {
+  it.each([
+    new ApiError(408, "Synthetic proxy timeout"),
+    new ApiError(422, "Synthetic uncertain response", "outcome_unconfirmed"),
+    new ApiError(503, "Synthetic upstream failure"),
+    new TypeError("Synthetic interrupted transport"),
+  ])("retains uncertain lab mutation failures: %s", (reason) => {
+    expect(isDefiniteLabMutationRejection(reason)).toBe(false);
+  });
+
+  it.each([400, 403, 404, 409, 422])(
+    "permits correction after a definite lab rejection %s",
+    (status) => {
+      expect(
+        isDefiniteLabMutationRejection(new ApiError(status, "Synthetic rejection")),
+      ).toBe(true);
+    },
+  );
+
   it("never reuses an outcome-unknown mutation for another patient", () => {
     const attempt = {
       patientId: 42,

@@ -3,6 +3,7 @@ import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser } from "playwright-core";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { LabFollowUp } from "../src/features/clinic/PatientLabReports";
 vi.setConfig({ testTimeout: 20000 });
 let server: ViteDevServer, browser: Browser, base: string;
 const metadata = {
@@ -42,10 +43,10 @@ function version(
     content_digest: "a".repeat(64),
     recorded_at: "2026-09-06T18:00:00Z",
     recorded_by: 2,
-    reviewed_at: null,
-    reviewed_by: null,
+    reviewed_at: null as string | null,
+    reviewed_by: null as number | null,
     actions: [],
-    follow_up: null,
+    follow_up: null as LabFollowUp | null,
   };
 }
 beforeAll(async () => {
@@ -67,7 +68,7 @@ beforeAll(async () => {
         },
         load(id) {
           if (id === "\0synthetic-clinic")
-            return `export const useClinic=()=>({capabilities:{patients:true,notes_read:true,notes_write:false,observations_write:true},practice:{id:2,name:'Synthetic clinic',timezone:'UTC'}});`;
+            return `export const useClinic=()=>({capabilities:{patients:true,notes_read:true,notes_write:new URLSearchParams(location.search).has('review'),observations_write:true},practice:{id:2,name:'Synthetic clinic',timezone:'UTC'}});`;
           if (id === "\0lab-entry")
             return `import React from 'react';import {createRoot} from 'react-dom/client';import {PatientLabReports} from '/src/features/clinic/PatientLabReports.tsx';createRoot(document.getElementById('root')).render(React.createElement(PatientLabReports,{patientId:3,patientName:'Synthetic patient',encounterId:new URLSearchParams(location.search).has('create')?30:undefined}))`;
         },
@@ -100,13 +101,45 @@ afterAll(async () => {
 });
 
 async function open(
-  mode: "success" | "unknown" | "invalid" | "empty" = "success",
+  mode:
+    | "success"
+    | "unknown"
+    | "unknown408"
+    | "invalid"
+    | "empty"
+    | "completion408"
+    | "completion503"
+    | "completion422" = "success",
 ) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 1000 },
   });
   page.setDefaultTimeout(8000);
   const first = version();
+  const completionMode = mode.startsWith("completion");
+  if (completionMode) {
+    first.reviewed_at = "2026-09-06T18:30:00Z";
+    first.reviewed_by = 2;
+    first.follow_up = {
+      id: 13,
+      state: "open",
+      instructions: "Synthetic lab contact instructions",
+      outcome: null,
+      recorded_at: "2026-09-06T18:30:00Z",
+      recorded_by: 2,
+      completed_at: null,
+      completed_by: null,
+      superseded_at: null,
+      priority: "routine",
+      due_at: null,
+      escalated_at: null,
+      escalated_by: null,
+      patient_contact_status: null,
+      patient_contact_method: null,
+      patient_contact_at: null,
+      contact_attempts: [],
+    };
+  }
   if (mode === "empty")
     first.results = first.results.map((row) => {
       const copy = { ...row };
@@ -142,7 +175,7 @@ async function open(
           reports: [report()],
           pagination: { page: 1, per_page: 25, total: 1 },
           can_write: true,
-          can_review: false,
+          can_review: completionMode,
         },
       });
     if (url.pathname === "/api/clinic/patients/3/lab_reports/10")
@@ -160,17 +193,45 @@ async function open(
             error: "Result time must be an ISO 8601 timestamp with an offset.",
           },
         });
-      if (mode === "unknown" && posts.length === 1)
+      if ((mode === "unknown" || mode === "unknown408") && posts.length === 1)
         return route.fulfill({
-          status: 503,
+          status: mode === "unknown408" ? 408 : 503,
           json: { error: "Synthetic response lost" },
         });
       current = { ...first, ...input, id: 12, version_number: 2 };
       return route.fulfill({ status: 201, json: { report: report() } });
     }
+    if (
+      url.pathname === "/api/clinic/patients/3/lab_reports/10/versions/11/follow_up/complete" &&
+      route.request().method() === "POST"
+    ) {
+      const input = route.request().postDataJSON().follow_up;
+      posts.push(input);
+      if (mode === "completion422" && posts.length === 1)
+        return route.fulfill({
+          status: 422,
+          json: { error: "Synthetic prerequisite remains open" },
+        });
+      current = {
+        ...current,
+        follow_up: {
+          ...current.follow_up!,
+          state: "completed",
+          outcome: input.outcome,
+          completed_at: "2026-09-06T19:00:00Z",
+          completed_by: 2,
+        },
+      };
+      if (posts.length === 1)
+        return route.fulfill({
+          status: mode === "completion408" ? 408 : 503,
+          json: { error: "Synthetic completion response lost" },
+        });
+      return route.fulfill({ json: { report: report() } });
+    }
     return route.abort();
   });
-  await page.goto(`${base}lab-test`);
+  await page.goto(`${base}lab-test${completionMode ? "?review=1" : ""}`);
   await page.getByRole("button", { name: "Correct", exact: true }).waitFor();
   return { page, posts };
 }
@@ -283,8 +344,8 @@ it("explicit clearing affects only the new correction and retains the old versio
     .waitFor();
   await page.close();
 });
-it("unknown correction response retries the exact metadata and request key without unlocking fields", async () => {
-  const { page, posts } = await open("unknown");
+it.each(["unknown", "unknown408"] as const)("%s correction retries exact metadata and key without unlocking fields", async (mode) => {
+  const { page, posts } = await open(mode);
   await page.getByRole("button", { name: "Correct", exact: true }).click();
   await page
     .getByLabel("I confirmed this report belongs to the selected patient.")
@@ -308,6 +369,59 @@ it("unknown correction response retries the exact metadata and request key witho
   expect(posts[1]).toEqual(posts[0]);
   await page.close();
 });
+it.each(["completion408", "completion503"] as const)(
+  "%s preserves frozen completion intent and requires explicit exact retry",
+  async (mode) => {
+    const { page, posts } = await open(mode);
+    try {
+      await page.getByRole("button", { name: "Complete follow-up", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "Complete lab follow-up", exact: true });
+      const outcome = dialog.getByLabel("Follow-up outcome", { exact: true });
+      await outcome.fill("Synthetic original lab contact outcome");
+      await dialog.getByRole("button", { name: "Complete follow-up", exact: true }).click();
+      const retry = dialog.getByRole("button", { name: "Retry exact request", exact: true });
+      await retry.waitFor();
+      expect(posts).toHaveLength(1);
+      expect(await outcome.inputValue()).toBe("Synthetic original lab contact outcome");
+      expect(await outcome.isDisabled()).toBe(true);
+      expect(await dialog.getByRole("button", { name: "Cancel", exact: true }).isDisabled()).toBe(true);
+      await page.keyboard.press("Escape");
+      expect(await dialog.isVisible()).toBe(true);
+      expect(posts).toHaveLength(1);
+      await retry.click();
+      await dialog.waitFor({ state: "detached" });
+      await page.getByText("Lab follow-up completed.", { exact: true }).waitFor();
+      expect(posts).toHaveLength(2);
+      expect(posts[1]).toEqual(posts[0]);
+    } finally {
+      await page.close();
+    }
+  },
+);
+
+it("definite completion rejection allows correction with a fresh request", async () => {
+  const { page, posts } = await open("completion422");
+  try {
+    await page.getByRole("button", { name: "Complete follow-up", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Complete lab follow-up", exact: true });
+    const outcome = dialog.getByLabel("Follow-up outcome", { exact: true });
+    await outcome.fill("Synthetic first rejected lab outcome");
+    await dialog.getByRole("button", { name: "Complete follow-up", exact: true }).click();
+    await dialog.getByText("Synthetic prerequisite remains open", { exact: true }).waitFor();
+    expect(posts).toHaveLength(1);
+    expect(await outcome.isDisabled()).toBe(false);
+    expect(await dialog.getByRole("button", { name: "Retry exact request", exact: true }).count()).toBe(0);
+    await outcome.fill("Synthetic corrected lab outcome");
+    await dialog.getByRole("button", { name: "Complete follow-up", exact: true }).click();
+    await dialog.waitFor({ state: "detached" });
+    expect(posts).toHaveLength(2);
+    expect(posts[1].request_key).not.toBe(posts[0].request_key);
+    expect(posts[1].outcome).toBe("Synthetic corrected lab outcome");
+  } finally {
+    await page.close();
+  }
+});
+
 it("rejected source time leaves supplied metadata editable and shows no success", async () => {
   const { page, posts } = await open("invalid");
   await page.getByRole("button", { name: "Correct", exact: true }).click();

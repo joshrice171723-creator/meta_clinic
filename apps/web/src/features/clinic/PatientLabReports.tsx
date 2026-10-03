@@ -168,6 +168,18 @@ type Form = {
 };
 type PatientScopedAttempt<T extends object> = T & { patientId: number };
 
+export function isDefiniteLabMutationRejection(
+  reason: unknown,
+): reason is ApiError {
+  return (
+    reason instanceof ApiError &&
+    reason.status >= 400 &&
+    reason.status < 500 &&
+    reason.status !== 408 &&
+    reason.code !== "outcome_unconfirmed"
+  );
+}
+
 export function labReportEntryGuidance(
   canCreate: boolean,
   canWrite: boolean,
@@ -696,19 +708,13 @@ export function PatientLabReports({
       setReload((current) => current + 1);
     } catch (reason) {
       if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
-      if (
-        reason instanceof ApiError &&
-        reason.status >= 400 &&
-        reason.status < 500
-      ) {
-        if (reason.code !== "outcome_unconfirmed") attempt.current = null;
-        setRetryPending(reason.code === "outcome_unconfirmed");
+      if (isDefiniteLabMutationRejection(reason)) {
+        attempt.current = null;
+        setRetryPending(false);
         setError(
-          reason.code === "outcome_unconfirmed"
-            ? "The save outcome is unknown. Retry this unchanged report before editing it."
-            : reason.status === 409
-              ? "This report changed. Reload it before recording a correction."
-              : reason.message,
+          reason.status === 409
+            ? "This report changed. Reload it before recording a correction."
+            : reason.message,
         );
       } else {
         setRetryPending(true);
@@ -776,12 +782,7 @@ export function PatientLabReports({
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
       if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
-      if (
-        reason instanceof ApiError &&
-        reason.status >= 400 &&
-        reason.status < 500 &&
-        reason.code !== "outcome_unconfirmed"
-      ) {
+      if (isDefiniteLabMutationRejection(reason)) {
         reviewAttempt.current = null;
         setReviewRetryPending(false);
         setError(reason.message);
@@ -843,12 +844,7 @@ export function PatientLabReports({
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
       if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
-      if (
-        reason instanceof ApiError &&
-        reason.status >= 400 &&
-        reason.status < 500 &&
-        reason.code !== "outcome_unconfirmed"
-      ) {
+      if (isDefiniteLabMutationRejection(reason)) {
         followUpAttempt.current = null;
         setFollowUpRetryPending(false);
         setError(reason.message);
@@ -907,12 +903,7 @@ export function PatientLabReports({
       if (history?.id === target.report.id) setHistory(null);
     } catch (reason) {
       if (!requestIsCurrent(requestPatientId, requestGeneration)) return;
-      if (
-        reason instanceof ApiError &&
-        reason.status >= 400 &&
-        reason.status < 500 &&
-        reason.code !== "outcome_unconfirmed"
-      ) {
+      if (isDefiniteLabMutationRejection(reason)) {
         followUpAttempt.current = null;
         setFollowUpRetryPending(false);
         setError(reason.message);
