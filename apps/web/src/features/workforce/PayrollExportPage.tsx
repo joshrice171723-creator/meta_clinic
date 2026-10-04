@@ -17,10 +17,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { businessNow } from "../../shared/businessDate";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 type Column = { field: string; header: string };
 type Configuration = {
@@ -40,8 +41,15 @@ type Batch = {
   totals: Record<string, string>;
   download_url: string;
   supersedes_batch_id: string | null;
+  superseded_by_batch_id: string | null;
+  source_periods: {
+    employment_id: string;
+    period_start: string;
+    period_end: string;
+  }[];
 };
 type PayrollData = {
+  permissions: { configure: boolean; export: boolean };
   configurations: Configuration[];
   batches: Batch[];
   fields: string[];
@@ -60,10 +68,16 @@ type Preview = {
   totals: Record<string, string>;
   source_digest: string;
 };
+type ExportAttempt = {
+  configuration_version_id: string;
+  timecard_version_ids: string[];
+  idempotency_key: string;
+  supersedes_batch_id: string | null;
+};
 
 export function PayrollExportPage() {
   const clinic = useClinic();
-  const { navigate } = useClinicNavigation();
+  const { navigate, registerBlocker } = useClinicNavigation();
   const [siteId, setSiteId] = useState(() =>
     String(clinic.current_site?.id || clinic.sites[0]?.id || ""),
   );
@@ -80,8 +94,60 @@ export function PayrollExportPage() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [supersedes, setSupersedes] = useState("");
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
-  const canConfigure = clinic.capabilities.workforce_payroll_configure === true;
-  const canExport = clinic.capabilities.workforce_payroll_export === true;
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [unconfirmedExport, setUnconfirmedExport] =
+    useState<ExportAttempt | null>(null);
+  const canConfigure = data?.permissions.configure === true;
+  const canExport = data?.permissions.export === true;
+  const previewColumns =
+    data?.configurations.find(
+      (configuration) => configuration.id === configurationId,
+    )?.columns || [];
+  const controlsLocked = busy || unconfirmedExport !== null;
+  const leaveMessage = busy
+    ? "A payroll action is still saving."
+    : unconfirmedExport
+      ? "The export is unconfirmed. Leaving loses its saved retry. Check export history before creating another file."
+      : settingsDirty
+        ? "Discard unsaved payroll file settings?"
+        : null;
+  useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
+  useEffect(() => {
+    if (!leaveMessage) return;
+    const unregister = registerBlocker(() => leaveMessage, {
+      preventNavigation: busy,
+    });
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = leaveMessage;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [leaveMessage, busy, registerBlocker]);
+
+  function confirmReload() {
+    return !leaveMessage || (!busy && window.confirm(leaveMessage));
+  }
+
+  function resetSettings(result: PayrollData) {
+    const latest = result.configurations[0];
+    setName(latest?.name || "Payroll hours");
+    setColumns(latest?.columns || result.default_columns);
+    setIdentifiers(latest?.employee_identifiers || {});
+    setSettingsDirty(false);
+  }
+
+  function refreshRecords() {
+    if (!confirmReload()) return;
+    setSettingsDirty(false);
+    setUnconfirmedExport(null);
+    setRequestKey(crypto.randomUUID());
+    setData(null);
+    setReload((value) => value + 1);
+  }
   const canManageEmployees = clinic.capabilities.workforce_admin === true;
   const canOpenTimecards =
     clinic.capabilities.workforce_timecards_read === true ||
@@ -95,6 +161,7 @@ export function PayrollExportPage() {
     setError("");
     setPreview(null);
     setSelected([]);
+    setSupersedes("");
     api<PayrollData>(
       `/api/clinic/workforce/payroll-exports?site_id=${encodeURIComponent(siteId)}`,
       { signal: controller.signal },
@@ -102,10 +169,7 @@ export function PayrollExportPage() {
       .then((result) => {
         if (controller.signal.aborted) return;
         setData(result);
-        const latest = result.configurations[0];
-        setName(latest?.name || "Payroll hours");
-        setColumns(latest?.columns || result.default_columns);
-        setIdentifiers(latest?.employee_identifiers || {});
+        resetSettings(result);
         setConfigurationId(
           result.configurations.find(
             (item) => new Date(item.effective_from) <= businessNow(),
@@ -130,7 +194,7 @@ export function PayrollExportPage() {
   }
 
   async function saveConfiguration() {
-    if (!data) return;
+    if (!data || controlsLocked) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -153,6 +217,8 @@ export function PayrollExportPage() {
         },
       });
       setNotice("Payroll settings saved as a new version.");
+      setSettingsDirty(false);
+      setData(null);
       setReload((value) => value + 1);
     } catch (reason) {
       setError(
@@ -166,10 +232,11 @@ export function PayrollExportPage() {
   }
 
   async function generate(isPreview: boolean) {
+    if (busy || settingsDirty || !configurationId || !selected.length) return;
     setBusy(true);
     setError("");
     setNotice("");
-    const body = {
+    const body = unconfirmedExport || {
       configuration_version_id: configurationId,
       timecard_version_ids: selected,
       idempotency_key: requestKey,
@@ -177,24 +244,38 @@ export function PayrollExportPage() {
     };
     try {
       if (isPreview) {
+        setPreview(null);
         const result = await api<Preview>(
           "/api/clinic/workforce/payroll-exports/preview",
           { method: "POST", body },
         );
         setPreview(result);
       } else {
+        setUnconfirmedExport(body);
         const result = await api<{ batch: Batch }>(
           "/api/clinic/workforce/payroll-exports",
           { method: "POST", body },
         );
         setNotice(`Export ${result.batch.id} is saved and ready to download.`);
         setPreview(null);
+        setUnconfirmedExport(null);
         setRequestKey(crypto.randomUUID());
+        setData(null);
         setReload((value) => value + 1);
       }
     } catch (reason) {
+      const knownRejection =
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 429].includes(reason.status);
+      const confirmedRejection = knownRejection && !unconfirmedExport;
+      if (!isPreview && confirmedRejection) {
+        setUnconfirmedExport(null);
+        setPreview(null);
+      }
       setError(
-        `${reason instanceof Error ? reason.message : "The export could not be confirmed."} You can retry with the same selection.`,
+        `${reason instanceof Error ? reason.message : "The export could not be confirmed."} ${isPreview || confirmedRejection ? "Review the selection and preview again." : "The earlier export remains unconfirmed. Retry export to recover the same saved file, or refresh and check export history."}`,
       );
     } finally {
       setBusy(false);
@@ -217,11 +298,15 @@ export function PayrollExportPage() {
         label="Location"
         value={siteId}
         onChange={(event) => {
+          if (!confirmReload()) return;
           setSiteId(event.target.value);
+          setData(null);
+          setSettingsDirty(false);
+          setUnconfirmedExport(null);
           setSupersedes("");
           invalidatePreview();
         }}
-        disabled={busy}
+        disabled={controlsLocked}
         sx={{ maxWidth: 360 }}
       >
         {clinic.sites.map((site) => (
@@ -230,6 +315,15 @@ export function PayrollExportPage() {
           </MenuItem>
         ))}
       </TextField>
+      <Button
+        onClick={refreshRecords}
+        disabled={busy || !siteId}
+        sx={{ alignSelf: "start" }}
+      >
+        {error && !data
+          ? "Retry loading payroll records"
+          : "Refresh payroll records"}
+      </Button>
       {!siteId && (
         <Alert severity="info">
           Add an eligible location before configuring payroll exports.
@@ -237,6 +331,13 @@ export function PayrollExportPage() {
       )}
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {unconfirmedExport && (
+        <Alert severity="warning">
+          The export has not been confirmed. Retry export with the saved
+          selection before changing it. Refreshing discards this retry; check
+          export history before creating another file.
+        </Alert>
+      )}
       {!data && siteId && !error && (
         <Typography role="status">Loading payroll records…</Typography>
       )}
@@ -258,7 +359,7 @@ export function PayrollExportPage() {
                     setConfigurationId(event.target.value);
                     invalidatePreview();
                   }}
-                  disabled={busy}
+                  disabled={controlsLocked}
                   sx={{ minWidth: 240 }}
                 >
                   {data.configurations.map((configuration) => (
@@ -278,21 +379,55 @@ export function PayrollExportPage() {
                   label="Correct a previous export"
                   value={supersedes}
                   onChange={(event) => {
-                    setSupersedes(event.target.value);
+                    const batchId = event.target.value;
+                    setSupersedes(batchId);
+                    const original = data.batches.find(
+                      (batch) => batch.id === batchId,
+                    );
+                    setSelected(
+                      original
+                        ? data.timecards
+                            .filter((card) =>
+                              original.source_periods.some(
+                                (period) =>
+                                  period.employment_id === card.employment_id &&
+                                  period.period_start === card.period_start &&
+                                  period.period_end === card.period_end,
+                              ),
+                            )
+                            .map((card) => card.id)
+                        : [],
+                    );
                     invalidatePreview();
                   }}
-                  disabled={busy}
+                  disabled={controlsLocked}
                   sx={{ minWidth: 240 }}
                 >
                   <MenuItem value="">New export</MenuItem>
-                  {data.batches.map((batch) => (
-                    <MenuItem key={batch.id} value={batch.id}>
-                      Export {batch.id} ·{" "}
-                      {new Date(batch.created_at).toLocaleDateString()}
-                    </MenuItem>
-                  ))}
+                  {data.batches
+                    .filter((batch) => !batch.superseded_by_batch_id)
+                    .map((batch) => (
+                      <MenuItem key={batch.id} value={batch.id}>
+                        Export {batch.id} ·{" "}
+                        {new Date(batch.created_at).toLocaleDateString()}
+                      </MenuItem>
+                    ))}
                 </TextField>
               </Stack>
+              {supersedes && (
+                <Alert severity="info">
+                  A correction must include the same employees and workweeks as
+                  export {supersedes}. Their latest approved cards have been
+                  selected where available. Recalculate and approve any missing
+                  cards, then refresh before continuing.
+                </Alert>
+              )}
+              {settingsDirty && (
+                <Alert severity="info">
+                  Save or discard file-setting changes before preparing an
+                  export.
+                </Alert>
+              )}
               {!configurationId && (
                 <Alert severity="info">
                   Save file settings before preparing an export.
@@ -303,7 +438,7 @@ export function PayrollExportPage() {
                   key={card.id}
                   control={
                     <Checkbox
-                      disabled={busy}
+                      disabled={controlsLocked}
                       checked={selected.includes(card.id)}
                       onChange={(event) => {
                         setSelected((current) =>
@@ -342,17 +477,24 @@ export function PayrollExportPage() {
               <Stack direction="row" sx={{ gap: 2 }}>
                 <Button
                   variant="outlined"
-                  disabled={busy || !selected.length || !configurationId}
+                  disabled={
+                    controlsLocked ||
+                    settingsDirty ||
+                    !selected.length ||
+                    !configurationId
+                  }
                   onClick={() => void generate(true)}
                 >
                   Preview export
                 </Button>
                 <Button
                   variant="contained"
-                  disabled={busy || !preview}
+                  disabled={
+                    busy || settingsDirty || (!preview && !unconfirmedExport)
+                  }
                   onClick={() => void generate(false)}
                 >
-                  Create export
+                  {unconfirmedExport ? "Retry export" : "Create export"}
                 </Button>
               </Stack>
               {preview && (
@@ -365,9 +507,9 @@ export function PayrollExportPage() {
                     <Table size="small" aria-label="Payroll preview">
                       <TableHead>
                         <TableRow>
-                          {Object.keys(preview.rows[0] || {}).map((key) => (
-                            <TableCell key={key}>
-                              {key.replaceAll("_", " ")}
+                          {previewColumns.map((column) => (
+                            <TableCell key={column.field}>
+                              {column.header}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -375,8 +517,10 @@ export function PayrollExportPage() {
                       <TableBody>
                         {preview.rows.slice(0, 25).map((row, index) => (
                           <TableRow key={index}>
-                            {Object.entries(row).map(([key, value]) => (
-                              <TableCell key={key}>{value}</TableCell>
+                            {previewColumns.map((column) => (
+                              <TableCell key={column.field}>
+                                {row[column.field]}
+                              </TableCell>
                             ))}
                           </TableRow>
                         ))}
@@ -410,6 +554,9 @@ export function PayrollExportPage() {
                     hours
                     {batch.supersedes_batch_id
                       ? ` · corrects export ${batch.supersedes_batch_id}`
+                      : ""}
+                    {batch.superseded_by_batch_id
+                      ? ` · replaced by export ${batch.superseded_by_batch_id}`
                       : ""}
                   </Typography>
                 </Box>
@@ -451,8 +598,11 @@ export function PayrollExportPage() {
               <TextField
                 label="Configuration name"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={busy}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setSettingsDirty(true);
+                }}
+                disabled={controlsLocked}
                 slotProps={{ htmlInput: { maxLength: 100 } }}
                 sx={{ maxWidth: 440 }}
               />
@@ -462,16 +612,17 @@ export function PayrollExportPage() {
                     key={column.field}
                     label={`${column.field.replaceAll("_", " ")} column`}
                     value={column.header}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setSettingsDirty(true);
                       setColumns((current) =>
                         current.map((item, position) =>
                           position === index
                             ? { ...item, header: event.target.value }
                             : item,
                         ),
-                      )
-                    }
-                    disabled={busy}
+                      );
+                    }}
+                    disabled={controlsLocked}
                     slotProps={{ htmlInput: { maxLength: 80 } }}
                   />
                 ))}
@@ -493,13 +644,14 @@ export function PayrollExportPage() {
                             size="small"
                             label={`Payroll ID for ${employee.name}`}
                             value={identifiers[employee.id] || ""}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              setSettingsDirty(true);
                               setIdentifiers((current) => ({
                                 ...current,
                                 [employee.id]: event.target.value,
-                              }))
-                            }
-                            disabled={busy}
+                              }));
+                            }}
+                            disabled={controlsLocked}
                             slotProps={{ htmlInput: { maxLength: 100 } }}
                           />
                         </TableCell>
@@ -532,11 +684,24 @@ export function PayrollExportPage() {
               <Button
                 variant="outlined"
                 onClick={() => void saveConfiguration()}
-                disabled={busy || !name.trim()}
+                disabled={
+                  controlsLocked ||
+                  !name.trim() ||
+                  (!settingsDirty && data.configurations.length > 0)
+                }
                 sx={{ alignSelf: "start" }}
               >
                 Save file settings
               </Button>
+              {settingsDirty && (
+                <Button
+                  onClick={() => resetSettings(data)}
+                  disabled={controlsLocked}
+                  sx={{ alignSelf: "start" }}
+                >
+                  Discard file-setting changes
+                </Button>
+              )}
             </Stack>
           )}
         </>
