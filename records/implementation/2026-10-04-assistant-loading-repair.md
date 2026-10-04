@@ -19,6 +19,12 @@ Date: 2026-10-04. Synthetic local demo, web 3340/API 3341, branch
 
 ## Verification
 
+- Repair source `9a2b2446`; latest main `7c763942` integrated by `1b18a293`.
+  Merge preserved both progress histories and combined navigation-link closing
+  with the assistant entry button. The post-merge full web build passed and the
+  assistant opened and connected in the demo. `assistant-open.jpg` was refreshed
+  after integration; tablet evidence predates the unrelated main UI integration.
+
 - Full web build: TypeScript, primary Vite, Office Vite passed. Existing marketing
   dynamic-import warning remains. Final `pnpm exec tsc --noEmit` passed after the
   transport change. An initial command used a nonexistent `tsconfig.app.json`;
