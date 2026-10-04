@@ -106,3 +106,16 @@ Source commit: `7edcc9b1`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed; the existing marketing import warning remains. After a focused retry-state repair, final TypeScript and Prettier checks passed. The changed payroll controller passed scoped RuboCop. Source/diff review and `git diff --check` passed. No tests were added/run, no runtime resources were changed, and no deployment occurred. Browser navigation, persisted exports and PostgreSQL metadata queries still require an owned connected runtime.
 
 Continuation remains active through 15:39 UTC. Next useful scope can be the existing employee setup or request journey, rather than further speculative payroll policy or repeated review of completed changes.
+
+## Seventh implementation checkpoint
+
+Source commit: `992f5de9`, pushed after synchronization with `origin/main` (already current).
+
+- Badge candidates now include the selected location's effective assignment eligibility. The API projects the existing PIN requirement; unconfigured settings remain visible without suppressing badge history. Employee assignments are preloaded for this projection.
+- Badge and kiosk loading states no longer appear as empty saved lists. Issuance controls wait for available records, lock inputs during saves and explain missing employee eligibility. PIN requirements use task-facing copy and client validation while retaining server enforcement.
+- One-time badge and enrollment material remains in memory through refresh while its record is still issued. Navigation and location changes warn before losing it; accidental badge dialog dismissal asks for confirmation. A printed badge includes the employee name; enrollment codes show their location and actual expiry. Matching revocation, replacement or enrollment state clears unusable displayed material. Creating another enrollment requires explicitly finishing with the current code.
+- Refresh/retry controls and unknown-outcome messages direct operators to inspect saved records before issuing replacement material. Tokens remain one-time responses; no token persistence, replay endpoint or new credential storage was introduced.
+
+Verification: TypeScript, both Vite bundles, Prettier and the changed Ruby controller's RuboCop check passed. The existing marketing import warning remains. Source/diff review and `git diff --check` passed. No tests were added/run. Actual badge printing, kiosk enrollment, navigation dialogs and database behavior are unverified without an owned runtime. No deployment or shared runtime reset occurred.
+
+The authorized work window remains active until 15:39 UTC. A next bounded employee request journey can proceed from this clean source checkpoint; do not present these source/build results as connected acceptance.
