@@ -217,6 +217,12 @@
   padding: 4px 10px;
   line-height: 1.5;
 }
+.clinic-theme .clinic-sidebar-bottom .clinic-assistant-entry {
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 10px;
+  color: inherit;
+}
 .clinic-theme .clinic-sidebar .clinic-sign-out {
   width: 100%;
   margin: 0;
@@ -362,6 +368,19 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.clinic-theme
+  .clinic-shell[data-rail="true"]
+  .clinic-assistant-entry
+  > span:last-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .clinic-theme .clinic-shell[data-rail="true"] .wordmark {
   display: none;
 }
@@ -369,6 +388,15 @@
 .clinic-theme .clinic-shell[data-rail="true"] .clinic-sidebar-bottom > a {
   width: 40px;
   min-height: 44px;
+  justify-content: center;
+  gap: 0;
+  padding: 4px;
+}
+.clinic-theme
+  .clinic-shell[data-rail="true"]
+  .clinic-sidebar-bottom
+  .clinic-assistant-entry {
+  width: 40px;
   justify-content: center;
   gap: 0;
   padding: 4px;

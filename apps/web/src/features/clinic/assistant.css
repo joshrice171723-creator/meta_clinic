@@ -1,0 +1,106 @@
+.clinic-assistant-entry {
+  min-height: 44px;
+  justify-content: flex-start;
+  gap: 10px;
+  border-radius: 5px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  text-transform: none;
+}
+
+.clinic-theme
+  .clinic-sidebar-bottom
+  .clinic-assistant-entry
+  .MuiButton-startIcon {
+  margin-left: 0;
+  margin-right: 2px;
+}
+
+.clinic-assistant {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100dvh;
+  color: inherit;
+  background: inherit;
+}
+
+.clinic-assistant__header,
+.clinic-assistant__context,
+.clinic-assistant__composer {
+  padding: 16px;
+}
+
+.clinic-assistant__context {
+  display: grid;
+  gap: 2px;
+  background: var(--clinic-sidebar-ground, rgba(0, 0, 0, 0.03));
+  color: var(--clinic-sidebar-on, inherit);
+}
+
+.clinic-assistant__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.clinic-assistant__conversation {
+  display: grid;
+  gap: 8px;
+}
+
+.clinic-assistant__message {
+  display: grid;
+  gap: 4px;
+  max-width: 92%;
+  padding: 10px 12px;
+}
+
+.clinic-assistant__message--user {
+  justify-self: end;
+  background: var(--clinic-sidebar-selected, rgba(0, 0, 0, 0.04));
+  color: var(--clinic-sidebar-selected-on, inherit);
+}
+
+.clinic-assistant__message--assistant {
+  justify-self: start;
+  background: var(--clinic-sidebar-selected, rgba(0, 0, 0, 0.04));
+  color: var(--clinic-sidebar-selected-on, inherit);
+}
+
+.clinic-assistant__openings,
+.clinic-assistant__proposal {
+  min-width: 0;
+}
+
+.clinic-assistant__opening,
+.clinic-assistant__proposal {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.clinic-assistant__composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: inherit;
+}
+
+@media (max-width: 480px) {
+  .clinic-assistant__composer {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-assistant__composer > .MuiButton-root {
+    justify-self: end;
+  }
+}

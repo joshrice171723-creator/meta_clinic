@@ -39,6 +39,7 @@ export function ClinicFrame({
   children,
   developmentPreview = false,
   scopeSelector,
+  assistantEntry,
 }: {
   practiceName: string;
   timezone: string;
@@ -50,6 +51,7 @@ export function ClinicFrame({
   children: ReactNode;
   developmentPreview?: boolean;
   scopeSelector?: ReactNode;
+  assistantEntry?: ReactNode;
 }) {
   const [compact, setCompact] = useState(compactNavigation);
   const [collapsed, setCollapsed] = useState(compactNavigation);
@@ -160,7 +162,7 @@ export function ClinicFrame({
           if (
             drawer &&
             (event.target as Element).closest(
-              "nav a, nav button, .clinic-sidebar-bottom a",
+              "nav a, nav button, .clinic-sidebar-bottom a, .clinic-sidebar-bottom button",
             )
           )
             close();
@@ -376,6 +378,7 @@ export function ClinicFrame({
               {navigation}
             </ClinicRailContext.Provider>
             <div className="clinic-sidebar-bottom">
+              {assistantEntry}
               <Tooltip
                 describeChild
                 title="Launch & onboarding"

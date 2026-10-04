@@ -5,16 +5,17 @@ module Clinic
     class Calendar
       SLOT_MINUTES = 30
 
-      def initialize(practice:, site:, date:, actor:, duration_minutes: SLOT_MINUTES, waitlist_entry: nil, period: "month")
+      def initialize(practice:, site:, date:, actor:, duration_minutes: SLOT_MINUTES, waitlist_entry: nil, patient: nil, period: "month")
         @practice, @site, @actor = practice, site, actor
         @features = Clinic::Configuration::PracticeFeatures.snapshot(practice: practice, site: site)
         unless duration_minutes.is_a?(Integer) && duration_minutes.between?(5, 240)
           raise ArgumentError, "Choose a visit duration from 5 to 240 minutes."
         end
+        raise ArgumentError, "The patient does not belong to this clinic." if patient && patient.practice_id != practice.id
         if waitlist_entry && (waitlist_entry.practice_id != practice.id || waitlist_entry.site_id != site.id || waitlist_entry.duration_minutes != duration_minutes)
           raise ArgumentError, "The waitlist entry does not match this availability request."
         end
-        @duration_minutes, @waitlist_entry = duration_minutes, waitlist_entry
+        @duration_minutes, @waitlist_entry, @patient = duration_minutes, waitlist_entry, patient
         @can_read_hold_patient = Ability.new(actor, practice: practice).allowed_permission?("patients.read", site: site)
         @timezone_name = site.timezone_override.presence || practice.timezone
         @zone = ActiveSupport::TimeZone[@timezone_name]
@@ -155,8 +156,11 @@ module Clinic
             next unless site_open?(start, finish)
             if @waitlist_entry
               next unless start > Current.business_time && start >= @waitlist_entry.earliest_at && finish <= @waitlist_entry.latest_at
-              next if @busy_patient_days.fetch([@waitlist_entry.patient_id, date], []).any? { |a| overlap?(start, finish, a.starts_at, a.ends_at) }
+            elsif @patient
+              next unless start > Current.business_time
             end
+            patient_id = @waitlist_entry&.patient_id || @patient&.id
+            next if patient_id && @busy_patient_days.fetch([patient_id, date], []).any? { |a| overlap?(start, finish, a.starts_at, a.ends_at) }
             next if @block_clinician_days.fetch([rule.clinician_id, date], []).any? { |r| overlap?(start, finish, r.starts_at, r.ends_at) }
             next if @busy_clinician_days.fetch([rule.clinician_id, date], []).any? { |a| overlap?(start, finish, a.starts_at, a.ends_at) }
             next if @offer_clinician_days.fetch([rule.clinician_id, date], []).any? { |o| overlap?(start, finish, o.offer_starts_at, o.offer_ends_at) }

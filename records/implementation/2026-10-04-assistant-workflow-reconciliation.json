@@ -1,0 +1,1750 @@
+{
+  "date": "2026-10-04",
+  "source": "plugins/meta-clinic/workflow-116.json",
+  "source_sha256": "48ff9909dd089df698af2f445e9bbe451800a7ee1db3ae942e314de560ec473e",
+  "source_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+  "assistant_accepted_workflows": 0,
+  "scope": "Booking milestone only; candidate does not mean criterion complete",
+  "workflows": [
+    {
+      "id": "WF-001",
+      "criterion": "1. Open /demo → select care model + demo account → Enter: verify a session provisions (Sandbox workspace, org, clinic, location).\n  2. NOTE (supersession): the 'isolated tenant' criterion is SUPERSEDED by the Sept 19 founder clarification in Decisions.md (https://github.com/joshrice171723-creator/meta_clinic/blob/1b5ed425c7853752c453c062b1603dab9302e9e8/APPlyVault/03%20Execution/Decisions.md#L30 — shared lesson clarification; D079 policy-gated work above it) — clinics are shared global lesson clinics by design; the latest Joshua rule forbids shared resets. Do NOT mark isolation passed via sharing copy. Label the superseded requirement and cite Decisions.md.\n  3. Keep visitor/session interference checks (WF-003) separate from the isolation criterion.",
+      "historical_title": "Demo visitor entry creates isolated tenant (#103) [ISOLATION CRITERION SUPERSEDED — see note]",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(isolation criterion superseded per Decisions.md; session provisions with shared-space copy)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Shared lessons supersede tenant-isolation criterion; visitor interference remains separate.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "FIRST_MILESTONE_CANDIDATE_UNVERIFIED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-002",
+      "criterion": "1. Locate the RESET SANDBOX control in the demo toolbar: verify it exists and is visible.\n  2. DO NOT CLICK (owner prohibition — shared workspace). Verdict BLOCKED by owner rule.",
+      "historical_title": "Reset restores baseline after visitor edits (#109)",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(owner rule — reset control exists, never clicked)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Owner prohibition: inspect controls only; never reset shared records.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-003",
+      "criterion": "1. Open a second simultaneous visitor session (separate tab/incognito): verify sessions do not interfere.\n  2. If tooling blocks multi-session, record the constraint and any cross-visitor visibility evidence. Verdict BLOCKED if untestable.",
+      "historical_title": "Two simultaneous visitors don't interfere",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(tooling — single browser target, second session untestable)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "FIRST_MILESTONE_CANDIDATE_UNVERIFIED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-004",
+      "criterion": "1. Clinic setup → Add site → Add facility site: enter facility name, site code, address, hours.\n  2. Save facility: verify the site saves, appears in the Sites list, and rooms are created.",
+      "historical_title": "Create location (site) with address/hours/rooms",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Riverbend Medical Pavilion created, rooms auto-created)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-005",
+      "criterion": "1. Location profile → setup wizard: choose clinic type, recommended scope, Save location profile.\n  2. Finalize location setup: verify 'Setup finalized' confirmation and the site shows Active with generated visit types.",
+      "historical_title": "Finalize location setup",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(setup finalized, 7 visit types active)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-006",
+      "criterion": "1. Clinic setup → Rooms/departments: add a room via Add room; verify toast and persistence after reload.\n  2. Add a department: verify it persists and is selectable.",
+      "historical_title": "Add rooms/departments to a site",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Exam Room 3 + Care Coordination dept persisted after reload)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-007",
+      "criterion": "1. Facility profile → Timezone: change from blank to a named zone (e.g., America/Chicago) → Save facility.\n  2. Reload: verify the timezone value persisted.",
+      "historical_title": "Edit site timezone",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(timezone America/Chicago persisted)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-008",
+      "criterion": "1. Location chooser dropdown: verify it offers exactly the org's own sites (match against the Sites table).\n  2. Verify no foreign/cross-org locations appear.",
+      "historical_title": "Location chooser org-scoping (#59)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(chooser shows exactly the org's 5 sites)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-009",
+      "criterion": "1. Select a location in the chooser → navigate to Tracking Board → Clinic setup: verify the chooser retains the selection across navigation.",
+      "historical_title": "Chooser persistence (#56)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(chooser retains selection across navigation + reload)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-010",
+      "criterion": "1. Workforce → EMPLOYEES → Add employee: open the Access role selector.\n  2. Verify the selector offers all roles including Clinician (defect: offered only Employee, then zero options).\n  3. Verify Create employee invitation is enabled when a role is selected.",
+      "historical_title": "Invite employee (all roles incl. Clinician option)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(10 roles incl. Clinician; invite enables when fields filled)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-011",
+      "criterion": "1. Create an employee invitation: verify it is created and an activation link/code is produced.\n  2. Verify the activation link completes (account activatable).",
+      "historical_title": "Activation link complete & activatable",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Dana Whitfield invite created; activation link completes to password page)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-012",
+      "criterion": "1. Employee row → Access role combobox: verify options load; select a role → Save role and sites.\n  2. Verify the change persists with confirmation. Bulk role editor: select accounts → assign Role for selected accounts → verify it applies.",
+      "historical_title": "Change employee access role (#110)",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(role change does not persist — combobox empty after reload; bulk editor: 'Your account does not have permission for this clinic action.'; SIDE EFFECT: Jordan Example's role now reads empty)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-013",
+      "criterion": "1. Create an employee invitation → revoke it: verify the invitation is created, then revoked, with nothing remaining.",
+      "historical_title": "Invite + revoke works",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Casey Morgan invite created then revoked; list clean)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-014",
+      "criterion": "1. Clinic setup → Visit types → Add visit type: enter name → Save visit type.\n  2. Verify 'Visit type added.', count increments, row persists with Edit/Deactivate.",
+      "historical_title": "Add visit type",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "('Annual Physical Exam' added; 7→8 active)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-015",
+      "criterion": "1. Visit type row → Deactivate: verify the disabled banner ('no longer available for new appointments').\n  2. Verify the type is excluded from new-appointment options and the state persists after reload.",
+      "historical_title": "Disable visit type works (#52 stays fixed)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(deactivated; excluded from booking options; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-016",
+      "criterion": "1. Add a service offering via ServiceOfferingSettings.tsx → /api/clinic/service_offerings.\n  2. Publish the offering → verify it becomes available for configuration and scheduling work.\n  3. Verify the published offering appears in the booking dialog selector and persists after reload.\n  4. NOTE: membership-tier publication is a SEPARATE flow — not this workflow.",
+      "historical_title": "Add service offering + publish",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "('Follow-up visit' offering published; in booking selector; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-017",
+      "criterion": "1. Billing → Services (one-off catalog) → Add service: enter name, code, standard charge → save.\n  2. Verify 'Service added.' and the Active row appears.",
+      "historical_title": "Add fee-schedule service",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "('Comprehensive Metabolic Panel' 80053 $85.00 added)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-018",
+      "criterion": "1. Fee-schedule service row → Edit: change the charge → verify 'Service updated.'\n  2. Retire via 'Available for new invoice lines' off: verify Status Inactive; inactive services stay on existing invoices but are not selectable for new lines.",
+      "historical_title": "Edit/retire a fee-schedule service",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(charge edited to $95.00; retired to Inactive; copy about invoice lines confirmed)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-019",
+      "criterion": "1. Clinic setup → Location profile: verify 'Save location profile' is disabled only until a change is made, with an explanation.\n  2. Make a change (e.g., screening checkbox) → Save: verify it persists after navigating away and back.",
+      "historical_title": "Implementation profile save (#52 leg)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(save disabled until change; revision 2→3; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-020",
+      "criterion": "1. Location profile: locate the insurance-workflows control ('This location uses insurance workflows').\n  2. Verify its state and explanation (protected after setup finalization, or togglable with effect). Record exact copy.",
+      "historical_title": "Insurance-workflows switch disabled (#53)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(insurance switch protected after finalization; exact copy recorded)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-021",
+      "criterion": "1. Workforce → TEAM SCHEDULE → draft week → Add shift: open the Employee dropdown.\n  2. On a populated location: verify employee options load (count them). Create a shift and verify it saves.\n  3. On an empty location: verify the page explains how to assign employees (empty-state guidance).\n  4. Manage shifts: edit an existing shift → save → publish the schedule → reload → verify all changes persisted.",
+      "historical_title": "Create/manage shifts",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(12 employees load; shift saved/published; empty-location guidance present; datetime entry fiddly — native spinbuttons)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-022",
+      "criterion": "1. Workforce → MY REQUESTS: submit a leave request (dates, reason, location) → verify 'Request saved.'\n  2. REQUEST REVIEW: approve it → verify 'Request approved' and the history shows approved.",
+      "historical_title": "Request/approve leave",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(leave submitted/approved; review queue filters by header location)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-023",
+      "criterion": "1. Workforce → Timecards: verify calculated timecards render for the location.\n  2. Click Calculate: verify it is enabled when eligible employees exist and produces timecard rows.\n  3. If no eligibility: the empty state must explain the cause (not a silent dead end).",
+      "historical_title": "Calculated timecards view",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(timecards render; calculate produces versioned rows)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-024",
+      "criterion": "1. Workforce → PAYROLL EXPORTS: verify the view renders (Prepare payroll file, Export history, Payroll file settings).\n  2. With no approved timecards: verify the honest empty state and disabled Preview/Create export.",
+      "historical_title": "Payroll exports view renders",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(no direct timesheet add/edit — only a correction-request workflow exists; correction #3 submitted for Parker Vega)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Payroll exports criteria; reported result concerns direct timesheet entry.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-025",
+      "criterion": "1. Workforce → TEAM SCHEDULE tab: verify it loads (schedule builder, draft week, shifts table, Add shift).\n  2. Must not show 'Could not load' or equivalent error.",
+      "historical_title": "Team schedule tab \"Could not load\" (#19)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(schedule loads; shifts render)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-026",
+      "criterion": "1. Workforce → BADGES & KIOSKS → select an employee without a badge → Issue or replace badge.\n  2. Verify confirmation ('Badge issued...') and the badge persists in the list with a Revoke control.",
+      "historical_title": "Badge issuance silently fails (#45)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(badge issued to Sydney Vega; one-time barcode dialog)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-027",
+      "criterion": "1. Workforce → TIMECARDS → Add manager correction on a timecard: correct an interval with a reason → Submit.\n  2. Verify the correction is submitted for review; verify a DISTINCT authorized approver can approve it (self-approval must remain blocked: 'The requester cannot decide the same correction').\n  3. If no second approver exists in the sandbox, verdict BLOCKED (do not bypass the guard).",
+      "historical_title": "Clock-out edit blocked",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(self-approval blocked: 'The requester cannot decide the same correction.')"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Self-denial alone does not demonstrate approval by a different authorized person.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-028",
+      "criterion": "1. Enroll a kiosk clock with a valid one-time code (badge previously issued to the employee).\n  2. Perform an actual badge clock-IN on the enrolled kiosk → verify the punch persists and appears on the employee's timecard.\n  3. Perform an actual badge clock-OUT → verify the punch persists and the timecard shows the completed interval.\n  4. Only persisted punches/timecard entries count — enrollment success or page rendering alone does not pass.",
+      "historical_title": "Clock in/out via kiosk unreachable (#86) [CORRECTED: full punch lifecycle required]",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(fresh kiosk enrollment; clock-in 9:01:41 PM + clock-out 9:01:57 PM persisted on timecard)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-029",
+      "criterion": "1. Patients → Register patient: duplicate check → Continue to registration → fill identity/contact sections → Register patient.\n  2. Verify the final identity review and the record opens with demographics and contacts intact.",
+      "historical_title": "Patient registration",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Marcus Whitfield registered; duplicate check → identity review → chart)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-030",
+      "criterion": "1. Patients → directory search: enter a name fragment → verify matching patients return with identifiers and an Open patient link.",
+      "historical_title": "Patient directory search",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(directory search returns candidate match with masked phone)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-031",
+      "criterion": "1. Register a duplicate patient (same name/DOB) → on the duplicate record → Merge duplicate.\n  2. Canonical-ID field: verify non-numeric input is flagged invalid and Merge stays disabled until a numeric patient ID is entered (must not silently strip).\n  3. Submit: verify the directory lists only the canonical record and the duplicate is hidden.",
+      "historical_title": "Merge duplicate patients",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(duplicate merged; non-numeric canonical ID flagged, Merge disabled; duplicate hidden)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-032",
+      "criterion": "1. Patient chart → Edit registration details: edit a demographics field (e.g., Street address).\n  2. Save and continue → Save registration details: verify the edit persists after reload.\n  3. Empty/cleared updates must not be silently dropped; errors must surface with a retry path.",
+      "historical_title": "Edit registration details / patient demographics",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(address edit persists after reload)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-033",
+      "criterion": "1. Edit registration → Emergency contact section: verify emergency contact can be viewed/edited.\n  2. Full-text search chart and registration for guarantor capture UI; record whether any guarantor field exists.",
+      "historical_title": "Emergency contact works; guarantor capture",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "with gap (emergency contact works; NO guarantor capture UI exists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-034",
+      "criterion": "1. Tracking Board → active encounter → intake group 'Safety and history' → Allergies and reactions → Record an exception.\n  2. Verify the exception menu offers Not asked / Unknown / Declined; record one and save the group.",
+      "historical_title": "Intake \"Record an exception\" for allergies",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(allergy exception: Not asked / Unknown / Declined)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-035",
+      "criterion": "1. Intake → Add allergy or reaction: enter reaction type, substance, severity, details → save via group save.\n  2. Verify the allergy appears on the patient record under patient-reported allergies with encounter/revision provenance.",
+      "historical_title": "Add allergy",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Sulfa allergy added; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-036",
+      "criterion": "1. Add a problem/condition (chart or intake): enter condition, category, onset → save.\n  2. Verify it appears on the patient problem list and persists after reload.",
+      "historical_title": "Add problem/condition",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Essential hypertension condition + I10 encounter diagnosis; persist)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-037",
+      "criterion": "1. Record medication history: add a medication with dose/route/frequency → save.\n  2. Verify it appears in the medication history and persists.",
+      "historical_title": "Record medication history",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Metformin added with guardrail copy; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-038",
+      "criterion": "1. On the patient record and in encounter context: verify allergy/medication reconciliation state renders.\n  2. Intake-reported allergies/medications must be visible to the charting clinician (defect: they were invisible).",
+      "historical_title": "Allergy/medication reconciliation state (renders on patient record + encounter context)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(medication review: 'Current list confirmed' with timestamp; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-039",
+      "criterion": "1. Schedule → Book appointment: select patient, visit type, date/time, room → Schedule appointment.\n  2. Verify the confirmation and the appointment appears on the schedule.",
+      "historical_title": "Book appointment",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Alex Morgan booked; confirmation toast; on schedule)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "FIRST_MILESTONE_CANDIDATE_UNVERIFIED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-040",
+      "criterion": "1. Appointment detail → Reschedule: change to a new valid time → verify the new range has positive duration.\n  2. Verify a Reschedule control exists on the appointment details (defect: it was missing; negative-duration ranges were possible).",
+      "historical_title": "Reschedule within capacity",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(rescheduled 9→10 AM; positive duration preserved)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-041",
+      "criterion": "1. Appointment detail → Cancel appointment (with acknowledgment checked): verify cancellation confirms.\n  2. Verify the slot offers 'Schedule a replacement appointment' and no message is sent unless requested.",
+      "historical_title": "Cancel with acknowledgment RE-VERIFIED 2026-09-28 ~10:37 CDT on 0.1.4 (batch 3 retest, GH #9): cancelled Sep 29 11:00 AM Avery Example appointment (ack checked); confirmed \"appointment was cancelled. No cancellation message was sent.\"; slot offers \"Schedule a replacement appointment.\" RE-VERIFIED 2026-09-28 ~12:28 CDT on 0.1.5 (batch 4 retest, GH #12): \"Cancel appointment\" VISIBLE AND ENABLED in the appointment detail dialog for the Scheduled Oct 13 11:00 AM–11:30 AM appointment (Close / Manage appointment / Check in patient alongside); visible but correctly disabled for Completed/Cancelled appointments per the release note's eligibility rule. Inspect only",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(cancelled; 'No cancellation message was sent'; replacement link; no ack checkbox in dialog)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Report says no acknowledgment checkbox; criteria require acknowledgment.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-042",
+      "criterion": "1. Start a Book appointment draft → abandon it → return: verify the 'Recovered appointment draft' prompt appears with Start new appointment.",
+      "historical_title": "Save-as-draft recovers draft RE-VERIFIED 2026-09-28 ~10:37 CDT on 0.1.4 (batch 3 retest, GH #13): dialog shows \"Recovered appointment draft from an earlier session: review its patient, time, and scheduling detail\" with \"Start new appointment\" button",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(draft recovered with 'Start new appointment')"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-043",
+      "criterion": "1. Attempt to schedule outside the capacity template: verify the outcome is explicit (blocked with a reason), never a silent no-op.",
+      "historical_title": "Schedule outside capacity silently no-ops (#32)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(outside capacity: 'This time is outside the site's operating hours.', button disabled)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "FIRST_MILESTONE_CANDIDATE_UNVERIFIED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-044",
+      "criterion": "1. Book a slot with no assigned clinician: verify the clinician-missing warning appears with an assign action.\n  2. Assign the clinician → retry booking → verify it saves.",
+      "historical_title": "Clinician-missing-assignment warning → assign button works (0.1.2): \"Assign QA Test Clinician to SIMT for this slot\" → \"QA Test Clinician is assigned to SIMT for this slot. Retry booking.\" → saved. (Was #15/#76; verified 2026-09-28.) BUG-HUNT 2026-09-28 ~20:22 CDT on 0.1.8 @ 25a23e4 (main-chat): BLOCKED",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(clinician warning + one-click assign; then 'Activate the clinician's authorized workforce access first.')"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Report ends at workforce-activation gate; successful retry not established.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-045",
+      "criterion": "1. Book appointment → recurring series: configure recurrence → verify the series is created with all instances.",
+      "historical_title": "Recurring series",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(24h reminder policy; Ellis Diaz reminder scheduled)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Recurring series criteria; reported result concerns reminder policy.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-046",
+      "criterion": "1. Walk-in booking: register/identify the patient → book a same-day walk-in → verify it appears on the schedule/board.",
+      "historical_title": "Walk-in booking",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(waitlist ADD blocked — visit-type dropdown is a dead control, Add stays disabled; OFFER flow works end-to-end)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Walk-in criteria; reported result concerns waitlist addition.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-047",
+      "criterion": "1. Check in a patient ~21 hours late: verify a lateness flag appears and wait time is computed (defect: showed no flag and '0 min wait').",
+      "historical_title": "(FAIL) Late arrival handling",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(policy-gated: 'Recurring appointments are not configured.'; not bypassed)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Late-arrival criteria; reported result concerns recurrence policy.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-048",
+      "criterion": "1. Mark an appointment as no-show: verify the status updates and the record persists.",
+      "historical_title": "No-show marking",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(policy-gated: 'Overbook exceptions are not configured.'; not bypassed)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "No-show criteria; reported result concerns overbooking policy.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-049",
+      "criterion": "1. Add a patient to the waitlist: verify the entry appears with status and offer flow availability.",
+      "historical_title": "Waitlist add",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(waitlist add: visit-type dropdown opens empty listbox, Add stays disabled — confirmed fresh)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-050",
+      "criterion": "1. Overbook exception flow: attempt booking beyond capacity → verify the exception path (override with reason) works and is audited.",
+      "historical_title": "Overbook exception flow",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(policy-gated: 'This clinician is already booked for that time.'; no override path)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-051",
+      "criterion": "1. Calendar month view: verify it renders with appointments; export the calendar and verify output.",
+      "historical_title": "Calendar month view + export",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(month view renders with counts; ICS export works)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-052",
+      "criterion": "1. Block schedule: create a schedule block (reason, time range) → verify blocked slots reject booking.",
+      "historical_title": "Block schedule (#99)",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(blocked time 'Staff meeting' saved but dialog booking over it SUCCEEDED — block does not reject)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-053",
+      "criterion": "1. Check in a patient from the appointment: verify the visit appears on the Tracking Board as checked in.",
+      "historical_title": "Check-in → board",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(one-click check-in; visit on board instantly)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-054",
+      "criterion": "1. Cancel a checked-in visit: verify the cancellation flow handles the checked-in state with acknowledgment.",
+      "historical_title": "Checked-in visit cancellation",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(no cancel action reachable for checked-in visit)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-055",
+      "criterion": "1. Room the patient (assign room) and claim the intake: verify room assignment and intake claim persist.",
+      "historical_title": "Rooming + intake claim",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(room persists; intake claim works; claim assigned to booked clinician not acting Admin — confusing)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-056",
+      "criterion": "1. Encounter handoff: complete the handoff step → verify the encounter status advances and the handoff record exists.",
+      "historical_title": "Encounter handoff",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(handoff request disabled: '12 encounter observation(s) and 0 history review(s) are currently linked'; intake prerequisite too deep)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-057",
+      "criterion": "1. Checkout on the same visit: run checkout → verify invoice/payment/receipt steps resolve against the visit.",
+      "historical_title": "Checkout on same visit",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(checkout unreachable — 'Follow-up work' hidden behind sticky nav)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-058",
+      "criterion": "1. Full encounter: draft → chart → sign → complete: verify each transition and the completed state.\n  2. Patient-education save must report a definitive outcome (defect: 'The save outcome is unknown.').",
+      "historical_title": "Full encounter: draft → sign → complete",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(no-show time-gated: 'No-show is available after the scheduled start time.')"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Draft/sign/complete encounter criteria; reported result concerns time-gated no-show.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-059",
+      "criterion": "1. Vitals entry: enter vitals → verify the observed-time defaults correctly and values persist.",
+      "historical_title": "Vitals entry (observed-time default wrong → MUSE_QA-001)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(vitals saved; observed-time defaults correctly; BMI auto-computed; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-060",
+      "criterion": "1. HPI fields: fill history-of-present-illness fields → verify spacing/formatting renders correctly and values persist.",
+      "historical_title": "HPI fields (spacing fixed)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(HPI fields; formatting preserved; revision 2)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-061",
+      "criterion": "1. Interactive ROS (13 systems): cycle positive/negative/not reviewed → sign the review.\n  2. Verify negative findings are retained in the signed note (defect: sign review dropped negatives).",
+      "historical_title": "Interactive ROS (13 systems, cycles positive/negative/not reviewed)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(22 findings across 13 systems; signed note RETAINS negatives — defect fixed)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-062",
+      "criterion": "1. Add diagnosis: verify the diagnosis control is available and a diagnosis can be added to the encounter.",
+      "historical_title": "Add diagnosis disabled",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Z00.00 diagnosis added; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-063",
+      "criterion": "1. Add procedure: record an allowed synthetic procedure on the encounter (defect: control was disabled for new work).\n  2. Verify the recorded procedure persists on the encounter after reload. Enabled controls or configured categories alone do not pass — a recorded, persisted entry is required.",
+      "historical_title": "Add procedure disabled",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(venipuncture 36415 recorded; persists — control now ENABLED, defect fixed)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-064",
+      "criterion": "1. Add immunization: record an allowed synthetic immunization on the encounter (defect: control was disabled for new work).\n  2. Verify the recorded immunization persists on the encounter after reload. Enabled controls alone do not pass.",
+      "historical_title": "Add immunization disabled",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(influenza CVX 140 recorded; persists — defect fixed; clinic-administered path unavailable, patient-reported only)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-065",
+      "criterion": "1. Add assessment: record an allowed synthetic assessment on the encounter (defect: no assessment categories configured).\n  2. Verify the recorded assessment persists on the encounter after reload. Categories existing alone does not pass.",
+      "historical_title": "Add assessment disabled (#62)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(tobacco screening recorded; persists — defect fixed; only one category offered)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-066",
+      "criterion": "1. Add care goal: create a care goal → verify it saves and appears on the patient record.",
+      "historical_title": "Add care goal",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(care goal linked to plan; persists)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-067",
+      "criterion": "1. SOAP note edit + auto-save: edit the note → verify auto-save; Apply template → verify the template content is actually inserted (defect: reported success but inserted nothing).",
+      "historical_title": "SOAP note edit + auto-save (explicit Save draft disabled",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(hypertension management plan saved; minor: list shows 'No additional details recorded')"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "SOAP edit, auto-save and template criteria; reported result concerns a care plan.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-068",
+      "criterion": "1. Reopen/amend a signed note: verify a correction creates a separate unsigned revision; the signed revision stays read-only.",
+      "historical_title": "Reopen/amend signed note",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(draft → signed → completed; read-only lock; gated completion with outcome/instructions/education)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Amend signed note criteria; reported result concerns signing/completing an encounter.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-069",
+      "criterion": "1. Encounter follow-up task: create and save a follow-up → verify it saves without a version-conflict loop (defect).",
+      "historical_title": "Encounter follow-up task",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(follow-up task added; no version-conflict loop)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-070",
+      "criterion": "1. Add medication request: verify the control is available and a request can be created (defect: disabled).",
+      "historical_title": "Add medication request disabled (#47)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Amoxicillin request saved; e-prescribing flow)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-071",
+      "criterion": "1. Link fulfillment: verify a fulfillment can be linked to the medication request (defect: disabled).",
+      "historical_title": "Link fulfillment disabled (#47)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(fulfillment evidence linked)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-072",
+      "criterion": "1. Refill requests queue: review a request → approve/decline → verify the decision saves and is delivered (defect: approve/decline disabled).",
+      "historical_title": "Refill requests: queue/review work, but approve/decline disabled",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(refill #88 approved; gated until reconciliation checkbox + outcome + encounter)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-073",
+      "criterion": "1. Add service request: verify the control is available and a service request can be created (defect: disabled).",
+      "historical_title": "Add service request disabled (#48)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(cardiology referral saved)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-074",
+      "criterion": "1. Lab result follow-up chain: verify the chain is reachable from a lab result (defect: unreachable).",
+      "historical_title": "Lab result follow-up chain unreachable (#48)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(lab review → follow-up needed; chain reachable; surfaces in Morning view)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-075",
+      "criterion": "1. Lab inbox: verify it renders (items or honest empty state).",
+      "historical_title": "Lab inbox renders (0 items)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(lab inbox renders; clean empty state)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-076",
+      "criterion": "1. Add care plan: verify the control is available and a care plan can be created (defect: disabled).",
+      "historical_title": "Add care plan disabled (#48)",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(no patient-portal messaging composer in staff demo; Messages is staff-only)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Care-plan criteria; reported result concerns patient messaging.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-077",
+      "criterion": "1. Record referral exchange: verify the control is available and an exchange can be recorded (defect: disabled).",
+      "historical_title": "Record referral exchange disabled (#48)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(team broadcast conversation created)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Referral-exchange criteria; reported result concerns team broadcast.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-078",
+      "criterion": "1. /clinic/recalls: verify DUE/UPCOMING/SNOOZED/EXCLUDED/COMPLETED tabs render.\n  2. Verify a 'Create recall' control exists and creates a recall with a due date.\n  3. Created recall appears in the worklist and links to the patient.",
+      "historical_title": "Recalls have no creation path (defects #23, #50)",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(no document upload control anywhere; 'Document provenance' is a dead end)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Recall creation criteria; reported result concerns document upload.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-079",
+      "criterion": "1. Patient record: verify a Care gaps section exists, or an explicit 'no open care gaps' state (defect: neither existed).\n  2. Verify /clinic/recalls worklist renders.",
+      "historical_title": "Care-gap list (patient record \"no open care gaps\" + /clinic/recalls worklist renders)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(task claimed; appears in MINE)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Care-gap/recall worklist criteria; reported result concerns task claiming.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-080",
+      "criterion": "1. Inventory setup: verify the inventory setup flow completes (locations/bins).",
+      "historical_title": "Inventory setup",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(guided 6-step inventory setup with FDA NDC lookup; PO created/approved/received)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-081",
+      "criterion": "1. Receiving: receive a purchase order with packing slip and lot → verify the receipt posts (defect: receipt blocked).",
+      "historical_title": "Receiving: receipt blocked",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(PO received with packing slip, lot, expiry, bin; receipt posted)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-082",
+      "criterion": "1. Count sessions: verify a bin-setup path exists and a count session can be started/completed.",
+      "historical_title": "Count sessions: still no bin-setup path",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(blind-count session; 5 observations reconciled; completed)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-083",
+      "criterion": "1. Stock detail/ledger: verify the view renders with movements (or honest empty state).",
+      "historical_title": "Stock detail/ledger view renders (0 movements)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(stock detail + movement ledger render with data)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-084",
+      "criterion": "1. Inventory exceptions/recalls tabs: verify both tabs render.",
+      "historical_title": "Inventory exceptions/recalls tabs render",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(exceptions/recalls tabs render; honest empty states)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-085",
+      "criterion": "1. Cash payment: post a cash payment against an invoice → verify the payment records and the drawer/session reflects it.",
+      "historical_title": "Cash payment",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "($79 cash payment on invoice #13552; drawer balance updated live)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-086",
+      "criterion": "1. Invoice → Adjust charges → Credit charges: record a credit with a reason → verify credits total and remaining balance update.",
+      "historical_title": "Billing credit/adjustment",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "($15 credit with reason; totals/balance updated)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-087",
+      "criterion": "1. Card payment gate: verify the card-payment path for an eligible invoice (Stripe setup state honestly reported).\n  2. Record the exact gate behavior: connected flow, simulator, or honest unavailability with a path.",
+      "historical_title": "Card payment gate (Stripe unconnected)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(gate verified: card simulator only, 'No card details or external charge are used'; no real Stripe claimed)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Simulator acceptance is not live collection; retain exact simulated provenance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-088",
+      "criterion": "1. Refund path: issue a refund against a payment → verify the refund records and balances update.",
+      "historical_title": "Refund path",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "($20 cash refund recorded with reason)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-089",
+      "criterion": "1. With full owner access: search the patient billing area for any statement-generation action → verify a patient statement can be generated (print/PDF).",
+      "historical_title": "No patient-statement generation (#54)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(patient statement EXISTS — contradicts original checklist line 127; preview renders, print view loads; native print dialog not triggered this run)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-090",
+      "criterion": "1. Invoice → Print receipt / Open receipt: verify each produces output (defect: both silently did nothing).",
+      "historical_title": "\"Print a receipt\" silently does nothing (#54)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(invoice ledger with statuses + aging buckets)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Receipt output criteria; reported result concerns invoice ledger.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-091",
+      "criterion": "1. Billing → Invoices: verify search returns matching invoices; status filter (All/Drafts/Open balances/Settled/Void/aging) filters correctly.\n  2. Verify sort (Most recent/Oldest first/Largest balance/Largest total) reorders correctly.",
+      "historical_title": "Invoice ledger view + filters",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(ledger search/filters/sorts all correct)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-092",
+      "criterion": "1. Completed visits awaiting checkout → Start checkout: verify the guided 5-step view renders (handoff/invoice/payment/receipt/follow-up) with per-step states.",
+      "historical_title": "Checkout guided view (payment steps blocked)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(5-step checkout guided view with per-step states)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-093",
+      "criterion": "1. Invoice → Adjust charges → Write off bad debt: record a write-off with a reason → verify totals and balance update.",
+      "historical_title": "Write-off / bad-debt flow",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(write-off $45 recorded; ledger updated; note: settled invoice reads 'Paid' not 'Settled')"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-094",
+      "criterion": "1. Cash drawer: count → close the session (verify zero/non-zero discrepancy handling) → open a new drawer with a float.",
+      "historical_title": "Cash drawer count/close/open",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(drawer count 300 vs expected 304 → -$4 discrepancy recorded; new drawer opened with $250 float)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-095",
+      "criterion": "1. Home page → FUTURE PATIENT link: verify it leads to a prospective-patient path (not an empty page).\n  2. PATIENT sign-in: verify patient accounts can sign in (not 'No patient accounts are available' with LOG IN disabled).",
+      "historical_title": "tested",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(no FUTURE PATIENT link on homepage across 5 loads; appeared once in first render only)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-096",
+      "criterion": "1. Growth → Public membership page config: verify page name, logo, accent, headline, intro can be configured and published.\n  2. Verify the public membership page renders at its public address (not a 404).",
+      "historical_title": "tested",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(membership page config saves, but public URL 404s on 3 loads)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-097",
+      "criterion": "1. Growth → Membership growth pipeline: verify tabs (All/Prospective/Patients/Closed) and the table render with Review actions.",
+      "historical_title": "Membership pipeline (Growth page) renders",
+      "reported_website": {
+        "verdict": "FAIL",
+        "observation": "(membership activation: silent no-op; cancellation: dialog never completes; no staff-facing New membership button)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Membership pipeline rendering criteria; reported result concerns activation/cancellation.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-098",
+      "criterion": "1. Staff messaging: verify the participant list populates; create/send a message → verify delivery.\n  2. Verify no permission denial blocks creation for authorized roles.",
+      "historical_title": "Staff messaging: participant list populates (#44 FIXED on symptoms 0.1.8); new #112 (create permission denial)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(subscription catalog renders with tiers/pricing)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Staff messaging criteria; reported result concerns subscription catalog.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-099",
+      "criterion": "1. CORRECTED: source confirms clinic reminder settings EXIST — ReminderSettings.tsx and identity/Settings.tsx render 'Clinic reminder settings' for roles.manage; API /api/clinic/reminder_policy stores enabled/lead_hours with revision and idempotency.\n  2. Inspect the real control first: navigate to the Clinic reminder settings (roles.manage) → verify enabled/lead_hours render and persist via the API (revision + idempotency).\n  3. Additional template/quiet-hours requirements need their original source; record them as separate gaps, not as WF-099 failures.",
+      "historical_title": "Reminder configuration UI (Clinic reminder settings)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(reminder enabled + lead_hours persist through save/reload)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-100",
+      "criterion": "1. Appointment row → Compose text: verify the panel renders (recipient, prefilled message, character counter, sandbox notice).",
+      "historical_title": "No patient-facing message composer; reminders sending dead-end (#70 re-confirmed 0.1.8)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(end-of-day closeout: visits, invoices, drawers, reconciliation queue)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Patient reminder composer criteria; reported result concerns end-of-day closeout.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-101",
+      "criterion": "1. Compose text → Send sandbox reminder: verify the send dispatches and records a delivery attempt in MESSAGE HISTORY.\n  2. Verify error placement: failures must surface a visible error (not silent, not raw 'Internal Server Error').\n  3. Verify a path exists to provision verified phone + consent (additive; opt-outs and invalidated destinations stay intact).",
+      "historical_title": "Appointment reminder send blocked",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(reminder queued; honest sandbox copy: 'delivery is not confirmed')"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Queued attempt is not confirmed external delivery.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-102",
+      "criterion": "1. Scribe → Start session: verify a session starts (defect: did nothing and led to 'Not found').\n  2. Verify the template list is non-empty.",
+      "historical_title": "Scribe session can't start (template list empty) (#46)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(scribe session starts; template list non-empty: 'SOAP note')"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-103",
+      "criterion": "1. Care → Telehealth: verify the video-visit path — provider connection, policy, health check, eligible visit type.\n  2. Book video visit must be achievable or the blockers honestly enumerated with a path.",
+      "historical_title": "Telehealth needs operator Twilio creds (#39",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(video visit not bookable; 4 concrete readiness checks honestly enumerated)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Readiness gates do not establish a booked video visit required by criteria.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-104",
+      "criterion": "1. Telehealth settings → Eligible visits and locations → Add eligibility rule → Save draft → Reload settings.\n  2. Verify the draft persists ('Draft saved...' and the rule is present after reload).",
+      "historical_title": "Add eligibility rule draft-save FAILED on 0.2.3 (new #235: \"Save draft\" confirms but draft lost on reload; overlay #39 persists)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(eligibility rule draft persists after reload)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-105",
+      "criterion": "1. STRIPE CONNECT (separate requirement): ACCOUNT → Billing → Stripe setup → verify whether a real connect/OAuth flow starts (not just navigation to the Subscriptions tab). Independent of invoice collection.\n  2. ORDINARY-INVOICE card collection: on an ORDINARY posted invoice with a balance (NOT a membership_managed invoice — those are intentionally excluded from ordinary card collection): verify the card-collection path works end to end.\n  3. Membership collection: test separately through the membership flow.",
+      "historical_title": "Stripe connect flow (needs owner action",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(leg 1: owner-gated, no OAuth; leg 2: simulator collection records; leg 3: qualified — 'Activate from posted payment' is a silent no-op)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Three distinct legs: owner connection, ordinary collection, membership collection. Do not collapse them into one PASS.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-106",
+      "criterion": "1. Telehealth settings → Provider connection: verify the Twilio connect path and what is user-actionable vs operator-managed.",
+      "historical_title": "Twilio connect (operator-managed",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Twilio owner-gated; exact copy captured)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-107",
+      "criterion": "1. OPERATIONS → Connectors & transmissions: verify the section renders with current statuses (Provider readiness, Scribe, Payments, Reminders, Prescriptions).",
+      "historical_title": "Transmission simulator/connectors area absent on 0.2.4 (new #236: read-only readout missing everywhere; no documented removal in 0.2.4 update log; possible intentional removal",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(connector list with honest states and disclaimers)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-108",
+      "criterion": "1. Operations overview hub: verify it renders fully with live data.\n  2. End-of-day closeout summary rows must not stick on 'Loading…' spinners.",
+      "historical_title": "Operations overview hub renders",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(audit log: 614 entries, UTC, read-only; captured the denial probe)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Operations hub/closeout criteria; reported result concerns audit log.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-109",
+      "criterion": "1. Daily source reports: set a date via picker, text entry, and keyboard arrows.\n  2. Verify the date commits and 'Show report' renders live rows for each entry method.",
+      "historical_title": "Daily source reports date can't commit (#51; retested 2026-09-30 ~18:45 CDT on exact 0.2.4 @ dad4e133",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Front Desk denied admin sections with clear message; denial in audit log)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Daily report date-entry criteria; reported result concerns role denial.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-110",
+      "criterion": "1. Schedule, billing overview, and stock list on large data: verify each loads quickly.\n  2. No hangs, no errors, no indefinite spinners.",
+      "historical_title": "Schedule/billing/stock query performance on large data (schedule, billing overview, stock list all load quickly, no hangs; 2026-09-28; re-verified 2026-09-30 ~18:54 CDT on exact 0.2.4 @ 0cad7038",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(session expiry cannot be safely triggered in shared workspace; no timeout UI found)"
+      },
+      "source_reconciliation": "ID_SUBJECT_CONFLICT",
+      "conflict_or_qualification": "Large-data performance criteria; reported result concerns session expiry.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-111",
+      "criterion": "1. /clinic/operations (or Clinic setup) → Refresh snapshot: verify it refreshes.\n  2. Download configuration JSON: verify a file downloads with confirmation copy.\n  3. 'Compare saved JSON' must open a file picker (native picker; file leg not automation-drivable is acceptable if documented).",
+      "historical_title": "Config snapshot: refresh/download work; \"Compare saved JSON\" opens hidden file input (native picker; file leg not drivable",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(snapshot refreshes; JSON downloads; compare opens file picker)"
+      },
+      "source_reconciliation": "UNVERIFIED_REPORTED_RESULT",
+      "conflict_or_qualification": "Reported website result retained; not independently reverified and not integration acceptance.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-112",
+      "criterion": "1. Locate the guided demo reset control: verify it exists and its gating.\n  2. DO NOT TRIGGER (owner prohibition — shared workspace). Verdict BLOCKED by owner rule.\n  3. Historical note: a re-entry pass was observed on 3da3ca67; it did not exercise the reset criterion and is not reset acceptance.",
+      "historical_title": "Guided demo reset (owner action",
+      "reported_website": {
+        "verdict": "BLOCKED",
+        "observation": "(reset control located, gated with ellipsis; never triggered — owner rule)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Owner prohibition: inspect controls only; never reset shared records.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-113",
+      "criterion": "1. Employee invite under sync race conditions: verify the invite is not silently dropped.\n  2. Verify the invite appears in the queue/listing after submission.",
+      "historical_title": "Invite silently dropped under sync race (#58)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(Marcus Delgado invite created; appears in pending queue instantly)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "An immediately visible invitation does not by itself prove the requested sync-race case.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-114",
+      "criterion": "1. Idle the session ~15–20 min: verify the expiry sequence — banner 'Unable to confirm your session. Your current work remains open until the session expires.' with RETRY, then hard lock 'Session locked / Sign in again'.\n  2. Verify no silent data loss on expiry.",
+      "historical_title": "Session expiry handling",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(session-expiry copy observed; 'Reload settings' did not recover the page — minor)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Observed expiry copy does not demonstrate full retry/lock sequence and draft preservation.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "FIRST_MILESTONE_CANDIDATE_UNVERIFIED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-115",
+      "criterion": "1. Patient activity feed: verify SYNTHETIC actions ONLY are recorded — no real data may appear in the feed.\n  2. Verify the practice-level audit trail captures the synthetic actions.",
+      "historical_title": "Patient activity feed records synthetic actions (practice-level audit trail missing",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(activity feed records sandbox actions with privacy-forward disclaimer; no real data)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "Patient activity evidence alone does not establish the separate practice audit criterion.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "FIRST_MILESTONE_CANDIDATE_UNVERIFIED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    },
+    {
+      "id": "WF-116",
+      "criterion": "1. /owner: verify it loads fully and the Owner Command Center renders.\n  2. Must not return 502 Bad Gateway.",
+      "historical_title": "Owner workspace /owner 502 Bad Gateway (#69)",
+      "reported_website": {
+        "verdict": "PASS",
+        "observation": "(/owner → clean login gate, no 502; Owner Command Center branded page)"
+      },
+      "source_reconciliation": "QUALIFIED_OR_INCOMPLETE_EVIDENCE",
+      "conflict_or_qualification": "A login gate with no 502 does not establish the authenticated owner dashboard rendering.",
+      "historical_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
+      "assistant_gate": "GATED_NOT_IMPLEMENTED",
+      "assistant_evidence": [],
+      "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
+    }
+  ]
+}

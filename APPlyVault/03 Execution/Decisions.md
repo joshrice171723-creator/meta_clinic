@@ -1,9 +1,17 @@
 ---
 type: decision-log
 status: active
-updated: 2026-09-28
+updated: 2026-10-04
 ---
 # Decisions
+
+## Embedded assistant and login-free demo — 2026-10-04
+
+**D-082 — explicit founder direction:** Phase 2 is an AI assistant embedded in Meta Clinic. This reverses the earlier cancellation of embedded-assistant work and resumption of the ChatGPT-hosted plugin. Phase 1 is parked as reference material; connector pairing, plugin OAuth and directory distribution are not carried into the application architecture. Existing staff sessions remain authoritative. Demo entry automatically establishes a specific demo session identity without a login form or account creation; its role, audit, isolation and confirmation rules are identical in principle to staff actions.
+
+Complete and verify the first booking milestone before starting clinical drafts, billing operations, briefings or event-driven work. Consequential actions require a server-held, expiring proposal bound to the actor, clinic, location, patient, exact arguments and record versions, with confirmation-time authorization, duplicate protection and persisted read-back. Demo inference uses server-side OpenRouter free models with request budgets and no paid fallback; the model adapter remains replaceable. Synthetic demo providers may retain prompts. Production provider controls remain separate requirements, not an established compliance claim.
+
+The [implementation checkpoint](../../docs/development/in-app-assistant-checkpoint.md) records ownership and evidence. Historical website workflow passes do not establish assistant acceptance. No main merge, deployment, public publication, paid inference, third-party contact, destructive data operation or live clinical/payment activation is authorized by this direction. The owner separately authorized reuse or creation of an OpenRouter key for this local free-model demo work.
 
 ## Version 0.1.9 QA disposition gate — 2026-09-28
 

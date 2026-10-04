@@ -1,7 +1,7 @@
 ---
 type: dashboard
 status: active
-updated: 2026-09-23
+updated: 2026-10-04
 lifecycle: active
 canonical_for: vault-orientation
 ---
@@ -27,6 +27,8 @@ The retired `reference/` folder was removed by the founder after its useful beha
 **Backend verification (2026-08-31):** source commits `600976f`/`5436764` implement the ERD schema, domain workflows and API. [[Backend Verification Report]] records the subsequent full validation, guarded synthetic seeds, corrections and all 68 entities/103 relationships. Structural coverage is present; access auditing, protected-value handling and several clinical workflows remain incomplete. D-044's historical prompt and pending amendment record do not establish clinical approval, database-reset permission or deployment readiness.
 
 ## Current position
+
+- **Embedded assistant:** D-082 parks the ChatGPT plugin and authorizes the in-app booking milestone, including demo access without a login wall. Implementation and assistant-specific acceptance are tracked in the [checkpoint](../docs/development/in-app-assistant-checkpoint.md); no historical website pass or plugin operation count establishes completion.
 
 - **Composable clinic setup:** D-076 and the shared-core/ten-clinic capability map in [[Meta Clinic Product Strategy and Scope]] require configurable components, independent specialty/modality/payment choices and Clinic Setup updates with new functionality. Weight loss is the first implementation reference. Infusion chair/resource, inventory and authorization projections remain future capability direction, not current readiness.
 

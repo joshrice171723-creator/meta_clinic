@@ -85,6 +85,13 @@ Rails.application.routes.draw do
     get "realtime/events", to: "realtime/events#show"
     get "context", to: "context#show"
     patch "context", to: "context#update"
+    post "assistant/context", to: "assistant/booking#create_context"
+    delete "assistant/context", to: "assistant/booking#invalidate_context"
+    post "assistant/openings", to: "assistant/booking#create_openings"
+    post "assistant/messages", to: "assistant/booking#create_message"
+    post "assistant/proposals", to: "assistant/booking#create_proposal"
+    post "assistant/proposals/:id/confirm", to: "assistant/booking#confirm"
+    get "assistant/proposals/:id", to: "assistant/booking#show"
     get "working_drafts/:kind", to: "working_drafts#show"
     put "working_drafts/:kind", to: "working_drafts#update"
     namespace :telehealth do

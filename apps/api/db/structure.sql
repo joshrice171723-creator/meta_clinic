@@ -2813,6 +2813,139 @@ ALTER SEQUENCE public.clinic_assessment_revisions_id_seq OWNED BY public.clinic_
 
 
 --
+-- Name: clinic_assistant_booking_proposals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_assistant_booking_proposals (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    assistant_context_id bigint CONSTRAINT clinic_assistant_booking_proposal_assistant_context_id_not_null NOT NULL,
+    actor_user_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    visit_type_id bigint NOT NULL,
+    booked_clinician_id bigint NOT NULL,
+    room_id bigint,
+    appointment_id bigint,
+    public_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    visit_modality character varying DEFAULT 'in_person'::character varying NOT NULL,
+    starts_at timestamp(6) without time zone NOT NULL,
+    ends_at timestamp(6) without time zone NOT NULL,
+    arguments jsonb DEFAULT '{}'::jsonb NOT NULL,
+    record_versions jsonb DEFAULT '{}'::jsonb NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    confirmed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_assistant_proposal_values CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'confirmed'::character varying, 'expired'::character varying, 'invalidated'::character varying, 'conflicted'::character varying])::text[])) AND ((visit_modality)::text = ANY ((ARRAY['in_person'::character varying, 'video'::character varying])::text[])) AND (ends_at > starts_at) AND (jsonb_typeof(arguments) = 'object'::text) AND (jsonb_typeof(record_versions) = 'object'::text) AND (((status)::text = 'confirmed'::text) = ((confirmed_at IS NOT NULL) AND (appointment_id IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_assistant_booking_proposals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_assistant_booking_proposals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_assistant_booking_proposals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_assistant_booking_proposals_id_seq OWNED BY public.clinic_assistant_booking_proposals.id;
+
+
+--
+-- Name: clinic_assistant_contexts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_assistant_contexts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    actor_user_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    member_session_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    patient_id bigint NOT NULL,
+    encounter_id bigint,
+    public_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    authorization_generation integer NOT NULL,
+    session_context jsonb DEFAULT '{}'::jsonb NOT NULL,
+    selection_options jsonb DEFAULT '{}'::jsonb NOT NULL,
+    opening_options jsonb DEFAULT '[]'::jsonb NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    invalidated_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT clinic_assistant_context_values CHECK (((authorization_generation >= 0) AND (jsonb_typeof(session_context) = 'object'::text) AND (jsonb_typeof(selection_options) = 'object'::text) AND (jsonb_typeof(opening_options) = 'array'::text) AND ((invalidated_at IS NULL) OR (invalidated_at >= created_at))))
+);
+
+
+--
+-- Name: clinic_assistant_contexts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_assistant_contexts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_assistant_contexts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_assistant_contexts_id_seq OWNED BY public.clinic_assistant_contexts.id;
+
+
+--
+-- Name: clinic_assistant_request_budgets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_assistant_request_budgets (
+    id bigint NOT NULL,
+    period_on date NOT NULL,
+    scope_type character varying NOT NULL,
+    user_id bigint,
+    practice_id bigint,
+    daily_limit integer NOT NULL,
+    reserved_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT assistant_budget_count_values CHECK ((((daily_limit >= 1) AND (daily_limit <= 50)) AND ((reserved_count >= 0) AND (reserved_count <= daily_limit)))),
+    CONSTRAINT assistant_budget_scope_values CHECK (((((scope_type)::text = 'provider_account'::text) AND (user_id IS NULL) AND (practice_id IS NULL)) OR (((scope_type)::text = 'practice'::text) AND (user_id IS NULL) AND (practice_id IS NOT NULL)) OR (((scope_type)::text = 'user'::text) AND (user_id IS NOT NULL) AND (practice_id IS NULL))))
+);
+
+
+--
+-- Name: clinic_assistant_request_budgets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_assistant_request_budgets_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_assistant_request_budgets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_assistant_request_budgets_id_seq OWNED BY public.clinic_assistant_request_budgets.id;
+
+
+--
 -- Name: clinic_audit_delivery_receipts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -14910,6 +15043,27 @@ ALTER TABLE ONLY public.clinic_assessment_revisions ALTER COLUMN id SET DEFAULT 
 
 
 --
+-- Name: clinic_assistant_booking_proposals id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals ALTER COLUMN id SET DEFAULT nextval('public.clinic_assistant_booking_proposals_id_seq'::regclass);
+
+
+--
+-- Name: clinic_assistant_contexts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts ALTER COLUMN id SET DEFAULT nextval('public.clinic_assistant_contexts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_assistant_request_budgets id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_request_budgets ALTER COLUMN id SET DEFAULT nextval('public.clinic_assistant_request_budgets_id_seq'::regclass);
+
+
+--
 -- Name: clinic_audit_delivery_receipts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -16997,6 +17151,30 @@ ALTER TABLE ONLY public.clinic_appointments
 
 ALTER TABLE ONLY public.clinic_assessment_revisions
     ADD CONSTRAINT clinic_assessment_revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_assistant_booking_proposals clinic_assistant_booking_proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT clinic_assistant_booking_proposals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_assistant_contexts clinic_assistant_contexts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT clinic_assistant_contexts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_assistant_request_budgets clinic_assistant_request_budgets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_request_budgets
+    ADD CONSTRAINT clinic_assistant_request_budgets_pkey PRIMARY KEY (id);
 
 
 --
@@ -19349,6 +19527,27 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.clinic_workforce_employment_sites
     ADD CONSTRAINT workforce_assignment_no_overlap EXCLUDE USING gist (practice_id WITH =, employment_id WITH =, site_id WITH =, tsrange(effective_from, effective_until, '[)'::text) WITH &&);
+
+
+--
+-- Name: assistant_budget_account_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX assistant_budget_account_day ON public.clinic_assistant_request_budgets USING btree (period_on) WHERE (((scope_type)::text = 'provider_account'::text) AND (user_id IS NULL) AND (practice_id IS NULL));
+
+
+--
+-- Name: assistant_budget_practice_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX assistant_budget_practice_day ON public.clinic_assistant_request_budgets USING btree (period_on, practice_id) WHERE (((scope_type)::text = 'practice'::text) AND (user_id IS NULL) AND (practice_id IS NOT NULL));
+
+
+--
+-- Name: assistant_budget_user_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX assistant_budget_user_day ON public.clinic_assistant_request_budgets USING btree (period_on, user_id) WHERE (((scope_type)::text = 'user'::text) AND (user_id IS NOT NULL) AND (practice_id IS NULL));
 
 
 --
@@ -21739,6 +21938,27 @@ CREATE UNIQUE INDEX document_provenance_configuration_tenant ON public.clinic_do
 
 
 --
+-- Name: idx_assistant_context_actor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assistant_context_actor ON public.clinic_assistant_contexts USING btree (practice_id, actor_user_id, created_at);
+
+
+--
+-- Name: idx_assistant_proposal_actor; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assistant_proposal_actor ON public.clinic_assistant_booking_proposals USING btree (practice_id, actor_user_id, created_at);
+
+
+--
+-- Name: idx_assistant_proposal_appointment; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_assistant_proposal_appointment ON public.clinic_assistant_booking_proposals USING btree (appointment_id) WHERE (appointment_id IS NOT NULL);
+
+
+--
 -- Name: idx_encounter_follow_ups_canonical; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -21771,6 +21991,27 @@ CREATE UNIQUE INDEX idx_on_account_id_subscription_id_ff19119ce5 ON public.clini
 --
 
 CREATE INDEX idx_on_actor_session_reference_occurred_at_fc6d32a259 ON public.platform_audit_events USING btree (actor_session_reference, occurred_at);
+
+
+--
+-- Name: idx_on_assistant_context_id_cb4cb60a90; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_assistant_context_id_cb4cb60a90 ON public.clinic_assistant_booking_proposals USING btree (assistant_context_id);
+
+
+--
+-- Name: idx_on_assistant_context_id_status_094e28dada; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_assistant_context_id_status_094e28dada ON public.clinic_assistant_booking_proposals USING btree (assistant_context_id, status);
+
+
+--
+-- Name: idx_on_booked_clinician_id_5fd5f75068; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_booked_clinician_id_5fd5f75068 ON public.clinic_assistant_booking_proposals USING btree (booked_clinician_id);
 
 
 --
@@ -22506,6 +22747,125 @@ CREATE UNIQUE INDEX immunization_series_version ON public.clinic_immunization_re
 --
 
 CREATE UNIQUE INDEX index_clinic_appointment_series_on_practice_id_and_id ON public.clinic_appointment_series USING btree (practice_id, id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_actor_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_actor_user_id ON public.clinic_assistant_booking_proposals USING btree (actor_user_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_appointment_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_appointment_id ON public.clinic_assistant_booking_proposals USING btree (appointment_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_membership_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_membership_id ON public.clinic_assistant_booking_proposals USING btree (membership_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_patient_id ON public.clinic_assistant_booking_proposals USING btree (patient_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_practice_id ON public.clinic_assistant_booking_proposals USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_assistant_booking_proposals_on_public_id ON public.clinic_assistant_booking_proposals USING btree (public_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_room_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_room_id ON public.clinic_assistant_booking_proposals USING btree (room_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_site_id ON public.clinic_assistant_booking_proposals USING btree (site_id);
+
+
+--
+-- Name: index_clinic_assistant_booking_proposals_on_visit_type_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_booking_proposals_on_visit_type_id ON public.clinic_assistant_booking_proposals USING btree (visit_type_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_actor_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_actor_user_id ON public.clinic_assistant_contexts USING btree (actor_user_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_encounter_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_encounter_id ON public.clinic_assistant_contexts USING btree (encounter_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_member_session_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_member_session_id ON public.clinic_assistant_contexts USING btree (member_session_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_membership_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_membership_id ON public.clinic_assistant_contexts USING btree (membership_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_patient_id ON public.clinic_assistant_contexts USING btree (patient_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_practice_id ON public.clinic_assistant_contexts USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_assistant_contexts_on_public_id ON public.clinic_assistant_contexts USING btree (public_id);
+
+
+--
+-- Name: index_clinic_assistant_contexts_on_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_contexts_on_site_id ON public.clinic_assistant_contexts USING btree (site_id);
 
 
 --
@@ -30756,6 +31116,14 @@ ALTER TABLE ONLY public.clinic_prescription_events
 
 
 --
+-- Name: clinic_assistant_booking_proposals fk_rails_00d309cdd9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_00d309cdd9 FOREIGN KEY (membership_id) REFERENCES public.clinic_memberships(id);
+
+
+--
 -- Name: clinic_inventory_vendor_returns fk_rails_0112c0d1f0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -30769,6 +31137,14 @@ ALTER TABLE ONLY public.clinic_inventory_vendor_returns
 
 ALTER TABLE ONLY public.clinic_workforce_schedule_templates
     ADD CONSTRAINT fk_rails_01a38e595e FOREIGN KEY (practice_id, created_by_id) REFERENCES public.clinic_memberships(practice_id, user_id);
+
+
+--
+-- Name: clinic_assistant_request_budgets fk_rails_01b04478e4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_request_budgets
+    ADD CONSTRAINT fk_rails_01b04478e4 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id) ON DELETE RESTRICT;
 
 
 --
@@ -30801,6 +31177,14 @@ ALTER TABLE ONLY public.clinic_workforce_punch_challenges
 
 ALTER TABLE ONLY public.clinic_scribe_draft_sections
     ADD CONSTRAINT fk_rails_0401b6e372 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_assistant_contexts fk_rails_043cb4cf94; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT fk_rails_043cb4cf94 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -30865,6 +31249,14 @@ ALTER TABLE ONLY public.clinic_inventory_receiving_sessions
 
 ALTER TABLE ONLY public.clinic_telehealth_participants
     ADD CONSTRAINT fk_rails_09723b30c4 FOREIGN KEY (practice_id, portal_identity_id) REFERENCES public.clinic_patient_portal_identities(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_booking_proposals fk_rails_0a294c5476; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_0a294c5476 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -31009,6 +31401,14 @@ ALTER TABLE ONLY public.clinic_workforce_shifts
 
 ALTER TABLE ONLY public.clinic_workforce_employee_invitations
     ADD CONSTRAINT fk_rails_162210adb9 FOREIGN KEY (practice_id, staff_member_id) REFERENCES public.clinic_staff_members(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_booking_proposals fk_rails_16285ad95e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_16285ad95e FOREIGN KEY (patient_id) REFERENCES public.clinic_patients(id);
 
 
 --
@@ -31284,6 +31684,14 @@ ALTER TABLE ONLY public.clinic_subscription_versions
 
 
 --
+-- Name: clinic_assistant_booking_proposals fk_rails_2a06449b60; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_2a06449b60 FOREIGN KEY (appointment_id) REFERENCES public.clinic_appointments(id);
+
+
+--
 -- Name: clinic_inventory_receipts fk_rails_2adca6eead; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31532,6 +31940,14 @@ ALTER TABLE ONLY public.clinic_stripe_checkouts
 
 
 --
+-- Name: clinic_assistant_contexts fk_rails_364f9dd95f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT fk_rails_364f9dd95f FOREIGN KEY (encounter_id) REFERENCES public.clinic_encounters(id);
+
+
+--
 -- Name: clinic_inventory_carrier_preparations fk_rails_36df88d6c8; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31697,6 +32113,14 @@ ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
 
 ALTER TABLE ONLY public.clinic_telehealth_checkins
     ADD CONSTRAINT fk_rails_3c8fde2025 FOREIGN KEY (practice_id, supersedes_checkin_id) REFERENCES public.clinic_telehealth_checkins(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_contexts fk_rails_3c9c2d2310; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT fk_rails_3c9c2d2310 FOREIGN KEY (actor_user_id) REFERENCES public.users(id);
 
 
 --
@@ -31980,6 +32404,14 @@ ALTER TABLE ONLY public.clinic_workforce_time_segments
 
 
 --
+-- Name: clinic_assistant_request_budgets fk_rails_4f6bb44e19; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_request_budgets
+    ADD CONSTRAINT fk_rails_4f6bb44e19 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: clinic_workforce_schedule_publications fk_rails_4f972e7f1f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32116,6 +32548,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_invoices
 
 
 --
+-- Name: clinic_assistant_booking_proposals fk_rails_5768fa6cbf; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_5768fa6cbf FOREIGN KEY (actor_user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: clinic_lab_report_actions fk_rails_5806171119; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32233,6 +32673,14 @@ ALTER TABLE ONLY public.clinic_prescription_events
 
 ALTER TABLE ONLY public.clinic_workforce_punches
     ADD CONSTRAINT fk_rails_5e65f1e661 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_contexts fk_rails_5e82773d8d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT fk_rails_5e82773d8d FOREIGN KEY (site_id) REFERENCES public.clinic_sites(id);
 
 
 --
@@ -32516,6 +32964,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_events
 
 
 --
+-- Name: clinic_assistant_contexts fk_rails_7084ce6529; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT fk_rails_7084ce6529 FOREIGN KEY (membership_id) REFERENCES public.clinic_memberships(id);
+
+
+--
 -- Name: clinic_inventory_supplier_quote_requests fk_rails_70c86ba9d5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32777,6 +33233,14 @@ ALTER TABLE ONLY public.clinic_scribe_sources
 
 ALTER TABLE ONLY public.clinic_prescription_events
     ADD CONSTRAINT fk_rails_8332c839a5 FOREIGN KEY (recorded_by_membership_id) REFERENCES public.clinic_memberships(id);
+
+
+--
+-- Name: clinic_assistant_booking_proposals fk_rails_834ccbc2a2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_834ccbc2a2 FOREIGN KEY (booked_clinician_id) REFERENCES public.clinic_clinician_profiles(id);
 
 
 --
@@ -33273,6 +33737,14 @@ ALTER TABLE ONLY public.clinic_workforce_employee_invitations
 
 ALTER TABLE ONLY public.clinic_stock_movements
     ADD CONSTRAINT fk_rails_a204b55367 FOREIGN KEY (item_id) REFERENCES public.clinic_items(id);
+
+
+--
+-- Name: clinic_assistant_booking_proposals fk_rails_a245d76df8; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_a245d76df8 FOREIGN KEY (visit_type_id) REFERENCES public.clinic_visit_types(id);
 
 
 --
@@ -33996,6 +34468,14 @@ ALTER TABLE ONLY public.clinic_service_offering_sites
 
 
 --
+-- Name: clinic_assistant_booking_proposals fk_rails_ce9d9b97f3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_ce9d9b97f3 FOREIGN KEY (assistant_context_id) REFERENCES public.clinic_assistant_contexts(id);
+
+
+--
 -- Name: clinic_inventory_recall_dispositions fk_rails_cf064c4850; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -34212,6 +34692,14 @@ ALTER TABLE ONLY public.clinic_pharmacy_products
 
 
 --
+-- Name: clinic_assistant_booking_proposals fk_rails_dc4195dd8d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_dc4195dd8d FOREIGN KEY (room_id) REFERENCES public.clinic_rooms(id);
+
+
+--
 -- Name: clinic_workforce_shifts fk_rails_dcb1b35bbb; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -34281,6 +34769,14 @@ ALTER TABLE ONLY public.clinic_inventory_supplier_quote_requests
 
 ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
     ADD CONSTRAINT fk_rails_df65e14823 FOREIGN KEY (practice_id, resulting_timecard_version_id) REFERENCES public.clinic_workforce_timecard_versions(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_booking_proposals fk_rails_df9c27df25; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_booking_proposals
+    ADD CONSTRAINT fk_rails_df9c27df25 FOREIGN KEY (site_id) REFERENCES public.clinic_sites(id);
 
 
 --
@@ -34609,6 +35105,14 @@ ALTER TABLE ONLY public.clinic_inventory_purchase_order_lines
 
 ALTER TABLE ONLY public.clinic_pharmacy_batches
     ADD CONSTRAINT fk_rails_f379e7d3d0 FOREIGN KEY (practice_id, lot_id) REFERENCES public.clinic_inventory_lots(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_contexts fk_rails_f39bf6da45; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_contexts
+    ADD CONSTRAINT fk_rails_f39bf6da45 FOREIGN KEY (patient_id) REFERENCES public.clinic_patients(id);
 
 
 --
@@ -36146,6 +36650,9 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261004010200'),
+('20261004010100'),
+('20261004010000'),
 ('20261003171100'),
 ('20261003171000'),
 ('20261003170000'),

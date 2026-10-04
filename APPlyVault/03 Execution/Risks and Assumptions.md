@@ -1,7 +1,7 @@
 ---
 type: risk-register
 status: active
-updated: 2026-09-14
+updated: 2026-10-04
 ---
 # Risks and Assumptions
 
@@ -10,6 +10,8 @@ Home: [[00 Home]] · Action: [Meta Clinic Implementation Tracker](Meta%20Clinic%
 Impact ratings are initial judgments, not quantified probabilities. All entries are open, with owners unassigned. A risk is not closed merely because a plan exists.
 
 ## Risks
+
+**Embedded-assistant production boundary — 2026-10-04 / open:** the demo uses synthetic data and free-model inference; those providers may retain prompts. Before future real-data use, the project owner with healthcare counsel must separately establish an executed BAA, approved retention controls and eligible provider endpoints/features. No adapter, source check or demo result proves these requirements or HIPAA compliance. Durable action receipts and conversation retention have separate policies; operational archival/retention requirements remain open. See D-082 and the [assistant design](../../docs/development/in-app-assistant-design.md).
 
 | ID   | Impact | Risk                                                                                                                   | Mitigation / next evidence                                                                                         | Linked work                           |
 | ---- | ------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |

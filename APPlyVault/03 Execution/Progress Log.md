@@ -2,11 +2,13 @@
 
 type: progress-log
 status: active
-updated: 2026-10-03
+updated: 2026-10-04
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+**2026-10-04 — Phase 2 direction reconciled:** The owner parked the ChatGPT plugin and authorized the embedded assistant, clarifying that demo visitors enter without logging in and receive a scoped session identity automatically. Preserved the plugin branch/handoff, isolated the new task branch, pulled main and retained the historical 116 criteria with 19 subject conflicts. [Checkpoint](../../docs/development/in-app-assistant-checkpoint.md) and [reconciliation](../../records/implementation/2026-10-04-assistant-workflow-reconciliation.md). Implementation is in progress; no assistant or hosted acceptance is claimed by this entry.
 
 **2026-10-03 — Meta Clinic Codex plugin built and installed locally:** Added an isolated plugin with 90 source-mapped operations (61 reads, 29 writes), a native-panel resource, reviewed single-use changes, and a five-screenshot tutorial. TypeScript and bundle checks passed; MCP discovery returned seven tools. Chrome connected a backend account, read schedules/patients, and saved/read back a synthetic staff directory entry. Separate local Rails/PostgreSQL runtime; aimetaclinic.com and the primary checkout were untouched. Native Codex rendering and complete operation acceptance remain pending; no automated tests or hosted release performed. [Delivery evidence and limits](../../plugins/meta-clinic/DELIVERY.md).
 

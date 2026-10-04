@@ -172,9 +172,9 @@ export function DemoJourney() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const entryHeadingRef = useRef<HTMLHeadingElement>(null);
   const registrationSubmitted = useRef(false);
+  const visitorProvisionStarted = useRef(false);
   const generation = useRef(0);
   const [state, setState] = useState<LoadState>({ status: "loading" });
-  const [visitor, setVisitor] = useState({ name: "", email: "", company: "" });
   const [busy, setBusy] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,9 +302,15 @@ export function DemoJourney() {
     return () => window.removeEventListener("message", onMessage);
   }, [refresh]);
   useEffect(() => {
-    setFrameLoading(Boolean(run?.lesson_key));
+    setFrameLoading(Boolean(run?.lesson_key && !run.account_pending));
     setFrameFailed(false);
-  }, [run?.id, run?.lesson_key, run?.account?.user_id, frameRevision]);
+  }, [
+    run?.id,
+    run?.lesson_key,
+    run?.account?.user_id,
+    run?.account_pending,
+    frameRevision,
+  ]);
   useEffect(() => {
     if (!frameLoading) return;
     const timeout = window.setTimeout(() => {
@@ -374,6 +380,8 @@ export function DemoJourney() {
   };
 
   const registerVisitor = async () => {
+    if (visitorProvisionStarted.current) return;
+    visitorProvisionStarted.current = true;
     setBusy(true);
     setSwitching(true);
     setError(null);
@@ -381,18 +389,29 @@ export function DemoJourney() {
     try {
       const response = await api<DemoRunResponse>("/api/demo/visitor", {
         method: "POST",
-        body: visitor,
+        body: {},
       });
       clearCsrf();
       registrationSubmitted.current = true;
       setState({ status: "ready", value: response });
     } catch (reason) {
-      setError(message(reason, "Your details could not be saved."));
+      visitorProvisionStarted.current = false;
+      setError(message(reason, "The demo session could not be prepared."));
     } finally {
       setBusy(false);
       setSwitching(false);
     }
   };
+  useEffect(() => {
+    if (
+      state.status === "ready" &&
+      !state.value.active &&
+      !state.value.visitor_registered &&
+      !visitorProvisionStarted.current
+    ) {
+      void registerVisitor();
+    }
+  }, [state]);
   const selectLesson = async (
     lesson_key: string | null,
     restart = false,
@@ -717,7 +736,7 @@ export function DemoJourney() {
                   !state.value.visitor_registered ? "step" : undefined
                 }
               >
-                1. Your details
+                1. Demo session
               </span>
               <span aria-hidden="true" />
               <span
@@ -736,7 +755,7 @@ export function DemoJourney() {
             <p>
               {state.value.visitor_registered
                 ? "Choose a clinic and an account to explore. Each account has its own view and permissions."
-                : "A few details, then you're in. No password or email verification needed."}
+                : "Preparing a session for your clinic walkthrough."}
             </p>
           </div>
           {error && <Alert severity="error">{error}</Alert>}
@@ -793,69 +812,27 @@ export function DemoJourney() {
             </>
           )}
           {!state.value.visitor_registered ? (
-            <Box
-              component="form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void registerVisitor();
-              }}
-            >
-              <Stack spacing={2}>
-                {(["name", "email", "company"] as const).map((field) => (
-                  <TextField
-                    key={field}
-                    label={
-                      {
-                        name: "Your name",
-                        email: "Email address",
-                        company: "Company or organization",
-                      }[field]
-                    }
-                    type={field === "email" ? "email" : "text"}
-                    autoComplete={field === "company" ? "organization" : field}
-                    required
-                    disabled={busy}
-                    value={visitor[field]}
-                    onChange={(event) =>
-                      setVisitor((current) => ({
-                        ...current,
-                        [field]: event.target.value,
-                      }))
-                    }
-                    slotProps={{
-                      htmlInput: {
-                        maxLength:
-                          field === "name"
-                            ? 160
-                            : field === "email"
-                              ? 254
-                              : 200,
-                      },
-                    }}
-                    fullWidth
-                  />
-                ))}
+            <Stack spacing={1.5} role="status" aria-live="polite">
+              {busy ? (
+                <CircularProgress
+                  size={22}
+                  aria-label="Preparing demo session"
+                />
+              ) : null}
+              <Typography variant="body2">
+                {busy
+                  ? "Creating your demo session…"
+                  : "The session could not start."}
+              </Typography>
+              {!busy && (
                 <Button
-                  className="meta-marketing__button-primary"
-                  type="submit"
-                  variant="contained"
-                  disabled={busy}
-                  endIcon={<ArrowForwardRoundedIcon />}
+                  variant="outlined"
+                  onClick={() => void registerVisitor()}
                 >
-                  {busy ? "Saving your details…" : "Choose your workspace"}
+                  Try again
                 </Button>
-                {showDemoLessons && (
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    disabled={busy}
-                    onClick={() => void selectLesson("navigation_tour")}
-                  >
-                    Browse without sharing details
-                  </Button>
-                )}
-              </Stack>
-            </Box>
+              )}
+            </Stack>
           ) : (
             <Stack spacing={2}>
               <p>
@@ -1238,73 +1215,162 @@ export function DemoJourney() {
               )}
             </Stack>
           </Paper>
-          <Paper
-            variant="outlined"
-            className={sandbox ? "demo-journey__sandbox-workspace" : undefined}
-            sx={{
-              ...(sandbox ? {} : { minHeight: 900 }),
-              position: "relative",
-            }}
-          >
-            {(switching || frameLoading) && (
-              <Stack
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  zIndex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "background.paper",
-                }}
-              >
-                <CircularProgress />
+          {sandbox && run.account_pending ? (
+            <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography component="h2" variant="h6">
+                    Finish opening the clinic
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Your prepared workspace is still here. Choose a role to
+                    continue, or return to the clinic entry.
+                  </Typography>
+                </Box>
+                {error && <Alert severity="error">{error}</Alert>}
+                {preparingSandbox && (
+                  <div
+                    className="demo-entry__loading"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <LinearProgress aria-label="Preparing sandbox" />
+                    <p>Elapsed: {durationLabel(sandboxElapsed)}</p>
+                  </div>
+                )}
+                <TextField
+                  select
+                  label="Demo account"
+                  value={selectedAccount}
+                  onChange={(event) =>
+                    setSelectedAccount(event.target.value as SandboxAccountKey)
+                  }
+                  disabled={busy}
+                  fullWidth
+                >
+                  {(
+                    run.accounts ??
+                    sandboxAccounts.map(({ key, label }) => ({
+                      key,
+                      label,
+                      available: true,
+                    }))
+                  ).map(({ key, label, available }) => (
+                    <MenuItem key={key} value={key} disabled={!available}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button
+                    variant="outlined"
+                    disabled={busy}
+                    onClick={() =>
+                      void selectLesson(
+                        null,
+                        false,
+                        selectedAccount,
+                        selectedCareModel,
+                        true,
+                      )
+                    }
+                  >
+                    Return to clinic entry
+                  </Button>
+                  <Button
+                    className="meta-marketing__button-primary"
+                    variant="contained"
+                    disabled={busy}
+                    onClick={() =>
+                      void selectLesson(
+                        "sandbox",
+                        false,
+                        selectedAccount,
+                        selectedCareModel,
+                        true,
+                      )
+                    }
+                  >
+                    {busy
+                      ? "Finishing setup…"
+                      : `Continue as ${sandboxAccounts.find((account) => account.key === selectedAccount)?.label ?? "selected role"}`}
+                  </Button>
+                </Stack>
               </Stack>
-            )}
-            {frameFailed && !switching && (
-              <Stack spacing={2} sx={{ p: 4 }}>
-                <Alert severity="error">
-                  {sandbox
-                    ? "The clinic took too long to open. Your changes are preserved."
-                    : "This lesson took too long to load. Your clinic data is preserved."}
-                </Alert>
-                <Button onClick={() => setFrameRevision((value) => value + 1)}>
-                  Retry workspace
-                </Button>
-              </Stack>
-            )}
-            {!switching && !frameFailed && source ? (
-              <Box
-                component="iframe"
-                key={`${run.id}:${run.lesson_key}:${run.account?.user_id}:${frameRevision}`}
-                ref={frameRef}
-                name="clinic-demo-workspace"
-                title={`${sandbox ? "Sandbox" : activeLesson?.title} workspace`}
-                src={source}
-                onLoad={finishFrameLoading}
-                onError={() => {
-                  finishFrameLoading();
-                  setFrameFailed(true);
-                }}
-                sx={{
-                  border: 0,
-                  width: "100%",
-                  height: sandbox ? "100%" : undefined,
-                  minHeight: sandbox ? 0 : 900,
-                  display: "block",
-                  ...(sandbox ? { flex: "1 1 auto" } : {}),
-                }}
-              />
-            ) : (
-              !switching &&
-              !frameFailed && (
-                <Alert severity="error">
-                  {sandbox
-                    ? "The clinic is unavailable."
-                    : "This lesson workspace is unavailable."}
-                </Alert>
-              )
-            )}
-          </Paper>
+            </Paper>
+          ) : (
+            <Paper
+              variant="outlined"
+              className={
+                sandbox ? "demo-journey__sandbox-workspace" : undefined
+              }
+              sx={{
+                ...(sandbox ? {} : { minHeight: 900 }),
+                position: "relative",
+              }}
+            >
+              {(switching || frameLoading) && (
+                <Stack
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: "background.paper",
+                  }}
+                >
+                  <CircularProgress />
+                </Stack>
+              )}
+              {frameFailed && !switching && (
+                <Stack spacing={2} sx={{ p: 4 }}>
+                  <Alert severity="error">
+                    {sandbox
+                      ? "The clinic took too long to open. Your changes are preserved."
+                      : "This lesson took too long to load. Your clinic data is preserved."}
+                  </Alert>
+                  <Button
+                    onClick={() => setFrameRevision((value) => value + 1)}
+                  >
+                    Retry workspace
+                  </Button>
+                </Stack>
+              )}
+              {!switching && !frameFailed && source ? (
+                <Box
+                  component="iframe"
+                  key={`${run.id}:${run.lesson_key}:${run.account?.user_id}:${frameRevision}`}
+                  ref={frameRef}
+                  name="clinic-demo-workspace"
+                  title={`${sandbox ? "Sandbox" : activeLesson?.title} workspace`}
+                  src={source}
+                  onLoad={finishFrameLoading}
+                  onError={() => {
+                    finishFrameLoading();
+                    setFrameFailed(true);
+                  }}
+                  sx={{
+                    border: 0,
+                    width: "100%",
+                    height: sandbox ? "100%" : undefined,
+                    minHeight: sandbox ? 0 : 900,
+                    display: "block",
+                    ...(sandbox ? { flex: "1 1 auto" } : {}),
+                  }}
+                />
+              ) : (
+                !switching &&
+                !frameFailed && (
+                  <Alert severity="error">
+                    {sandbox
+                      ? "The clinic is unavailable."
+                      : "This lesson workspace is unavailable."}
+                  </Alert>
+                )
+              )}
+            </Paper>
+          )}
         </>
       ) : (
         <Paper variant="outlined" sx={{ p: 3 }}>

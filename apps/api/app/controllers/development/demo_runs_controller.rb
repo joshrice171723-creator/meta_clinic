@@ -62,11 +62,20 @@ module Development
 
     def register_visitor
       input = demo_input!(%i[name email company])
-      visitor = DemoVisitor.new(
-        name: required_string!(input[:name], field: :name, maximum: 160),
-        email: required_string!(input[:email], field: :email, maximum: 254),
-        company: required_string!(input[:company], field: :company, maximum: 200)
-      )
+      if input.empty? && (visitor = current_visitor)
+        return render json: inactive_payload(visitor:)
+      end
+
+      visitor = if input.empty?
+        DemoVisitor.new(name: "Demo visitor", email: "visitor-#{SecureRandom.uuid}@example.invalid",
+          company: "Meta Clinic demo")
+      else
+        DemoVisitor.new(
+          name: required_string!(input[:name], field: :name, maximum: 160),
+          email: required_string!(input[:email], field: :email, maximum: 254),
+          company: required_string!(input[:company], field: :company, maximum: 200)
+        )
+      end
       unless visitor.save
         return render json: { error: visitor.errors.full_messages.to_sentence }, status: :unprocessable_entity
       end

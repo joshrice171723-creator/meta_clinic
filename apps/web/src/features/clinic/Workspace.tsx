@@ -81,6 +81,7 @@ import {
   requiresLocationSelection,
 } from "./locationSelection";
 import { PatientContextBar } from "./PatientContextBar";
+import { ClinicAssistant } from "./ClinicAssistant";
 import { version as clinicVersion } from "../../../package.json";
 
 type ClinicContextValue = ClinicWorkspaceContext & {
@@ -1036,6 +1037,16 @@ export function Workspace({
                   }}
                 >
                   <ClinicFrame
+                    assistantEntry={
+                      <ClinicAssistant
+                        path={path}
+                        search={search}
+                        scopeKey={`${user.id}:${data.membership_id ?? "none"}:${user.development_account_id ?? "standard"}:${data.practice.id}:${data.current_site?.id ?? "all"}:${data.authorization_generation ?? ""}:${JSON.stringify(data.capabilities)}`}
+                        practiceName={data.practice.name}
+                        siteName={locationName || "All locations"}
+                        timezone={data.practice.timezone}
+                      />
+                    }
                     scopeSelector={
                       showsClinicScopeSelector(
                         isDemoFrame(),
