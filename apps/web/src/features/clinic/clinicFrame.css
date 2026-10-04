@@ -284,6 +284,7 @@
   padding-right: 40px;
   font-size: 15px;
 }
+.clinic-theme .clinic-sidebar .wordmark[hidden],
 .clinic-theme .clinic-sidebar .practice-label[hidden] {
   display: none;
 }
@@ -547,6 +548,7 @@
     overflow: visible;
     padding: 8px;
     border: 0;
+    background: transparent;
   }
   .clinic-theme .clinic-shell[data-collapsed="true"] .clinic-sidebar-header {
     position: fixed;
