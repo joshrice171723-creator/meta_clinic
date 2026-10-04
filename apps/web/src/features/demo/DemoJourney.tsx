@@ -436,6 +436,18 @@ export function DemoJourney() {
               <Button type="submit" variant="contained" disabled={busy}>
                 {busy ? "Saving…" : "Continue"}
               </Button>
+              <Button
+                type="button"
+                variant="outlined"
+                disabled={busy}
+                onClick={() => void selectLesson("navigation_tour")}
+              >
+                Browse without sharing details
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Opens the read-only clinic tour. Other guided workflows still
+                ask for your details.
+              </Typography>
             </Stack>
           </Paper>
         ) : (
