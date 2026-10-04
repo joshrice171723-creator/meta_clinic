@@ -157,7 +157,13 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
       ) ?? [],
     [data],
   );
-  if (!data) return <LoadState error={error} />;
+  if (!data)
+    return (
+      <Stack spacing={3}>
+        <Typography variant="h1">Workforce settings</Typography>
+        <LoadState error={error} onRetry={refresh} />
+      </Stack>
+    );
 
   const siteScope = data.scope.kind === "site";
   const setValue = (key: string, value: WorkforceSettingValue) =>
@@ -265,9 +271,6 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
   return (
     <Stack spacing={3}>
       <Stack spacing={0.75}>
-        <Typography variant="overline" color="text.secondary">
-          TEAM / WORKFORCE
-        </Typography>
         <Typography variant="h1">Workforce settings</Typography>
         <Typography color="text.secondary">
           Practice rules own the common workweek and timezone. Site versions

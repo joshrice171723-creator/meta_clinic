@@ -874,7 +874,7 @@ function AppointmentDayQueue({
             closedSite
               ? "Date filtering is unavailable: recovery includes all upcoming affected visits."
               : date === today
-                ? `Today is selected in ${timezone}; Today is disabled.`
+                ? "Showing today"
                 : `Date in ${timezone}`
           }
           type="date"
@@ -909,7 +909,7 @@ function AppointmentDayQueue({
         </Button>
         <TextField
           select
-          label="Site"
+          label="Location"
           size="small"
           value={siteId}
           slotProps={{
@@ -922,7 +922,7 @@ function AppointmentDayQueue({
             setPage(1);
           }}
         >
-          <MenuItem value="">All authorized sites</MenuItem>
+          <MenuItem value="">All authorized locations</MenuItem>
           {sites.map((site) => (
             <MenuItem key={site.id} value={String(site.id)}>
               {site.name || site.code}

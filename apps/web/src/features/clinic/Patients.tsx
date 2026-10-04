@@ -83,6 +83,7 @@ function currentPage() {
 
 export function Patients({ id }: { id?: string }) {
   const clinic = useClinic();
+  const { navigate } = useClinicNavigation();
   const page = currentPage();
   const requestedSiteId =
     typeof window === "undefined"
@@ -108,7 +109,14 @@ export function Patients({ id }: { id?: string }) {
           }
         />
       );
-    return <LoadState error={error} />;
+    return (
+      <Stack spacing={2}>
+        <Typography component="h1" variant="h4">
+          {id ? "Patient record" : "Patient directory"}
+        </Typography>
+        <LoadState error={error} onRetry={refresh} />
+      </Stack>
+    );
   }
   if (data.patient)
     return (
@@ -184,9 +192,13 @@ export function Patients({ id }: { id?: string }) {
               select
               label="Primary location"
               size="small"
+              slotProps={{
+                select: { displayEmpty: true },
+                inputLabel: { shrink: true },
+              }}
               value={selectedSite?.id ?? ""}
               onChange={(event) =>
-                window.location.assign(
+                navigate(
                   event.target.value
                     ? `/clinic/patients?site_id=${event.target.value}`
                     : "/clinic/patients",
@@ -209,7 +221,12 @@ export function Patients({ id }: { id?: string }) {
                 : "No patients are registered at this clinic yet."}
             </p>
           ) : (
-            <div className="clinic-table-wrap">
+            <div
+              className="clinic-table-wrap"
+              role="region"
+              aria-label="Patient directory"
+              tabIndex={0}
+            >
               <table className="care-table">
                 <caption className="sr-only">
                   {selectedSite
@@ -237,7 +254,12 @@ export function Patients({ id }: { id?: string }) {
                       <td>{p.date_of_birth ?? "Not recorded"}</td>
                       <td>{p.phone_hint ?? "Not recorded"}</td>
                       <td>
-                        <a href={`/clinic/patients/${p.id}`}>Open patient</a>
+                        <a
+                          href={`/clinic/patients/${p.id}`}
+                          aria-label={`Open patient record for ${p.display_name}`}
+                        >
+                          Open patient
+                        </a>
                       </td>
                     </tr>
                   ))}
@@ -401,6 +423,7 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
         <TextField
           fullWidth
           label="Patient name or clinic reference"
+          size="small"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           slotProps={{
@@ -418,6 +441,7 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
         <TextField
           fullWidth
           label="Date of birth"
+          size="small"
           type="date"
           value={dateOfBirth}
           onChange={(event) => setDateOfBirth(event.target.value)}
@@ -426,6 +450,7 @@ function PatientLookup({ onProceed }: { onProceed?: () => void } = {}) {
         <TextField
           fullWidth
           label="Phone number"
+          size="small"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
           slotProps={{ htmlInput: { inputMode: "tel", maxLength: 24 } }}
@@ -2893,19 +2918,15 @@ function PatientDetails({
                         component="li"
                         key={`${v.code}:${v.observed_at}:${index}`}
                         sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 2,
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0, 1fr) auto",
+                          columnGap: 2,
+                          rowGap: 0.25,
+                          alignItems: "baseline",
                           py: 1,
-                          flexWrap: "wrap",
                         }}
                       >
-                        <Box>
-                          <Typography variant="body2">{label}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Observed {clinicDateTime(v.observed_at, timezone)}
-                          </Typography>
-                        </Box>
+                        <Typography variant="body2">{label}</Typography>
                         <Typography
                           variant="body2"
                           sx={{
@@ -2915,6 +2936,13 @@ function PatientDetails({
                         >
                           {value}
                           {unit ? ` ${unit}` : ""}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ gridColumn: "1 / -1" }}
+                        >
+                          Observed {clinicDateTime(v.observed_at, timezone)}
                         </Typography>
                       </Box>
                     );
@@ -2960,7 +2988,7 @@ function PatientDetails({
             Registration details
           </Typography>
         </AccordionSummary>
-        <AccordionDetails id="patient-registration-details-content">
+        <AccordionDetails>
           <div className="care-grid">
       <Card title="Demographics">
         <dl className="care-observations">

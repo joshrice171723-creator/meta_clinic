@@ -70,7 +70,7 @@ export function OperationsWorkflowGuide({
           </Typography>
         </Stack>
       </AccordionSummary>
-      <AccordionDetails id="operations-workflow-guide">
+      <AccordionDetails>
         <Stack spacing={2.5} divider={<Divider flexItem />}>
           <Stack spacing={0.75}>
             <Typography

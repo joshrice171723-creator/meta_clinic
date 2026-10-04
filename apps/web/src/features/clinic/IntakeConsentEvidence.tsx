@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api, ApiError } from "../../api/client";
-import { Card, LoadState, useResource } from "../../shared/ui";
+import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 
 type Purpose =
@@ -129,8 +129,10 @@ function IntakeConsentEvidencePanel({
       </>
     );
   return (
-    <Stack spacing={2} aria-label="Intake consent evidence">
-      <Typography variant="h6">Consent evidence</Typography>
+    <Stack component="section" spacing={2} aria-label="Intake consent evidence">
+      <Typography component="h2" variant="h5">
+        Consent evidence
+      </Typography>
       <Typography variant="body2" color="text.secondary">
         Record each purpose separately. No evidence recorded is not a universal
         consent gate.
@@ -233,160 +235,158 @@ function ConsentPurpose({
   };
   const disabled = saving || !canWrite;
   return (
-    <Card title={labels[purpose]}>
-      <Accordion
-        disableGutters
-        expanded={expanded}
-        onChange={(_, value) => !saving && setExpanded(value)}
+    <Accordion
+      disableGutters
+      variant="outlined"
+      elevation={0}
+      expanded={expanded}
+      onChange={(_, value) => !saving && setExpanded(value)}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        aria-controls={`${purpose}-evidence`}
+        id={`${purpose}-evidence-header`}
       >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls={`${purpose}-evidence`}
-          id={`${purpose}-evidence-header`}
-        >
-          <Stack spacing={0.5}>
-            <Typography variant="subtitle1">{labels[purpose]}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {current
-                ? `${current.decision} · version ${current.revision} · ${current.occurred_on}`
-                : "No evidence recorded."}
-            </Typography>
-          </Stack>
-        </AccordionSummary>
-        <AccordionDetails id={`${purpose}-evidence`}>
-          <Stack spacing={2}>
-            {message && (
-              <Alert
-                severity={message.endsWith("recorded.") ? "success" : "error"}
+        <Stack spacing={0.5}>
+          <Typography variant="subtitle1">{labels[purpose]}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {current
+              ? `${current.decision} · version ${current.revision} · ${current.occurred_on}`
+              : "No evidence recorded."}
+          </Typography>
+        </Stack>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Stack spacing={2}>
+          {message && (
+            <Alert
+              severity={message.endsWith("recorded.") ? "success" : "error"}
+            >
+              {message}
+            </Alert>
+          )}
+          {canWrite && (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              <TextField
+                select
+                required
+                disabled={disabled}
+                name="decision"
+                label="Recorded decision"
+                value={form.decision}
+                onChange={(event) =>
+                  update("decision", event.target.value as Decision)
+                }
               >
-                {message}
-              </Alert>
-            )}
-            {canWrite && (
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                  gap: 2,
-                }}
-              >
-                <TextField
-                  select
-                  required
-                  disabled={disabled}
-                  name="decision"
-                  label="Recorded decision"
-                  value={form.decision}
-                  onChange={(event) =>
-                    update("decision", event.target.value as Decision)
-                  }
-                >
-                  <MenuItem value="">Choose a decision</MenuItem>
-                  {["recorded", "declined", "revoked"].map((value) => (
-                    <MenuItem key={value} value={value}>
-                      {value}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  select
-                  required
-                  disabled={disabled}
-                  name="source"
-                  label="Evidence source"
-                  value={form.source}
-                  onChange={(event) =>
-                    update("source", event.target.value as Source)
-                  }
-                >
-                  <MenuItem value="patient">Patient-reported</MenuItem>
-                  <MenuItem value="staff_recorded_external_evidence">
-                    Staff-recorded external evidence
+                <MenuItem value="">Choose a decision</MenuItem>
+                {["recorded", "declined", "revoked"].map((value) => (
+                  <MenuItem key={value} value={value}>
+                    {value}
                   </MenuItem>
-                </TextField>
-                <TextField
-                  required
-                  disabled={disabled}
-                  name="document_reference"
-                  label="Document reference"
-                  value={form.document_reference}
-                  slotProps={{ htmlInput: { maxLength: 200 } }}
-                  onChange={(event) =>
-                    update("document_reference", event.target.value)
-                  }
-                />
-                <TextField
-                  required
-                  disabled={disabled}
-                  name="document_version"
-                  label="Document version"
-                  value={form.document_version}
-                  slotProps={{ htmlInput: { maxLength: 200 } }}
-                  onChange={(event) =>
-                    update("document_version", event.target.value)
-                  }
-                />
-                <TextField
-                  required
-                  disabled={disabled}
-                  name="occurred_on"
-                  type="date"
-                  label="Evidence date"
-                  value={form.occurred_on}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  onChange={(event) =>
-                    update("occurred_on", event.target.value)
-                  }
-                />
-                <TextField
-                  disabled={disabled}
-                  name="evidence_reference"
-                  label="External evidence reference"
-                  value={form.evidence_reference}
-                  helperText="Required for recorded acceptance unless an existing patient document is linked."
-                  slotProps={{ htmlInput: { maxLength: 1000 } }}
-                  onChange={(event) =>
-                    update("evidence_reference", event.target.value)
-                  }
-                />
-                <TextField
-                  disabled={disabled}
-                  name="product"
-                  label="Product (optional)"
-                  value={form.product}
-                  slotProps={{ htmlInput: { maxLength: 200 } }}
-                  onChange={(event) => update("product", event.target.value)}
-                />
-                <TextField
-                  select
-                  disabled={disabled}
-                  name="source_document_id"
-                  label="Existing patient document (optional)"
-                  value={form.source_document_id}
-                  onChange={(event) =>
-                    update("source_document_id", event.target.value)
-                  }
-                >
-                  <MenuItem value="">No linked document</MenuItem>
-                  {documents.map((document) => (
-                    <MenuItem
-                      key={document.id}
-                      value={document.id}
-                    >{`Document ${document.id} · version ${document.object_version}`}</MenuItem>
-                  ))}
-                </TextField>
-                <Button
-                  variant="contained"
-                  disabled={disabled}
-                  onClick={() => void save()}
-                >
-                  {saving ? "Recording…" : "Record evidence"}
-                </Button>
-              </Box>
-            )}
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
-    </Card>
+                ))}
+              </TextField>
+              <TextField
+                select
+                required
+                disabled={disabled}
+                name="source"
+                label="Evidence source"
+                value={form.source}
+                onChange={(event) =>
+                  update("source", event.target.value as Source)
+                }
+              >
+                <MenuItem value="patient">Patient-reported</MenuItem>
+                <MenuItem value="staff_recorded_external_evidence">
+                  Staff-recorded external evidence
+                </MenuItem>
+              </TextField>
+              <TextField
+                required
+                disabled={disabled}
+                name="document_reference"
+                label="Document reference"
+                value={form.document_reference}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                onChange={(event) =>
+                  update("document_reference", event.target.value)
+                }
+              />
+              <TextField
+                required
+                disabled={disabled}
+                name="document_version"
+                label="Document version"
+                value={form.document_version}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                onChange={(event) =>
+                  update("document_version", event.target.value)
+                }
+              />
+              <TextField
+                required
+                disabled={disabled}
+                name="occurred_on"
+                type="date"
+                label="Evidence date"
+                value={form.occurred_on}
+                slotProps={{ inputLabel: { shrink: true } }}
+                onChange={(event) => update("occurred_on", event.target.value)}
+              />
+              <TextField
+                disabled={disabled}
+                name="evidence_reference"
+                label="External evidence reference"
+                value={form.evidence_reference}
+                helperText="Required for recorded acceptance unless an existing patient document is linked."
+                slotProps={{ htmlInput: { maxLength: 1000 } }}
+                onChange={(event) =>
+                  update("evidence_reference", event.target.value)
+                }
+              />
+              <TextField
+                disabled={disabled}
+                name="product"
+                label="Product (optional)"
+                value={form.product}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                onChange={(event) => update("product", event.target.value)}
+              />
+              <TextField
+                select
+                disabled={disabled}
+                name="source_document_id"
+                label="Existing patient document (optional)"
+                value={form.source_document_id}
+                onChange={(event) =>
+                  update("source_document_id", event.target.value)
+                }
+              >
+                <MenuItem value="">No linked document</MenuItem>
+                {documents.map((document) => (
+                  <MenuItem
+                    key={document.id}
+                    value={document.id}
+                  >{`Document ${document.id} · version ${document.object_version}`}</MenuItem>
+                ))}
+              </TextField>
+              <Button
+                variant="contained"
+                disabled={disabled}
+                onClick={() => void save()}
+              >
+                {saving ? "Recording…" : "Record evidence"}
+              </Button>
+            </Box>
+          )}
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }

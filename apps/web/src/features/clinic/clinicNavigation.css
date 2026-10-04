@@ -8,6 +8,63 @@
   gap: 2px;
 }
 
+.clinic-theme .clinic-work-navigation section + section {
+  padding-top: 8px;
+}
+
+.clinic-theme .clinic-page-search {
+  margin: 8px 4px;
+  min-width: 0;
+}
+
+.clinic-theme .clinic-page-search .MuiOutlinedInput-root {
+  color: var(--clinic-sidebar-on);
+  padding-inline: 10px 4px;
+}
+
+.clinic-theme .clinic-page-search .MuiInputBase-input {
+  min-width: 0;
+  color: inherit;
+  font-size: 14px;
+}
+
+.clinic-theme .clinic-page-search .MuiInputLabel-root,
+.clinic-theme .clinic-page-search .MuiInputAdornment-root,
+.clinic-theme .clinic-page-search .MuiIconButton-root {
+  color: var(--clinic-sidebar-muted);
+}
+
+.clinic-theme .clinic-page-search .MuiOutlinedInput-notchedOutline {
+  border-color: var(--clinic-sidebar-muted);
+}
+
+.clinic-theme
+  .clinic-page-search
+  .MuiOutlinedInput-root.Mui-focused
+  .MuiOutlinedInput-notchedOutline,
+.clinic-theme
+  .clinic-page-search
+  .MuiOutlinedInput-root:hover
+  .MuiOutlinedInput-notchedOutline {
+  border-color: var(--clinic-sidebar-on);
+}
+
+.clinic-theme .clinic-page-search .MuiInputLabel-root.Mui-focused {
+  color: var(--clinic-sidebar-on);
+}
+
+.clinic-theme .clinic-sidebar nav .clinic-page-search .MuiIconButton-root {
+  width: 44px;
+  min-width: 44px;
+  padding: 8px;
+  justify-content: center;
+}
+
+.clinic-theme .clinic-page-search-empty {
+  color: var(--clinic-sidebar-on);
+  padding: 0 8px;
+}
+
 .clinic-theme .clinic-work-navigation .MuiListSubheader-root {
   margin: 0;
   padding: 0 12px 6px;
@@ -52,7 +109,7 @@
   width: 100%;
   justify-content: space-between;
   min-height: 44px;
-  padding: 4px 0;
+  padding: 4px 8px;
   color: inherit;
   font-size: 14px;
 }

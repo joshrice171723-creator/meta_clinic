@@ -147,16 +147,18 @@ export function PatientContextBar({
             Retry identity
           </Button>
         )}
-        {patient && canOpenPatientRecord && (
-          <Button
-            component="a"
-            href={`/clinic/patients/${patient.id}`}
-            size="small"
-            variant="text"
-          >
-            Open patient record
-          </Button>
-        )}
+        {patient &&
+          canOpenPatientRecord &&
+          path.replace(/\/$/, "") !== `/clinic/patients/${patient.id}` && (
+            <Button
+              component="a"
+              href={`/clinic/patients/${patient.id}`}
+              size="small"
+              variant="text"
+            >
+              Open patient record
+            </Button>
+          )}
         {patient && canSchedule && (
           <Button
             component="a"

@@ -1,4 +1,11 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -93,6 +100,7 @@ export type StaffMessagingState = {
 
 type StaffMessagingWorkspaceProps = {
   state?: StaffMessagingState;
+  headerActions?: ReactNode;
   onSelectConversation?: (conversationId: number) => void;
   onMarkRead?: (conversationId: number) => void | Promise<void>;
   onSend?: (conversationId: number, body: string) => void | Promise<void>;
@@ -349,9 +357,7 @@ function MessageCard({
             ? "warning.main"
             : "transparent",
         bgcolor:
-          message.messageClass === "urgent"
-            ? "action.hover"
-            : "transparent",
+          message.messageClass === "urgent" ? "action.hover" : "transparent",
       }}
     >
       <Stack spacing={0.75}>
@@ -542,6 +548,7 @@ function MessageCard({
 
 export function StaffMessagingWorkspace({
   state = fixtureState,
+  headerActions,
   onSelectConversation,
   onMarkRead,
   onSend,
@@ -595,60 +602,107 @@ export function StaffMessagingWorkspace({
     };
   }, [draftWarning, registerBlocker]);
 
+  const activeConversationCount = state.conversations.filter(
+    ({ status }) => status === "active",
+  ).length;
+  const header = (
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={2}
+      sx={{ alignItems: { sm: "center" }, justifyContent: "space-between" }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography id="staff-messaging-heading" component="h1" variant="h4">
+          Staff messages
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: "62ch" }}>
+          Conversations, requests, and next actions for your clinic team.
+        </Typography>
+      </Box>
+      <Stack
+        direction="row"
+        useFlexGap
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
+        {!state.loading && !state.error && state.conversations.length > 0 && (
+          <Chip
+            label={`${activeConversationCount} active ${activeConversationCount === 1 ? "conversation" : "conversations"}`}
+            variant="outlined"
+          />
+        )}
+        {headerActions}
+      </Stack>
+    </Stack>
+  );
+
   if (state.loading) {
     return (
-      <Paper
+      <Stack
+        spacing={2}
         component="section"
-        variant="outlined"
-        sx={{ p: { xs: 2, sm: 3 } }}
+        aria-labelledby="staff-messaging-heading"
       >
-        <Typography role="status" aria-live="polite">
-          Loading staff messages
-        </Typography>
-      </Paper>
+        {header}
+        <Paper
+          component="section"
+          variant="outlined"
+          sx={{ p: { xs: 2, sm: 3 } }}
+        >
+          <Typography role="status" aria-live="polite">
+            Loading staff messages
+          </Typography>
+        </Paper>
+      </Stack>
     );
   }
 
   if (state.error) {
     return (
-      <Alert
-        severity="error"
-        role="alert"
-        action={
-          <Button color="inherit" onClick={onRetry}>
-            Retry
-          </Button>
-        }
+      <Stack
+        spacing={2}
+        component="section"
+        aria-labelledby="staff-messaging-heading"
       >
-        {state.error}
-      </Alert>
+        {header}
+        <Alert
+          severity="error"
+          role="alert"
+          action={
+            <Button color="inherit" onClick={onRetry}>
+              Retry
+            </Button>
+          }
+        >
+          {state.error}
+        </Alert>
+      </Stack>
     );
   }
 
   if (!selectedConversation) {
     return (
-      <Paper
+      <Stack
+        spacing={2}
         component="section"
-        variant="outlined"
-        sx={{ p: { xs: 2, sm: 3 } }}
+        aria-labelledby="staff-messaging-heading"
       >
-        <Typography component="h1" variant="h5">
-          No conversations yet
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>
-          There are no staff conversations available to your current account.
-        </Typography>
-      </Paper>
+        {header}
+        <Paper
+          component="section"
+          variant="outlined"
+          sx={{ p: { xs: 3, sm: 5 }, textAlign: "center" }}
+        >
+          <Typography component="h2" variant="h6">
+            No conversations yet
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            There are no staff conversations available to your current account.
+          </Typography>
+        </Paper>
+      </Stack>
     );
   }
-
-  const activeConversationCount = state.conversations.filter(
-    ({ status }) => status === "active",
-  ).length;
-  const activeConversationLabel =
-    activeConversationCount === 1
-      ? "1 active conversation"
-      : `${activeConversationCount} active conversations`;
 
   const sendMessage = async () => {
     const conversationId = selectedConversation.id;
@@ -711,42 +765,11 @@ export function StaffMessagingWorkspace({
       sx={{
         maxWidth: 1440,
         mx: "auto",
-        p: { xs: 1.5, sm: 2 },
         minWidth: 0,
       }}
     >
       <Stack spacing={1.5}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          sx={{
-            alignItems: { sm: "flex-end" },
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              id="staff-messaging-heading"
-              component="h1"
-              variant="h4"
-            >
-              Staff messages
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 0.5, maxWidth: "62ch" }}
-            >
-              A focused inbox for accountable team communication,
-              acknowledgement, and next actions.
-            </Typography>
-          </Box>
-          <Chip
-            label={activeConversationLabel}
-            variant="outlined"
-            sx={{ alignSelf: { xs: "flex-start", sm: "auto" } }}
-          />
-        </Stack>
+        {header}
 
         <Box
           sx={{
@@ -1121,14 +1144,18 @@ export function StaffMessagingWorkspace({
                       >
                         <Stack spacing={1}>
                           {group.messages.map((message, messageIndex) => {
-                            const senderName = message.sender.trim() || "Unknown sender";
+                            const senderName =
+                              message.sender.trim() || "Unknown sender";
                             const exactTime =
                               message.createdAtExact ||
                               message.createdAt ||
                               "Timestamp unavailable";
                             return (
                               <Box key={message.id}>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontWeight: 600 }}
+                                >
                                   Message {messageIndex + 1} · {senderName}
                                 </Typography>
                                 <Typography

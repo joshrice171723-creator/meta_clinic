@@ -2482,6 +2482,21 @@ function ScopedWorkInbox() {
         ["scheduled", "confirmed"].includes(visit.status),
     ).length ?? 0;
 
+  function updateFilters(
+    nextAssignment: AssignmentFilter,
+    nextWorkType: WorkType,
+  ) {
+    setAssignment(nextAssignment);
+    setWorkType(nextWorkType);
+    setOffboardedPage(1);
+    setPageState(freshInboxPages(`${nextAssignment}:${nextWorkType}`));
+    const url = new URL(window.location.href);
+    if (nextAssignment === "offboarded")
+      url.searchParams.set("assignment", nextAssignment);
+    else url.searchParams.delete("assignment");
+    window.history.replaceState(window.history.state, "", url);
+  }
+
   if (!hasAnyAccess) {
     return (
       <Alert severity="info">
@@ -2602,7 +2617,7 @@ function ScopedWorkInbox() {
               disabled={anyLoading}
               onClick={() => setRefreshRevision((value) => value + 1)}
             >
-              Retry source reads
+              Retry unavailable queues
             </Button>
           }
         >
@@ -2625,7 +2640,7 @@ function ScopedWorkInbox() {
           variant="body2"
           sx={{ cursor: "pointer" }}
         >
-          Source feeds
+          Queue status
         </Typography>
         <Stack spacing={0.5} sx={{ mt: 1 }}>
           {sourceFeeds.map(({ label, state }) => (
@@ -2650,16 +2665,9 @@ function ScopedWorkInbox() {
       >
         <Tabs
           value={assignment}
-          onChange={(_, value: AssignmentFilter) => {
-            setAssignment(value);
-            setOffboardedPage(1);
-            setPageState(freshInboxPages(`${value}:${workType}`));
-            const url = new URL(window.location.href);
-            if (value === "offboarded")
-              url.searchParams.set("assignment", value);
-            else url.searchParams.delete("assignment");
-            window.history.replaceState(window.history.state, "", url);
-          }}
+          onChange={(_, value: AssignmentFilter) =>
+            updateFilters(value, workType)
+          }
           aria-label="Work assignment filters"
           variant="scrollable"
           scrollButtons="auto"
@@ -2828,12 +2836,9 @@ function ScopedWorkInbox() {
                 labelId="work-type-filter-label"
                 label="Work type"
                 value={workType}
-                onChange={(event) => {
-                  const value = event.target.value as WorkType;
-                  setWorkType(value);
-                  setOffboardedPage(1);
-                  setPageState(freshInboxPages(`${assignment}:${value}`));
-                }}
+                onChange={(event) =>
+                  updateFilters(assignment, event.target.value as WorkType)
+                }
               >
                 {(Object.keys(workTypeLabels) as WorkType[]).map((value) => (
                   <MenuItem key={value} value={value}>
@@ -2867,7 +2872,17 @@ function ScopedWorkInbox() {
                 description={
                   hasOtherSourcePages
                     ? "Filters apply to the loaded pages. Open More queue pages to check the remaining work."
-                    : "Try another scope or work type. New authorized work will appear here when it is created."
+                    : "New work will appear here when it is available. Try another assignment or work type to change this view."
+                }
+                action={
+                  assignment !== "all" || workType !== "all" ? (
+                    <Button
+                      variant="outlined"
+                      onClick={() => updateFilters("all", "all")}
+                    >
+                      Show all work
+                    </Button>
+                  ) : undefined
                 }
               />
             )}

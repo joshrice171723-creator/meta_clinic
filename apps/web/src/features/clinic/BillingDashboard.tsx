@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  InputAdornment,
   MenuItem,
   Tab,
   Tabs,
@@ -25,6 +26,7 @@ import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import SearchIcon from "@mui/icons-material/Search";
 import {
   BillingCollectionContext,
   BillingCollectionWorklist,
@@ -711,6 +713,7 @@ export function BillingDashboard() {
   if (!data)
     return (
       <div className="billing-page">
+        <h1>Billing</h1>
         {postingRecovery}
         <LoadState error={error} />
         {error && (
@@ -723,8 +726,12 @@ export function BillingDashboard() {
   if (data.schema_version !== "clinic-billing-v1")
     return (
       <>
+        <h1>Billing</h1>
         {postingRecovery}
-        <LoadState error="Unable to verify the billing response. Reload and try again." />
+        <LoadState
+          error="Unable to verify the billing response. Reload and try again."
+          onRetry={refresh}
+        />
       </>
     );
 
@@ -851,7 +858,7 @@ export function BillingDashboard() {
                 {checkoutQueue.total ?? "count unavailable"}
               </span>
             </AccordionSummary>
-            <AccordionDetails id="billing-checkout-queue-content">
+            <AccordionDetails>
               <p className="billing-subtitle">
                 These completed visits have no active invoice. Start checkout to
                 review stored charges, packages, and staff-entered lines.
@@ -974,19 +981,25 @@ export function BillingDashboard() {
               }}
             >
               <TextField
-                label={
-                  supportsPatientIdentity
-                    ? "Search invoices by number, patient name or reference"
-                    : "Search invoices by number, status or currency"
-                }
+                label="Search invoices"
                 size="small"
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}
                 placeholder={
                   supportsPatientIdentity
-                    ? "Invoice number, patient name or reference"
-                    : "Invoice number, status or currency"
+                    ? "Number, patient name or reference"
+                    : "Number, status or currency"
                 }
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
                 fullWidth
               />
               <Button type="submit" variant="outlined">
@@ -1060,11 +1073,24 @@ export function BillingDashboard() {
           </div>
           {visibleInvoices.length === 0 ? (
             <p className="billing-clear-state">
-              No invoices match this view. Choose another filter to review the
-              rest of the ledger.
+              {query || filter !== "all"
+                ? "No invoices match your search or filters. Reset filters to return to all available invoices."
+                : "There are no invoices to show."}
             </p>
           ) : (
-            <TableContainer className="billing-table-wrap">
+            <TableContainer
+              className="billing-table-wrap"
+              role="region"
+              aria-label="Invoice ledger"
+              tabIndex={0}
+              sx={{
+                "&:focus-visible": {
+                  outline: "3px solid",
+                  outlineColor: "primary.main",
+                  outlineOffset: 2,
+                },
+              }}
+            >
               <Table
                 className="billing-ledger-table"
                 size="small"

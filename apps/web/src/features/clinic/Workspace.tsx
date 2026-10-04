@@ -15,11 +15,14 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  IconButton,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   ListSubheader,
+  TextField,
   Typography,
   Tooltip,
 } from "@mui/material";
@@ -40,6 +43,8 @@ import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import VideocamOutlinedIcon from "@mui/icons-material/VideocamOutlined";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 import { TelehealthSessionProvider } from "../telehealth/TelehealthSessionProvider";
 import { TelehealthDock } from "../telehealth/TelehealthDock";
 import type {
@@ -214,6 +219,10 @@ export function ClinicNavigation({
   homeView?: ClinicHomeView;
 }) {
   const rail = useContext(ClinicRailContext);
+  const [pageSearch, setPageSearch] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
+  const query = pageSearch.trim().toLocaleLowerCase();
+  useEffect(() => setPageSearch(""), [path, rail]);
   const frontDesk = [
     capabilities.patient_identity_read,
     capabilities.appointments_read,
@@ -414,11 +423,70 @@ export function ClinicNavigation({
     () => setAccountExpanded(accountIsCurrent),
     [currentPath, accountIsCurrent],
   );
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      links: group.links.filter(
+        (link) =>
+          link.allowed &&
+          (!query || link.label.toLocaleLowerCase().includes(query)),
+      ),
+    }))
+    .filter((group) => group.links.length > 0);
   return (
     <nav className="clinic-work-navigation" aria-label="Clinic navigation">
-      {groups.map((group) => {
-        const links = group.links.filter((link) => link.allowed);
-        if (!links.length) return null;
+      {!rail && (
+        <TextField
+          className="clinic-page-search"
+          inputRef={searchInput}
+          label="Find a page"
+          size="small"
+          value={pageSearch}
+          onChange={(event) => setPageSearch(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && pageSearch) {
+              event.preventDefault();
+              event.stopPropagation();
+              setPageSearch("");
+            }
+          }}
+          slotProps={{
+            htmlInput: { maxLength: 80, autoComplete: "off" },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: pageSearch ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="Clear page search"
+                    size="small"
+                    onClick={() => {
+                      setPageSearch("");
+                      searchInput.current?.focus();
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
+            },
+          }}
+        />
+      )}
+      {!visibleGroups.length && (
+        <Typography
+          className="clinic-page-search-empty"
+          variant="body2"
+          role="status"
+        >
+          No pages match. Try a different name or clear the search.
+        </Typography>
+      )}
+      {visibleGroups.map((group) => {
+        const links = group.links;
         const headingId = `clinic-navigation-${group.id}`;
         return (
           <section key={group.id} aria-labelledby={headingId}>
@@ -426,7 +494,7 @@ export function ClinicNavigation({
               component="div"
               disablePadding
               subheader={
-                group.id === "account" && !rail ? (
+                group.id === "account" && !rail && !query ? (
                   <ListSubheader component="h2" disableSticky id={headingId}>
                     <Button
                       className="clinic-nav-group-toggle"
@@ -454,7 +522,12 @@ export function ClinicNavigation({
               }
             >
               <Collapse
-                in={group.id !== "account" || rail || accountExpanded}
+                in={
+                  group.id !== "account" ||
+                  rail ||
+                  accountExpanded ||
+                  Boolean(query)
+                }
                 timeout="auto"
               >
                 <div
@@ -1066,50 +1139,51 @@ export function Workspace({
                     }
                     developmentPreview={!!user.development_demo}
                   >
-                    {!scribePage &&
-                      (user.workspace_tools || user.development_demo) &&
-                      !isDemoFrame() && (
-                        <DevelopmentToolbar
-                          className="clinic-development-toolbar"
-                          accounts={developmentAccounts}
-                          activeId={user.development_account_id}
-                          businessDate={businessDate}
-                          environment={environment}
-                          ownerPinRequired={ownerPinRequired}
-                        />
-                      )}
                     {!scribePage && !isDemoFrame() && (
-                      <header
-                        className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}
-                        aria-label="Clinic context"
-                      >
-                        {!user.development_demo && (
-                          <div className="clinic-topbar-context">
-                            <span>
-                              Signed in as <strong>{user.email_address}</strong>
-                              {data.credentials.length > 0 && (
-                                <>, {data.credentials.join(", ")}</>
-                              )}
-                            </span>
-                          </div>
+                      <div className="clinic-workspace-header">
+                        {(user.workspace_tools || user.development_demo) && (
+                          <DevelopmentToolbar
+                            className="clinic-development-toolbar"
+                            accounts={developmentAccounts}
+                            activeId={user.development_account_id}
+                            businessDate={businessDate}
+                            environment={environment}
+                            ownerPinRequired={ownerPinRequired}
+                          />
                         )}
-                        <span className="clinic-topbar-actions">
-                          <span className="clinic-topbar-location">
-                            {data.current_site?.name ||
-                              data.current_site?.code ||
-                              data.practice.name}
+                        <header
+                          className={`clinic-topbar${user.development_demo ? " clinic-topbar-development" : ""}`}
+                          aria-label="Clinic context"
+                        >
+                          {!user.development_demo && (
+                            <div className="clinic-topbar-context">
+                              <span>
+                                Signed in as{" "}
+                                <strong>{user.email_address}</strong>
+                                {data.credentials.length > 0 && (
+                                  <>, {data.credentials.join(", ")}</>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                          <span className="clinic-topbar-actions">
+                            <span className="clinic-topbar-location">
+                              {data.current_site?.name ||
+                                data.current_site?.code ||
+                                data.practice.name}
+                            </span>
+                            <a href="/clinic/settings">My settings</a>
+                            <a
+                              href="/clinic/updates"
+                              aria-current={
+                                path === "/clinic/updates" ? "page" : undefined
+                              }
+                            >
+                              Version {clinicVersion} · Update log
+                            </a>
                           </span>
-                          <a href="/clinic/settings">My settings</a>
-                          <a
-                            href="/clinic/updates"
-                            aria-current={
-                              path === "/clinic/updates" ? "page" : undefined
-                            }
-                          >
-                            Version {clinicVersion} · Update log
-                          </a>
-                        </span>
-                      </header>
+                        </header>
+                      </div>
                     )}
                     <PatientContextBar
                       key={`${data.practice.id}:${data.current_site?.id ?? "all"}`}

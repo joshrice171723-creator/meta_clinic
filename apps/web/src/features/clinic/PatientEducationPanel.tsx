@@ -188,10 +188,15 @@ export function PatientEducationPanel({
   };
 
   if (!data && !resource.error)
-    return <Typography role="status">Loading patient education…</Typography>;
+    return (
+      <Typography id="patient-education" role="status">
+        Loading patient education…
+      </Typography>
+    );
   if (!data)
     return (
       <Alert
+        id="patient-education"
         severity="error"
         action={<Button onClick={resource.refresh}>Retry</Button>}
       >
@@ -200,7 +205,7 @@ export function PatientEducationPanel({
     );
   if (data.patient_id !== patient.id || data.encounter_id !== encounter.id)
     return (
-      <Alert severity="error">
+      <Alert id="patient-education" severity="error">
         Patient education loaded for a different encounter.
       </Alert>
     );
