@@ -243,7 +243,7 @@
   background: transparent;
   color: var(--clinic-accent);
   font-weight: 750;
-  padding: 3px 0;
+  padding: 3px 0 3px 4px;
 }
 .clinic-theme .billing-badge {
   display: inline-flex;
@@ -924,13 +924,25 @@
   text-align: left;
 }
 .clinic-theme .billing-ledger-table tbody tr[data-selected="true"] {
-  background: color-mix(in srgb, var(--clinic-accent) 8%, var(--clinic-surface));
+  background: color-mix(
+    in srgb,
+    var(--clinic-accent) 8%,
+    var(--clinic-surface)
+  );
 }
 .clinic-theme .billing-ledger-table tbody tr:hover {
-  background: color-mix(in srgb, var(--clinic-accent) 5%, var(--clinic-surface));
+  background: color-mix(
+    in srgb,
+    var(--clinic-accent) 5%,
+    var(--clinic-surface)
+  );
 }
 .clinic-theme .billing-ledger-table tbody tr[data-selected="true"]:hover {
-  background: color-mix(in srgb, var(--clinic-accent) 12%, var(--clinic-surface));
+  background: color-mix(
+    in srgb,
+    var(--clinic-accent) 12%,
+    var(--clinic-surface)
+  );
 }
 .clinic-theme .billing-ledger-table tbody :is(th, td) p {
   margin: 2px 0;

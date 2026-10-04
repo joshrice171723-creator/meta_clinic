@@ -634,8 +634,9 @@ export function PracticeFeatureSettings({
               ? ` ${new Date(features.finalized_at).toLocaleString()}`
               : ""}
             . Clinic type and insurance workflow remain protected. Authorized
-            service and assessment changes remain available through the
-            supported change review below.
+            administrators can review assessment categories and availability
+            within the services selected at finalization below. Adding an
+            unselected service requires Meta Clinic review.
           </Alert>
           {feedback && <Alert severity={feedback.tone}>{feedback.text}</Alert>}
 
@@ -1182,8 +1183,11 @@ export function PracticeFeatureSettings({
             color="text.secondary"
             sx={{ mt: 0.5, mb: 1 }}
           >
-            Choose every planned service. Readiness labels show the current
-            software work still required; they are not clinical approvals.
+            {features.finalized
+              ? "Review availability within the services selected at finalization. Adding a service that was not selected requires Meta Clinic review; this panel does not submit a request."
+              : "Choose every planned service before finalizing setup."}{" "}
+            Readiness labels show the current software work still required; they
+            are not clinical approvals.
           </Typography>
           <Stack spacing={1}>
             {visibleServices.map((service) => {
@@ -1192,6 +1196,9 @@ export function PracticeFeatureSettings({
                 service.readiness === "Implementation required" ||
                 service.readiness === "Configured intent";
               const incompatible = !serviceOptions.includes(service.code);
+              const protectedAddition =
+                features.finalized &&
+                !features.selected_services?.includes(service.code);
               return (
                 <Paper
                   key={service.code}
@@ -1212,10 +1219,7 @@ export function PracticeFeatureSettings({
                         disabled={
                           editingLocked ||
                           !canWrite ||
-                          (features.finalized &&
-                            !features.selected_services?.includes(
-                              service.code,
-                            )) ||
+                          protectedAddition ||
                           (incompatible && !serviceScope.includes(service.code))
                         }
                         checked={serviceScope.includes(service.code)}
@@ -1239,6 +1243,13 @@ export function PracticeFeatureSettings({
                               size="small"
                               color="warning"
                               label="Unavailable for this specialty"
+                            />
+                          )}
+                          {protectedAddition && !incompatible && (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label="Meta Clinic review required"
                             />
                           )}
                           <Chip

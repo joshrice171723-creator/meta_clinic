@@ -18,6 +18,14 @@ x-app-environment: &app-environment
   PGPASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?required}
   PORT: "3000"
 
+x-stripe-sandbox-environment: &stripe-sandbox-environment
+  APP_STRIPE_SANDBOX_ENABLED: ${APP_STRIPE_SANDBOX_ENABLED:-false}
+  STRIPE_SANDBOX_KEY: ${STRIPE_SANDBOX_KEY:-}
+  STRIPE_SANDBOX_ACCOUNT_ID: ${STRIPE_SANDBOX_ACCOUNT_ID:-}
+  STRIPE_CONNECT_WEBHOOK_SECRET: ${STRIPE_CONNECT_WEBHOOK_SECRET:-}
+  STRIPE_RETURN_ORIGIN: ${STRIPE_RETURN_ORIGIN:-}
+  STRIPE_MOTO_READER_ID: ${STRIPE_MOTO_READER_ID:-}
+
 x-api: &api
   image: ghcr.io/${IMAGE_OWNER:?required}/meta-clinic-api:${IMAGE_TAG:?required}
   restart: unless-stopped
@@ -63,10 +71,14 @@ services:
 
   api:
     <<: *api
+    environment:
+      <<: [*app-environment, *stripe-sandbox-environment]
     command: ["./bin/rails", "server"]
 
   worker:
     <<: *api
+    environment:
+      <<: [*app-environment, *stripe-sandbox-environment]
     command: ["./bin/clinic-worker", "--interval", "15"]
 
   web:

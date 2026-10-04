@@ -26,7 +26,7 @@ export function BillingDocumentPreview({
   const frame = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
-  const [printRequested, setPrintRequested] = useState(false);
+  const documentUrl = `${isDemoFrame() ? "/api/demo-workspace" : "/api"}${path}`;
   useEffect(() => {
     if (ready || error) return;
     const timeout = window.setTimeout(
@@ -38,18 +38,6 @@ export function BillingDocumentPreview({
     );
     return () => window.clearTimeout(timeout);
   }, [ready, error]);
-  const print = () => {
-    if (!ready || !frame.current?.contentWindow) return;
-    try {
-      frame.current.contentWindow.focus();
-      frame.current.contentWindow.print();
-      setPrintRequested(true);
-    } catch {
-      setError(
-        "The browser could not open printing. Reopen the document and try again.",
-      );
-    }
-  };
   return (
     <Dialog
       open
@@ -64,17 +52,17 @@ export function BillingDocumentPreview({
           <Typography role="status">Loading document…</Typography>
         )}
         {error && <Alert severity="error">{error}</Alert>}
-        {printRequested && (
+        {ready && (
           <Alert severity="info">
-            Printing was requested. Choose a printer or Save as PDF in the
-            browser dialog.
+            Open the print view in a separate tab, then use its Print button to
+            choose a printer or Save as PDF. This preview remains available.
           </Alert>
         )}
         <Box
           component="iframe"
           ref={frame}
           title={`${title} preview`}
-          src={`${isDemoFrame() ? "/api/demo-workspace" : "/api"}${path}`}
+          src={documentUrl}
           sandbox="allow-same-origin allow-modals"
           onLoad={() => {
             const loaded =
@@ -96,8 +84,15 @@ export function BillingDocumentPreview({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" disabled={!ready} onClick={print}>
-          Print / save PDF
+        <Button
+          component="a"
+          variant="contained"
+          disabled={!ready}
+          href={ready ? documentUrl : undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open print / PDF view
         </Button>
       </DialogActions>
     </Dialog>

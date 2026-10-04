@@ -12,8 +12,16 @@ module Clinic
       SANDBOX_KEY_PATTERN = /\A(?:sk|rk|rkcs)_test_[a-zA-Z0-9_]+\z/
       LOCAL_SIMULATOR_IDENTIFIER_PATTERN = /\b(?:acct_local|cs_test_local|sub_local|in_local|pi_local|ch_local|evt_local)[a-zA-Z0-9]*\b/
 
+      def self.sandbox_environment_enabled?
+        return true if Rails.env.development? || Rails.env.test?
+
+        Rails.env.production? && ENV["APP_DEPLOYMENT_ENV"] == "staging" &&
+          ENV["APP_STRIPE_SANDBOX_ENABLED"] == "true" && ENV["APP_GUIDED_DEMO"] != "1" &&
+          ENV["APP_PUBLIC_DEVELOPMENT_LOGIN"] != "1"
+      end
+
       def self.configuration
-        return {} unless Rails.env.development? || Rails.env.test?
+        return {} unless sandbox_environment_enabled?
         path = Rails.root.join("tmp", "stripe-sandbox.json")
         private_values = Rails.env.development? && path.file? ? JSON.parse(path.read.sub(/\A\uFEFF/, "")) : {}
         private_values = {} unless private_values.is_a?(Hash)
@@ -26,14 +34,14 @@ module Clinic
       end
 
       def self.configured?
-        (Rails.env.development? || Rails.env.test?) &&
+        sandbox_environment_enabled? &&
           configuration["STRIPE_SANDBOX_KEY"].to_s.match?(SANDBOX_KEY_PATTERN) &&
           configuration["STRIPE_CONNECT_WEBHOOK_SECRET"].to_s.start_with?("whsec_") &&
           configuration["STRIPE_RETURN_ORIGIN"].present?
       end
 
       def self.platform_sandbox_account?(account_id)
-        return false unless Rails.env.development? || Rails.env.test?
+        return false unless sandbox_environment_enabled?
 
         configured_account = configuration["STRIPE_SANDBOX_ACCOUNT_ID"].to_s
         configured_account.match?(/\Aacct_[a-zA-Z0-9]+\z/) && account_id.to_s == configured_account

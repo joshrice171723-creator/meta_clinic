@@ -4,7 +4,7 @@ class StripeWebhooksController < ApplicationController
   skip_forgery_protection only: :create
 
   def create
-    head :not_found and return unless Rails.env.development? || Rails.env.test?
+    head :not_found and return unless Clinic::Billing::StripeGateway.sandbox_environment_enabled?
     head :payload_too_large and return if request.content_length.to_i > 1_000_000
     raw_body = request.raw_post
     head :payload_too_large and return if raw_body.bytesize > 1_000_000

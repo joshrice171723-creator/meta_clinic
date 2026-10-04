@@ -4,7 +4,7 @@
 
 ## Local setup
 
-This integration is enabled only in development/test, with a sandbox server key. Production is deliberately unavailable. The hosted Checkout integration needs no publishable key in the frontend. Never use a key previously exposed in chat.
+This integration permits development/test and explicitly enabled private staging, with a sandbox server key. Production deployments remain unavailable. The hosted Checkout integration needs no publishable key in the frontend. Never use a key previously exposed in chat.
 
 Create `apps/api/tmp/stripe-sandbox.json` privately (the directory is Git-ignored):
 
@@ -41,6 +41,16 @@ ruby bin/stripe-listen
 Keep that terminal open. The helper passes the key in the child process environment, saves the listener's signing secret into the private JSON file without printing it, and forwards only the listed membership events to `http://127.0.0.1:3001/stripe/connect/webhook`. It does not generate events, run tests or create charges. A stale `STRIPE_CONNECT_WEBHOOK_SECRET` environment override must be removed or updated to match the listener. No public tunnel or Dashboard webhook destination is needed for this local listener.
 
 The subscribed snapshot events are `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `invoice.paid`, `invoice.payment_failed`, `invoice.payment_action_required`, `customer.subscription.updated`, `customer.subscription.deleted` and `charge.refunded`. Connected-account event routing is mandatory. Account onboarding status is explicitly refreshed through **Check connection**; Accounts v2 thin events are not consumed.
+
+## Private hosted staging sandbox
+
+Keep Rails in production mode with `APP_DEPLOYMENT_ENV=staging`. Enable `APP_STRIPE_SANDBOX_ENABLED=true` only in the ordinary authenticated API/worker process after checking clinic membership, permissions and the selected `APP_CLINIC_PILOT_PRACTICE_IDS`. The gateway denies hosted access when `APP_GUIDED_DEMO=1` or `APP_PUBLIC_DEVELOPMENT_LOGIN=1`; public lessons keep their simulator and existing payment history. Never reinterpret simulator account or payment IDs as Stripe objects. Use a separate authorized clinic connection for provider sandbox payments.
+
+Store `STRIPE_SANDBOX_KEY`, `STRIPE_CONNECT_WEBHOOK_SECRET` and `STRIPE_RETURN_ORIGIN=https://aimetaclinic.com` in the private host environment. The key must be a Stripe test server key; live keys are rejected. For Lightsail, ordinary API/worker read `/opt/meta-clinic/secrets/runtime.env`, retained across the existing release process; keep these values out of `guided-demo.env`. Portable Compose forwards the optional sandbox variables only to API/worker. Never print resolved Compose configuration containing credentials; use `docker compose config --quiet` for validation.
+
+Configure a Stripe sandbox connected-account snapshot webhook at `https://aimetaclinic.com/stripe/connect/webhook` for the events listed above, and save that destination's signing secret rather than the local CLI listener secret. The exact nginx location forwards to the ordinary API on loopback port 3001. Retain the host's existing domain/TLS and guided-demo routes when applying this location. Requests still require signed raw-body verification and `livemode=false`; authenticated clinic mutations retain session, permission and CSRF checks. Complete clinic onboarding and **Check connection** before Checkout. Verify a signed sandbox payment and matching ledger receipt before claiming provider connectivity.
+
+Activation requires a reviewed source release, private host configuration and nginx routing; this document does not establish that those operations or provider checks have occurred. Disable the hosted opt-in to close provider access without changing historical ledger or simulator records.
 
 ## Manual acceptance walkthrough
 

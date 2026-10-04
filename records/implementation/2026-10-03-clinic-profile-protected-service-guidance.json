@@ -1,0 +1,67 @@
+{
+  "base": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+  "branch": "codex/clinic-profile-protected-service-guidance-20261003",
+  "scope": "Explain protected service additions in the existing Clinic Setup panel; no configuration, API, permissions, dependencies, schema or demo data changes.",
+  "findings": [
+    {
+      "source": "apps/web/src/features/clinic/Facilities.tsx",
+      "finding": "Clinic Setup renders PracticeFeatureSettings with the selected location and server-projected clinic_setup_write capability. Assessment scope has a direct section link. The clinical plan already links to /clinic/setup?site_id=<encounter site>, with #assessment-setup for assessments."
+    },
+    {
+      "source": "apps/web/src/features/clinic/PracticeFeatureSettings.tsx",
+      "finding": "Finalized profiles expose Review supported profile changes to authorized writers. Assessment options remain editable within specialty. Services not in selected_services are disabled after finalization."
+    },
+    {
+      "source": "apps/api/app/services/clinic/configuration/practice_features.rb",
+      "finding": "revise reauthorizes facilities.write, verifies specialty compatibility, request identity and expected revision, rejects new unselected services on finalized profiles, and requires consequence review for removals. No Meta Clinic-managed service-enablement operation was identified in this profile update contract."
+    },
+    {
+      "source": "apps/api/app/services/staging/demo_clinic.rb",
+      "finding": "A newly created staging MAIN location receives a primary-care profile with empty service and assessment scopes and finalize:true. This is source evidence; the live Muse clinic/profile was not read or verified."
+    },
+    {
+      "source": "apps/api/app/services/clinic/care/clinical_plan_workflow.rb",
+      "finding": "New procedure and immunization work depends on minor_office_procedures and vaccinations respectively; new assessment work requires profile readiness and a supported assessment scope."
+    }
+  ],
+  "change": "Clarify the finalized summary and service instructions; annotate compatible services excluded at finalization with Meta Clinic review required. Reuse existing MUI Chip/Typography. Preserve the exact checkbox predicate and all server safeguards.",
+  "source_sha256": "2cdb9c4f2046c470794337d10e5204345a5c95842130e371cc6ae0bf0ca3fe24",
+  "passed": [
+    {
+      "command": "python bin/agent-resources run -- docker exec -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm run typecheck",
+      "exit_code": 0,
+      "raw_log": "$ tsc --noEmit",
+      "log": "/workspace/scratch/clinic-profile-guidance-typecheck.log",
+      "log_sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "command": "python bin/agent-resources run -- docker exec -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm run build:bundle",
+      "exit_code": 0,
+      "raw_log": "Main: built in 685ms. Office: built in 292ms.",
+      "log": "/workspace/scratch/clinic-profile-guidance-bundle.log",
+      "log_sha256": "7206685feeef81642b4c831351eb629cba1699d97e862dd7f92994c40a1ede8b"
+    },
+    {
+      "command": "python bin/agent-resources run -- docker exec -w /workspace/meta_clinic/apps/web apply-lifecycle-runtime-aed60ea6 pnpm exec prettier --check src/features/clinic/PracticeFeatureSettings.tsx",
+      "exit_code": 0,
+      "raw_log": "All matched files use Prettier code style!"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "resolved_check_failure": "The initial changed-file Prettier check failed. Scoped formatting was applied, the diff reviewed, and the check passed.",
+  "not_run": [
+    "Automated tests: repository preference; not requested for this guidance change.",
+    "Live Muse observation, independent numerical scoring or browser acceptance.",
+    "Database-backed setup mutations, kiosk OTP server execution or full startup lifecycle: pending new synthetic database credential decision preserved.",
+    "Deployment or main push for this change."
+  ],
+  "limitations": [
+    "This change explains the restriction; it does not enable previously excluded services on finalized profiles.",
+    "Supported audited Meta Clinic-managed capability activation is separate work, not an administrator-toggle bypass.",
+    "No existing clinic or synthetic profile was mutated; the reported live profile identity remains unverified."
+  ],
+  "reference": "MUI MCP unavailable; existing installed MUI 9.4.0 components and https://mui.com/material-ui/react-chip/ consulted. Graft executable/index unavailable; scoped source inspection used."
+}
