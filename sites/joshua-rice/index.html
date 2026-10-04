@@ -178,6 +178,60 @@
             </p>
           </aside>
         </article>
+
+        <section class="ai-development" aria-labelledby="ai-title">
+          <div class="ai-intro">
+            <h3 id="ai-title">The feedback loop behind<br />autonomous development.</h3>
+            <div class="ai-intro-copy">
+              <p>I use AI to implement features, investigate bugs, and review changes. I define the product and architecture, set the constraints, and decide what ships.</p>
+              <p>QA makes that work repeatable. A specific failure gives an agent something to investigate and repair; a retest checks whether the change actually resolved it. That feedback lets development continue with less manual direction between tasks.</p>
+            </div>
+          </div>
+
+          <figure class="ai-evidence ai-office-evidence">
+            <a class="ai-image-link" href="assets/agent-office.png" target="_blank" rel="noopener" aria-label="View the shared agent workspace screenshot at full size">
+              <img src="assets/agent-office.png" alt="Meta Clinic's shared Office floor with desks for Josh, Dot, Muse, and Codex, plus a task board, evidence board, and meeting room." loading="lazy" />
+            </a>
+            <figcaption>
+              <h4>A shared place<br />to hand off work.</h4>
+              <p>I built an operations workspace for assignments, agent handoffs, findings, and evidence. It gives the work a recorded owner and a place for the next person or agent to pick it up.</p>
+              <span class="ai-caption-note">Meta Clinic Office · actual application capture</span>
+            </figcaption>
+          </figure>
+
+          <div class="ai-loop" aria-label="Development feedback loop">
+            <ol>
+              <li><strong>Scope the work</strong><span>Define the task, constraints, and expected behavior.</span></li>
+              <li><strong>Implement</strong><span>An agent makes a bounded change and records its handoff.</span></li>
+              <li><strong>Check the workflow</strong><span>QA records what happened against the observed build.</span></li>
+              <li><strong>Repair &amp; retest</strong><span>Failures guide the next fix; the result returns to QA.</span></li>
+            </ol>
+            <p class="ai-loop-return">Retest results feed the next development task.</p>
+          </div>
+
+          <figure class="ai-evidence ai-qa-evidence">
+            <figcaption>
+              <h4>QA creates<br />the next task.</h4>
+              <p>A useful QA finding describes the workflow, expected result, actual behavior, and application revision. An agent can use that evidence to reproduce the problem, make a scoped repair, and hand it back for verification.</p>
+              <p>Passed, failed, blocked, and historical results stay distinct. I use that record to judge progress and control publication.</p>
+              <span class="ai-caption-note">116-workflow ledger · recorded results retain their revision</span>
+            </figcaption>
+            <a class="ai-image-link" href="assets/workflow-coverage.png" target="_blank" rel="noopener" aria-label="View the workflow QA screenshot at full size">
+              <img src="assets/workflow-coverage.png" alt="The QA coverage ledger for 116 workflows, retaining passed, failed, blocked, and revision-specific evidence." loading="lazy" />
+            </a>
+          </figure>
+
+          <div class="ai-usage" aria-labelledby="ai-usage-title">
+            <div class="ai-usage-heading"><h4 id="ai-usage-title">A sustained part of my workflow.</h4><p>Usage dashboard · owner-supplied snapshot</p></div>
+            <dl class="ai-stats">
+              <div><dt>Lifetime tokens</dt><dd>24.8B</dd></div>
+              <div><dt>Peak tokens</dt><dd>2.3B</dd></div>
+              <div><dt>Longest task</dt><dd>12h 35m</dd></div>
+              <div><dt>Longest streak</dt><dd>53 days</dd></div>
+              <div><dt>Current streak</dt><dd>53 days</dd></div>
+            </dl>
+          </div>
+        </section>
       </section>
 
       <section
