@@ -103,6 +103,8 @@ type Attempt = {
 };
 
 const INTAKE_SECTION_TITLES: Record<string, string> = {
+  general_health_visit: "Your health and visit",
+  past_care_measurements: "Past care, height and weight",
   today_visit: "Today’s concerns and functioning",
   patient_coordination: "Support and care needs",
   safety_history: "Relevant history",
