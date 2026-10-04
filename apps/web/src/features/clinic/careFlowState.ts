@@ -13,6 +13,7 @@ import type {
   VisitType,
 } from "../../api/contracts";
 import { ApiError } from "../../api/client";
+import { businessNow } from "../../shared/businessDate";
 import { type VisitModality } from "./TelehealthBookingFormat";
 import {
   composeHistoryOfPresentIllness,
@@ -25,7 +26,7 @@ export function patientDisplayLabel(
 ) {
   const name = patient?.display_name ?? "Patient";
   const reference = patientReferenceLabel(patient?.reference);
-  return reference ? `${name} · ${reference}` : name;
+  return reference ? `${name} Â· ${reference}` : name;
 }
 
 export function encounterDetailPath(
@@ -36,6 +37,7 @@ export function encounterDetailPath(
 }
 
 export type BookingDraft = {
+  timezone?: string;
   visitModality?: VisitModality;
   patientId: string;
   startsAt: string;
@@ -125,6 +127,7 @@ export function offeringEligibilityIssue(
   roomId: string,
   startsAt: string,
   endsAt: string,
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 ): string | null {
   if (offering.status !== "published")
     return "This service offering is no longer published. Choose another offering or use visit-type booking.";
@@ -141,8 +144,11 @@ export function offeringEligibilityIssue(
     return "This service offering does not support the selected visit format.";
   if (offering.requires_room && visitModality === "in_person" && !roomId)
     return "Choose a room for this service offering.";
-  const minutes =
-    (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000;
+  const start = bookingInstant(startsAt, timezone);
+  const end = bookingInstant(endsAt, timezone);
+  if (!start || !end || end <= start)
+    return "Choose valid start and end times before selecting a service offering.";
+  const minutes = (end.getTime() - start.getTime()) / 60_000;
   if (minutes !== offering.duration_minutes)
     return `This service offering requires a ${offering.duration_minutes}-minute appointment.`;
   return null;
@@ -551,6 +557,96 @@ export function localDateTimeValue(value: Date) {
   return local.toISOString().slice(0, 16);
 }
 
+export function clinicLocalDateTimeValue(value: Date, timezone: string) {
+  if (!Number.isFinite(value.valueOf())) return "";
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(value);
+    const fields = Object.fromEntries(
+      parts
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    );
+    return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}`;
+  } catch {
+    return "";
+  }
+}
+
+export function clinicInstantFromLocalDateTime(
+  value: string,
+  timezone: string,
+) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match.map(Number);
+  const wallTime = Date.UTC(year, month - 1, day, hour, minute);
+  const offsets = new Set<number>();
+  try {
+    for (const delta of [-36, -12, 0, 12, 36]) {
+      const sample = new Date(wallTime + delta * 60 * 60_000);
+      const local = clinicLocalDateTimeValue(sample, timezone);
+      const [date, time] = local.split("T");
+      const [localYear, localMonth, localDay] = date.split("-").map(Number);
+      const [localHour, localMinute] = time.split(":").map(Number);
+      offsets.add(
+        Date.UTC(localYear, localMonth - 1, localDay, localHour, localMinute) -
+          sample.getTime(),
+      );
+    }
+  } catch {
+    return null;
+  }
+  const matches = [...offsets]
+    .map((offset) => wallTime - offset)
+    .filter(
+      (instant) =>
+        clinicLocalDateTimeValue(new Date(instant), timezone) === value,
+    );
+  return matches.length === 1 ? new Date(matches[0]) : null;
+}
+
+export function clinicDateTimeToIso(value: string, timezone: string) {
+  if (value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)) {
+    const date = new Date(value);
+    return Number.isFinite(date.valueOf()) ? date.toISOString() : "";
+  }
+  return clinicInstantFromLocalDateTime(value, timezone)?.toISOString() ?? "";
+}
+
+export function bookingDraftInTimezone(draft: BookingDraft, timezone: string) {
+  if (draft.timezone === timezone) return draft;
+  const convert = (value: string) => {
+    const instant = draft.timezone
+      ? clinicInstantFromLocalDateTime(value, draft.timezone)
+      : new Date(value);
+    return instant && Number.isFinite(instant.valueOf())
+      ? clinicLocalDateTimeValue(instant, timezone)
+      : value;
+  };
+  return {
+    ...draft,
+    timezone,
+    startsAt: convert(draft.startsAt),
+    endsAt: convert(draft.endsAt),
+  };
+}
+
+function bookingInstant(value: string, timezone: string) {
+  if (value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)) {
+    const date = new Date(value);
+    return Number.isFinite(date.valueOf()) ? date : null;
+  }
+  return clinicInstantFromLocalDateTime(value, timezone);
+}
+
 export function bookingTimePreview(value: string, timezone: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.valueOf())) return null;
@@ -575,13 +671,13 @@ export function bookingTimePreview(value: string, timezone: string) {
     day: "numeric",
   });
   const datePrefix =
-    localDate === clinicDate ? "" : `${localDate} → ${clinicDate} · `;
-  return `${datePrefix}${local} your time → ${clinic} clinic time`;
+    localDate === clinicDate ? "" : `${localDate} â†’ ${clinicDate} Â· `;
+  return `${datePrefix}${local} your time â†’ ${clinic} clinic time`;
 }
 
-export function clinicDateForBooking(value: string, timezone: string) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.valueOf())) return null;
+export function clinicDateForBooking(value: string | Date, timezone: string) {
+  const date = value instanceof Date ? value : bookingInstant(value, timezone);
+  if (!date || !Number.isFinite(date.valueOf())) return null;
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
@@ -600,31 +696,36 @@ export function clinicDateForBooking(value: string, timezone: string) {
   }
 }
 
-export function appointmentDefaults(now = new Date()) {
+export function appointmentDefaults(
+  now = new Date(),
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+) {
   const start = new Date(now);
   start.setSeconds(0, 0);
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
   if (start <= now) start.setMinutes(start.getMinutes() + 15);
   const end = new Date(start.getTime() + 30 * 60_000);
   return {
-    startsAt: localDateTimeValue(start),
-    endsAt: localDateTimeValue(end),
+    startsAt: clinicLocalDateTimeValue(start, timezone),
+    endsAt: clinicLocalDateTimeValue(end, timezone),
   };
 }
 
-export function appointmentIntervalError(startsAt: string, endsAt: string) {
-  const start = new Date(startsAt);
-  const end = new Date(endsAt);
-  if (
-    !startsAt ||
-    !endsAt ||
-    !Number.isFinite(start.valueOf()) ||
-    !Number.isFinite(end.valueOf())
-  )
-    return "Choose a valid start and end time.";
+export function appointmentIntervalError(
+  startsAt: string,
+  endsAt: string,
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  requireFuture = false,
+) {
+  const start = bookingInstant(startsAt, timezone);
+  const end = bookingInstant(endsAt, timezone);
+  if (!startsAt || !endsAt || !start || !end)
+    return "Choose valid start and end times in the clinic timezone.";
   if (end <= start) return "End time must be after the start time.";
   if (end.getTime() - start.getTime() > 24 * 60 * 60_000)
     return "An appointment cannot be longer than 24 hours.";
+  if (requireFuture && start <= businessNow())
+    return "Choose a start time in the future.";
   return "";
 }
 
@@ -632,6 +733,7 @@ export function bookingDurationMinutes(
   startsAt: string,
   endsAt: string,
   savedDuration?: number,
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 ) {
   if (
     typeof savedDuration === "number" &&
@@ -640,16 +742,26 @@ export function bookingDurationMinutes(
     savedDuration <= 24 * 60
   )
     return savedDuration;
-  const minutes = (Date.parse(endsAt) - Date.parse(startsAt)) / 60_000;
+  const start = bookingInstant(startsAt, timezone);
+  const end = bookingInstant(endsAt, timezone);
+  const minutes =
+    start && end ? (end.getTime() - start.getTime()) / 60_000 : NaN;
   return Number.isFinite(minutes) && minutes > 0 && minutes <= 24 * 60
     ? minutes
     : 30;
 }
 
-export function bookingEndTime(startsAt: string, minutes: number) {
-  const start = new Date(startsAt);
-  return Number.isFinite(start.valueOf())
-    ? localDateTimeValue(new Date(start.getTime() + minutes * 60_000))
+export function bookingEndTime(
+  startsAt: string,
+  minutes: number,
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+) {
+  const start = bookingInstant(startsAt, timezone);
+  return start
+    ? clinicLocalDateTimeValue(
+        new Date(start.getTime() + minutes * 60_000),
+        timezone,
+      )
     : null;
 }
 

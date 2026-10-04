@@ -63,9 +63,11 @@ import {
   bindBookingPatient,
   bookingDraftHasChanges,
   clinicDateTime,
-  localDateTimeValue,
-  bookingTimePreview,
+  clinicDateTimeToIso,
   clinicDateForBooking,
+  clinicInstantFromLocalDateTime,
+  clinicLocalDateTimeValue,
+  bookingDraftInTimezone,
   appointmentDefaults,
   appointmentIntervalError,
   bookingDurationMinutes,
@@ -166,21 +168,28 @@ function BookingFormEditor({
   const { registerBlocker } = useClinicNavigation();
   const clinic = useClinic();
   const defaultDraft = useMemo<BookingDraft>(() => {
-    const defaults = appointmentDefaults();
+    const defaults = appointmentDefaults(businessNow(), timezone);
     const slotStart = initialSlot?.starts_at;
-    const useSlotTime = !!slotStart && Date.parse(slotStart) > Date.now();
+    const useSlotTime =
+      !!slotStart && Date.parse(slotStart) > businessNow().getTime();
     const startsAt = useSlotTime
-      ? localDateTimeValue(new Date(slotStart))
+      ? clinicLocalDateTimeValue(new Date(slotStart), timezone)
       : defaults.startsAt;
     const endsAt =
       useSlotTime && initialSlot?.ends_at
-        ? localDateTimeValue(new Date(initialSlot.ends_at))
+        ? clinicLocalDateTimeValue(new Date(initialSlot.ends_at), timezone)
         : defaults.endsAt;
     return {
+      timezone,
       patientId: initialPatientId ? String(initialPatientId) : "",
       startsAt,
       endsAt,
-      durationMinutes: bookingDurationMinutes(startsAt, endsAt),
+      durationMinutes: bookingDurationMinutes(
+        startsAt,
+        endsAt,
+        undefined,
+        timezone,
+      ),
       endTimeEdited: false,
       siteId: String(initialSlot?.site_id ?? clinic.current_site?.id ?? ""),
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
@@ -204,8 +213,12 @@ function BookingFormEditor({
     initialVisitModality,
     initialSlot,
     clinic.current_site?.id,
+    timezone,
   ]);
-  const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  const restoredDraft = bookingDraftInTimezone(
+    initialDraft?.draft ?? defaultDraft,
+    timezone,
+  );
   const initialHold = initialSlot?.hold ?? null;
   const initialHoldDeferred = Boolean(
     initialHold &&
@@ -217,8 +230,8 @@ function BookingFormEditor({
       initialDraft.draft.siteId !== String(initialSlot?.site_id ?? "") ||
       initialDraft.draft.clinicianId !== String(initialHold.clinician_id) ||
       initialDraft.draft.roomId !== String(initialHold.room_id ?? "") ||
-      initialDraft.draft.startsAt !== defaultDraft.startsAt ||
-      initialDraft.draft.endsAt !== defaultDraft.endsAt),
+      restoredDraft.startsAt !== defaultDraft.startsAt ||
+      restoredDraft.endsAt !== defaultDraft.endsAt),
   );
   const boundBooking = bindBookingPatient(
     restoredDraft,
@@ -249,10 +262,10 @@ function BookingFormEditor({
     draftRecoveryMessage &&
     initialDraft &&
     initialSlot?.starts_at &&
-    (Date.parse(initialDraft.draft.startsAt) !==
+    (Date.parse(clinicDateTimeToIso(restoredDraft.startsAt, timezone)) !==
       Date.parse(initialSlot.starts_at) ||
       (initialSlot.ends_at &&
-        Date.parse(initialDraft.draft.endsAt) !==
+        Date.parse(clinicDateTimeToIso(restoredDraft.endsAt, timezone)) !==
           Date.parse(initialSlot.ends_at))),
   );
   const [baseline, setBaseline] = useState<BookingDraft>(defaultDraft);
@@ -267,11 +280,15 @@ function BookingFormEditor({
   );
   const [startsAt, setStartsAt] = useState(restoredDraft.startsAt);
   const [endsAt, setEndsAt] = useState(restoredDraft.endsAt);
+  const [draftTimezone, setDraftTimezone] = useState(
+    restoredDraft.timezone ?? timezone,
+  );
   const [durationMinutes, setDurationMinutes] = useState(() =>
     bookingDurationMinutes(
       restoredDraft.startsAt,
       restoredDraft.endsAt,
       restoredDraft.durationMinutes,
+      timezone,
     ),
   );
   const [endTimeEdited, setEndTimeEdited] = useState(
@@ -427,9 +444,15 @@ function BookingFormEditor({
     }, remaining + 100);
     return () => window.clearTimeout(timer);
   }, [heldSlot]);
+  const facilities = useResource<{ sites: FacilitySite[] }>(
+    "/api/clinic/facilities?type=sites",
+  );
+  const bookingTimezone =
+    facilities.data?.sites.find((site) => String(site.id) === siteId)
+      ?.timezone_override || timezone;
   const resourceDate =
-    clinicDateForBooking(startsAt, timezone) ??
-    clinicDateForBooking(businessNow().toISOString(), timezone) ??
+    clinicDateForBooking(startsAt, bookingTimezone) ??
+    clinicDateForBooking(businessNow().toISOString(), bookingTimezone) ??
     "1970-01-01";
   const scheduledResourceParams = new URLSearchParams({
     date: resourceDate,
@@ -440,6 +463,7 @@ function BookingFormEditor({
     scheduledResourceParams.set("booked_clinician_id", clinicianId);
   const currentDraft = useMemo<BookingDraft>(
     () => ({
+      timezone: draftTimezone,
       patientId,
       startsAt,
       endsAt,
@@ -463,6 +487,7 @@ function BookingFormEditor({
     }),
     [
       patientId,
+      draftTimezone,
       startsAt,
       endsAt,
       durationMinutes,
@@ -492,9 +517,21 @@ function BookingFormEditor({
       enabled: deferredPatientQuery.trim().length > 0,
     },
   );
-  const facilities = useResource<{ sites: FacilitySite[] }>(
-    "/api/clinic/facilities?type=sites",
-  );
+  useEffect(() => {
+    if (draftTimezone === bookingTimezone) return;
+    const converted = bookingDraftInTimezone(
+      { ...baseline, timezone: draftTimezone, startsAt, endsAt },
+      bookingTimezone,
+    );
+    setStartsAt(converted.startsAt);
+    setEndsAt(converted.endsAt);
+    setDraftTimezone(bookingTimezone);
+    setBaseline((previous) =>
+      previous.siteId === siteId
+        ? bookingDraftInTimezone(previous, bookingTimezone)
+        : previous,
+    );
+  }, [baseline, bookingTimezone, draftTimezone, endsAt, siteId, startsAt]);
   const rooms = useResource<{ rooms: FacilityRoom[] }>(
     "/api/clinic/facilities?type=rooms&per_page=100",
   );
@@ -561,6 +598,7 @@ function BookingFormEditor({
     roomId,
     startsAt,
     endsAt,
+    timezone: bookingTimezone,
   });
   const availableOfferings =
     serviceOfferings.data?.service_offerings.filter((offering) =>
@@ -587,12 +625,13 @@ function BookingFormEditor({
           roomId,
           startsAt,
           endsAt,
+          bookingTimezone,
         )
       : serviceOfferings.error
         ? "The selected service offering could not be verified. Retry loading it or use visit-type booking."
         : serviceOfferings.data
           ? "This service offering is no longer published. Choose another offering or use visit-type booking."
-          : "Checking the selected service offering…"
+          : "Checking the selected service offeringâ€¦"
     : null;
   const scheduledResources = useResource<{ appointments: Appointment[] }>(
     `/api/clinic/appointments?${scheduledResourceParams.toString()}`,
@@ -763,11 +802,9 @@ function BookingFormEditor({
   );
   const clinicianSiteWarning =
     /not assigned to this site for the selected time/i.test(submitError);
-  const bookingTimezone = selectedSite?.timezone_override || timezone;
   const createdTimezone =
     facilities.data.sites.find((site) => site.id === created?.site_id)
       ?.timezone_override || timezone;
-  const timePreview = bookingTimePreview(startsAt, bookingTimezone);
   const assignClinicianToSlot = async () => {
     if (siteAssignmentBusy || !selectedClinician || !selectedSite) return;
     if (
@@ -785,10 +822,11 @@ function BookingFormEditor({
           )
         : [];
     const assignmentStartsAt =
-      seriesAppointments[0]?.starts_at ?? new Date(startsAt).toISOString();
+      seriesAppointments[0]?.starts_at ??
+      clinicDateTimeToIso(startsAt, bookingTimezone);
     const assignmentEndsAt =
       seriesAppointments[seriesAppointments.length - 1]?.ends_at ??
-      new Date(endsAt).toISOString();
+      clinicDateTimeToIso(endsAt, bookingTimezone);
     try {
       await api(`/api/clinic/clinicians/${selectedClinician.id}/assign_site`, {
         method: "POST",
@@ -828,11 +866,14 @@ function BookingFormEditor({
         appointment.booked_clinician_id === Number(clinicianId)
       );
     }) ?? [];
-  const intervalError = appointmentIntervalError(startsAt, endsAt);
+  const intervalError =
+    draftTimezone !== bookingTimezone
+      ? "Updating times for the selected clinic timezone."
+      : appointmentIntervalError(startsAt, endsAt, bookingTimezone, true);
   const setDuration = (minutes: number) => {
     setDurationMinutes(minutes);
     setEndTimeEdited(false);
-    const end = bookingEndTime(startsAt, minutes);
+    const end = bookingEndTime(startsAt, minutes, bookingTimezone);
     if (end) setEndsAt(end);
   };
   const reset = () => {
@@ -842,6 +883,7 @@ function BookingFormEditor({
     setDraftCloseFailed(false);
     setAssignmentNotice("");
     setBaseline(defaultDraft);
+    setDraftTimezone(defaultDraft.timezone ?? timezone);
     setPatientId(defaultDraft.patientId);
     setReplacementPatientId(
       defaultDraft.patientId ? Number(defaultDraft.patientId) : undefined,
@@ -851,7 +893,12 @@ function BookingFormEditor({
     setChangingPatient(false);
     setEndsAt(defaultDraft.endsAt);
     setDurationMinutes(
-      bookingDurationMinutes(defaultDraft.startsAt, defaultDraft.endsAt),
+      bookingDurationMinutes(
+        defaultDraft.startsAt,
+        defaultDraft.endsAt,
+        undefined,
+        timezone,
+      ),
     );
     setEndTimeEdited(false);
     setSiteId(defaultDraft.siteId);
@@ -1003,7 +1050,9 @@ function BookingFormEditor({
       );
       return;
     }
-    const starts = new Date(startsAt).getTime();
+    const starts =
+      clinicInstantFromLocalDateTime(startsAt, bookingTimezone)?.getTime() ??
+      NaN;
     const now = businessNow().getTime();
     if (!holdAttempt && (!Number.isFinite(starts) || starts <= now + 60_000)) {
       setHoldError(
@@ -1021,8 +1070,8 @@ function BookingFormEditor({
             site_id: siteId,
             clinician_id: clinicianId,
             room_id: visitModality === "video" ? "" : roomId,
-            starts_at: new Date(startsAt).toISOString(),
-            ends_at: new Date(endsAt).toISOString(),
+            starts_at: clinicDateTimeToIso(startsAt, bookingTimezone),
+            ends_at: clinicDateTimeToIso(endsAt, bookingTimezone),
             expires_at: new Date(
               Math.min(starts, now + 10 * 60_000),
             ).toISOString(),
@@ -1145,8 +1194,8 @@ function BookingFormEditor({
         ...(serviceOfferingId
           ? { service_offering_id: serviceOfferingId }
           : {}),
-        starts_at: new Date(startsAt).toISOString(),
-        ends_at: new Date(endsAt).toISOString(),
+        starts_at: clinicDateTimeToIso(startsAt, bookingTimezone),
+        ends_at: clinicDateTimeToIso(endsAt, bookingTimezone),
         visit_modality: visitModality,
         interval_weeks: repeatIntervalWeeks,
         occurrence_count: repeatCount,
@@ -1589,8 +1638,8 @@ function BookingFormEditor({
                 body: {
                   appointment: {
                     patient_id: patientId,
-                    starts_at: new Date(startsAt).toISOString(),
-                    ends_at: new Date(endsAt).toISOString(),
+                    starts_at: clinicDateTimeToIso(startsAt, bookingTimezone),
+                    ends_at: clinicDateTimeToIso(endsAt, bookingTimezone),
                     site_id: siteId,
                     room_id: roomId,
                     booked_clinician_id: firstAvailable ? null : clinicianId,
@@ -1987,7 +2036,7 @@ function BookingFormEditor({
                     {availableOfferings.map((offering) => (
                       <MenuItem key={offering.id} value={String(offering.id)}>
                         {offering.name}
-                        {offering.code ? ` · ${offering.code}` : ""}
+                        {offering.code ? ` Â· ${offering.code}` : ""}
                       </MenuItem>
                     ))}
                   </Select>
@@ -2057,12 +2106,25 @@ function BookingFormEditor({
                     const value = event.target.value;
                     setStartsAt(value);
                     if (!endTimeEdited) {
-                      const end = bookingEndTime(value, durationMinutes);
+                      const end = bookingEndTime(
+                        value,
+                        durationMinutes,
+                        bookingTimezone,
+                      );
                       if (end) setEndsAt(end);
                     }
                   }}
-                  helperText="Use your device's time zone. Review clinic time below."
+                  error={Boolean(intervalError)}
+                  helperText={
+                    intervalError || `Clinic time: ${bookingTimezone}`
+                  }
                   slotProps={{
+                    htmlInput: {
+                      min: clinicLocalDateTimeValue(
+                        businessNow(),
+                        bookingTimezone,
+                      ),
+                    },
                     inputLabel: { shrink: true },
                   }}
                 />
@@ -2129,15 +2191,6 @@ function BookingFormEditor({
                   </Button>
                 ))}
               </Stack>
-              {timePreview && (
-                <Alert
-                  severity="info"
-                  variant="outlined"
-                  sx={{ gridColumn: "1 / -1" }}
-                >
-                  {timePreview} — look right?
-                </Alert>
-              )}
               <Typography
                 component="h3"
                 variant="subtitle1"
@@ -2232,14 +2285,17 @@ function BookingFormEditor({
                               selectedOffering?.duration_minutes ?? 30,
                             );
                             setEndTimeEdited(false);
-                            setStartsAt(localDateTimeValue(start));
+                            setStartsAt(
+                              clinicLocalDateTimeValue(start, bookingTimezone),
+                            );
                             setEndsAt(
-                              localDateTimeValue(
+                              clinicLocalDateTimeValue(
                                 new Date(
                                   start.getTime() +
                                     (selectedOffering?.duration_minutes ?? 30) *
                                       60_000,
                                 ),
+                                bookingTimezone,
                               ),
                             );
                           }
@@ -2362,7 +2418,7 @@ function BookingFormEditor({
                               (row) => row.state === "booked",
                             ).length
                           }{" "}
-                          to book ·{" "}
+                          to book Â·{" "}
                           {
                             seriesPreview.filter(
                               (row) => row.state === "skipped",
@@ -2385,7 +2441,7 @@ function BookingFormEditor({
                                   variant="body2"
                                   sx={{ fontWeight: 650 }}
                                 >
-                                  Visit {row.sequence} · {row.original_date} ·{" "}
+                                  Visit {row.sequence} Â· {row.original_date} Â·{" "}
                                   {row.state === "skipped"
                                     ? "Skipped"
                                     : row.starts_at
@@ -2402,23 +2458,25 @@ function BookingFormEditor({
                                   label="Change this visit start"
                                   value={
                                     resolution?.starts_at
-                                      ? localDateTimeValue(
+                                      ? clinicLocalDateTimeValue(
                                           new Date(resolution.starts_at),
+                                          bookingTimezone,
                                         )
                                       : ""
                                   }
                                   onChange={(event) =>
                                     updateSeriesResolution(row.sequence, {
                                       starts_at: event.target.value
-                                        ? new Date(
+                                        ? clinicDateTimeToIso(
                                             event.target.value,
-                                          ).toISOString()
+                                            bookingTimezone,
+                                          )
                                         : "",
                                     })
                                   }
                                   disabled={busy || Boolean(seriesAttempt)}
                                   slotProps={{ inputLabel: { shrink: true } }}
-                                  helperText={`Uses this device's timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Leave blank to keep the weekly time.`}
+                                  helperText={`Uses ${bookingTimezone}. Leave blank to keep the weekly time.`}
                                 />
                                 <TextField
                                   select
@@ -2504,7 +2562,7 @@ function BookingFormEditor({
                     </Alert>
                   ) : !scheduledResources.data ? (
                     <Typography color="text.secondary" role="status">
-                      Checking scheduled resource activity…
+                      Checking scheduled resource activityâ€¦
                     </Typography>
                   ) : scheduledResourceAppointments.length === 0 ? (
                     <Alert severity="info" variant="outlined">
@@ -2531,8 +2589,8 @@ function BookingFormEditor({
                           >
                             {clinicDateTime(appointment.starts_at, timezone)}
                             {appointment.room_id === Number(roomId)
-                              ? " · selected room"
-                              : " · selected clinician"}
+                              ? " Â· selected room"
+                              : " Â· selected clinician"}
                           </Typography>
                         ))}
                       </Stack>
@@ -2586,7 +2644,7 @@ function BookingFormEditor({
                             disabled={siteAssignmentBusy}
                           >
                             {siteAssignmentBusy
-                              ? "Assigning…"
+                              ? "Assigningâ€¦"
                               : `Assign ${selectedClinician.display_name || "clinician"} to ${selectedSite.code} ${repeat === "weekly" ? "for this series period" : "for this slot"}`}
                           </Button>
                         )}
@@ -2603,7 +2661,7 @@ function BookingFormEditor({
               </Alert>
             )}
             {workingDraft.status === "saving" && (
-              <Typography role="status">Saving working copy…</Typography>
+              <Typography role="status">Saving working copyâ€¦</Typography>
             )}
             {workingDraft.status === "saved" && dirty && (
               <Typography color="text.secondary" role="status">
@@ -2712,7 +2770,7 @@ function BookingFormEditor({
                       Boolean(holdAttempt)
                     }
                   >
-                    {draftSaving ? "Saving draft…" : "Save as draft"}
+                    {draftSaving ? "Saving draftâ€¦" : "Save as draft"}
                   </Button>
                 )}
                 <Button
@@ -2746,7 +2804,7 @@ function BookingFormEditor({
                   }
                 >
                   {busy && !draftSaving
-                    ? "Scheduling…"
+                    ? "Schedulingâ€¦"
                     : outcomeUnconfirmed || seriesOutcomeUnconfirmed
                       ? "Retry same request"
                       : repeat === "weekly"

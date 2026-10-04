@@ -1,0 +1,1610 @@
+{
+  "date": "2026-10-03",
+  "event": "Reconcile local worktrees, local and remote branches, unfinished files, and stashes for authorized GitHub and aimetaclinic.com update",
+  "base_main": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+  "integration_base": "17e9db3a93db1c154ef2c85ddbf93b80b107dcd3",
+  "inventory_utc": "20261004T000121Z",
+  "scope": "All refs and registered worktrees available in the shared Windows repository at the inventory checkpoint, plus a final remote refresh. Unregistered clones and unreachable/deleted history are not claimed.",
+  "worktrees": [
+    {
+      "worktree": "C:/Users/joshr/Desktop/meta_clinic",
+      "HEAD": "0f5c962772a69bc57e3f2207c16ba717c0313a7a",
+      "branch": "refs/heads/main"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/all-work-reconciliation/meta_clinic",
+      "HEAD": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+      "detached": true
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/atlas-accuracy/meta_clinic",
+      "HEAD": "825e08f871849d8864e19f3a96aefa0d8025faa1",
+      "branch": "refs/heads/codex/020-pr15-carryforward"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/clinic-polish/meta_clinic",
+      "HEAD": "7cfa22e9980cd6b4105c1ad4bfe30863a6cdb9ac",
+      "branch": "refs/heads/codex/clinic-polish"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/demo-entry-design/meta_clinic",
+      "HEAD": "a38bfd1d35115cd6d05affab2d4638c44a364f25",
+      "branch": "refs/heads/codex/visual-quality-audit"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/demo-navigation-recovery/meta_clinic",
+      "HEAD": "317ee957acc98207ce8c77e52d453350e8c7de57",
+      "branch": "refs/heads/codex/demo-navigation-recovery"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/demo-trust-fixes/meta_clinic",
+      "HEAD": "ffc380d76888ef37252d69f08def7bd5273e169b",
+      "branch": "refs/heads/codex/demo-trust-fixes"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/joshua-modern-portfolio/meta_clinic",
+      "HEAD": "d252bbde2d85e04f85bbfe460413aa339c6c42bc",
+      "branch": "refs/heads/codex/joshua-modern-portfolio"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/location-specialty-tracker/meta_clinic",
+      "HEAD": "329298133e28ee0b4781a825d83ec839044dd06f",
+      "branch": "refs/heads/codex/location-specialty-tracker"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/marketing-quality/meta_clinic",
+      "HEAD": "3da3ca67355f45d10cf4980ca9c1e492dd393534",
+      "branch": "refs/heads/codex/marketing-quality"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/marketing-walkthroughs/meta_clinic",
+      "HEAD": "0a5ee5f4805d86acaa559c32c6521c1b3f87eb07",
+      "branch": "refs/heads/codex/marketing-walkthroughs"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-autonomous-triage/meta_clinic",
+      "HEAD": "82103cc43c7fb388a58e6bc9d7f457ac5995bbc1",
+      "branch": "refs/heads/codex/muse-task-attempts"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-portal-branch/meta_clinic",
+      "HEAD": "75b5be46699445d986aaea5593872ce318d3d3b6",
+      "branch": "refs/heads/codex/muse-qa-watch"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-qa-pr24/meta_clinic",
+      "HEAD": "e345acb8eb9dfc1222011323e4f89f0abf09ab56",
+      "branch": "refs/heads/codex/muse-qa-pr24-resolution"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-qa-pr24-review/meta_clinic",
+      "HEAD": "25a23e4bd47d5200a3f9ef51a9925aeca064f49c",
+      "detached": true
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-qa-pr35-review",
+      "HEAD": "d7e1b73696ec03fcf650051f918f15fb48a4abed",
+      "detached": true
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-qa-write-api/meta_clinic",
+      "HEAD": "1b5ed425c7853752c453c062b1603dab9302e9e8",
+      "branch": "refs/heads/codex/muse-qa-write-api"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/muse-qa-write-api-4483/meta_clinic",
+      "HEAD": "257f1bbf5fc136efd2c2f76ad3fd137a96313a47",
+      "detached": true
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/performance-bottlenecks/meta_clinic",
+      "HEAD": "63efbfa377dd69d9ac19b098e87211363ec3f738",
+      "branch": "refs/heads/codex/performance-bottlenecks"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/qa-011-release-fixes/meta_clinic",
+      "HEAD": "0faea4ddbcc9d76ca6f1f50a297d48be59148ec6",
+      "detached": true
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/qa-236-246/meta_clinic",
+      "HEAD": "182a86e537a8854c4a71b066c38f4bc31675c9d9",
+      "branch": "refs/heads/codex/qa-236-253-main"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/qa-public-access/meta_clinic",
+      "HEAD": "e974fd1476dcf085a2361d2c93291ec4ec59e5ee",
+      "branch": "refs/heads/codex/qa-desk-integration"
+    },
+    {
+      "worktree": "C:/Users/joshr/.codex/worktrees/tracker-closeout/meta_clinic",
+      "HEAD": "f08ac82385ad1babbc266017d4cb1ad10b0ebec0",
+      "branch": "refs/heads/codex/mc-tracker-closeout-20261003"
+    },
+    {
+      "worktree": "C:/Users/joshr/Desktop/meta_clinic/.runtime/engineering/4a502dfa-8875-4786-afe7-fb33aa9da2eb",
+      "HEAD": "7f4b438d7a44f6276a69911b898b77d2a7e217c3",
+      "branch": "refs/heads/codex/improve-4a502dfa-8875-4786-afe7-fb33aa9da2eb"
+    },
+    {
+      "worktree": "C:/Users/joshr/Desktop/meta_clinic_marketing_architecture",
+      "HEAD": "41dd615f821ff5c9aa265b9668c6dbc8fe7ce462",
+      "branch": "refs/heads/codex/marketing-specialty-architecture"
+    },
+    {
+      "worktree": "C:/Users/joshr/Desktop/meta_clinic_prepared_1",
+      "HEAD": "2905e2fa17191c8b16455ae6c9e6099e2e3176c2",
+      "branch": "refs/heads/codex/intake-completion-fields"
+    },
+    {
+      "worktree": "C:/Users/joshr/Desktop/meta_clinic_prepared_2",
+      "HEAD": "a49481398e2938754df7cdb33b86875acf8b4dbe",
+      "branch": "refs/heads/codex/intake-completion-ui"
+    },
+    {
+      "worktree": "C:/Users/joshr/Desktop/meta_clinic_prepared_3",
+      "HEAD": "4b3a69e7a239ee2668036e9b460a6b5597064e5d",
+      "branch": "refs/heads/codex/mc04-pr10-complete"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-nginx-preflight-fix",
+      "HEAD": "fa3689ae6ea621da48ba2823318964c82a7c4cdc",
+      "branch": "refs/heads/codex/fix-nginx-preflight-hostname"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-pilot-batch-pr37-pr42",
+      "HEAD": "9537ec6eeb69ccd09ead19329cf7e9191f2439a4",
+      "branch": "refs/heads/codex/pilot-batch-pr37-pr42"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-pilot-batch-pr38-pr40",
+      "HEAD": "9e4478aa28f257e32cb89e1b3a6dc3d7b1f49053",
+      "branch": "refs/heads/codex/pilot-batch-pr38-pr40"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-pilot-batch-pr43-pr46",
+      "HEAD": "533468e71007c0a81701686dd9225676404e85bf",
+      "branch": "refs/heads/codex/pilot-batch-pr43-pr46"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-pilot-batch-pr49-pr50",
+      "HEAD": "c1697d49b97e31579dc1cc485781443b94d481b3",
+      "branch": "refs/heads/codex/pilot-batch-pr49-pr50"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-pilot-room-pr51",
+      "HEAD": "6d20a486de06495097dcf9be9696002a7c8853f3",
+      "branch": "refs/heads/codex/pilot-room-pr51"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-qa-source-count",
+      "HEAD": "0493d781789c6b0eb48eb3197732ca4b4a7a15c0",
+      "branch": "refs/heads/codex/dot-qa-unavailable-count"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-29/task/dot-web-packaging-fix",
+      "HEAD": "523fa4462bda915cd9518eaa69c2783edbf94072",
+      "branch": "refs/heads/codex/fix-web-build-hostname"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-30/task-4/office-correction",
+      "HEAD": "b0c980d833d586954d6ad6732133cf6324c88032",
+      "branch": "refs/heads/codex/office-identities-countdown"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-09-30/task-4/office-release-integration",
+      "HEAD": "0cad7038e4bf21b6ae2c2189fc7f6c35944816bb",
+      "branch": "refs/heads/codex/office-pr66-integration"
+    },
+    {
+      "worktree": "C:/Users/joshr/Documents/Codex/2026-10-01/use/work/meta-clinic-facelift-plan",
+      "HEAD": "0cad7038e4bf21b6ae2c2189fc7f6c35944816bb",
+      "detached": true
+    }
+  ],
+  "refs": [
+    {
+      "ref": "codex/020-pr15-carryforward",
+      "commit": "825e08f871849d8864e19f3a96aefa0d8025faa1",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/all-work-reconciliation-20261003",
+      "commit": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/atlas-progress-018",
+      "commit": "e5484889bdecc0b58bc239abe8624a299a20951a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/atlas-progress-019",
+      "commit": "37d900eff8c343bd9d3a4dfeb10e950cbe088526",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/care-visual-quality",
+      "commit": "de554331d9fc876a64ea6bf763c645dbd22f593f",
+      "disposition": "Patch-equivalent commits; current care-flow implementation retains and advances the same work."
+    },
+    {
+      "ref": "codex/clinic-design-audit",
+      "commit": "a826c56265f09bc24f8045b62c69da5028a64ba9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/clinic-polish",
+      "commit": "7cfa22e9980cd6b4105c1ad4bfe30863a6cdb9ac",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/demo-navigation-recovery",
+      "commit": "317ee957acc98207ce8c77e52d453350e8c7de57",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/demo-sandbox-repair",
+      "commit": "cd1ef7209c874671a1462f3565a63c647275f051",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/demo-trust-fixes",
+      "commit": "ffc380d76888ef37252d69f08def7bd5273e169b",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/dot-qa-unavailable-count",
+      "commit": "0493d781789c6b0eb48eb3197732ca4b4a7a15c0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/fix-nginx-preflight-hostname",
+      "commit": "fa3689ae6ea621da48ba2823318964c82a7c4cdc",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/fix-web-build-hostname",
+      "commit": "523fa4462bda915cd9518eaa69c2783edbf94072",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/founder-friction-qa-20260928",
+      "commit": "82d0dab6705807f434677314e4a59fe67cdbcc99",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/hourly-mc10-mc11-20260928",
+      "commit": "9610b0723eed204e2701a3c2a6578cfea4e2f7ac",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/hourly-tracker-first",
+      "commit": "293382417c58f0748586b426dc4393496198e834",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/improve-4a502dfa-8875-4786-afe7-fb33aa9da2eb",
+      "commit": "7f4b438d7a44f6276a69911b898b77d2a7e217c3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/intake-completion-fields",
+      "commit": "2905e2fa17191c8b16455ae6c9e6099e2e3176c2",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/intake-completion-ui",
+      "commit": "a49481398e2938754df7cdb33b86875acf8b4dbe",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/inventory-overview-onboarding",
+      "commit": "6fa1c1829098bc7a44a8db2b777e194111e846d0",
+      "disposition": "Patch-equivalent to dbede7b8 in main."
+    },
+    {
+      "ref": "codex/joshua-modern-portfolio",
+      "commit": "d252bbde2d85e04f85bbfe460413aa339c6c42bc",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/journey-connected-proof",
+      "commit": "8e3fa824fb640cfab2a277de3ecc5be69baad74e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/journey-two-fixes",
+      "commit": "987aab2541142952a187f921a39d3719b9ff9340",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/journey-ui-audit",
+      "commit": "987aab2541142952a187f921a39d3719b9ff9340",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/location-specialty-tracker",
+      "commit": "329298133e28ee0b4781a825d83ec839044dd06f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/marketing-quality",
+      "commit": "3da3ca67355f45d10cf4980ca9c1e492dd393534",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/marketing-specialty-architecture",
+      "commit": "41dd615f821ff5c9aa265b9668c6dbc8fe7ce462",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/marketing-walkthroughs",
+      "commit": "0a5ee5f4805d86acaa559c32c6521c1b3f87eb07",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/mc-tracker-closeout-20261003",
+      "commit": "f08ac82385ad1babbc266017d4cb1ad10b0ebec0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/mc04-pr10-complete",
+      "commit": "4b3a69e7a239ee2668036e9b460a6b5597064e5d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/mc11-carrier-tracking",
+      "commit": "0776865a0e5579cf027541147f2381cf80bab839",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/mc11-supplier-quote-request-20260928",
+      "commit": "e4660d630d9fc8cbb7764032aa9317884e8ed25d",
+      "disposition": "Source 71137d7 is in main; f2a26f30 supplier quote model is identical and package/unit constraints are in current structure. Old migration files superseded; do not reapply."
+    },
+    {
+      "ref": "codex/mc15-lab-readiness-inventory",
+      "commit": "e4660d630d9fc8cbb7764032aa9317884e8ed25d",
+      "disposition": "Same preserved local head as MC11; schema and source intent retained by current main."
+    },
+    {
+      "ref": "codex/messages-inbox-nav-polish",
+      "commit": "f003d52142442699568ef21bc2084795d345f6f0",
+      "disposition": "Patch-equivalent to 5cd8da08 in main."
+    },
+    {
+      "ref": "codex/messages-summary-polish",
+      "commit": "c1bda84dcdeb551f129385acfddfc0e092f352f4",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/muse-qa-handoff",
+      "commit": "56457b1b31f4588f47bd620952eecb0ab0d9b28d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/muse-qa-notes-format",
+      "commit": "2dfe6d25b405905a7abb678ec05cb68421447616",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/muse-qa-pr24-resolution",
+      "commit": "e345acb8eb9dfc1222011323e4f89f0abf09ab56",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/muse-qa-watch",
+      "commit": "75b5be46699445d986aaea5593872ce318d3d3b6",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/muse-qa-write-api",
+      "commit": "1b5ed425c7853752c453c062b1603dab9302e9e8",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/muse-task-attempts",
+      "commit": "82103cc43c7fb388a58e6bc9d7f457ac5995bbc1",
+      "disposition": "Superseded by 75b5be46 and later QA build-observation/watch handling."
+    },
+    {
+      "ref": "codex/office-identities-countdown",
+      "commit": "b0c980d833d586954d6ad6732133cf6324c88032",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/office-pr66-integration",
+      "commit": "0cad7038e4bf21b6ae2c2189fc7f6c35944816bb",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/operations-visual-quality",
+      "commit": "2731e7a887d13231c41f7eff26a2b374c2f5b464",
+      "disposition": "Patch-equivalent changes and bulk-role behavior retained by 4f8f6982 and later refinement."
+    },
+    {
+      "ref": "codex/performance-bottlenecks",
+      "commit": "63efbfa377dd69d9ac19b098e87211363ec3f738",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/persistent-engineering-pilot",
+      "commit": "d93e9790751ad42897b7cc824ca0fa7cb595c5a0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/pilot-batch-pr37-pr42",
+      "commit": "9537ec6eeb69ccd09ead19329cf7e9191f2439a4",
+      "disposition": "Merge-only history; no unique non-merge patch or remerge-resolution delta."
+    },
+    {
+      "ref": "codex/pilot-batch-pr38-pr40",
+      "commit": "9e4478aa28f257e32cb89e1b3a6dc3d7b1f49053",
+      "disposition": "Merge-only history; no unique non-merge patch or remerge-resolution delta."
+    },
+    {
+      "ref": "codex/pilot-batch-pr43-pr46",
+      "commit": "533468e71007c0a81701686dd9225676404e85bf",
+      "disposition": "Merge-only history; no unique non-merge patch or remerge-resolution delta."
+    },
+    {
+      "ref": "codex/pilot-batch-pr49-pr50",
+      "commit": "c1697d49b97e31579dc1cc485781443b94d481b3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/pilot-room-pr51",
+      "commit": "6d20a486de06495097dcf9be9696002a7c8853f3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/pr20-local-fix",
+      "commit": "afa058d0d440becaba9ac177e2e007b2b0c87043",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/publish-five-pr-review",
+      "commit": "51a2e9836cbe948f473cb98670060aa0ed6d7e82",
+      "disposition": "Tracker merge resolution: substantive September 29 QA correction remains; old PR3 snapshot superseded by tracker97df93a4. Original resolution preserved remotely."
+    },
+    {
+      "ref": "codex/qa-011-release-fixes",
+      "commit": "a9f47e188dea82550a11f141183045af1b713cad",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-236-246",
+      "commit": "f08ac82385ad1babbc266017d4cb1ad10b0ebec0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-236-253-main",
+      "commit": "182a86e537a8854c4a71b066c38f4bc31675c9d9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-247-253",
+      "commit": "82289e8f014fc54ddc613a537749e83676df7fe0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-batch2-review",
+      "commit": "8e0dc9cacb89ba35f8daeaec7b729899aa10b322",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-batch3-review",
+      "commit": "d2b03cbc4ba38f55e860fa0f63f50eef97ed4def",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-batch4-review",
+      "commit": "8fe90d51d113730385467b6d9bf5ec1513697bdb",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-desk-integration",
+      "commit": "e974fd1476dcf085a2361d2c93291ec4ec59e5ee",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-handoff-remediation",
+      "commit": "390c214060e7188d4aff420626d96ae38d673540",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-public-access",
+      "commit": "57abc7b6b69a3867ed46a52b0ca7c714db65bf54",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-release-automation-20260928",
+      "commit": "d321c601211cc75cb9eb334d4d3efbbb671b715a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/qa-sync-stale-head",
+      "commit": "574a8284771a9e8eafc00a4f3966e1b51932f56d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/reminder-delivery-inventory",
+      "commit": "f3d90d6728031085164da222780947f8f66ed13e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/tracker-high-value-closeout",
+      "commit": "c16dedef23fba37e157ed3184dcb376a3191ffe1",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/update-atlas-accuracy",
+      "commit": "3af8962c5cfde17569d787648f993bde060a6b70",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/visual-quality-audit",
+      "commit": "a38bfd1d35115cd6d05affab2d4638c44a364f25",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "codex/workspace-visual-quality",
+      "commit": "44f61b9d4fa4d5afaad45d08aab17c7261e0a510",
+      "disposition": "Patch-equivalent to 13c32db9 and d7d2e042."
+    },
+    {
+      "ref": "main",
+      "commit": "0f5c962772a69bc57e3f2207c16ba717c0313a7a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "pr24-head",
+      "commit": "f18389aee3cdf28b7053882eaf201d169b08907d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/HEAD",
+      "commit": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/020-pr15-carryforward",
+      "commit": "825e08f871849d8864e19f3a96aefa0d8025faa1",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/020-release-receipt",
+      "commit": "196483fa415f2e6d86b5fadd59e9d960b51c3a46",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/atlas-progress-019",
+      "commit": "37d900eff8c343bd9d3a4dfeb10e950cbe088526",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/beacon-browser-office-20260930",
+      "commit": "4eed814c524449bb6c0b0b5948d2b4f37c565e7a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/cash-inventory-slice-20261003",
+      "commit": "ce0d246db198ab850bb1f96fe9fa4e6b9e34dbe6",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/clinic-component-repairs-20260930",
+      "commit": "9a66917125e2bd5598230a1b925b0307252025da",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/clinic-design-audit",
+      "commit": "a826c56265f09bc24f8045b62c69da5028a64ba9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/clinic-polish",
+      "commit": "7cfa22e9980cd6b4105c1ad4bfe30863a6cdb9ac",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/clinic-profile-protected-service-guidance-20261003",
+      "commit": "17e9db3a93db1c154ef2c85ddbf93b80b107dcd3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/cloud-all-branches-20261003",
+      "commit": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/cloud-runtime-fixtures-20260930",
+      "commit": "dcc45608443d20a081a33dc8414564e1077a68ac",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/desktop-next-20261002",
+      "commit": "1c86f94fc1359d69726f16d999161f69ea957233",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/desktop-remaining-20261002",
+      "commit": "150ada4d56a6d96fb8fa11ab2bad6684969e7a69",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/dot-qa-unavailable-count",
+      "commit": "0493d781789c6b0eb48eb3197732ca4b4a7a15c0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-8-issues-in-meta_clinic-qa-batch-2",
+      "commit": "8e0dc9cacb89ba35f8daeaec7b729899aa10b322",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-8-qa-defects-in-meta_clinic",
+      "commit": "d2b03cbc4ba38f55e860fa0f63f50eef97ed4def",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-8-qa-defects-in-meta_clinic-d8m87p",
+      "commit": "cd1a2ef1f43363b0ebca8b3ce240356999c8423d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-booking-dialog-default-date-issue",
+      "commit": "1f721cbd5c7f16b04a56892f1437e46e15e03ab5",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-cancel-action-in-appointment-dialog-and-add-demo-entry",
+      "commit": "afa058d0d440becaba9ac177e2e007b2b0c87043",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-nginx-preflight-hostname",
+      "commit": "fa3689ae6ea621da48ba2823318964c82a7c4cdc",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-reset-sandbox-backend-issue",
+      "commit": "371e57c21547e13c06f283421d5145d3cd18ffd9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-visitor-sandbox-reset-issue-and-restore-transmission-are",
+      "commit": "8b54414531db4d99eef207e837d7646ad1f4ee88",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-waitlist-publish-issue-and-cancel-action",
+      "commit": "8fe90d51d113730385467b6d9bf5ec1513697bdb",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/fix-web-build-hostname",
+      "commit": "523fa4462bda915cd9518eaa69c2783edbf94072",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/joshua-modern-portfolio",
+      "commit": "d252bbde2d85e04f85bbfe460413aa339c6c42bc",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/journey-connected-proof",
+      "commit": "07894374db1fedcd10f24c7f657cc7a362b754d7",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/journey-two-fixes",
+      "commit": "987aab2541142952a187f921a39d3719b9ff9340",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/journey-ui-audit",
+      "commit": "b016a95983505b180dd6651ab1dcb4bacd22f11f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/location-specialty-tracker",
+      "commit": "329298133e28ee0b4781a825d83ec839044dd06f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/marketing-quality",
+      "commit": "3da3ca67355f45d10cf4980ca9c1e492dd393534",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/marketing-specialty-architecture",
+      "commit": "41dd615f821ff5c9aa265b9668c6dbc8fe7ce462",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc01-complete-service-impact",
+      "commit": "07f9ed9d896449363727a0075517183bc40a0793",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc01-preset-disable-recovery",
+      "commit": "357ccf0d8ed953324e5bec82374ac58f729ed27c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc02-paid-conversion-atomicity-20260930",
+      "commit": "445a8a2607f44011a877e7bf2ff3c111dbccd4a3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc02-staff-conversion-atomicity-20260930",
+      "commit": "b3a9197b75bc0f34bcb51238fe8dbd04f8cf10a5",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc03-identity-correction-review",
+      "commit": "fd3e7c322e549cf84b589b54b77fd4cd21661e21",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc03-language-suggestions",
+      "commit": "e6e6535a73fb4a4343bd2681f831e33273261426",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc03-requirement-source-matrix",
+      "commit": "226e1214005552a7552c0a8ff85e66bf78c99952",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc04-operational-policy",
+      "commit": "8d9a0bbe98cbf7c7e7c199889485f102cf8ba4ec",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc04-overbook-reschedule-20260930",
+      "commit": "a98cd14fa845169823acad39649e3ca13f99d046",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc04-resource-compatibility-20260930",
+      "commit": "080f183f1a5c5afe7e08d3da66d8ac795e74535a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc04-slot-gap-20260930",
+      "commit": "2d96bed50ea815e294e3e80aea246926136d94bc",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc05-document-provenance",
+      "commit": "d1e96341f6af80395cf3310f79b8222085ab0ac8",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc05-intake-transition-contract-20260930",
+      "commit": "a82540157066ec7262b7eea6970be234043a6f7a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc05-original-field-allergy-search-20260930",
+      "commit": "0dc95c5299a0f3aac76fce275747293631f1c17c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc05-provenance-jsx-repair",
+      "commit": "bee7f8ef228c28715b977db17baaa8fc4b3e540e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc06-fulfillment-source-coverage",
+      "commit": "dbef8e30918c054132d35ef87fcdaf7d01958b16",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc06-guard-repair-source",
+      "commit": "a0326be8ad494a40e9d260eeb226fd038bb2d957",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc07-local-session-fencing-20260930",
+      "commit": "a1c118ac15fed8f78bb977334a77f66ed6e1231c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc08-date-context-20260930",
+      "commit": "d9082a1f63b39b963be63d5a277c320267339a20",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc08-price-provenance-schema-review-20260930",
+      "commit": "51111f92e2eca3ef0b9c65130cf51e43d8e8ebff",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc08-source-gap-20260930",
+      "commit": "d19c90a86fd94d1998c17dbfcdf9054643b99d66",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc09-entitlement-staff-ui-20260930",
+      "commit": "6ee0f3cc6c2ff8656dbec1fd7b24c54bf193f240",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc09-missing-source-cloud-20260930",
+      "commit": "50ee80805fedfdb6981d33b0c82df5a33f544c2f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc09-paid-period-resolution-20260930",
+      "commit": "c779f9cf1459f0d6e8e9cb4630d815dbd314472b",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc09-recurring-accounting-20260930",
+      "commit": "17f7ee60e6a029a11eed3c0498294ee760324c84",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc09-source-matrix-20260930",
+      "commit": "6f75995ad5eb1593e966863796de371b8cfcf64e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc10-attempt-provenance",
+      "commit": "10afe86357f94dc3c3d979647ccd809328005e8d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc10-durable-preparation",
+      "commit": "f0269c37c61798bf3f3d8c896ee769592264d6fe",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc10-response-lifecycle",
+      "commit": "54319ae428a030f6f273141710669ce274102af6",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc10-substitution-choice",
+      "commit": "a3254806d7d8425cf6a65482f0b1c9d535d4e603",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc11-carrier-tracking",
+      "commit": "0634158e7bd5bebf5f2bd0fc7329dc208e9d0c7e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc11-delivery-preparation-20260930",
+      "commit": "07121a53607f0176cf503deee635cf5ab351622d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc11-quote-fee-provenance-20260930",
+      "commit": "ba08d520fdb0705aaf7e157afe0c65f824801d87",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc11-supplier-quote-request-20260928",
+      "commit": "71137d7d57a0530b26c5ed1476a8f20335260328",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc12-waitlist-exact-retry",
+      "commit": "7e58880a3cbfeaaec84d861254ffb0b355c66a75",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc13-policy-gaps-20260930",
+      "commit": "667338bdc74a984e27d9611732b9e5d04ffb1d3f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc14-complete-filtered-export-20260930",
+      "commit": "1cfab28ea4143998812e323c7c1abe41ef3baa98",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc14-export-issuance-20260930",
+      "commit": "5c82d1761e3f87729d2b1d0bf9f6015e10940ec2",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc15-bulk-manual-text-import",
+      "commit": "f38cfea3e0a94c74b1fbfd11f31211d5cca709f8",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc15-durable-text-continuation",
+      "commit": "1bde8909b4f19ca47f8311df81414a146e2c3ba4",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc15-explicit-draft-field-mapping",
+      "commit": "f6c3a906311c52f334032611785a8379e2b08669",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc15-import-recovery-20260930",
+      "commit": "da5eaefe784e62bee3e276bc6ff9c009bb43a844",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/mc15-import-uncertainty-repair",
+      "commit": "6c81eaf09cff499a73be66867e96af1b880381ef",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/muse-qa-21-schedule-booking-defaults",
+      "commit": "e345acb8eb9dfc1222011323e4f89f0abf09ab56",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/muse-qa-watch",
+      "commit": "75b5be46699445d986aaea5593872ce318d3d3b6",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/muse-qa-write-api",
+      "commit": "1b5ed425c7853752c453c062b1603dab9302e9e8",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/muse-room-exchange-contract",
+      "commit": "576a4ff3c06f4e98e67d2b4ba0c6fec6906b7097",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/office-identities-countdown",
+      "commit": "b0c980d833d586954d6ad6732133cf6324c88032",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/performance-bottlenecks",
+      "commit": "63efbfa377dd69d9ac19b098e87211363ec3f738",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/persistent-engineering-pilot",
+      "commit": "d93e9790751ad42897b7cc824ca0fa7cb595c5a0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-baseline-frontend-tests",
+      "commit": "ea9a8e552f16b596ef50703428af29d9808d997a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-carrier-tracking-preparation",
+      "commit": "c1b2aea0fae6dc8966438b709047a6193cdf454a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-configured-lab-unit-mappings",
+      "commit": "d40d584aa55b7ef3cc68facbc91ee89eb0555501",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-continuation-acceptance-packets",
+      "commit": "2af63b7a0352f752c12796e75b34184e3e96644c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-document-provenance-scope",
+      "commit": "96ce511f22282c7ad11b32a5d385e673c8b055a2",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-estimate-invoice-comparison",
+      "commit": "35285e33b5317b50e85fc6a6ddc783107061e68f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-follow-up-reconciliation",
+      "commit": "d79c56316a38cd77d089c418aea9a265e80a0446",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-intake-answer-provenance",
+      "commit": "1f81a07ed04ef7d7f41034c10167a67634318884",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-intake-review-continuity",
+      "commit": "085fe9a5582119fc538b2cbe4b55ad03ec56b36b",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-inventory-catalog-actions",
+      "commit": "42b47bb5d33eb608c981c8dd6d4fc3417a806a0d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-lab-source-provenance",
+      "commit": "0bf6584dd9a5d68c20692dbac63ca91d09b07c4f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-patient-membership-history",
+      "commit": "117d1adbb9952ed05dad6e844b4e05f4f4b62427",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-prescription-reconciliation-worklist",
+      "commit": "ebd4bd170530e5e52078f33d7b6eb700b10441da",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-prescription-worklist-pages",
+      "commit": "60158efd5f934c3f62d0e2af9873c6cc13579dc0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-provider-navigation-contract",
+      "commit": "3a01b1a1d3b61255111d60b70fd33820ff3160e8",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-recurring-renewal-regression",
+      "commit": "f86df0a551f6a1f41cb84dbf8133f5021e888def",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-registration-reload-retry",
+      "commit": "acf11885a558aeef2b6e830f993a39d297d92985",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-saved-day-end-reconciliation",
+      "commit": "a11c737c67388860289782933594a66ba71829ea",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-scribe-recovery-pages",
+      "commit": "06a08ab6c6ceb095e7aac763d4bf581b0896e098",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-service-inquiry-instructions",
+      "commit": "5c7dc8c72529695fa5f461bc6b9dc5231c909b8a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-setup-history-recovery",
+      "commit": "05e50909d4d7bd56a3b40b3f5123d7670da82fea",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-supplier-request-pages",
+      "commit": "d3f7778f574611d1a79ece37aaf6c896c255d7c2",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-timecard-attention",
+      "commit": "6b8dcc526ad12ba89052034dba6df7be579939c1",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pilot-ucum-dimensional-validation",
+      "commit": "8b5c69b0d4d377e95fe0337ded8c8f262b2e138d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pr36-snapshot-file-race",
+      "commit": "2f25d85ae57e0bc77a858b20fa4d67bd99406e1d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/pr36-snapshot-file-race-ready",
+      "commit": "26d24d47d63741d65fc7b2409047a377819c5cdb",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-247-253",
+      "commit": "82289e8f014fc54ddc613a537749e83676df7fe0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-build-access-feedback",
+      "commit": "0f1e0bb75536279c085e1ec5d68f4e2454972309",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-care-needs-review-control",
+      "commit": "00e61d83fbb13811f58e2f54736875a153ba6cff",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-completion-dialog-fresh-error",
+      "commit": "9e752dc5292018fa32a9a74f2449d9c68aa0e719",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-completion-modal-error-20260930",
+      "commit": "acb99334c058a7cbd86a08beb697855170ca07a7",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-current-view-accessibility",
+      "commit": "303caa2e2114b2d2c4f20e7037e69e4f38411971",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-desk-integration",
+      "commit": "c352d2a4923ab05b5537fd410afeb40309726a24",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-invoice-details-identity",
+      "commit": "a01db8f00dd6bc2538e7209a9a980c2a6502bc97",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-login-destination",
+      "commit": "1959d860bad7ac6daa0871c0fec1496744bdbf3f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-muse-bridge-20260930",
+      "commit": "6d20a486de06495097dcf9be9696002a7c8853f3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-public-access",
+      "commit": "e2934e93de0e8b41a1ab54f539589effd8e86379",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-release-automation-20260928",
+      "commit": "5ca4266f1a758d084d9a30c6d1eca601161ea20b",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-sync-stale-head",
+      "commit": "574a8284771a9e8eafc00a4f3966e1b51932f56d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/qa-text-observations-20260930",
+      "commit": "45735299935bcc73e6dad526a52ed01e6ba84b50",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/reconciliation-closeout",
+      "commit": "cf8c54d28ff92f390f9a7fb3755c902071193c3e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/reduce-verification-churn-20261003",
+      "commit": "ddacba6625b82a1c771a86a83917156b89adf209",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-combined-release-20260930",
+      "commit": "d957313b4ea2a9873d61142f060a59c34260d644",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-mc09-combined-candidate-20260930",
+      "commit": "76d3b08f16fded524b0ac3921b0a18ecedcf2ada",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-pr36-repair-base-20260930",
+      "commit": "29601ee0caea7361b531206362015db61a09e078",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-product-source-20260930",
+      "commit": "99a613a6d96ed38425b241e6f24054f868209d86",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-qa-combined-20261001",
+      "commit": "e5d065fe550350c934274391da46abfdb7325250",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-release-ui-20261001",
+      "commit": "db9ab0b4ce3e061c95c79b38a9e0e9a87f069a4f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-sprint-next-candidate-20260930",
+      "commit": "1b9d90e13dd3a6ab2a0f396d6e2ae87aa9881f33",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-sprint-three-candidate-20260930",
+      "commit": "6099fc5523b5d82ac2437767bec10f168aceeafd",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/relay-waitlist-candidate-20260930",
+      "commit": "1fb61df393fb42e8987bfb459704af39c300c58e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/release-020-status",
+      "commit": "9de20dcad29b617fd45833c17a119b5585d542bd",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/release-receipt-150ada4d",
+      "commit": "e4aca027cb6e57d7a574c64cc99d04c1d6ac8ac3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/remaining-diff-reconciliation",
+      "commit": "d3eda03b66a1461482adc2b5537634416d9aaecf",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/reminder-delivery-inventory",
+      "commit": "f3d90d6728031085164da222780947f8f66ed13e",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/sage-23d1-generated-schema-20260930",
+      "commit": "7149b7c77d6f25e6a0702e33c3bc2a226acd581d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/sage-fa967-generated-schema-20260930",
+      "commit": "8170390d1cf1cd1de1d4910b58c915ae017dfef7",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/sage-mc09-schema-20260930",
+      "commit": "291357879e2a678143279eaa802d4ff713a54c28",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/sage-mc13-migration-version-20260930",
+      "commit": "460caf7d486ebc53ec9254088021be48e13facc9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/sandbox-focused-entry-20261001",
+      "commit": "487c1508d7b7639c2c68f2fb3737a6b000a1dd5f",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-estimate-correction-fe6",
+      "commit": "b40e1c02132bfb55f08af2feee33e93bae348d67",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-mc14-mc15-evidence-sync-20260927",
+      "commit": "d2ae8f8d2d9aaa5ce1cb419e8f77e81f00c1f5e0",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-reconciliation-20260930",
+      "commit": "419b822fbe5ac8ca0ba16ae67f52d14982a47391",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-reconciliation-20261003",
+      "commit": "45ccf2e1988d06cb83037bb1652181f9308cec58",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-score-batch-6099fc55",
+      "commit": "c18d37fa44a1de4efffeca47e5241bd330cb38cf",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-score-batch-c1646838",
+      "commit": "b768dec2fa0125af9be301303462cc56aed2153c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-score-batch-fe6db4c0",
+      "commit": "9f296127b7c7acd1659fe0befbb9db051502a14b",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/tracker-sprint-source-checklist-20260930",
+      "commit": "e33648c278ca8d7c7abe0ad0d662f9560e806894",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/update-atlas-accuracy",
+      "commit": "a22b078728d10e847f4386f411636791e7c35596",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/codex/visual-quality-audit",
+      "commit": "a38bfd1d35115cd6d05affab2d4638c44a364f25",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/docs/mc01-mc02-mc04-source-coverage",
+      "commit": "df1dfec3fc9eb14b859b98bdf186d29fee1e18e9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/docs/mc08-mc11-mc13-source-coverage-20260930",
+      "commit": "d3c8de26580879bcb70abbc5f30cccfd91b50d53",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/dot-pr37-approved",
+      "commit": "c352d2a4923ab05b5537fd410afeb40309726a24",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/dot-pr38-reviewed",
+      "commit": "dcc45608443d20a081a33dc8414564e1077a68ac",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/dot-pr39-reviewed",
+      "commit": "42b47bb5d33eb608c981c8dd6d4fc3417a806a0d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/dot-pr41-reviewed",
+      "commit": "ea9a8e552f16b596ef50703428af29d9808d997a",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/dot-pr42-approved",
+      "commit": "9a66917125e2bd5598230a1b925b0307252025da",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/main",
+      "commit": "3ef1d6277aa3c778ade61d082ba87b915942bb45",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/nova/mc12-patient-return-20260930",
+      "commit": "25f296a83a09739dc5c5c29ed0a24dd5104528fa",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr-15",
+      "commit": "cd1a2ef1f43363b0ebca8b3ce240356999c8423d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr-20-merge",
+      "commit": "fcede2dc62bdeadd6520bd134a29250b749e21cc",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr-23-merge",
+      "commit": "0faea4ddbcc9d76ca6f1f50a297d48be59148ec6",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr/35/merge",
+      "commit": "d7e1b73696ec03fcf650051f918f15fb48a4abed",
+      "disposition": "Review merge only; no unique remerge-resolution delta."
+    },
+    {
+      "ref": "origin/pr16-merge",
+      "commit": "f44844f17b15e0457fce9d3ad57caaae13d3a91c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr17-head",
+      "commit": "2d8ab14d1e01c5aa64113850f1a0bc8002cf62f9",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr17-merge",
+      "commit": "739f00956cd2a2df8e4be224c43a6687b7a2a4a7",
+      "disposition": "Both parents are in main; zero remerge-resolution lines."
+    },
+    {
+      "ref": "origin/pr24-head",
+      "commit": "f18389aee3cdf28b7053882eaf201d169b08907d",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/pr24-merge",
+      "commit": "25a23e4bd47d5200a3f9ef51a9925aeca064f49c",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr43",
+      "commit": "085fe9a5582119fc538b2cbe4b55ad03ec56b36b",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr44",
+      "commit": "45735299935bcc73e6dad526a52ed01e6ba84b50",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr45",
+      "commit": "3a01b1a1d3b61255111d60b70fd33820ff3160e8",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr46",
+      "commit": "acb99334c058a7cbd86a08beb697855170ca07a7",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr49",
+      "commit": "d79c56316a38cd77d089c418aea9a265e80a0446",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr50",
+      "commit": "acf11885a558aeef2b6e830f993a39d297d92985",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    },
+    {
+      "ref": "origin/review-pr51",
+      "commit": "6d20a486de06495097dcf9be9696002a7c8853f3",
+      "disposition": "Ancestor of integration base17e9db3a; included by commit history."
+    }
+  ],
+  "preservation": {
+    "copied_files": 265,
+    "sha256_verified": true,
+    "backup_folder_name": "meta-clinic-reconciliation-20261004T000121Z",
+    "bundles": [
+      {
+        "file": "repository.bundle",
+        "bytes": 196718645,
+        "sha256": "29fc4f0b7bb8f5d06c73b8c30eaca026812e0835ebfdf588a1853de5a2b83234"
+      },
+      {
+        "file": "supplemental-work.bundle",
+        "bytes": 80896,
+        "sha256": "228957450915c16bc26ef6fb766b4df469b62582a4ece0fdb39b57a022467154"
+      }
+    ],
+    "github_refs": [
+      {
+        "source": "de554331d9fc876a64ea6bf763c645dbd22f593f",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/care-visual-quality",
+        "original": "refs/heads/codex/care-visual-quality"
+      },
+      {
+        "source": "6fa1c1829098bc7a44a8db2b777e194111e846d0",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/inventory-overview-onboarding",
+        "original": "refs/heads/codex/inventory-overview-onboarding"
+      },
+      {
+        "source": "e4660d630d9fc8cbb7764032aa9317884e8ed25d",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/mc11-supplier-quote-request-20260928",
+        "original": "refs/heads/codex/mc11-supplier-quote-request-20260928"
+      },
+      {
+        "source": "e4660d630d9fc8cbb7764032aa9317884e8ed25d",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/mc15-lab-readiness-inventory",
+        "original": "refs/heads/codex/mc15-lab-readiness-inventory"
+      },
+      {
+        "source": "f003d52142442699568ef21bc2084795d345f6f0",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/messages-inbox-nav-polish",
+        "original": "refs/heads/codex/messages-inbox-nav-polish"
+      },
+      {
+        "source": "82103cc43c7fb388a58e6bc9d7f457ac5995bbc1",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/muse-task-attempts",
+        "original": "refs/heads/codex/muse-task-attempts"
+      },
+      {
+        "source": "2731e7a887d13231c41f7eff26a2b374c2f5b464",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/operations-visual-quality",
+        "original": "refs/heads/codex/operations-visual-quality"
+      },
+      {
+        "source": "9537ec6eeb69ccd09ead19329cf7e9191f2439a4",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/pilot-batch-pr37-pr42",
+        "original": "refs/heads/codex/pilot-batch-pr37-pr42"
+      },
+      {
+        "source": "9e4478aa28f257e32cb89e1b3a6dc3d7b1f49053",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/pilot-batch-pr38-pr40",
+        "original": "refs/heads/codex/pilot-batch-pr38-pr40"
+      },
+      {
+        "source": "533468e71007c0a81701686dd9225676404e85bf",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/pilot-batch-pr43-pr46",
+        "original": "refs/heads/codex/pilot-batch-pr43-pr46"
+      },
+      {
+        "source": "51a2e9836cbe948f473cb98670060aa0ed6d7e82",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/publish-five-pr-review",
+        "original": "refs/heads/codex/publish-five-pr-review"
+      },
+      {
+        "source": "44f61b9d4fa4d5afaad45d08aab17c7261e0a510",
+        "destination": "refs/heads/codex/preserved-history-20261003/codex/workspace-visual-quality",
+        "original": "refs/heads/codex/workspace-visual-quality"
+      },
+      {
+        "source": "595f477d3ac9a1b85b9a5d4e809949b2f54f5399",
+        "destination": "refs/heads/codex/preserved-work-20261004t000121z-primary",
+        "original": "C:/Users/joshr/Desktop/meta_clinic"
+      },
+      {
+        "source": "4a18ac6eab07ad110c01beb93f92c6b32f5446ac",
+        "destination": "refs/heads/codex/preserved-work-20261004t000121z-demo-trust-fixes",
+        "original": "C:/Users/joshr/.codex/worktrees/demo-trust-fixes/meta_clinic"
+      },
+      {
+        "source": "deb880d1f36d7470cea9a04bd54ecf35e83e49b2",
+        "destination": "refs/heads/codex/preserved-work-20261004t000121z-joshua-modern-portfolio",
+        "original": "C:/Users/joshr/.codex/worktrees/joshua-modern-portfolio/meta_clinic"
+      },
+      {
+        "source": "0597a88ae74a4dc8099b679f7fe5f3851667772a",
+        "destination": "refs/heads/codex/preserved-stash-20261003-location-specialty"
+      },
+      {
+        "source": "95e2d37102a3c3844b1abdc17122e85cc2f012cd",
+        "destination": "refs/heads/codex/preserved-stash-20261003-desktop"
+      }
+    ],
+    "local_only_material": [
+      ".codex/config.toml: local agent configuration retained byte-for-byte in the owner recovery folder and original checkout.",
+      ".tmp_resume_render/: personal resume rendering scratch retained byte-for-byte locally.",
+      "Ignored dependencies, runtime databases, secrets and build artifacts remain in place; not copied into source or deployed."
+    ],
+    "original_files_unchanged": true,
+    "primary_checkout_branch": "codex/preserved-primary-working-20261003",
+    "primary_checkout_note": "Branch name changed only; all260 captured original files verified byte-identical. Main will reside in the attached integration worktree."
+  },
+  "stashes": [
+    {
+      "commit": "0597a88ae74a4dc8099b679f7fe5f3851667772a",
+      "disposition": "26 tracked paths and 8 untracked tests accounted for: 18 tracked paths and all8 tests identical; remaining source guards and recovery behavior preserved in later current code; notes superseded."
+    },
+    {
+      "commit": "95e2d37102a3c3844b1abdc17122e85cc2f012cd",
+      "disposition": "7 tracked paths incorporated through42de8649 and later work; old calendar loading text superseded by ClinicViewLoading."
+    }
+  ],
+  "unfinished_work": {
+    "already_integrated": [
+      "Clinic setup recovery context and selector",
+      "New facility selection",
+      "Setup finalize anchor and contracts",
+      "Existing setup tests",
+      "Anonymous demo navigation tour and browse action",
+      "Scribe sample-session preparation and newer rejection handling"
+    ],
+    "recovered": [
+      "Clinic-timezone booking conversion adapted to extracted careFlowState/CareBookingForm modules",
+      "Billing summary spacing",
+      "Unfinished /joshua homepage with supporting styles"
+    ],
+    "archived_artifacts": "Untracked marketing screenshots and capture tooling preserved in private GitHub recovery snapshot; existing approved marketing assets remain the deployed set."
+  },
+  "schema": "No migration-file changes between deployed d09fa4dc3ed8f8c945544f1ee0b411db9252d915 and integration base17e9db3a.",
+  "verification": {
+    "passed": [
+      "Locked pnpm install:241 reused,0 downloaded",
+      "Scoped formatting and source/diff review",
+      "TypeScript tsc --noEmit, including existing tests in the typecheck scope",
+      "Original265 snapshot file hashes and GitHub17 preservation refs"
+    ],
+    "repaired": [
+      "Optional offering timezone parameter now has the existing device-timezone fallback, resolving TS2345 while explicit booking callers pass the clinic zone.",
+      "Recovered hold comparisons and reset/baseline timezone metadata reconciled against extracted booking modules."
+    ],
+    "not_run": [
+      "Automated test suites: repository preference, no new tests requested."
+    ],
+    "pending": [
+      "Matched API/web image build",
+      "Guarded Lightsail release and live checks",
+      "Static portfolio publication and browser walkthrough"
+    ]
+  },
+  "release": "User explicitly requested updating aimetaclinic.com. Use existing matched-image release with restore-checked encrypted database/key recovery; separately publish the static /joshua allowlist and retain its previous symlink."
+}

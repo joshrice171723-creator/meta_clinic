@@ -1,4 +1,4 @@
-# Joshua Rice — personal website
+# Joshua Rice â€” personal website
 
 Standalone static portfolio, separate from the Meta Clinic application. Serve this directory as the web root on any static host. No build, package installation, database, or API configuration is required.
 
@@ -10,15 +10,15 @@ From this directory:
 python -m http.server 4178 --bind 127.0.0.1
 ```
 
-Open http://127.0.0.1:4178. `index.html` is the portfolio; `resume.html` is the complete web résumé. Its Print / save as PDF button uses the browser print dialog with a print stylesheet.
+Open http://127.0.0.1:4178. `index.html` is the portfolio; `resume.html` is the complete web rÃ©sumÃ©. Its Print / save as PDF button uses the browser print dialog with a print stylesheet.
 
 ## Content and boundaries
 
-Career details and public contact links were transcribed and lightly edited from the existing owner résumé in `tmp_resume_inspect/word/document.xml`. The homepage highlights a selection of that work. The résumé's unsupported aggregate claim of five years was replaced with a description of experience; employer dates are preserved. Project descriptions are résumé-derived, not independent verification of those other projects. The Meta Clinic illustration is a labeled diagram, not a product screenshot or fabricated live dashboard.
+Career details and public contact links were transcribed and lightly edited from the existing owner rÃ©sumÃ© in `tmp_resume_inspect/word/document.xml`. The homepage highlights a selection of that work. The rÃ©sumÃ©'s unsupported aggregate claim of five years was replaced with a description of experience; employer dates are preserved. Project descriptions are rÃ©sumÃ©-derived, not independent verification of those other projects. The Meta Clinic section describes the engineering scope and links to the guided application demo.
 
 The demo link is https://aimetaclinic.com/demo. Google Fonts supplies Manrope and DM Sans; local sans-serif fallback keeps the site usable when that service is unavailable. Content and navigation work without JavaScript. The homepage loads the application-owned `/visit-tracking.js` for first-party page-view reporting in the owner dashboard. It tracks only `/joshua` and `/demo`, respects DNT/GPC, and uses an HTTP-only signed 30-day browser identifier. Analytics stores the canonical path, random event/browser IDs, timestamp and referring hostname, never full URLs, query strings, names, email addresses or IP addresses. The main API owns ingestion for both pages, independent of the isolated demo database. No third-party analytics service is used. The script is unavailable in the standalone preview without the main application, and fails silently there.
 
-Joshua authorized public publication on September 20, 2026. The chosen URL is https://aimetaclinic.com/joshua/. Canonical metadata points to that address. The downloadable `Joshua_Rice_resume_2026.docx` preserves the newer Desktop résumé's career details, adds the portfolio and corrected GitHub link, and removes semester counts. Its two-page layout was rendered through Microsoft Word and visually inspected; the packaged LibreOffice renderer was unavailable on Windows.
+Joshua authorized public publication on September 20, 2026. The chosen URL is https://aimetaclinic.com/joshua/. Canonical metadata points to that address. The downloadable `Joshua_Rice_resume_2026.docx` preserves the newer Desktop rÃ©sumÃ©'s career details, adds the portfolio and corrected GitHub link, and removes semester counts. Its two-page layout was rendered through Microsoft Word and visually inspected; the packaged LibreOffice renderer was unavailable on Windows.
 
 ## Career positioning evidence (September 21, 2026)
 
