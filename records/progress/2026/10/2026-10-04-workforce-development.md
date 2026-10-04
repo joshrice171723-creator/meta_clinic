@@ -132,3 +132,15 @@ Source commit: `5cb82e1c`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed, with the existing marketing import warning. After the final success-notice rendering repair, TypeScript and Prettier passed again. The changed request controller passed scoped RuboCop. Source/diff review and `git diff --check` passed. No tests were added/run; no database, browser or daylight-saving runtime acceptance is claimed. Shared runtimes were untouched and no deployment occurred.
 
 Continuation remains active through 15:39 UTC. The next batch may address the known shared local-interval resolver boundary only after tracing its callers and preserving template overnight behavior, or proceed with another concrete workforce journey.
+
+## Ninth implementation checkpoint
+
+Source commit: `bf952238`, pushed after synchronization with `origin/main` (already current).
+
+- The local-interval resolver now has an explicit overnight-inference option, defaulting to the existing behavior for template and development callers. Dated time-off requests, direct shift entry and assistant shift validation disable that inference and compare resolved instants. Explicitly dated overnight intervals still work; reversed or zero elapsed intervals reject instead of silently gaining a day.
+- Shift and time-off forms permit a same-date first-occurrence start and second-occurrence end candidate even when the displayed end clock is equal to or earlier than the start. The server remains responsible for actual timezone ambiguity, gap and positive-duration validation. Existing selected-week shift boundaries and break-duration validation remain in force.
+- Saving a weekly template from a short repeated-hour-only shift is blocked with an explanation, preventing its dated interval from silently turning into the legacy next-day template interpretation. Existing weekly template overnight behavior and target-date occurrence normalization remain unchanged.
+
+Verification: TypeScript and both Vite bundles passed; the existing marketing import warning remains. All four changed Ruby files passed scoped RuboCop, both changed frontend files passed Prettier, and source/diff review plus `git diff --check` passed. No tests or executable timezone examples were added/run. Daylight-saving persistence, browser input behavior and template reuse remain unverified in a connected runtime. No deployment or shared runtime changes occurred.
+
+The eighth checkpoint's concrete repeated-hour source limitation is addressed, with runtime acceptance still pending. Continuation remains active until 15:39 UTC; proceed to another bounded workforce journey rather than repeating this verification.
