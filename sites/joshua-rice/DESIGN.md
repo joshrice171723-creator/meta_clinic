@@ -67,3 +67,13 @@ Primary buttons use the acid-green accent, dark text, and a 48px minimum height.
 - **Do** keep the portfolio dark and bold, with WeInfuse/Meta Clinic work easy to find.
 - **Do** preserve the separate light rÃ©sumÃ© and its print behavior.
 - **Don't** apply the portfolio palette to the rÃ©sumÃ© surface or add build dependencies for this static site.
+
+
+## AI development preview
+
+The Meta Clinic section extends into an evidence-led account of AI development and revision-specific QA. A two-column introduction leads to real Office and workflow-ledger browser captures, a four-step development feedback loop, and the owner-supplied usage snapshot. Mobile stacks captions before images and presents the loop vertically. This is a local preview; publication and usage reporting scope remain separate.
+
+
+The extension keeps the existing Manrope display and DM Sans body typography, dark #181a1c background, and #c2f970 emphasis. The introduction uses a 1.1:1 split with a 72px gap and a 34-54px heading (1.12 line height); supporting copy is 16px. Evidence rows use a 1.6:1 image/caption split, reversed for QA, with 64px gaps and 14px image corners. Caption headings scale from 26-38px, with 15px descriptions and 12px source notes. The feedback loop spans four equal columns; the usage definition list spans five columns with 21-30px tabular values. At 760px and below, captions precede images, headings reduce to 28px, the loop becomes vertical, and usage values form two columns with the final item spanning both.
+
+Source provenance: assets/agent-office.png and assets/workflow-coverage.png are actual, read-only browser captures of https://aimetaclinic.com/qa?view=office taken on 2026-10-04. The usage values are transcribed from an owner-supplied image; the originating tool and report scope are unknown. They document the supplied snapshot without establishing a measurement period or comparable usage benchmark. These additions remain in the local portfolio preview; the source/main repository and live publication are unchanged.
