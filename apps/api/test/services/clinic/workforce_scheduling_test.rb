@@ -211,7 +211,7 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
   end
 
   test "expiry blocks new approval while preserving exact consent replay and manager denial" do
-    expires_at = Current.business_time + 1.hour
+    expires_at = (Current.business_time + 1.hour).change(usec: 0)
     request = expiring_swap(expires_at)
     consent = decide_expiring_swap(request, "target_accept", @target, 1, "consent")
     assert_equal "accepted", consent.request.status

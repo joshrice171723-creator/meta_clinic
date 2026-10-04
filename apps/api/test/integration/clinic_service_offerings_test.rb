@@ -121,7 +121,7 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
       params: { service_offering: { request_key: "service-offering-publish-incomplete", lock_version: incomplete.fetch("lock_version") } },
       headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
-    assert_includes response.body, "eligible site"
+    assert_includes response.body, "finalized specialty setup"
 
     roomless = @practice.sites.create!(code: "REMOTE", name: "Remote site", status: "draft")
     patch "/api/clinic/service_offerings/#{incomplete.fetch('id')}",
@@ -158,7 +158,7 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
       service_offering: { request_key: "coverage-remove-site", lock_version: published.fetch("lock_version"), site_ids: [] }
     }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
-    assert_includes response.body, "eligible site"
+    assert_includes response.body, "finalized specialty setup"
     assert_equal [ @site.id ], @practice.service_offerings.find(draft.fetch("id")).sites.pluck(:id)
 
     roomless = @practice.sites.create!(code: "ROOMLESS", name: "Roomless site", status: "draft")

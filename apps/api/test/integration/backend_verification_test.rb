@@ -13,7 +13,14 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       membership = Clinic::Membership.create!(practice: practice, user: user)
       grant_permissions!(membership, *Development::TestClinic::DEFAULT_PERMISSIONS)
       patient = practice.patients.create!(display_name: "Synthetic Patient #{label}", reference: "VERIFY-#{label}")
-      site = practice.sites.create!(code: "MAIN")
+      site = practice.sites.create!(code: "MAIN", status: "active")
+      configure_site!(site, membership: membership)
+      clinician = practice.clinician_profiles.create!(membership: membership, display_name: "Synthetic verification clinician")
+      visit_type = practice.visit_types.create!(code: "VERIFY")
+      7.times do |weekday|
+        Clinic::Scheduling::CapacityRule.create!(practice: practice, site: site, clinician: clinician,
+          kind: "weekly", weekday: weekday, start_minute: 0, end_minute: 1440)
+      end
       encounter = practice.encounters.create!(patient: patient, site: site, started_at: 1.hour.ago, status: "open")
       note = Clinic::Care::CreateEncounterNote.call(practice: practice, actor: user, encounter: encounter,
         encrypted_body: "synthetic-secret-body", request_key: "verification-#{label.downcase}-legacy-note")
@@ -21,9 +28,11 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       document = practice.documents.create!(patient: patient, category: category, object_key: "private/synthetic-#{label}", object_version: "1", checksum: "synthetic", byte_size: 1, media_type: "text/plain", scan_state: "pending")
       invoice = Clinic::Billing::DraftInvoice.call(practice: practice, actor: user, patient: patient, currency: "USD", lines: [ { quantity: "1", unit_amount: "10", description_snapshot: "Synthetic service" } ])
       message = Clinic::Messaging::CreateIntent.call(practice: practice, actor: user, patient: patient, request_key: "verify", purpose_code: "synthetic", encrypted_recipient_snapshot: "synthetic-recipient", encrypted_content: "synthetic-content")
-      { user: user, practice: practice, membership: membership, patient: patient, site: site, encounter: encounter, note: note, document: document, invoice: invoice, message: message }
+      { user: user, practice: practice, membership: membership, patient: patient, site: site, clinician: clinician, visit_type: visit_type, encounter: encounter, note: note, document: document, invoice: invoice, message: message }
     end
     login(@tenants.first[:user])
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
   end
 
   test "each tenant can read its own resources and forged IDs fail in both directions" do
@@ -58,7 +67,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
   test "all clinic route actions require authentication" do
     submit "/api/session", {}, method: :delete
     Rails.application.routes.routes.select { |r| r.path.spec.to_s.start_with?("/api/clinic") }.each do |route|
-      path = route.path.spec.to_s.sub("(.:format)", "").gsub(/:[a-z_]+/, "1")
+      path = route.path.spec.to_s.sub("(.:format)", "").sub(":operation", "prepare").gsub(/:[a-z_]+/, "1")
       public_send(route.verb.downcase, path, params: {}, headers: csrf_headers, as: :json)
       assert_response :unauthorized, "#{route.verb} #{path}"
     end
@@ -105,7 +114,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     own = @tenants.first
     revoke_all_permissions!(own[:membership])
     grant_permissions!(own[:membership], "appointments.write", scope_kind: "site", site: own[:site])
-    payload = { appointment: { patient_id: own[:patient].id, site_id: own[:site].id, starts_at: "2026-09-01T09:00:00Z", ends_at: "2026-09-01T09:30:00Z" } }
+    payload = { appointment: { patient_id: own[:patient].id, site_id: own[:site].id, booked_clinician_id: own[:clinician].id, visit_type_id: own[:visit_type].id, starts_at: "2026-09-01T09:00:00Z", ends_at: "2026-09-01T09:30:00Z" } }
     submit "/api/clinic/appointments", payload
     assert_response :created
     other_site = own[:practice].sites.create!(code: "OTHER")
@@ -149,7 +158,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
     own = @tenants.first
     get "/api/clinic/note_templates", headers: @headers
     assert_response :success
-    assert_equal [ "scribe-reviewed-soap", "adult-physical-exam-detailed", "primary-care-follow-up", "weight-management-follow-up" ],
+    assert_equal [ "scribe-reviewed-soap", "adult-physical-exam-detailed", "primary-care-follow-up" ],
       response.parsed_body.fetch("templates").pluck("id")
 
     soap_body = Clinic::Care::SoapNotePayload.dump(
@@ -186,7 +195,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
 
   test "synthetic care API lifecycle validates forms and preserves revision history" do
     own = @tenants.first
-    submit "/api/clinic/patients/#{own[:patient].id}/encounters", { encounter: { started_at: "2026-09-01T09:00:00Z" } }
+    submit "/api/clinic/patients/#{own[:patient].id}/encounters", { encounter: { site_id: own[:site].id, started_at: "2026-09-01T09:00:00Z" } }
     assert_response :created
     encounter_id = response.parsed_body.dig("encounter", "id")
     first_note = {
@@ -217,7 +226,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       subjective: "Synthetic overwrite", expected_revision: 2, request_key: "backend-verification-api-signed-revise") }
     assert_response :unprocessable_entity
     submit "/api/clinic/encounters/#{encounter_id}/close",
-      { close: { patient_id: own[:patient].id, ended_at: "2026-09-01T09:30:00Z", request_key: "backend-close-#{encounter_id}" } }
+      { close: { patient_id: own[:patient].id, ended_at: "2026-09-01T09:30:00Z", open_work_reviewed: true, request_key: "backend-close-#{encounter_id}" } }
     assert_response :success
     assert_equal "completed", response.parsed_body.dig("encounter", "status")
     submit "/api/clinic/patients/#{own[:patient].id}/observations", { observation: { encounter_id: encounter_id,

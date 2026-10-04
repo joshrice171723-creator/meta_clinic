@@ -677,7 +677,7 @@ describe("provider encounter workflow", () => {
       "#chart-plan",
       "#chart-signing",
     ]);
-    expect(html).toMatch(/<h2[^>]*>Chart<\/h2>/);
+    expect(html).toMatch(/<h[2-6][^>]*>Chart details<\/h[2-6]>/);
   });
 
   it("keeps encounter navigation and status visible before chart confirmation", () => {

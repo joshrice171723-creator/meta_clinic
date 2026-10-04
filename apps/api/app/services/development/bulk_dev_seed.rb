@@ -30,6 +30,16 @@ module Development
           users = seed_users(practice, rows.fetch("users.csv"), rows.fetch("role_grants.csv"), roles, as_of)
           seed_staff_members(practice, rows.fetch("users.csv"), as_of)
           facilities = seed_facilities(practice, as_of)
+          facilities.fetch(:sites).each_value do |site|
+            next if Clinic::PracticeFeatureVersion.where(practice: practice, site: site).exists?
+
+            Clinic::Configuration::PracticeFeatures.revise(
+              practice: practice, site: site, actor: users.fetch(:admin).clinic_membership,
+              request_key: "synthetic-bulk-site-profile-#{site.id}", expected_revision: 0,
+              insurance_workflows_enabled: false, clinic_type: "primary_care",
+              service_scope: [], assessment_scope: [], finalize: true
+            )
+          end
           patients = seed_patients(practice, users.fetch(:admin), rows.fetch("patients.csv"), as_of)
           visits = seed_visits(practice, users.fetch(:admin), users.fetch(:clinicians), facilities, patients, rows.fetch("visits.csv"), as_of)
           seed_billing(practice, users.fetch(:admin), patients, visits, rows, as_of)
@@ -169,6 +179,7 @@ module Development
       def seed_facilities(practice, as_of)
         sites = %w[MAIN ANNEX].to_h do |code|
           site = practice.sites.find_or_initialize_by(code: code)
+          site.status = "active" if site.new_record?
           site.timezone_override = TIME_ZONE
           site.created_at ||= seed_timestamp(as_of, 0, hour: 7)
           site.save!

@@ -17,7 +17,7 @@ class DevelopmentOmniSiteTest < ActiveSupport::TestCase
 
     error = assert_raises(ArgumentError) { Development::OmniAccess.prepare!(user) }
 
-    assert_match(/Choose an active site/, error.message)
+    assert_match(/Choose an active location/, error.message)
     assert_equal "temporarily_closed", site.reload.status
     assert_not site.appointments.exists?
   end

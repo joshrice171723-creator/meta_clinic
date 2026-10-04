@@ -207,6 +207,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
   test "sandbox reset replaces every expanded fixture" do
     visitor = demo_visitor
     first = Development::SharedDemoLesson.enter!("sandbox", visitor:)
+    prepare_demo_sandbox!(first)
     first_site_id = first.practice.sites.find_by!(code: "SANDBOX-NORTH").id
     first_patient_id = first.practice.patients.find_by!(reference: "SANDBOX-PAT-001").id
     first_appointment_at = first.practice.appointments.find_by!(patient_id: first_patient_id).starts_at
@@ -219,7 +220,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
     first_companion_site_id = first_companion.sites.find_by!(code: "SANDBOX-NORTH").id
 
     second = travel_to(Time.zone.now + 14.days) do
-      Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first, restart: true)
+      prepare_demo_sandbox!(Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first, restart: true))
     end
 
     assert_equal first.practice_id, second.practice_id
@@ -282,7 +283,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
   end
 
   test "sandbox population makes eight completed sixty-visit weeks at every location" do
-    run = Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor)
+    run = prepare_demo_sandbox!(Development::SharedDemoLesson.enter!("sandbox", visitor: demo_visitor))
     run.practice.organization.practices.each do |practice|
       practice.sites.each do |site|
         week_start = Current.business_time.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) - 8.weeks
@@ -642,6 +643,11 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
   def enter_lesson(lesson_key)
     post "/api/demo/lesson", params: { lesson_key: }, headers: csrf_headers, as: :json
     assert_response :created, response.body
+    if lesson_key == "sandbox"
+      prepare_demo_sandbox!(Development::DemoRun.find(response.parsed_body.dig("run", "id")))
+      get "/api/demo/run", headers: @headers
+      assert_response :success
+    end
     response.parsed_body.fetch("run")
   end
 

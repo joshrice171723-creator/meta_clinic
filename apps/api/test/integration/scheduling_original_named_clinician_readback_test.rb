@@ -12,6 +12,7 @@ class SchedulingOriginalNamedClinicianReadbackTest < ActionDispatch::Integration
     membership = @practice.memberships.create!(user: @user)
     grant_permissions!(membership, "appointments.book", "appointments.read", "patients.identity.read", "notes.sign")
     @site = @practice.sites.create!(code: "SYN-NAMED", status: "active")
+    configure_site!(@site, membership: membership)
     department = @practice.departments.create!(code: "SYN-NAMED-DEPT")
     @clinician = @practice.clinician_profiles.create!(membership: membership, display_name: "Synthetic Named Readback Clinician")
     @clinician.assignments.create!(practice: @practice, site: @site, department: department,

@@ -8,7 +8,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     @password = SecureRandom.hex(18)
     organization = Organization.create!(name: "Synthetic Administrative Organization")
     @practice = Clinic::Practice.create!(name: "Synthetic Administrative Practice", organization: organization)
-    @site = @practice.sites.create!(code: "MAIN")
+    @site = @practice.sites.create!(code: "MAIN", status: "active")
     @patient = @practice.patients.create!(display_name: "SYN_Admin, Avery", reference: "SYN-ADMIN-001")
     @users = %w[front_desk scheduler billing_operator].to_h do |role|
       user = User.create!(email_address: "admin-#{role}@example.invalid", password: @password)
@@ -23,6 +23,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     @scheduler_membership = @practice.memberships.find_by!(user: @users.fetch("scheduler"))
     @clinician = @practice.clinician_profiles.create!(membership: @scheduler_membership,
       display_name: "Synthetic scheduling clinician")
+    configure_site!(@site, membership: @scheduler_membership)
     @visit_type = @practice.visit_types.create!(code: "SYN-ADMIN-VISIT")
     appointment_start = 1.hour.from_now
     capacity_start = appointment_start.in_time_zone(@practice.timezone)
@@ -37,7 +38,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     get "/api/clinic/patients/lookup", params: { q: @patient.reference }, headers: @headers
     assert_response :success
     row = response.parsed_body.fetch("patients").sole
-    assert_equal %w[date_of_birth display_name id phone_hint reference], row.keys.sort
+    assert_equal %w[date_of_birth display_name id phone_hint primary_site_id reference], row.keys.sort
     assert_equal @patient.id, row.fetch("id")
     get "/api/clinic/patients/#{@patient.id}", headers: @headers
     assert_response :forbidden
@@ -314,7 +315,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     login(@users.fetch("billing_operator"))
     post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00", currency: "USD" } }, headers: csrf_headers, as: :json
     drawer_id = response.parsed_body.dig("drawer", "id")
-    post "/api/clinic/cash_drawers/#{drawer_id}/close", params: { drawer: { counted_cash: "10.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers/#{drawer_id}/close", params: { drawer: { counted_cash: "10.00", request_key: "SYN-DRAWER-CLOSE" } }, headers: csrf_headers, as: :json
     assert_response :success
 
     post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments",

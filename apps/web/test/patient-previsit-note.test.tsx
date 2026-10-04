@@ -80,7 +80,7 @@ describe("typed patient journey intake", () => {
     expect(html).toContain("Support status");
     expect(html).toContain('aria-label="Support status question"');
     expect(html).not.toContain("Support status status");
-    expect(html).toContain("Record an exception");
+    expect(html).toContain("Choose a response");
   });
 
   it("renders the behavioral-health return choices without treating an unknown response as a score", () => {

@@ -15,6 +15,7 @@ class SchedulingOriginalActivatedClinicianTest < ActionDispatch::IntegrationTest
     @clinician_role = RoleVersion.find_by!(role_code: "clinician", version: Clinic::Authorization::PilotRoleCatalog::VERSION)
     grant_permissions!(manager_membership, "roles.manage", "workforce.admin", "facilities.write",
       "patients.identity.read", *@clinician_role.permissions.pluck(:action_code))
+    configure_site!(@site, membership: manager_membership)
     @patient = @practice.patients.create!(display_name: "Synthetic Activated Clinician Patient", reference: "SYN-31-PATIENT")
     @visit_type = @practice.visit_types.create!(code: "SYN-ACTIVATED-VISIT")
   end

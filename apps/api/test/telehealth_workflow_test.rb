@@ -299,7 +299,7 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     assert_equal @identity.id, visit.participants.patient.sole.portal_identity_id
     assert_equal @membership.id, visit.participants.clinician.sole.membership_id
 
-    get "/api/clinic/telehealth/booking_options", headers: @headers
+    get "/api/clinic/telehealth/booking_options", params: { site_id: @site.id }, headers: @headers
     assert_response :success
     assert_equal true, response.parsed_body.dig("data", "enabled")
     assert_equal %w[in_person video], response.parsed_body.dig("data", "allowed_modalities")

@@ -39,9 +39,9 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     prior = order
     order = revise(order, instructions: "Updated synthetic directions requiring a new review")
 
-    post_event(prior, "unknown", source: "simulation")
+    post_simulated_event(prior, "unknown")
     assert_response :conflict
-    post_event(order, "acknowledged", source: "simulation")
+    post_simulated_event(order, "acknowledged")
     assert_response :unprocessable_entity
     assert_nil Clinic::Care::PrescriptionWorkflow.events(order).find_by(kind: "acknowledged")
     lab = prepare_lab
@@ -56,17 +56,17 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     post_event(order, "review")
     assert_response :created
     key = SecureRandom.uuid
-    post_event(order, "unknown", source: "simulation", key:)
+    post_simulated_event(order, "unknown", key:)
     assert_response :created
-    unknown = response.parsed_body.fetch("event")
+    unknown = submitted_event
     assert_equal "simulation", unknown.fetch("source")
     assert_no_difference "Clinic::Care::PrescriptionEvent.count" do
-      post_event(order, "unknown", source: "simulation", key:)
+      post_simulated_event(order, "unknown", key:)
       assert_response :created
-      assert_equal unknown.fetch("id"), response.parsed_body.dig("event", "id")
+      assert_equal unknown.fetch("id"), response.parsed_body.dig("attempt", "prescription_event_id")
     end
     assert_no_difference "Clinic::Care::PrescriptionEvent.count" do
-      post_event(order, "acknowledged", source: "simulation")
+      post_simulated_event(order, "acknowledged")
       assert_response :unprocessable_entity
     end
     assert_no_difference "Clinic::Care::MedicationRequestRevision.count" do
@@ -81,9 +81,9 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     order = revise(order, pharmacy_location: "Different synthetic pharmacy location")
     post_event(order, "review")
     assert_response :created
-    post_event(order, "acknowledged", source: "simulation")
+    post_simulated_event(order, "acknowledged")
     assert_response :created
-    acknowledged = response.parsed_body.dig("event", "id")
+    acknowledged = response.parsed_body.dig("attempt", "prescription_event_id")
     post_event(order, "confirmed_not_sent", source: "simulation", prior: unknown.fetch("id"), note: "Obsolete reconciliation")
     assert_response :unprocessable_entity
     post_event(order, "confirmed_not_sent", source: "simulation", prior: acknowledged, note: "Contradicts known acknowledgment")
@@ -106,7 +106,7 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
       transmission_state: "accepted", request_key: SecureRandom.uuid } }, headers: csrf_headers, as: :json
     assert_response :unprocessable_entity
     %w[failure_before_send rejected].each do |kind|
-      post_event(order, kind, source: "simulation")
+      post_simulated_event(order, kind)
       assert_response :created
     end
     get events_path(order), headers: @headers
@@ -439,6 +439,18 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
   def post_event(order, kind, source: "manual", key: SecureRandom.uuid, prior: nil, note: nil)
     post events_path(order), params: { prescription_event: { kind:, source:, request_key: key, prior_event_id: prior, note: } },
       headers: csrf_headers, as: :json
+  end
+
+  def post_simulated_event(order, kind, key: SecureRandom.uuid)
+    @simulation_destination ||= Clinic::Care::PharmacyDestination.create!(practice: @practice,
+      name: "Synthetic event destination", address_line1: "100 Synthetic Way",
+      city: "Austin", state_code: "TX", postal_code: "78701")
+    submit_prescription(order, @simulation_destination.id, scenario: kind, key:)
+  end
+
+  def submitted_event
+    event = Clinic::Care::PrescriptionEvent.find(response.parsed_body.dig("attempt", "prescription_event_id"))
+    Clinic::Care::PrescriptionWorkflow.serialize(event).stringify_keys
   end
 
   def post_dispense(order, status: "handed_over", batch: @batch, quantity: nil, key: SecureRandom.uuid, original: nil, reason: nil)

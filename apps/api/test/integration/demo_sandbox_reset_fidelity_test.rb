@@ -24,6 +24,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
       first_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       first = Development::SharedDemoLesson.enter!("sandbox", visitor:)
       first_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - first_started
+      prepare_demo_sandbox!(first)
       practices = first.practice.organization.practices.order(:id).to_a
       baseline = snapshot(practices)
 
@@ -35,6 +36,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
 
       reset_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       second = Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first, restart: true)
+      prepare_demo_sandbox!(second)
       reset_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - reset_started
       assert_equal practices.map(&:id), second.practice.organization.practices.order(:id).pluck(:id)
       restored = snapshot(second.practice.organization.practices.order(:id).to_a)

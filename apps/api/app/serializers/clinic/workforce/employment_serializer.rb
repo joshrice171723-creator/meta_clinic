@@ -6,7 +6,7 @@ module Clinic
         assignments = employment_sites(employment)
         {
           id: employment.id,
-          access_revision: EmploymentAccessRevision.call(employment),
+          access_revision: EmploymentAccessRevision.call(employment, role_grants: role_grants, employment_sites: assignments),
           status: employment.status,
           effective_from: employment.effective_from.iso8601,
           effective_until: employment.effective_until&.iso8601,

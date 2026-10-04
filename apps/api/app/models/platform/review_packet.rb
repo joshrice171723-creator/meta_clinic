@@ -17,7 +17,7 @@ module Platform
     validates :summary, :scope, presence: true, length: { maximum: 1_000 }
     validates :revision, presence: true, length: { maximum: 120 }
     validates :environment, presence: true, length: { maximum: 80 }
-    validates :entry_path, presence: true, length: { maximum: 500 }, format: { with: %r{\A/(?!/)} }
+    validates :entry_path, presence: true, length: { maximum: 500 }, format: { with: %r{\A/(?!/)[^\r\n]*\z} }
     validate :criteria_are_complete
 
     private

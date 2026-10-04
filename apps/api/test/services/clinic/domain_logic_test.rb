@@ -17,6 +17,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       "inventory.catalog", "inventory.receive", "inventory.adjust", "inventory.hold", "inventory.release", "inventory.count",
       "inventory.configure", "inventory.transfer", "appointments.write", "encounters.write", "notes.read", "notes.write", "notes.sign", "observations.write",
       "messages.write", "documents.read", "billing.write", "roles.manage")
+    @site = @practice.sites.create!(code: "NOTES", status: "active")
+    configure_site!(@site, membership: @membership)
     @patient = Clinic::Care::Patient.create!(practice: @practice, display_name: "Synthetic Patient", reference: "SYN-001")
   end
 
@@ -74,7 +76,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   end
 
   test "booking permits adjacency, rejects overlap, and encounters support walk-ins" do
-    site = Clinic::Site.create!(practice: @practice, code: "MAIN")
+    site = Clinic::Site.create!(practice: @practice, code: "MAIN", status: "active")
+    configure_site!(site, membership: @membership)
     room = Clinic::Room.create!(practice: @practice, site: site, code: "ROOM-1")
     clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
     visit_type = Clinic::VisitType.create!(practice: @practice, code: "DOMAIN-VISIT")
@@ -120,7 +123,7 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
       )
     end
 
-    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
+    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient, site: @site)
     assert_nil encounter.appointment_id
     assert_raises(ArgumentError) do
       Clinic::Scheduling::CloseEncounter.call(encounter: encounter, actor: @actor,
@@ -138,7 +141,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   test "patient waitlist replies replay the exact committed outcome without double booking" do
     @patient.patient_memberships.create!(practice: @practice, recorded_by_membership: @membership,
       status: "member", version: 1, effective_from: 1.day.ago)
-    site = Clinic::Site.create!(practice: @practice, code: "WAITLIST")
+    site = Clinic::Site.create!(practice: @practice, code: "WAITLIST", status: "active")
+    configure_site!(site, membership: @membership)
     clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
     visit_type = Clinic::VisitType.create!(practice: @practice, code: "WAITLIST-VISIT")
     identity = Clinic::PatientPortal::Identity.create!(
@@ -177,7 +181,8 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   end
 
   test "a schedule hold blocks competing reservations and converts exactly once into its matching appointment" do
-    site = Clinic::Site.create!(practice: @practice, code: "HOLDS")
+    site = Clinic::Site.create!(practice: @practice, code: "HOLDS", status: "active")
+    configure_site!(site, membership: @membership)
     room = Clinic::Room.create!(practice: @practice, site: site, code: "HOLD-ROOM")
     clinician = Clinic::ClinicianProfile.create!(practice: @practice, membership: @membership)
     visit_type = Clinic::VisitType.create!(practice: @practice, code: "HOLD-VISIT")
@@ -205,7 +210,7 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   end
 
   test "note workflow serializes revisions, detects stale writers, and signs an exact revision" do
-    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
+    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient, site: @site)
     note = Clinic::Care::CreateEncounterNote.call(practice: @practice, actor: @actor, encounter: encounter,
       encrypted_body: "synthetic-v1", request_key: "domain-note-create-1")
     revision = Clinic::Care::ReviseEncounterNote.call(note: note, actor: @actor, encrypted_body: "synthetic-v2",
@@ -238,7 +243,7 @@ class ClinicDomainLogicTest < ActiveSupport::TestCase
   end
 
   test "SOAP note revisions retain template provenance and encrypt stored content" do
-    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient)
+    encounter = Clinic::Scheduling::CreateEncounter.call(practice: @practice, actor: @actor, patient: @patient, site: @site)
     first_body = Clinic::Care::SoapNotePayload.dump(
       template_id: "adult-physical-exam-detailed",
       template_version: 1,

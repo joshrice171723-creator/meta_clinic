@@ -489,7 +489,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       "assessment_scope" => [], "immunization_administration_enabled" => true
     }
     Clinic::PracticeFeatureVersion.create!(
-      practice:, site:, created_by_membership: membership, revision: 1, optional_features:,
+      practice:, site:, created_by_membership: membership, revision: practice.practice_feature_versions.where(site: site).maximum(:revision).to_i + 1, optional_features:,
       effective_from: Current.business_time, request_key: "clinic-day-authorized-immunization-administration",
       content_digest: Digest::SHA256.hexdigest(optional_features.to_json)
     )

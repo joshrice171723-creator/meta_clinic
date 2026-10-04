@@ -122,7 +122,13 @@ it.each([
           ],
         };
       else if (url.pathname.includes("booking_options"))
-        data = { data: { enabled: false, allowed_modalities: ["in_person"] } };
+        data = {
+          data: {
+            enabled: false,
+            allowed_modalities: ["in_person"],
+            visit_type_rules: [],
+          },
+        };
       else if (url.pathname.includes("service_offerings"))
         data = { service_offerings: [] };
       else if (url.pathname === "/api/clinic/facilities")

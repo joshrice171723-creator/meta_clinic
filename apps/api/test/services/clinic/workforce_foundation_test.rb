@@ -2,6 +2,7 @@ require "test_helper"
 
 class WorkforceFoundationTest < ActiveSupport::TestCase
   setup do
+    Clinic::Authorization::PilotRoleCatalog.install!
     @practice = Clinic::Practice.create!(name: "Workforce Foundation Clinic", timezone: "UTC")
     @manager = User.create!(email_address: "manager-#{SecureRandom.hex(6)}@example.com",
       password: "Manager-password-123!", active: true)
@@ -43,6 +44,20 @@ class WorkforceFoundationTest < ActiveSupport::TestCase
     assert_not Clinic::Workforce::Access.new(actor: @manager, practice: @practice).allow?("workforce.admin")
   ensure
     Current.reset
+  end
+
+  test "batched access revision matches fresh reads and changes when grant evidence changes" do
+    employment = Clinic::Workforce::LinkEmployment.call(practice: @practice,
+      staff_member: @staff_member, membership: @employee_membership, site_ids: [ @site.id ],
+      effective_from: 1.minute.ago, actor: @manager)
+    grants = employment.membership.role_grants.active.to_a
+    assignments = employment.employment_sites.to_a
+    revision = Clinic::Workforce::EmploymentAccessRevision.call(employment)
+    assert_equal revision, Clinic::Workforce::EmploymentAccessRevision.call(employment,
+      role_grants: grants.reverse, employment_sites: assignments.reverse)
+
+    grants.first.update!(revision: grants.first.revision + 1)
+    refute_equal revision, Clinic::Workforce::EmploymentAccessRevision.call(employment.reload)
   end
 
   test "cross-practice membership cannot be linked" do
@@ -105,6 +120,8 @@ class WorkforceFoundationTest < ActiveSupport::TestCase
   end
 
   test "employee creation rolls back when the manager cannot assign the selected role" do
+    revoke_all_permissions!(@manager_membership)
+    grant_permissions!(@manager_membership, "workforce.admin", "workforce.settings")
     badge_permission = Permission.find_or_create_by!(action_code: "workforce.badges")
     administrator_role = RoleVersion.find_or_create_by!(role_code: "workforce-administrator", version: 1)
     RoleVersionPermission.find_or_create_by!(role_version: administrator_role, permission: badge_permission)

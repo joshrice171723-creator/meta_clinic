@@ -7,7 +7,8 @@ class ClinicAppointmentCheckoutLifecycleTest < ActionDispatch::IntegrationTest
     @actor = User.create!(email_address: "appointment-checkout@example.invalid", password: SecureRandom.hex(20))
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "appointments.book", "appointments.status_transition", "encounters.write", "billing.invoice_draft", "billing.invoice_post")
-    @site = @practice.sites.create!(code: "CHECKOUT")
+    @site = @practice.sites.create!(code: "CHECKOUT", status: "active")
+    configure_site!(@site, membership: @membership)
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Checkout Clinician")
     @visit_type = @practice.visit_types.create!(code: "CHECKOUT-VISIT")
     7.times do |weekday|

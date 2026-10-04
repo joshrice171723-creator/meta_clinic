@@ -13,6 +13,7 @@ class FrontdeskCapacityNextTest < ActionDispatch::IntegrationTest
     @membership = @practice.memberships.create!(user: @user)
     grant_permissions!(@membership, "patients.read", "appointments.read", "billing.read")
     @site = @practice.sites.create!(code: "NEXT", status: "active")
+    configure_site!(@site, membership: @membership)
     @other_site = @practice.sites.create!(code: "OTHER", status: "active")
     grant_permissions!(@membership, "notes.read", scope_kind: "site", site: @site)
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Next Clinician")

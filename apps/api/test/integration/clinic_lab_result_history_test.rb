@@ -69,6 +69,7 @@ class ClinicLabResultHistoryTest < ActionDispatch::IntegrationTest
       "code_system" => nil,
       "unit" => "10^3/uL",
       "unit_code" => nil,
+      "supplied_unit_code" => nil,
       "source_name" => "Community Laboratory"
     }, payload.fetch("selected"))
     assert_equal({ "page" => 1, "per_page" => 2, "total" => 3 }, payload.fetch("pagination"))
@@ -103,7 +104,8 @@ class ClinicLabResultHistoryTest < ActionDispatch::IntegrationTest
     get history_path(selected), headers: @headers
     assert_response :success
     assert_equal "urn:synthetic:system-a", response.parsed_body.dig("selected", "code_system")
-    assert_equal "mg", response.parsed_body.dig("selected", "unit_code")
+    assert_nil response.parsed_body.dig("selected", "unit_code")
+    assert_equal "mg", response.parsed_body.dig("selected", "supplied_unit_code")
     assert_equal [selected.id, match.id], response.parsed_body.fetch("items").map { |item| item.fetch("report_id") }
   end
 

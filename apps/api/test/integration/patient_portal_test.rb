@@ -54,7 +54,7 @@ class PatientPortalTest < ActionDispatch::IntegrationTest
     post "/api/patient_portal/appointment_requests", params: {}, headers: local_csrf, as: :json
     assert_response :bad_request
     post "/api/patient_portal/requests", params: {}, headers: local_csrf, as: :json
-    assert_response :not_found
+    assert_response :bad_request
     get "/api/patient_portal/reminders", headers: @headers
     assert_response :not_found
     post "/api/patient_portal/reminder_preferences", params: {}, headers: local_csrf, as: :json

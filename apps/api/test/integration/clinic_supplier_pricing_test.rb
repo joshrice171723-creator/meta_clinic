@@ -56,7 +56,8 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
 
     quote = quote.merge(quoted_fee_amount: "2", quoted_fee_basis: "", expected_updated_at: offer.updated_at.iso8601(6))
     patch "/api/clinic/inventory/supplier-products/#{offer.id}/manual-quote", params: { quote: quote }, headers: csrf_headers, as: :json
-    assert_response :unprocessable_entity
+    assert_response :bad_request
+    assert_equal "quoted_fee_basis", response.parsed_body.fetch("field")
     assert_nil offer.reload.quoted_fee_amount
   end
 
@@ -89,7 +90,10 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
 
     patch "/api/clinic/inventory/products/#{@product.id}/preferred-supplier", params: { supplier_id: }, headers: csrf_headers, as: :json
     assert_response :success
-    assert_equal supplier_id, response.parsed_body.fetch("data").fetch("products").find { |product| product.fetch("id") == @product.id.to_s }.fetch("preferred_supplier_id")
+    assert_equal supplier_id, @product.reload.preferred_supplier_id
+    get "/api/clinic/inventory/catalog", headers: @headers
+    assert_response :success
+    assert_equal supplier_id.to_s, response.parsed_body.fetch("data").fetch("products").find { |product| product.fetch("id") == @product.id.to_s }.fetch("preferred_supplier_id")
 
     offer.update!(price_source: "manual_quote", quote_reference: "SYN-REPLACED-FEE", quoted_on: @practice.inventory_date,
       quoted_fee_amount: "1.23", quoted_fee_currency: "USD", quoted_fee_basis: "Entire quoted shipment")

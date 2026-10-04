@@ -1700,6 +1700,11 @@
     "/api/patient_portal/invoices/:id/online_payment/reconcile(.:format)"
   ],
   [
+    "online_payment_simulate_api_clinic_invoice",
+    "POST",
+    "/api/clinic/invoices/:id/online_payment/simulate(.:format)"
+  ],
+  [
     "online_payment_start_api_clinic_invoice",
     "POST",
     "/api/clinic/invoices/:id/online_payment/start(.:format)"
@@ -2137,12 +2142,27 @@
   [
     null,
     "GET",
+    "/api/clinic/patients/:patient_id/insurance(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/patients/:patient_id/insurance/requests/:id(.:format)"
+  ],
+  [
+    null,
+    "GET",
     "/api/clinic/patients/:patient_id/medication_request_series(.:format)"
   ],
   [
     null,
     "GET",
     "/api/clinic/patients/:patient_id/medication_requests/:medication_request_id/events(.:format)"
+  ],
+  [
+    null,
+    "GET",
+    "/api/clinic/patients/:patient_id/referral_receipts(.:format)"
   ],
   [
     null,
@@ -2787,6 +2807,21 @@
   [
     null,
     "POST",
+    "/api/clinic/patients/:patient_id/insurance/coverage(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/insurance/requests(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/insurance/requests/:id/responses(.:format)"
+  ],
+  [
+    null,
+    "POST",
     "/api/clinic/patients/:patient_id/intake_consents(.:format)"
   ],
   [
@@ -2838,6 +2873,11 @@
     null,
     "POST",
     "/api/clinic/patients/:patient_id/observations(.:format)"
+  ],
+  [
+    null,
+    "POST",
+    "/api/clinic/patients/:patient_id/referral_receipts(.:format)"
   ],
   [
     null,

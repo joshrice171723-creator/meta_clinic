@@ -51,7 +51,7 @@ const entry = `
     request(path, options = {}) {
       if (path.startsWith('/api/clinic/billing_services?'))
         return Promise.resolve({ services: [] });
-      if (!/billing_ledger$|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post|write_offs|credits)$/.test(path))
+      if (!/billing_ledger(?:\\?|$)|invoices\\?encounter_id=|invoices\\/\\d+\\/(?:draft|post|write_offs|credits)$/.test(path))
         throw new Error('Unexpected synthetic request: ' + path);
       return new Promise((resolve,reject) => this.requests.push({
         path, options, resolve, reject, done: false

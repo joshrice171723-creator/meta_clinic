@@ -9,7 +9,7 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "cart-test@example.invalid", password: @password)
     @practice = Clinic::Practice.create!(name: "Purchase cart fixture clinic")
     @membership = Clinic::Membership.create!(practice: @practice, user: @user)
-    %w[inventory.read inventory.catalog procurement.create].each { |permission| grant_permissions!(@membership, permission) }
+    %w[inventory.read inventory.catalog procurement.read procurement.create].each { |permission| grant_permissions!(@membership, permission) }
     post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
     @site = @practice.sites.create!(code: "MAIN", name: "Main synthetic facility", status: "active", address_line1: "100 Main Street", city: "Austin", state: "TX", postal_code: "78701", country: "US")
     @supplier_one = @practice.inventory_suppliers.create!(name: "Supplier One")
@@ -25,6 +25,8 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     add_item(@product_one, "3")
     add_item(@product_two, "1")
 
+    get "/api/clinic/inventory/purchase-cart", headers: @headers
+    assert_response :success
     cart = Clinic::Inventory::PurchaseCart.find(response.parsed_body.dig("data", "purchase_cart", "id"))
     assert_equal 2, cart.items.count
     assert_equal "5.0", cart.items.find_by(product: @product_one).requested_packages.to_s
@@ -36,6 +38,9 @@ class InventoryPurchaseCartTest < ActionDispatch::IntegrationTest
     orders = @practice.inventory_purchase_orders.where(purchase_cart_id: cart.id).to_a
     assert_equal 2, orders.size
     assert_equal 1, orders.map(&:checkout_group_id).uniq.size
+    assert_equal orders.map(&:id).sort, response.parsed_body.fetch("purchase_order_ids").sort
+    get "/api/clinic/inventory/purchase-orders", headers: @headers
+    assert_response :success
     wire_orders = response.parsed_body.dig("data", "purchase_orders").select { |order| orders.map { |record| record.id.to_s }.include?(order["id"]) }
     assert_equal 1, wire_orders.map { |order| order["checkout_group_id"] }.uniq.size
     assert orders.all? { |order| order.supplier_id.present? && order.lines.one? }

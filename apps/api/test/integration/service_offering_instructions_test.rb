@@ -10,7 +10,8 @@ class ServiceOfferingInstructionsTest < ActionDispatch::IntegrationTest
     @actor = User.create!(email_address: "service-instructions@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "facilities.read", "facilities.write")
-    @site = @practice.sites.create!(code: "MAIN", name: "Synthetic site", status: "draft")
+    @site = @practice.sites.create!(code: "MAIN", name: "Synthetic site", status: "active")
+    configure_site!(@site, membership: @membership)
     @visit_type = @practice.visit_types.create!(code: "Synthetic service visit")
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }

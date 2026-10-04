@@ -211,7 +211,7 @@ async function fixture(
         data: {
           enabled: false,
           allowed_modalities: ["in_person"],
-          visit_type_settings: [],
+          visit_type_rules: [],
         },
       };
     else if (url.pathname === "/api/clinic/patients/lookup")

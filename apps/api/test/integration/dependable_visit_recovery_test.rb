@@ -13,6 +13,8 @@ class DependableVisitRecoveryTest < ActionDispatch::IntegrationTest
     configure_site!(@site, membership: @membership)
     @patient = @practice.patients.first
     login(@user)
+    patch "/api/clinic/context", params: { site_id: @site.id }, headers: csrf_headers, as: :json
+    assert_response :success
   end
 
   test "registration create and update replay exactly while stale edits leave the patient unchanged" do

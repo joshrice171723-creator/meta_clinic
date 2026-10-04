@@ -15,7 +15,8 @@ class BoundariesTest < ActiveSupport::TestCase
     assert_not ApplicationController.private_method_defined?(:available_materials)
     assert_not Clinic::BaseController.private_method_defined?(:available_materials)
     assert_equal Launch::MaterialAccess, Launch::Api::MaterialsController.instance_method(:available_materials).owner
-    assert_equal ["clinic/billing/payment_events/receipt.html.erb",
+    assert_equal ["clinic/billing/patient_ledgers/statement.html.erb",
+      "clinic/billing/payment_events/receipt.html.erb",
       "clinic/membership_account_mailer/setup.html.erb",
       "clinic/membership_account_mailer/setup.text.erb",
       "clinic/membership_receipt_mailer/receipt.html.erb",
@@ -23,7 +24,9 @@ class BoundariesTest < ActiveSupport::TestCase
       "platform/clinic_owner_mailer/invitation.html.erb",
       "platform/clinic_owner_mailer/invitation.text.erb",
       "platform/owner_invitation_mailer/invitation.html.erb",
-      "platform/owner_invitation_mailer/invitation.text.erb"],
+      "platform/owner_invitation_mailer/invitation.text.erb",
+      "platform/owner_password_reset_mailer/reset.html.erb",
+      "platform/owner_password_reset_mailer/reset.text.erb"],
       Rails.root.glob("app/views/**/*.erb").map { |path| path.relative_path_from(Rails.root.join("app/views")).to_s }
     assert_empty Rails.root.glob("app/assets/**/*").select(&:file?)
   end
@@ -71,7 +74,7 @@ class BoundariesTest < ActiveSupport::TestCase
 
   test "model roots contain only shared identity and clinic tenancy" do
     assert_equal %w[ability.rb application_record.rb member_session.rb organization.rb permission.rb platform_audit_event.rb role_version.rb role_version_permission.rb user.rb], Rails.root.glob("app/models/*.rb").map { |p| p.basename.to_s }.sort
-    assert_equal %w[appointment.rb audit_delivery_receipt.rb audit_event.rb audit_resource_manifest.rb billing_receipt.rb billing_service.rb cash_drawer_session.rb cash_tender.rb clinical_task.rb clinical_task_dependency.rb clinical_task_event.rb clinician_assignment.rb clinician_credential.rb clinician_profile.rb communication_endpoint.rb communication_preference.rb coverage_version.rb credit_note.rb department.rb document.rb document_category.rb encounter.rb encounter_completion_review.rb encounter_follow_up.rb encounter_handoff.rb encounter_handoff_event.rb encounter_intake_history_ref.rb encounter_intake_observation_ref.rb encounter_intake_revision.rb encounter_note.rb encounter_note_revision.rb encounter_note_signature.rb encounter_participant.rb insurance_claim.rb invoice.rb invoice_line.rb membership.rb membership_prospect.rb message_attachment.rb message_delivery_event.rb message_intent.rb message_outbox.rb model_version.rb operation_receipt.rb patient_reminder.rb patient_reminder_action.rb patient_reminder_delivery_attempt.rb patient_reminder_outbox.rb payment_allocation.rb payment_collection_intent.rb payment_event.rb payment_processor_event.rb practice.rb practice_feature_version.rb recall_event.rb refund_event.rb role_grant.rb role_grant_event.rb room.rb site.rb site_hour_exception.rb site_operating_hour.rb staff_conversation.rb staff_conversation_member.rb staff_message.rb staff_message_attachment.rb staff_message_escalation.rb staff_message_outbox.rb staff_message_receipt.rb staff_message_request.rb staff_notification.rb staff_notification_preference.rb visit_type.rb working_draft.rb], Rails.root.glob("app/models/clinic/*.rb").map { |p| p.basename.to_s }.sort
+    assert_equal %w[appointment.rb audit_delivery_receipt.rb audit_event.rb audit_resource_manifest.rb billing_receipt.rb billing_service.rb cash_drawer_session.rb cash_tender.rb clinical_task.rb clinical_task_dependency.rb clinical_task_event.rb clinician_assignment.rb clinician_credential.rb clinician_profile.rb communication_endpoint.rb communication_preference.rb coverage_version.rb credit_note.rb day_end_review.rb department.rb document.rb document_category.rb document_metadata_revision.rb document_provenance_configuration.rb encounter.rb encounter_completion_review.rb encounter_follow_up.rb encounter_handoff.rb encounter_handoff_event.rb encounter_intake_history_ref.rb encounter_intake_observation_ref.rb encounter_intake_revision.rb encounter_note.rb encounter_note_revision.rb encounter_note_signature.rb encounter_participant.rb insurance_claim.rb insurance_workflow_event.rb invoice.rb invoice_line.rb membership.rb membership_prospect.rb message_attachment.rb message_delivery_event.rb message_intent.rb message_outbox.rb model_version.rb offering_text_batch.rb operation_receipt.rb patient_reminder.rb patient_reminder_action.rb patient_reminder_delivery_attempt.rb patient_reminder_outbox.rb payment_allocation.rb payment_collection_intent.rb payment_event.rb payment_processor_event.rb practice.rb practice_feature_version.rb recall_event.rb referral_receipt.rb refund_event.rb report_export.rb role_grant.rb role_grant_event.rb room.rb service_inquiry.rb service_offering.rb service_offering_clinician.rb service_offering_site.rb site.rb site_hour_exception.rb site_operating_hour.rb staff_conversation.rb staff_conversation_member.rb staff_message.rb staff_message_attachment.rb staff_message_escalation.rb staff_message_outbox.rb staff_message_receipt.rb staff_message_request.rb staff_notification.rb staff_notification_preference.rb visit_type.rb working_draft.rb], Rails.root.glob("app/models/clinic/*.rb").map { |p| p.basename.to_s }.sort
     assert_not MemberAuthentication.private_instance_methods.include?(:create_development_member)
   end
 end

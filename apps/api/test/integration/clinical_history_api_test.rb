@@ -245,7 +245,7 @@ class ClinicalHistoryApiTest < ActionDispatch::IntegrationTest
     grant_permissions!(@membership, "intake.write", "encounters.read")
     optional_features = { "clinic_type" => "primary_care", "service_scope" => [], "assessment_scope" => [] }
     Clinic::PracticeFeatureVersion.create!(
-      practice: @practice, site: @site, created_by_membership: @membership, revision: 1, optional_features:,
+      practice: @practice, site: @site, created_by_membership: @membership, revision: @practice.practice_feature_versions.where(site: @site).maximum(:revision).to_i + 1, optional_features:,
       effective_from: Current.business_time, request_key: "synthetic-intake-condition-primary-care-site",
       content_digest: Digest::SHA256.hexdigest(optional_features.to_json)
     )
