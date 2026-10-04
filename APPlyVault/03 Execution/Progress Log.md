@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Schedule publication recovery survives refresh:** Source `37db3f52` preserves publication attempts independently of the selected draft and offers explicit retry/stop actions. Manager decisions, correction submissions and badge failure wording now retain explicit unknown-outcome/session-change semantics. TypeScript, both bundles, final formatting/typecheck and focused review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-fourth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Employee request history clarified:** Source `09d6a1bf` adds type/status/response-needed filters, counts and saved timestamps, explains swap acceptance versus publication, and preserves retries for explicit unknown-outcome/session-change errors. TypeScript, both bundles, formatting and source/contract review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-third checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Payroll settings recovery protected:** Source `3ef70e33` preserves and freezes unknown file-setting saves until explicit discard/refresh, reports confirmed configuration revisions, and retains export retries for explicit unknown-outcome/session-change errors. TypeScript, both bundles, formatting and focused source reviews passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-second checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).

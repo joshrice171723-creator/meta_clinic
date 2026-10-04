@@ -315,3 +315,15 @@ Source commit: `09d6a1bf`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. Final responsive-wrap/wording refinements passed formatting and `git diff --check`. Focused source and backend-contract review confirmed status semantics. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected filtering, refresh/recovery and browser layout remain unverified without an owned runtime. History still uses the existing unpaginated API; this batch adds no read limits or pagination. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue another bounded workforce slice and preserve these verification limits.
+
+## Twenty-fourth implementation checkpoint
+
+Source commit: `37db3f52`, pushed after synchronization with `origin/main` (already current).
+
+- Schedule publication recovery retains the original draft identifier, revision, location, week and request key. Dedicated retry actions remain available after refreshing away a published draft or changing draft selection/revision. Current-location, publish-permission and unsaved-editor guards remain; explicit stop-retry confirmation warns that publication may already be saved.
+- A rejected publication recovery no longer discards earlier uncertainty. Explicit unknown-outcome/session-change responses also retain publication retries instead of being classified by 4xx status alone.
+- The same explicit-error classification is corrected for manager request decisions, timecard correction decisions and correction submissions. Badge/kiosk-code failure wording now identifies these responses as potentially saved outcomes and directs saved-record review.
+
+Verification: TypeScript and both Vite bundles passed after the recovery implementation. A final location-label refinement initially needed formatting; formatting was repaired and TypeScript passed again. Scoped diff and independent recovery/contract review found no further defects. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Lost-response persistence, location/session transitions and connected browser recovery remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue bounded workforce implementation from this saved checkpoint.
