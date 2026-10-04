@@ -94,3 +94,15 @@ Source commit: `0c9aeedf`, pushed after synchronization with `origin/main` (alre
 Verification: all three changed Ruby files passed scoped RuboCop; source/diff review and `git diff --check` passed. No frontend files changed, so the prior successful frontend build was not repeated. No tests were added/run. PostgreSQL execution, persisted correction decisions and browser behavior remain unverified without an owned runtime; no shared Docker resources were reset and no deployment occurred.
 
 These two findings from the fourth checkpoint are implemented in source. Continue with a new bounded employee, scheduling, request or payroll journey during the remaining authorized window; avoid repeatedly auditing the same scope. Connected verification remains a separate gap, not a source acceptance claim.
+
+## Sixth implementation checkpoint
+
+Source commit: `7edcc9b1`, pushed after synchronization with `origin/main` (already current).
+
+- Payroll controls now use permissions returned for the selected location. Export history identifies replacement files; correction choices omit exports already replaced. Saved employee/workweek metadata selects the latest available approved cards matching a correction's original population. The API loads this metadata in batches and finds successors beyond the history display limit; existing export population validation remains authoritative.
+- Payroll file settings warn before navigation, location changes or refresh discard edits. Saving or discarding settings is required before preparing an export. Refresh and failed-load retry are available, and successful saves reload the current records.
+- An unconfirmed export retains its exact payload and retry key, locks selection changes and offers an explicit retry. A later rejected retry does not clear uncertainty about the first attempt; leaving or refreshing warns that the saved retry will be lost. Confirmed success refreshes history. Payroll preview follows the selected configuration's actual column order and headings.
+
+Verification: TypeScript and both Vite bundles passed; the existing marketing import warning remains. After a focused retry-state repair, final TypeScript and Prettier checks passed. The changed payroll controller passed scoped RuboCop. Source/diff review and `git diff --check` passed. No tests were added/run, no runtime resources were changed, and no deployment occurred. Browser navigation, persisted exports and PostgreSQL metadata queries still require an owned connected runtime.
+
+Continuation remains active through 15:39 UTC. Next useful scope can be the existing employee setup or request journey, rather than further speculative payroll policy or repeated review of completed changes.
