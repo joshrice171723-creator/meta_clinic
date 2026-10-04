@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   Alert,
@@ -11,10 +11,13 @@ import {
   FormControl,
   IconButton,
   InputLabel,
+  Link,
   MenuItem,
   Paper,
   Select,
   Stack,
+  Tabs,
+  Tab,
   TextField,
   Tooltip,
   Typography,
@@ -25,6 +28,25 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import { ApiError, api } from "../../api/client";
 import type { Patient } from "../../api/contracts";
+import { WorkflowCatalog } from "./assistant/WorkflowCatalog";
+import { WorkflowContextPicker } from "./assistant/WorkflowContextPicker";
+import { WorkflowForm } from "./assistant/WorkflowForm";
+import {
+  WorkflowProposalReview,
+  WorkflowResultView,
+} from "./assistant/WorkflowResultView";
+import type {
+  WorkflowContext,
+  WorkflowField,
+  WorkflowInput,
+  WorkflowInputs,
+  WorkflowMessageResult,
+  WorkflowOperation,
+  WorkflowOption,
+  WorkflowProposal,
+  WorkflowResult,
+  WorkflowMode,
+} from "./assistant/workflowTypes";
 import "./assistant.css";
 
 type NamedSelection = { selection_id: string; name: string };
@@ -79,7 +101,11 @@ type ProposalResult = {
   appointment?: AppointmentDisplay;
   receipt_id?: string | number | null;
 };
-type AssistantMessage = { role: "user" | "assistant"; text: string };
+type AssistantMessage = {
+  role: "user" | "assistant";
+  text: string;
+  sourcePath?: string;
+};
 type MessageResult =
   | { status: "clarify"; message: string }
   | {
@@ -91,6 +117,19 @@ type MessageResult =
     };
 type LookupResult = { patients: PatientSelection[] };
 type OpeningsResult = { openings: AssistantOpening[]; timezone?: string };
+type WorkflowCatalogResult = { operations: WorkflowOperation[] };
+type WorkflowOptionsResult = { options: WorkflowOption[] };
+type WorkflowProposalReadback = WorkflowProposal | WorkflowResult;
+
+function isWorkflowResult(
+  value: WorkflowProposalReadback,
+): value is WorkflowResult {
+  return (
+    (value.status === "result" || value.status === "receipt") &&
+    "sections" in value &&
+    Array.isArray(value.sections)
+  );
+}
 
 function routeContext(path: string, search: string) {
   const match =
@@ -108,7 +147,71 @@ function routeContext(path: string, search: string) {
   };
 }
 
-function errorState(error: unknown) {
+function suggestedInputs(
+  operation: WorkflowOperation,
+  candidate: WorkflowMessageResult["inputs"],
+): WorkflowInputs {
+  const result: WorkflowInputs = {};
+  if (!candidate) return result;
+  for (const field of operation.fields) {
+    if (!(field.key in candidate) || field.type === "record") continue;
+    const value = candidate[field.key];
+    if (field.type === "array" && field.items) {
+      if (!Array.isArray(value)) continue;
+      if (field.items.type === "select") {
+        const allowed = field.items.options ?? [];
+        const selected = value
+          .map(
+            (item) =>
+              allowed.find((option) => String(option.value) === String(item))
+                ?.value,
+          )
+          .filter((item) => item !== undefined);
+        if (selected.length === value.length)
+          result[field.key] = selected as WorkflowInput;
+      } else if (
+        field.items.type === "text" ||
+        field.items.type === "date" ||
+        field.items.type === "datetime"
+      ) {
+        if (value.every((item) => typeof item === "string"))
+          result[field.key] = value as string[];
+      } else if (field.items.type === "number") {
+        const numbers = value.map((item) => Number(item));
+        if (numbers.every(Number.isFinite)) result[field.key] = numbers;
+      } else if (field.items.type === "boolean") {
+        if (value.every((item) => typeof item === "boolean"))
+          result[field.key] = value as boolean[];
+      }
+      continue;
+    }
+    if (field.options?.some((option) => "selection_id" in option)) continue;
+    if (field.type === "select") {
+      const selected = field.options?.find(
+        (option) => "value" in option && String(option.value) === String(value),
+      );
+      if (selected && "value" in selected) result[field.key] = selected.value;
+    } else if (
+      (field.type === "text" ||
+        field.type === "date" ||
+        field.type === "datetime") &&
+      typeof value === "string"
+    ) {
+      result[field.key] = value;
+    } else if (
+      field.type === "number" &&
+      typeof value === "number" &&
+      Number.isFinite(value)
+    ) {
+      result[field.key] = value;
+    } else if (field.type === "boolean" && typeof value === "boolean") {
+      result[field.key] = value;
+    }
+  }
+  return result;
+}
+
+function errorState(error: unknown, mode: WorkflowMode = "booking") {
   if (error instanceof ApiError) {
     if (error.status === 401)
       return {
@@ -153,13 +256,17 @@ function errorState(error: unknown) {
       return {
         kind: "quota",
         message:
-          "The assistant request limit has been reached. You can still find openings directly.",
+          mode === "workflows"
+            ? "The assistant request limit has been reached. Use the workflow controls below to continue."
+            : "The assistant request limit has been reached. You can still find openings directly.",
       };
     if (error.status >= 500 || error.code === "model_unavailable")
       return {
         kind: "unavailable",
         message:
-          "The assistant is temporarily unavailable. You can still find openings directly.",
+          mode === "workflows"
+            ? "The assistant is temporarily unavailable. You can continue with the workflow controls below."
+            : "The assistant is temporarily unavailable. You can still find openings directly.",
       };
     return { kind: "error", message: error.message };
   }
@@ -168,6 +275,10 @@ function errorState(error: unknown) {
     message:
       "We could not confirm the assistant response. Check the current proposal before trying again.",
   };
+}
+
+function internalWorkflowPath(path?: string) {
+  return path?.startsWith("/") && !path.startsWith("//") ? path : undefined;
 }
 
 function formatOpening(opening: AssistantOpening, timezone?: string) {
@@ -289,6 +400,7 @@ export function ClinicAssistant({
 }) {
   const initialRoute = routeContext(path, search);
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<WorkflowMode>("workflows");
   const [context, setContext] = useState<AssistantContext | null>(null);
   const [contextBusy, setContextBusy] = useState(false);
   const [contextError, setContextError] = useState("");
@@ -315,6 +427,35 @@ export function ClinicAssistant({
   const [responseTimezone, setResponseTimezone] = useState("");
   const [busy, setBusy] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [workflowContext, setWorkflowContext] =
+    useState<WorkflowContext | null>(null);
+  const [workflowContextBusy, setWorkflowContextBusy] = useState(false);
+  const [workflowContextError, setWorkflowContextError] = useState("");
+  const [workflowOperations, setWorkflowOperations] = useState<
+    WorkflowOperation[]
+  >([]);
+  const [workflowOperation, setWorkflowOperation] =
+    useState<WorkflowOperation | null>(null);
+  const [workflowInputs, setWorkflowInputs] = useState<WorkflowInputs>({});
+  const [workflowOptions, setWorkflowOptions] = useState<
+    Record<string, WorkflowOption[]>
+  >({});
+  const [workflowOptionsBusy, setWorkflowOptionsBusy] = useState<
+    Record<string, boolean>
+  >({});
+  const [workflowMessages, setWorkflowMessages] = useState<AssistantMessage[]>(
+    [],
+  );
+  const [workflowDraft, setWorkflowDraft] = useState("");
+  const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(
+    null,
+  );
+  const [workflowProposal, setWorkflowProposal] =
+    useState<WorkflowProposal | null>(null);
+  const [workflowProposalStatus, setWorkflowProposalStatus] = useState<
+    "ready" | "unknown" | "expired" | "denied" | "stale" | null
+  >(null);
+  const [workflowError, setWorkflowError] = useState("");
   const attemptedBinding = useRef("");
   const contextSequence = useRef(0);
   const actionSequence = useRef(0);
@@ -324,11 +465,38 @@ export function ClinicAssistant({
   const activeContext = useRef<AssistantContext | null>(null);
   const routeRef = useRef(initialRoute);
   const querySequence = useRef(0);
+  const workflowContextSequence = useRef(0);
+  const workflowActionSequence = useRef(0);
+  const workflowOptionSequence = useRef<Record<string, number>>({});
+  const workflowBindingRef = useRef("");
+  const workflowContextRef = useRef<WorkflowContext | null>(null);
+  const workflowFormRef = useRef<HTMLDivElement | null>(null);
+  const workflowResultRef = useRef<HTMLDivElement | null>(null);
+  const workflowInvalidationRequest = useRef<Promise<void> | null>(null);
+  const workflowLifecycleQueue = useRef<Promise<unknown>>(Promise.resolve());
 
   const route = routeContext(path, search);
   const targetPatientId = route.patientId ?? selectedPatient?.id ?? null;
   const targetEncounterId = route.patientId ? route.encounterId : null;
   const bindingKey = `${scopeKey}:${targetPatientId ?? "none"}:${targetEncounterId ?? "none"}`;
+  const workflowBindingKey = `${scopeKey}:${targetPatientId ?? "none"}:${targetEncounterId ?? "none"}`;
+  const workflowContextReady = Boolean(
+    workflowContext?.context_id &&
+    workflowBindingRef.current === workflowBindingKey &&
+    !workflowContextBusy,
+  );
+  const workflowProposalExpired = Boolean(
+    workflowProposal?.expires_at &&
+    Date.parse(workflowProposal.expires_at) <= now,
+  );
+  useEffect(() => {
+    const target = workflowResult
+      ? workflowResultRef.current
+      : workflowOperation
+        ? workflowFormRef.current
+        : null;
+    target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [workflowOperation, workflowResult]);
   const currentBinding =
     context?.context_id && attemptedBinding.current === bindingKey;
   const confirmedProposal = Boolean(
@@ -347,6 +515,10 @@ export function ClinicAssistant({
   useEffect(() => {
     activeContext.current = context;
   }, [context]);
+
+  useEffect(() => {
+    workflowContextRef.current = workflowContext;
+  }, [workflowContext]);
 
   useEffect(() => {
     const previous = routeRef.current;
@@ -396,7 +568,7 @@ export function ClinicAssistant({
           const patientId =
             route.patientId ??
             (scopeChanged ? null : (selectedPatient?.id ?? null));
-          if (open && patientId)
+          if (open && mode === "booking" && patientId)
             void bindContext(
               patientId,
               route.patientId ? route.encounterId : null,
@@ -410,6 +582,7 @@ export function ClinicAssistant({
     selectedPatient?.id,
     context?.context_id,
     open,
+    mode,
   ]);
 
   useEffect(() => {
@@ -481,6 +654,639 @@ export function ClinicAssistant({
     return invalidationRequest.current;
   };
 
+  const queueWorkflowLifecycle = useCallback(
+    <T,>(action: () => Promise<T>): Promise<T> => {
+      const result = workflowLifecycleQueue.current.then(action, action);
+      workflowLifecycleQueue.current = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
+    },
+    [],
+  );
+
+  const invalidateWorkflowServerContext = useCallback(async () => {
+    if (workflowInvalidationRequest.current)
+      return workflowInvalidationRequest.current;
+    workflowInvalidationRequest.current = queueWorkflowLifecycle(() =>
+      api<void>("/api/clinic/assistant/workflows/context", {
+        method: "DELETE",
+      }),
+    )
+      .catch(() => undefined)
+      .finally(() => {
+        workflowInvalidationRequest.current = null;
+      });
+    return workflowInvalidationRequest.current;
+  }, [queueWorkflowLifecycle]);
+
+  const bindWorkflowContext = useCallback(
+    async (
+      body: Record<string, unknown> = {},
+      expectedBinding = workflowBindingKey,
+    ) => {
+      const sequence = ++workflowContextSequence.current;
+      workflowActionSequence.current += 1;
+      workflowBindingRef.current = expectedBinding;
+      setWorkflowContextBusy(true);
+      setWorkflowContextError("");
+      try {
+        const { clear_patient: clearPatient, ...extra } = body;
+        const replacesPatient =
+          clearPatient === true ||
+          "patient_selection_id" in extra ||
+          "patient_id" in extra;
+        const replacesEncounter =
+          "encounter_selection_id" in extra || replacesPatient;
+        const rebindingCurrentContext = "context_id" in extra;
+        const patientId =
+          replacesPatient || rebindingCurrentContext
+            ? null
+            : (route.patientId ?? null);
+        const encounterId =
+          replacesEncounter || rebindingCurrentContext
+            ? null
+            : route.patientId
+              ? route.encounterId
+              : null;
+        const payload = {
+          ...(patientId ? { patient_id: patientId } : {}),
+          ...(encounterId ? { encounter_id: encounterId } : {}),
+          ...extra,
+        };
+        const result = await queueWorkflowLifecycle(async () => {
+          if (sequence !== workflowContextSequence.current) return null;
+          return api<WorkflowContext>(
+            "/api/clinic/assistant/workflows/context",
+            { method: "POST", body: payload },
+          );
+        });
+        if (
+          !result ||
+          sequence !== workflowContextSequence.current ||
+          expectedBinding !== workflowBindingKey
+        )
+          return;
+        workflowContextRef.current = result;
+        setWorkflowContext(result);
+        const catalog = await api<WorkflowCatalogResult>(
+          "/api/clinic/assistant/workflows/catalog?context_id=" +
+            encodeURIComponent(result.context_id),
+        );
+        if (
+          sequence !== workflowContextSequence.current ||
+          workflowContextRef.current?.context_id !== result.context_id
+        )
+          return;
+        setWorkflowOperations(catalog.operations);
+      } catch (error) {
+        if (sequence !== workflowContextSequence.current) return;
+        setWorkflowContextError(errorState(error, "workflows").message);
+      } finally {
+        if (sequence === workflowContextSequence.current)
+          setWorkflowContextBusy(false);
+      }
+    },
+    [
+      route.encounterId,
+      route.patientId,
+      queueWorkflowLifecycle,
+      workflowBindingKey,
+    ],
+  );
+
+  useEffect(() => {
+    if (
+      !workflowBindingRef.current ||
+      workflowBindingRef.current === workflowBindingKey
+    )
+      return;
+    const hadContext = Boolean(
+      workflowContextRef.current?.context_id || workflowContextBusy,
+    );
+    workflowContextSequence.current += 1;
+    workflowActionSequence.current += 1;
+    workflowOptionSequence.current = {};
+    workflowBindingRef.current = "";
+    workflowContextRef.current = null;
+    setWorkflowContext(null);
+    setWorkflowContextBusy(false);
+    setWorkflowOperations([]);
+    setWorkflowOperation(null);
+    setWorkflowInputs({});
+    setWorkflowOptions({});
+    setWorkflowOptionsBusy({});
+    setWorkflowResult(null);
+    setWorkflowProposal(null);
+    setWorkflowProposalStatus(null);
+    setWorkflowMessages([]);
+    setWorkflowDraft("");
+    setWorkflowContextError("");
+    setWorkflowError("");
+    if (hadContext) void invalidateWorkflowServerContext();
+  }, [
+    workflowBindingKey,
+    workflowContextBusy,
+    invalidateWorkflowServerContext,
+  ]);
+
+  useEffect(() => {
+    if (!open || mode !== "workflows" || workflowContextBusy) return;
+    if (
+      workflowBindingRef.current === workflowBindingKey &&
+      workflowContext?.context_id
+    )
+      return;
+    if (
+      workflowBindingRef.current === workflowBindingKey &&
+      workflowContextError
+    )
+      return;
+    void bindWorkflowContext({}, workflowBindingKey);
+  }, [
+    open,
+    mode,
+    workflowContextBusy,
+    workflowContext?.context_id,
+    workflowContextError,
+    workflowBindingKey,
+    bindWorkflowContext,
+  ]);
+
+  const searchWorkflowOptions = useCallback(
+    async (field: string, query: string, operationKey = "context") => {
+      const current = workflowContextRef.current;
+      if (!current || query.trim().length < 2) return;
+      const key = operationKey + ":" + field;
+      const sequence = (workflowOptionSequence.current[key] ?? 0) + 1;
+      workflowOptionSequence.current[key] = sequence;
+      setWorkflowOptionsBusy((values) => ({ ...values, [key]: true }));
+      try {
+        const result = await api<WorkflowOptionsResult>(
+          "/api/clinic/assistant/workflows/options",
+          {
+            method: "POST",
+            body: {
+              context_id: current.context_id,
+              operation: operationKey,
+              field,
+              query: query.slice(0, 100),
+              ...(operationKey !== "context" ? { inputs: workflowInputs } : {}),
+            },
+          },
+        );
+        if (
+          sequence !== workflowOptionSequence.current[key] ||
+          workflowContextRef.current?.context_id !== current.context_id
+        )
+          return;
+        setWorkflowOptions((values) => ({ ...values, [key]: result.options }));
+      } catch (error) {
+        if (
+          sequence !== workflowOptionSequence.current[key] ||
+          workflowContextRef.current?.context_id !== current.context_id
+        )
+          return;
+        setWorkflowError(errorState(error, "workflows").message);
+      } finally {
+        if (sequence === workflowOptionSequence.current[key])
+          setWorkflowOptionsBusy((values) => ({ ...values, [key]: false }));
+      }
+    },
+    [workflowInputs],
+  );
+
+  const selectWorkflowOperation = useCallback(
+    (operation: WorkflowOperation) => {
+      setWorkflowOperation(operation);
+      setWorkflowInputs({});
+      setWorkflowOptions({});
+      setWorkflowOptionsBusy({});
+      workflowOptionSequence.current = {};
+      setWorkflowResult(null);
+      setWorkflowProposal(null);
+      setWorkflowProposalStatus(null);
+      setWorkflowError("");
+    },
+    [],
+  );
+
+  const startNewWorkflowTask = useCallback(() => {
+    workflowActionSequence.current += 1;
+    workflowOptionSequence.current = {};
+    setWorkflowOperation(null);
+    setWorkflowInputs({});
+    setWorkflowOptions({});
+    setWorkflowOptionsBusy({});
+    setWorkflowResult(null);
+    setWorkflowProposal(null);
+    setWorkflowProposalStatus(null);
+    setWorkflowError("");
+    setBusy("");
+  }, []);
+
+  const searchSelectedWorkflowOption = useCallback(
+    (field: string, query: string) => {
+      if (workflowOperation)
+        void searchWorkflowOptions(field, query, workflowOperation.key);
+    },
+    [searchWorkflowOptions, workflowOperation],
+  );
+
+  const runWorkflowOperation = useCallback(
+    async (operation: WorkflowOperation, inputs: WorkflowInputs) => {
+      const current = workflowContextRef.current;
+      if (!current || busy) return;
+      const missing = operation.fields.filter(
+        (field) =>
+          field.required &&
+          (inputs[field.key] === null ||
+            inputs[field.key] === undefined ||
+            inputs[field.key] === ""),
+      );
+      if (
+        (operation.patient_required && !current.patient) ||
+        (operation.encounter_required && !current.encounter) ||
+        missing.length
+      ) {
+        setWorkflowOperation(operation);
+        setWorkflowInputs(inputs);
+        setWorkflowMessages((existing) => [
+          ...existing,
+          {
+            role: "assistant",
+            text:
+              operation.patient_required && !current.patient
+                ? "Select the patient context above before I can run this workflow."
+                : operation.encounter_required && !current.encounter
+                  ? "Select the encounter context above before I can run this workflow."
+                  : "Complete " +
+                    missing.map((field) => field.label).join(", ") +
+                    " below to continue.",
+          },
+        ]);
+        return;
+      }
+      const contextId = current.context_id;
+      const sequence = ++workflowActionSequence.current;
+      setBusy(
+        operation.kind === "read" ? "workflow-read" : "workflow-proposal",
+      );
+      setWorkflowError("");
+      setWorkflowResult(null);
+      setWorkflowProposal(null);
+      setWorkflowProposalStatus(null);
+      try {
+        if (operation.kind === "read") {
+          const result = await api<WorkflowResult>(
+            "/api/clinic/assistant/workflows/read",
+            {
+              method: "POST",
+              body: { context_id: contextId, operation: operation.key, inputs },
+            },
+          );
+          if (
+            sequence !== workflowActionSequence.current ||
+            workflowContextRef.current?.context_id !== contextId
+          )
+            return;
+          if (result.status !== "result" || !Array.isArray(result.sections))
+            throw new Error("The clinic did not return a readable result.");
+          setWorkflowResult(result);
+        } else {
+          const result = await api<WorkflowProposal>(
+            "/api/clinic/assistant/workflows/proposals",
+            {
+              method: "POST",
+              body: { context_id: contextId, operation: operation.key, inputs },
+            },
+          );
+          if (
+            sequence !== workflowActionSequence.current ||
+            workflowContextRef.current?.context_id !== contextId
+          )
+            return;
+          if (!result.proposal_id || result.confirmation_required !== true)
+            throw new Error("The clinic did not prepare a reviewable change.");
+          setWorkflowProposal(result);
+          setWorkflowProposalStatus("ready");
+        }
+      } catch (error) {
+        if (
+          sequence !== workflowActionSequence.current ||
+          workflowContextRef.current?.context_id !== contextId
+        )
+          return;
+        setWorkflowError(errorState(error, "workflows").message);
+      } finally {
+        if (sequence === workflowActionSequence.current) setBusy("");
+      }
+    },
+    [busy],
+  );
+
+  const changeWorkflowBinding = useCallback(
+    async (body: Record<string, unknown>) => {
+      setWorkflowOperation(null);
+      setWorkflowInputs({});
+      setWorkflowOptions({});
+      setWorkflowOptionsBusy({});
+      workflowOptionSequence.current = {};
+      setWorkflowResult(null);
+      setWorkflowProposal(null);
+      setWorkflowProposalStatus(null);
+      setWorkflowMessages([]);
+      setWorkflowDraft("");
+      setWorkflowError("");
+      const currentId = workflowContextRef.current?.context_id;
+      await bindWorkflowContext(
+        { ...(currentId ? { context_id: currentId } : {}), ...body },
+        workflowBindingKey,
+      );
+    },
+    [bindWorkflowContext, workflowBindingKey],
+  );
+
+  const searchWorkflowContextOption = useCallback(
+    (field: "patient" | "encounter", query: string) => {
+      void searchWorkflowOptions(field, query, "context");
+    },
+    [searchWorkflowOptions],
+  );
+
+  const selectWorkflowPatient = useCallback(
+    (selectionId: string) => {
+      void changeWorkflowBinding({ patient_selection_id: selectionId });
+    },
+    [changeWorkflowBinding],
+  );
+
+  const selectWorkflowEncounter = useCallback(
+    (selectionId: string) => {
+      void changeWorkflowBinding({ encounter_selection_id: selectionId });
+    },
+    [changeWorkflowBinding],
+  );
+
+  const clearWorkflowPatient = useCallback(() => {
+    void changeWorkflowBinding({ clear_patient: true });
+  }, [changeWorkflowBinding]);
+
+  const sendWorkflowMessage = async (event: FormEvent) => {
+    event.preventDefault();
+    const current = workflowContextRef.current;
+    const text = workflowDraft.trim();
+    if (!current || !text || busy) return;
+    const contextId = current.context_id;
+    const sequence = ++workflowActionSequence.current;
+    setWorkflowDraft("");
+    setWorkflowMessages((existing) => [...existing, { role: "user", text }]);
+    setWorkflowError("");
+    setBusy("workflow-message");
+    try {
+      const response = await api<WorkflowMessageResult>(
+        "/api/clinic/assistant/workflows/messages",
+        {
+          method: "POST",
+          body: {
+            context_id: contextId,
+            message: text,
+            ...(workflowOperation && !workflowResult && !workflowProposal
+              ? { operation: workflowOperation.key }
+              : {}),
+          },
+          timeoutMs: 45_000,
+        },
+      );
+      if (
+        sequence !== workflowActionSequence.current ||
+        workflowContextRef.current?.context_id !== contextId
+      )
+        return;
+      const operation = response.operation?.key
+        ? workflowOperations.find(
+            (item) =>
+              item.key === response.operation?.key &&
+              (item.availability === "available" ||
+                (response.missing_context?.includes("patient") &&
+                  item.patient_required) ||
+                (response.missing_context?.includes("encounter") &&
+                  item.encounter_required)),
+          )
+        : undefined;
+      const missingPatientContext =
+        response.missing_context?.includes("patient") === true;
+      const missingEncounterContext =
+        response.missing_context?.includes("encounter") === true;
+      const assistantText = operation
+        ? missingPatientContext ||
+          (operation.patient_required && !current.patient)
+          ? `Select a patient above to continue with ${operation.title}.`
+          : missingEncounterContext ||
+              (operation.encounter_required && !current.encounter)
+            ? `Select an encounter above to continue with ${operation.title}.`
+            : response.missing_fields?.length
+              ? `Complete the requested details below to continue with ${operation.title}.`
+              : operation.kind === "read"
+                ? `Showing ${operation.title} below.`
+                : "I’ll prepare " +
+                  operation.title +
+                  " for review. Nothing is saved until you confirm."
+        : response.operation
+          ? "I couldn’t match that suggestion to an available workflow. Choose a task from the catalogue."
+          : response.status === "clarify"
+            ? response.message ||
+              response.clarification ||
+              "Add a little more detail so I can help."
+            : "Choose a workflow or add details so I can help.";
+      if (response.status !== "handoff")
+        setWorkflowMessages((existing) => [
+          ...existing,
+          { role: "assistant", text: assistantText },
+        ]);
+      if (response.status === "handoff") {
+        setWorkflowMessages((existing) => [
+          ...existing,
+          {
+            role: "assistant",
+            text:
+              response.message || "Continue this task in the clinic workspace.",
+            sourcePath: internalWorkflowPath(response.source_path),
+          },
+        ]);
+        return;
+      }
+      if (response.operation && !operation) {
+        setWorkflowError(
+          "The suggested workflow is not available in this clinic context. Choose an available task from the catalogue.",
+        );
+        return;
+      }
+      if (operation) {
+        const inputs = suggestedInputs(operation, response.inputs);
+        selectWorkflowOperation(operation);
+        setWorkflowInputs(inputs);
+        if (
+          missingPatientContext ||
+          missingEncounterContext ||
+          (operation.patient_required && !current.patient) ||
+          (operation.encounter_required && !current.encounter)
+        )
+          return;
+        await runWorkflowOperation(operation, inputs);
+      }
+    } catch (error) {
+      if (
+        sequence !== workflowActionSequence.current ||
+        workflowContextRef.current?.context_id !== contextId
+      )
+        return;
+      const failure = errorState(error, "workflows");
+      setWorkflowError(failure.message);
+      setWorkflowMessages((existing) => [
+        ...existing,
+        { role: "assistant", text: failure.message },
+      ]);
+    } finally {
+      if (sequence === workflowActionSequence.current) setBusy("");
+    }
+  };
+
+  const loadWorkflowProposal = async () => {
+    const current = workflowContextRef.current;
+    const proposal = workflowProposal;
+    if (!current || !proposal || busy) return;
+    const contextId = current.context_id;
+    const sequence = ++workflowActionSequence.current;
+    setBusy("workflow-readback");
+    try {
+      const result = await api<WorkflowProposalReadback>(
+        "/api/clinic/assistant/workflows/proposals/" +
+          encodeURIComponent(proposal.proposal_id) +
+          "?context_id=" +
+          encodeURIComponent(contextId),
+      );
+      if (
+        sequence !== workflowActionSequence.current ||
+        workflowContextRef.current?.context_id !== contextId
+      )
+        return;
+      if (isWorkflowResult(result)) {
+        setWorkflowProposal(null);
+        setWorkflowProposalStatus(null);
+        setWorkflowResult(result);
+        setWorkflowError("");
+      } else {
+        setWorkflowProposal(result as WorkflowProposal);
+        const status = (result as WorkflowProposal).status;
+        setWorkflowProposalStatus(
+          status === "expired"
+            ? "expired"
+            : status === "denied"
+              ? "denied"
+              : status === "stale" || status === "conflicted"
+                ? "stale"
+                : status === "pending" || status === "proposal"
+                  ? "ready"
+                  : "unknown",
+        );
+        setWorkflowError(
+          status === "pending" || status === "proposal"
+            ? ""
+            : status === "expired"
+              ? "This proposal expired. Prepare a new review."
+              : status === "denied"
+                ? "Your current role cannot confirm this change."
+                : status === "stale" || status === "conflicted"
+                  ? "The record changed before confirmation. Prepare a new review."
+                  : "The clinic has not confirmed the saved result yet.",
+        );
+      }
+    } catch (error) {
+      if (
+        sequence !== workflowActionSequence.current ||
+        workflowContextRef.current?.context_id !== contextId
+      )
+        return;
+      setWorkflowProposalStatus("unknown");
+      setWorkflowError(
+        "The saved outcome is still unknown. Do not confirm again until the clinic result is checked. " +
+          errorState(error, "workflows").message,
+      );
+    } finally {
+      if (sequence === workflowActionSequence.current) setBusy("");
+    }
+  };
+
+  const confirmWorkflowProposal = async () => {
+    const current = workflowContextRef.current;
+    const proposal = workflowProposal;
+    if (
+      !current ||
+      !proposal ||
+      busy ||
+      workflowProposalExpired ||
+      workflowProposalStatus !== "ready"
+    )
+      return;
+    const contextId = current.context_id;
+    const sequence = ++workflowActionSequence.current;
+    setBusy("workflow-confirm");
+    setWorkflowError("");
+    try {
+      const result = await api<WorkflowProposalReadback>(
+        "/api/clinic/assistant/workflows/proposals/" +
+          encodeURIComponent(proposal.proposal_id) +
+          "/confirm",
+        { method: "POST", body: { context_id: contextId } },
+      );
+      if (
+        sequence !== workflowActionSequence.current ||
+        workflowContextRef.current?.context_id !== contextId
+      )
+        return;
+      if (isWorkflowResult(result)) {
+        setWorkflowResult(result);
+        setWorkflowProposal(null);
+        setWorkflowProposalStatus(null);
+      } else {
+        setWorkflowProposalStatus("unknown");
+        setWorkflowError(
+          "The confirmation response did not include the persisted result. Check the clinic record before trying again.",
+        );
+      }
+    } catch (error) {
+      if (
+        sequence !== workflowActionSequence.current ||
+        workflowContextRef.current?.context_id !== contextId
+      )
+        return;
+      if (error instanceof ApiError && error.status === 403) {
+        setWorkflowProposalStatus("denied");
+        setWorkflowError("Your current role cannot confirm this change.");
+      } else if (
+        error instanceof ApiError &&
+        (error.status === 410 || error.code === "proposal_expired")
+      ) {
+        setWorkflowProposalStatus("expired");
+        setWorkflowError("This proposal expired. Prepare a new review.");
+      } else if (error instanceof ApiError && error.status === 409) {
+        setWorkflowProposalStatus("stale");
+        setWorkflowError(
+          "The record changed before confirmation. Check its status.",
+        );
+      } else {
+        setWorkflowProposalStatus("unknown");
+        setWorkflowError(
+          "The confirmation outcome is unknown. Check the saved result before trying again.",
+        );
+      }
+    } finally {
+      if (sequence === workflowActionSequence.current) setBusy("");
+    }
+  };
+
   useEffect(() => {
     if (scopeRef.current === scopeKey) return;
     scopeRef.current = scopeKey;
@@ -504,11 +1310,18 @@ export function ClinicAssistant({
     attemptedBinding.current = "";
     if (hadAssistantContext && !invalidatingContext.current) {
       void invalidateServerContext().finally(() => {
-        if (open && route.patientId)
+        if (open && mode === "booking" && route.patientId)
           void bindContext(route.patientId, route.encounterId);
       });
     }
-  }, [scopeKey, context?.context_id, route.patientId, route.encounterId, open]);
+  }, [
+    scopeKey,
+    context?.context_id,
+    route.patientId,
+    route.encounterId,
+    open,
+    mode,
+  ]);
 
   const rebindAfterContextConflict = (error: unknown) => {
     if (!(error instanceof ApiError) || error.code !== "stale_context") return;
@@ -527,7 +1340,13 @@ export function ClinicAssistant({
   };
 
   useEffect(() => {
-    if (!open || invalidatingContext.current || !targetPatientId || contextBusy)
+    if (
+      !open ||
+      mode !== "booking" ||
+      invalidatingContext.current ||
+      !targetPatientId ||
+      contextBusy
+    )
       return;
     const expected = `${scopeKey}:${targetPatientId}:${targetEncounterId ?? "none"}`;
     if (attemptedBinding.current === expected && context?.context_id) return;
@@ -535,6 +1354,7 @@ export function ClinicAssistant({
     void bindContext(targetPatientId, targetEncounterId);
   }, [
     open,
+    mode,
     targetPatientId,
     targetEncounterId,
     scopeKey,
@@ -947,6 +1767,46 @@ export function ClinicAssistant({
     [context?.visit_types, visitTypeId],
   );
 
+  const closeAssistant = () => {
+    setOpen(false);
+    const hasBookingContext = Boolean(
+      activeContext.current?.context_id || attemptedBinding.current,
+    );
+    const hasWorkflowContext = Boolean(
+      workflowContextRef.current?.context_id || workflowBindingRef.current,
+    );
+    contextSequence.current += 1;
+    actionSequence.current += 1;
+    workflowContextSequence.current += 1;
+    workflowActionSequence.current += 1;
+    activeContext.current = null;
+    workflowContextRef.current = null;
+    workflowBindingRef.current = "";
+    setContext(null);
+    setWorkflowContext(null);
+    setWorkflowContextBusy(false);
+    setWorkflowOperations([]);
+    setWorkflowOperation(null);
+    setWorkflowInputs({});
+    setWorkflowOptions({});
+    setWorkflowOptionsBusy({});
+    setWorkflowResult(null);
+    setWorkflowProposal(null);
+    setWorkflowProposalStatus(null);
+    setWorkflowMessages([]);
+    setWorkflowDraft("");
+    setWorkflowError("");
+    setWorkflowContextError("");
+    setMessages([]);
+    setDraft("");
+    setOpenings([]);
+    setProposal(null);
+    setProposalState(null);
+    if (hasBookingContext && !invalidatingContext.current)
+      void invalidateServerContext();
+    if (hasWorkflowContext) void invalidateWorkflowServerContext();
+  };
+
   return (
     <>
       <Tooltip describeChild title="Open assistant" placement="right">
@@ -965,7 +1825,7 @@ export function ClinicAssistant({
       <Drawer
         anchor="right"
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeAssistant}
         slotProps={{ paper: { "aria-labelledby": "clinic-assistant-title" } }}
         sx={{
           "& .MuiDrawer-paper": {
@@ -990,7 +1850,9 @@ export function ClinicAssistant({
                 Assistant
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Appointment scheduling
+                {mode === "workflows"
+                  ? "Clinic workflows"
+                  : "Book an appointment"}
               </Typography>
             </Box>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
@@ -1010,7 +1872,7 @@ export function ClinicAssistant({
               <Tooltip title="Close assistant">
                 <IconButton
                   aria-label="Close assistant"
-                  onClick={() => setOpen(false)}
+                  onClick={closeAssistant}
                 >
                   <CloseRoundedIcon />
                 </IconButton>
@@ -1018,86 +1880,51 @@ export function ClinicAssistant({
             </Stack>
           </Stack>
           <Divider />
+          <Tabs
+            value={mode}
+            onChange={(_, value: WorkflowMode) => setMode(value)}
+            variant="fullWidth"
+            aria-label="Assistant mode"
+          >
+            <Tab
+              value="workflows"
+              label="Clinic workflows"
+              id="assistant-tab-workflows"
+            />
+            <Tab
+              value="booking"
+              label="Book an appointment"
+              id="assistant-tab-booking"
+            />
+          </Tabs>
+          <Divider />
           <Box className="clinic-assistant__context">
             <Typography variant="body2" noWrap>
-              {practiceName} · {siteName || "Location not selected"}
+              {mode === "workflows"
+                ? workflowContext?.practice.name || practiceName
+                : practiceName}
+              {" · "}
+              {mode === "workflows"
+                ? workflowContext?.site?.name || "All locations"
+                : siteName || "Location not selected"}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              Patient: {contextPatientLabel}
-              {context?.encounter ? " · Current encounter" : ""}
-            </Typography>
+            {mode === "booking" && (
+              <Typography variant="caption" color="text.secondary" noWrap>
+                Patient: {contextPatientLabel}
+                {context?.encounter ? " · Current encounter" : ""}
+              </Typography>
+            )}
           </Box>
           <Divider />
           <Box className="clinic-assistant__body">
-            {!displayPatient && !context && (
-              <Stack spacing={1.5}>
-                <Typography variant="subtitle2">
-                  Choose the patient for this appointment
-                </Typography>
-                <Autocomplete<PatientSelection>
-                  options={patientOptions}
-                  value={null}
-                  inputValue={patientQuery}
-                  loading={patientBusy}
-                  filterOptions={(options) => options}
-                  getOptionKey={(option) => option.id}
-                  getOptionLabel={(option) =>
-                    `${option.display_name}${option.reference ? ` · ${option.reference}` : ""}`
-                  }
-                  isOptionEqualToValue={(option, value) =>
-                    option.id === value.id
-                  }
-                  onInputChange={(_, value, reason) => {
-                    if (reason === "input" || reason === "clear")
-                      setPatientQuery(value);
-                  }}
-                  onChange={(_, patient) => {
-                    if (patient) bindSelectedPatient(patient);
-                  }}
-                  noOptionsText={
-                    patientQuery.trim().length < 2
-                      ? "Type at least two characters."
-                      : "No matching patients."
-                  }
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Find patient"
-                      placeholder="Name or clinic reference"
-                    />
-                  )}
-                />
-                {patientError && (
-                  <Alert severity="error">
-                    Patient search failed. {patientError}
-                  </Alert>
-                )}
-              </Stack>
-            )}
-            {displayPatient && (
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: "center", justifyContent: "space-between" }}
-                >
-                  <Typography variant="subtitle2">Booking details</Typography>
-                  {!route.patientId && (
-                    <Button
-                      size="small"
-                      onClick={() => bindSelectedPatient(null)}
-                      disabled={busy !== "" || contextBusy}
-                    >
-                      Change patient
-                    </Button>
-                  )}
-                </Stack>
-                {contextBusy && (
+            {mode === "workflows" ? (
+              <>
+                {!workflowContextReady && workflowContextBusy && (
                   <Alert icon={<CircularProgress size={18} />} severity="info">
                     Checking the current clinic context…
                   </Alert>
                 )}
-                {contextError && (
+                {workflowContextError && (
                   <Alert
                     severity="warning"
                     action={
@@ -1105,362 +1932,659 @@ export function ClinicAssistant({
                         color="inherit"
                         size="small"
                         onClick={() => {
-                          attemptedBinding.current = "";
-                          if (targetPatientId)
-                            void bindContext(
-                              targetPatientId,
-                              targetEncounterId,
-                            );
+                          workflowBindingRef.current = "";
+                          void bindWorkflowContext({}, workflowBindingKey);
                         }}
                       >
                         Retry
                       </Button>
                     }
                   >
-                    {contextError}
+                    {workflowContextError}
                   </Alert>
                 )}
-                {contextReady && context && (
-                  <>
-                    <FormControl fullWidth size="small">
-                      <InputLabel id="assistant-visit-type-label">
-                        Visit type
-                      </InputLabel>
-                      <Select
-                        labelId="assistant-visit-type-label"
-                        label="Visit type"
-                        value={visitTypeId}
-                        onChange={(event) => setVisitTypeId(event.target.value)}
-                        disabled={
-                          busy !== "" || context.visit_types.length === 0
+                {workflowContextReady && workflowContext && (
+                  <WorkflowContextPicker
+                    context={workflowContext}
+                    patientOptions={workflowOptions["context:patient"] ?? []}
+                    encounterOptions={
+                      workflowOptions["context:encounter"] ?? []
+                    }
+                    disabled={busy !== "" || workflowContextBusy}
+                    onSearch={searchWorkflowContextOption}
+                    onSelectPatient={selectWorkflowPatient}
+                    onSelectEncounter={selectWorkflowEncounter}
+                    onClearPatient={clearWorkflowPatient}
+                  />
+                )}
+                {workflowMessages.length > 0 && (
+                  <Box
+                    className="clinic-assistant__conversation"
+                    role="log"
+                    aria-label="Assistant conversation"
+                    aria-live="polite"
+                    aria-relevant="additions text"
+                  >
+                    {workflowMessages.map((message, index) => (
+                      <Paper
+                        key={"workflow-" + index + "-" + message.role}
+                        variant="outlined"
+                        className={
+                          "clinic-assistant__message clinic-assistant__message--" +
+                          message.role
                         }
                       >
-                        {context.visit_types.map((item) => (
-                          <MenuItem
-                            key={item.selection_id}
-                            value={item.selection_id}
-                          >
-                            {item.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    {context.visit_types.length === 0 && (
-                      <Alert severity="info">
-                        No visit types are available for this clinic context.
-                      </Alert>
-                    )}
-                    <FormControl fullWidth size="small">
-                      <InputLabel id="assistant-clinician-label">
-                        Clinician
-                      </InputLabel>
-                      <Select
-                        labelId="assistant-clinician-label"
-                        label="Clinician"
-                        value={clinicianId}
-                        onChange={(event) => setClinicianId(event.target.value)}
-                        disabled={busy !== ""}
-                      >
-                        {context.clinicians.map((item) => (
-                          <MenuItem
-                            key={item.selection_id}
-                            value={item.selection_id}
-                          >
-                            {item.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    {context.clinicians.length === 0 && (
-                      <Alert severity="info">
-                        No clinicians are available for scheduling in this
-                        clinic context.
-                      </Alert>
-                    )}
-                    <TextField
-                      label="Preferred date"
-                      type="date"
-                      value={date}
-                      onChange={(event) => setDate(event.target.value)}
-                      slotProps={{
-                        inputLabel: { shrink: true },
-                        htmlInput: {
-                          min: new Date().toISOString().slice(0, 10),
-                        },
-                      }}
-                      fullWidth
-                      size="small"
-                      disabled={busy !== ""}
-                    />
-                    <Button
-                      variant="outlined"
-                      startIcon={
-                        busy === "openings" ? (
-                          <CircularProgress size={16} />
-                        ) : (
-                          <RefreshRoundedIcon />
-                        )
-                      }
-                      disabled={
-                        !date || !visitTypeId || !clinicianId || busy !== ""
-                      }
-                      onClick={() => void findOpeningsDirectly()}
-                    >
-                      Find openings directly
-                    </Button>
-                  </>
+                        <Typography variant="caption" color="text.secondary">
+                          {message.role === "user" ? "You" : "Assistant"}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            whiteSpace: "pre-wrap",
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {message.text}
+                        </Typography>
+                        {message.sourcePath && (
+                          <Link href={message.sourcePath} underline="hover">
+                            Open clinic workflow
+                          </Link>
+                        )}
+                      </Paper>
+                    ))}
+                  </Box>
                 )}
-                {!contextReady && !contextBusy && !contextError && (
-                  <Alert severity="info">
-                    The assistant is loading clinic scheduling options.
-                  </Alert>
+                {workflowError && (
+                  <Alert severity="warning">{workflowError}</Alert>
                 )}
-              </Stack>
-            )}
-
-            <Box
-              className="clinic-assistant__conversation"
-              role="log"
-              aria-label="Assistant conversation"
-              aria-live="polite"
-              aria-relevant="additions text"
-            >
-              {messages.length === 0 && contextReady && (
-                <Typography color="text.secondary" variant="body2">
-                  Ask for appointment options in your own words, or use the
-                  direct search above. You will review the exact appointment
-                  before confirming.
-                </Typography>
-              )}
-              {messages.map((message, index) => (
-                <Paper
-                  key={`${index}-${message.role}`}
-                  variant="outlined"
-                  className={`clinic-assistant__message clinic-assistant__message--${message.role}`}
-                >
-                  <Typography variant="caption" color="text.secondary">
-                    {message.role === "user" ? "You" : "Assistant"}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-                  >
-                    {message.text}
-                  </Typography>
-                </Paper>
-              ))}
-            </Box>
-
-            {visibleError && !contextError && (
-              <Alert
-                severity={
-                  visibleError.kind === "warning" ||
-                  visibleError.kind === "quota"
-                    ? "warning"
-                    : "error"
-                }
-              >
-                {visibleError.message}
-              </Alert>
-            )}
-
-            {openings.length > 0 && (
-              <Stack
-                spacing={1}
-                className="clinic-assistant__openings"
-                aria-label="Available appointment openings"
-              >
-                <Typography variant="subtitle2">Available openings</Typography>
-                {openings.map((opening) => (
+                {workflowOperation && (
                   <Paper
-                    key={opening.opening_id}
+                    ref={workflowFormRef}
                     variant="outlined"
-                    className="clinic-assistant__opening"
+                    className="clinic-assistant__workflow-form"
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {formatOpening(opening, displayTimezone)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {[
-                        opening.visit_type_name || selectedVisitType?.name,
-                        opening.clinician_name,
-                        opening.site_name,
-                        opening.room_name,
-                        opening.visit_modality,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={busy !== ""}
-                      onClick={() => void selectOpening(opening)}
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
                     >
-                      {busy === "proposal"
-                        ? "Preparing review…"
-                        : "Review this appointment"}
-                    </Button>
-                  </Paper>
-                ))}
-              </Stack>
-            )}
-
-            {proposal && (
-              <Paper variant="outlined" className="clinic-assistant__proposal">
-                {proposalState === "unknown" ? (
-                  <Alert severity="warning">
-                    The confirmation outcome is unknown. Check the saved result
-                    before trying again.
-                  </Alert>
-                ) : proposalState === "expired" || expired ? (
-                  <Alert severity="warning">
-                    This proposal expired. Find openings again to make a new
-                    proposal.
-                  </Alert>
-                ) : proposalState === "stale" ? (
-                  <Alert severity="warning">
-                    The opening changed before confirmation. Find openings again
-                    to choose a current time.
-                  </Alert>
-                ) : proposalState === "denied" ? (
-                  <Alert severity="warning">
-                    Your current role cannot confirm this appointment.
-                  </Alert>
-                ) : (proposal.state === "confirmed" ||
-                    proposal.status === "confirmed") &&
-                  appointment ? (
-                  <>
-                    <Typography component="h3" variant="subtitle1">
-                      Saved appointment
-                    </Typography>
-                    <Typography variant="body2">
-                      {appointmentName(appointment, "patient")}
-                    </Typography>
-                    <Typography variant="body2">
-                      {formatAppointment(
-                        appointment,
-                        appointment.timezone || displayTimezone,
-                      )}
-                    </Typography>
-                    <Typography variant="body2">
-                      {appointmentName(appointment, "visit_type")} ·{" "}
-                      {appointmentName(appointment, "clinician")} ·{" "}
-                      {appointmentName(appointment, "site")}
-                    </Typography>
-                    {proposal.receipt_id && (
-                      <Alert severity="success" sx={{ mt: 1 }}>
-                        The persisted appointment and audit receipt were read
-                        back.
-                      </Alert>
-                    )}
-                    {!proposal.receipt_id && (
-                      <Alert severity="warning" sx={{ mt: 1 }}>
-                        The appointment was returned, but the audit receipt was
-                        not included in the response.
-                      </Alert>
-                    )}
-                    <Button
-                      component="a"
-                      size="small"
-                      href={scheduleHref(appointment, displayTimezone)}
-                      data-demo-tour-control="true"
-                    >
-                      Open appointment date in schedule
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Typography component="h3" variant="subtitle1">
-                      Review appointment
-                    </Typography>
-                    <Typography variant="body2">
-                      {appointment
-                        ? appointmentName(appointment, "patient")
-                        : context?.patient?.name ||
-                          selectedPatient?.display_name ||
-                          "Selected patient"}
-                    </Typography>
-                    <Typography variant="body2">
-                      {appointment
-                        ? formatAppointment(
-                            appointment,
-                            appointment.timezone || displayTimezone,
-                          )
-                        : "Appointment time not returned"}
-                    </Typography>
-                    <Typography variant="body2">
-                      {appointment
-                        ? `${appointmentName(appointment, "visit_type")} · ${appointmentName(appointment, "clinician")} · ${appointmentName(appointment, "site")}`
-                        : "Review the details returned by the clinic before confirming."}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {proposal.expires_at
-                        ? `Proposal expires ${new Date(proposal.expires_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-                        : "Proposal expiration unavailable"}
-                    </Typography>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <Typography component="h3" variant="subtitle1">
+                        {workflowOperation.title}
+                      </Typography>
                       <Button
-                        variant="contained"
-                        disabled={
-                          busy !== "" ||
-                          expired ||
-                          proposalState !== "ready" ||
-                          !appointment
-                        }
-                        onClick={() => void confirmProposal()}
+                        size="small"
+                        disabled={busy !== ""}
+                        onClick={startNewWorkflowTask}
                       >
-                        {busy === "confirm"
-                          ? "Confirming…"
-                          : "Confirm appointment"}
+                        New task
                       </Button>
                     </Stack>
-                    {busy === "readback" && (
-                      <Typography variant="body2" role="status">
-                        Checking the saved appointment…
-                      </Typography>
-                    )}
-                  </>
+                    <Typography variant="body2" color="text.secondary">
+                      {workflowOperation.description}
+                    </Typography>
+                    {workflowOperation.patient_required &&
+                      !workflowContext?.patient && (
+                        <Alert severity="info">
+                          Choose a patient context above to continue.
+                        </Alert>
+                      )}
+                    {workflowOperation.encounter_required &&
+                      !workflowContext?.encounter && (
+                        <Alert severity="info">
+                          Choose an encounter context above to continue.
+                        </Alert>
+                      )}
+                    <WorkflowForm
+                      operation={workflowOperation}
+                      values={workflowInputs}
+                      optionsByField={Object.fromEntries(
+                        workflowOperation.fields.map((field) => [
+                          field.key,
+                          workflowOptions[
+                            workflowOperation.key + ":" + field.key
+                          ] ?? [],
+                        ]),
+                      )}
+                      loadingOptions={Object.fromEntries(
+                        workflowOperation.fields.map((field) => [
+                          field.key,
+                          workflowOptionsBusy[
+                            workflowOperation.key + ":" + field.key
+                          ] === true,
+                        ]),
+                      )}
+                      disabled={!workflowContextReady || busy !== ""}
+                      onChange={(key, value) =>
+                        setWorkflowInputs((values) => ({
+                          ...values,
+                          [key]: value,
+                        }))
+                      }
+                      onSearchOption={searchSelectedWorkflowOption}
+                      onSubmit={() =>
+                        void runWorkflowOperation(
+                          workflowOperation,
+                          workflowInputs,
+                        )
+                      }
+                    />
+                  </Paper>
                 )}
-                {(proposalState === "unknown" ||
-                  actionError?.kind === "warning") && (
-                  <Button
-                    size="small"
+                {workflowProposal && (
+                  <WorkflowProposalReview
+                    proposal={workflowProposal}
+                    expired={
+                      workflowProposalExpired ||
+                      workflowProposalStatus === "expired"
+                    }
+                    busy={busy !== ""}
+                    error={
+                      workflowError ||
+                      (workflowProposalStatus === "denied"
+                        ? "Your current role cannot confirm this change."
+                        : workflowProposalStatus === "stale"
+                          ? "This proposal is stale."
+                          : workflowProposalStatus === "unknown"
+                            ? "The confirmation outcome is unknown."
+                            : "")
+                    }
+                    onConfirm={() => void confirmWorkflowProposal()}
+                    onReadback={() => void loadWorkflowProposal()}
+                  />
+                )}
+                {workflowResult && (
+                  <Box ref={workflowResultRef}>
+                    <WorkflowResultView result={workflowResult} />
+                  </Box>
+                )}
+                {workflowContextReady && (
+                  <WorkflowCatalog
+                    operations={workflowOperations}
+                    selectedKey={workflowOperation?.key ?? ""}
                     disabled={busy !== ""}
-                    onClick={() => void loadProposal(proposal.proposal_id)}
-                  >
-                    Check proposal status
-                  </Button>
+                    loading={workflowContextBusy}
+                    hasPatient={Boolean(workflowContext?.patient)}
+                    hasEncounter={Boolean(workflowContext?.encounter)}
+                    onSelect={selectWorkflowOperation}
+                  />
                 )}
-              </Paper>
+              </>
+            ) : (
+              <>
+                {!displayPatient && !context && (
+                  <Stack spacing={1.5}>
+                    <Typography variant="subtitle2">
+                      Choose the patient for this appointment
+                    </Typography>
+                    <Autocomplete<PatientSelection>
+                      options={patientOptions}
+                      value={null}
+                      inputValue={patientQuery}
+                      loading={patientBusy}
+                      filterOptions={(options) => options}
+                      getOptionKey={(option) => option.id}
+                      getOptionLabel={(option) =>
+                        `${option.display_name}${option.reference ? ` · ${option.reference}` : ""}`
+                      }
+                      isOptionEqualToValue={(option, value) =>
+                        option.id === value.id
+                      }
+                      onInputChange={(_, value, reason) => {
+                        if (reason === "input" || reason === "clear")
+                          setPatientQuery(value);
+                      }}
+                      onChange={(_, patient) => {
+                        if (patient) bindSelectedPatient(patient);
+                      }}
+                      noOptionsText={
+                        patientQuery.trim().length < 2
+                          ? "Type at least two characters."
+                          : "No matching patients."
+                      }
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Find patient"
+                          placeholder="Name or clinic reference"
+                        />
+                      )}
+                    />
+                    {patientError && (
+                      <Alert severity="error">
+                        Patient search failed. {patientError}
+                      </Alert>
+                    )}
+                  </Stack>
+                )}
+                {displayPatient && (
+                  <Stack spacing={1.5}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Typography variant="subtitle2">
+                        Booking details
+                      </Typography>
+                      {!route.patientId && (
+                        <Button
+                          size="small"
+                          onClick={() => bindSelectedPatient(null)}
+                          disabled={busy !== "" || contextBusy}
+                        >
+                          Change patient
+                        </Button>
+                      )}
+                    </Stack>
+                    {contextBusy && (
+                      <Alert
+                        icon={<CircularProgress size={18} />}
+                        severity="info"
+                      >
+                        Checking the current clinic context…
+                      </Alert>
+                    )}
+                    {contextError && (
+                      <Alert
+                        severity="warning"
+                        action={
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => {
+                              attemptedBinding.current = "";
+                              if (targetPatientId)
+                                void bindContext(
+                                  targetPatientId,
+                                  targetEncounterId,
+                                );
+                            }}
+                          >
+                            Retry
+                          </Button>
+                        }
+                      >
+                        {contextError}
+                      </Alert>
+                    )}
+                    {contextReady && context && (
+                      <>
+                        <FormControl fullWidth size="small">
+                          <InputLabel id="assistant-visit-type-label">
+                            Visit type
+                          </InputLabel>
+                          <Select
+                            labelId="assistant-visit-type-label"
+                            label="Visit type"
+                            value={visitTypeId}
+                            onChange={(event) =>
+                              setVisitTypeId(event.target.value)
+                            }
+                            disabled={
+                              busy !== "" || context.visit_types.length === 0
+                            }
+                          >
+                            {context.visit_types.map((item) => (
+                              <MenuItem
+                                key={item.selection_id}
+                                value={item.selection_id}
+                              >
+                                {item.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        {context.visit_types.length === 0 && (
+                          <Alert severity="info">
+                            No visit types are available for this clinic
+                            context.
+                          </Alert>
+                        )}
+                        <FormControl fullWidth size="small">
+                          <InputLabel id="assistant-clinician-label">
+                            Clinician
+                          </InputLabel>
+                          <Select
+                            labelId="assistant-clinician-label"
+                            label="Clinician"
+                            value={clinicianId}
+                            onChange={(event) =>
+                              setClinicianId(event.target.value)
+                            }
+                            disabled={busy !== ""}
+                          >
+                            {context.clinicians.map((item) => (
+                              <MenuItem
+                                key={item.selection_id}
+                                value={item.selection_id}
+                              >
+                                {item.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        {context.clinicians.length === 0 && (
+                          <Alert severity="info">
+                            No clinicians are available for scheduling in this
+                            clinic context.
+                          </Alert>
+                        )}
+                        <TextField
+                          label="Preferred date"
+                          type="date"
+                          value={date}
+                          onChange={(event) => setDate(event.target.value)}
+                          slotProps={{
+                            inputLabel: { shrink: true },
+                            htmlInput: {
+                              min: new Date().toISOString().slice(0, 10),
+                            },
+                          }}
+                          fullWidth
+                          size="small"
+                          disabled={busy !== ""}
+                        />
+                        <Button
+                          variant="outlined"
+                          startIcon={
+                            busy === "openings" ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <RefreshRoundedIcon />
+                            )
+                          }
+                          disabled={
+                            !date || !visitTypeId || !clinicianId || busy !== ""
+                          }
+                          onClick={() => void findOpeningsDirectly()}
+                        >
+                          Find openings directly
+                        </Button>
+                      </>
+                    )}
+                    {!contextReady && !contextBusy && !contextError && (
+                      <Alert severity="info">
+                        The assistant is loading clinic scheduling options.
+                      </Alert>
+                    )}
+                  </Stack>
+                )}
+
+                <Box
+                  className="clinic-assistant__conversation"
+                  role="log"
+                  aria-label="Assistant conversation"
+                  aria-live="polite"
+                  aria-relevant="additions text"
+                >
+                  {messages.length === 0 && contextReady && (
+                    <Typography color="text.secondary" variant="body2">
+                      Ask for appointment options in your own words, or use the
+                      direct search above. You will review the exact appointment
+                      before confirming.
+                    </Typography>
+                  )}
+                  {messages.map((message, index) => (
+                    <Paper
+                      key={`${index}-${message.role}`}
+                      variant="outlined"
+                      className={`clinic-assistant__message clinic-assistant__message--${message.role}`}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {message.role === "user" ? "You" : "Assistant"}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          whiteSpace: "pre-wrap",
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {message.text}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Box>
+
+                {visibleError && !contextError && (
+                  <Alert
+                    severity={
+                      visibleError.kind === "warning" ||
+                      visibleError.kind === "quota"
+                        ? "warning"
+                        : "error"
+                    }
+                  >
+                    {visibleError.message}
+                  </Alert>
+                )}
+
+                {openings.length > 0 && (
+                  <Stack
+                    spacing={1}
+                    className="clinic-assistant__openings"
+                    aria-label="Available appointment openings"
+                  >
+                    <Typography variant="subtitle2">
+                      Available openings
+                    </Typography>
+                    {openings.map((opening) => (
+                      <Paper
+                        key={opening.opening_id}
+                        variant="outlined"
+                        className="clinic-assistant__opening"
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {formatOpening(opening, displayTimezone)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {[
+                            opening.visit_type_name || selectedVisitType?.name,
+                            opening.clinician_name,
+                            opening.site_name,
+                            opening.room_name,
+                            opening.visit_modality,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={busy !== ""}
+                          onClick={() => void selectOpening(opening)}
+                        >
+                          {busy === "proposal"
+                            ? "Preparing review…"
+                            : "Review this appointment"}
+                        </Button>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+
+                {proposal && (
+                  <Paper
+                    variant="outlined"
+                    className="clinic-assistant__proposal"
+                  >
+                    {proposalState === "unknown" ? (
+                      <Alert severity="warning">
+                        The confirmation outcome is unknown. Check the saved
+                        result before trying again.
+                      </Alert>
+                    ) : proposalState === "expired" || expired ? (
+                      <Alert severity="warning">
+                        This proposal expired. Find openings again to make a new
+                        proposal.
+                      </Alert>
+                    ) : proposalState === "stale" ? (
+                      <Alert severity="warning">
+                        The opening changed before confirmation. Find openings
+                        again to choose a current time.
+                      </Alert>
+                    ) : proposalState === "denied" ? (
+                      <Alert severity="warning">
+                        Your current role cannot confirm this appointment.
+                      </Alert>
+                    ) : (proposal.state === "confirmed" ||
+                        proposal.status === "confirmed") &&
+                      appointment ? (
+                      <>
+                        <Typography component="h3" variant="subtitle1">
+                          Saved appointment
+                        </Typography>
+                        <Typography variant="body2">
+                          {appointmentName(appointment, "patient")}
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatAppointment(
+                            appointment,
+                            appointment.timezone || displayTimezone,
+                          )}
+                        </Typography>
+                        <Typography variant="body2">
+                          {appointmentName(appointment, "visit_type")} ·{" "}
+                          {appointmentName(appointment, "clinician")} ·{" "}
+                          {appointmentName(appointment, "site")}
+                        </Typography>
+                        {proposal.receipt_id && (
+                          <Alert severity="success" sx={{ mt: 1 }}>
+                            The persisted appointment and audit receipt were
+                            read back.
+                          </Alert>
+                        )}
+                        {!proposal.receipt_id && (
+                          <Alert severity="warning" sx={{ mt: 1 }}>
+                            The appointment was returned, but the audit receipt
+                            was not included in the response.
+                          </Alert>
+                        )}
+                        <Button
+                          component="a"
+                          size="small"
+                          href={scheduleHref(appointment, displayTimezone)}
+                          data-demo-tour-control="true"
+                        >
+                          Open appointment date in schedule
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Typography component="h3" variant="subtitle1">
+                          Review appointment
+                        </Typography>
+                        <Typography variant="body2">
+                          {appointment
+                            ? appointmentName(appointment, "patient")
+                            : context?.patient?.name ||
+                              selectedPatient?.display_name ||
+                              "Selected patient"}
+                        </Typography>
+                        <Typography variant="body2">
+                          {appointment
+                            ? formatAppointment(
+                                appointment,
+                                appointment.timezone || displayTimezone,
+                              )
+                            : "Appointment time not returned"}
+                        </Typography>
+                        <Typography variant="body2">
+                          {appointment
+                            ? `${appointmentName(appointment, "visit_type")} · ${appointmentName(appointment, "clinician")} · ${appointmentName(appointment, "site")}`
+                            : "Review the details returned by the clinic before confirming."}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {proposal.expires_at
+                            ? `Proposal expires ${new Date(proposal.expires_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                            : "Proposal expiration unavailable"}
+                        </Typography>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                        >
+                          <Button
+                            variant="contained"
+                            disabled={
+                              busy !== "" ||
+                              expired ||
+                              proposalState !== "ready" ||
+                              !appointment
+                            }
+                            onClick={() => void confirmProposal()}
+                          >
+                            {busy === "confirm"
+                              ? "Confirming…"
+                              : "Confirm appointment"}
+                          </Button>
+                        </Stack>
+                        {busy === "readback" && (
+                          <Typography variant="body2" role="status">
+                            Checking the saved appointment…
+                          </Typography>
+                        )}
+                      </>
+                    )}
+                    {(proposalState === "unknown" ||
+                      actionError?.kind === "warning") && (
+                      <Button
+                        size="small"
+                        disabled={busy !== ""}
+                        onClick={() => void loadProposal(proposal.proposal_id)}
+                      >
+                        Check proposal status
+                      </Button>
+                    )}
+                  </Paper>
+                )}
+              </>
             )}
           </Box>
           <Divider />
           <Box
             component="form"
             className="clinic-assistant__composer"
-            onSubmit={sendMessage}
+            onSubmit={mode === "workflows" ? sendWorkflowMessage : sendMessage}
           >
             <TextField
               label="Message the assistant"
-              placeholder="For example: Find a morning opening next week"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              placeholder={
+                mode === "workflows"
+                  ? "Ask about clinic work or request a change"
+                  : "For example: Find a morning opening next week"
+              }
+              value={mode === "workflows" ? workflowDraft : draft}
+              onChange={(event) =>
+                mode === "workflows"
+                  ? setWorkflowDraft(event.target.value)
+                  : setDraft(event.target.value)
+              }
               multiline
               minRows={2}
               maxRows={5}
               fullWidth
               disabled={
-                !contextReady || !visitTypeId || !clinicianId || busy !== ""
+                mode === "workflows"
+                  ? !workflowContextReady || busy !== ""
+                  : !contextReady || !visitTypeId || !clinicianId || busy !== ""
               }
               helperText={
-                !displayPatient
-                  ? "Choose a patient to start."
-                  : !visitTypeId
-                    ? "Choose a visit type to continue."
-                    : !clinicianId
-                      ? "Choose a clinician to continue."
-                      : "Your message stays in this clinic session."
+                mode === "workflows"
+                  ? "Reads return clinic records. Changes always need your review and confirmation."
+                  : !displayPatient
+                    ? "Choose a patient to start."
+                    : !visitTypeId
+                      ? "Choose a visit type to continue."
+                      : !clinicianId
+                        ? "Choose a clinician to continue."
+                        : "Your message stays in this clinic session."
               }
               slotProps={{ htmlInput: { maxLength: 1000 } }}
             />
@@ -1469,14 +2593,19 @@ export function ClinicAssistant({
               variant="contained"
               aria-label="Send message"
               disabled={
-                !contextReady ||
-                !visitTypeId ||
-                !clinicianId ||
-                !draft.trim() ||
-                busy !== ""
+                mode === "workflows"
+                  ? !workflowContextReady ||
+                    !workflowDraft.trim() ||
+                    busy !== ""
+                  : !contextReady ||
+                    !visitTypeId ||
+                    !clinicianId ||
+                    !draft.trim() ||
+                    busy !== ""
               }
               endIcon={
-                busy === "message" ? (
+                (mode === "workflows" && busy === "workflow-message") ||
+                (mode === "booking" && busy === "message") ? (
                   <CircularProgress size={16} color="inherit" />
                 ) : (
                   <SendRoundedIcon />

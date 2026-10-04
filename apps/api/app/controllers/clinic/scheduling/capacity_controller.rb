@@ -14,16 +14,7 @@ module Clinic
       def create
         input = parameter_hash!(:capacity, %i[request_key site_id clinician_id kind weekday start_minute end_minute starts_at ends_at reason reason_category_key operational_policy_revision])
         site = current_practice.sites.find(requested_id!(input[:site_id], :site_id))
-        authorize = -> {
-          require_capability("facilities.write", site: site)
-          if input[:kind] == "block" && !current_ability.practice_scope_for?("facilities.write")
-            raise Clinic::Authorization::Denied
-          end
-          if input[:kind] == "block" && !current_ability.practice_scope_for?("appointments.read")
-            raise Clinic::Authorization::Denied
-          end
-        }
-        authorize.call
+        CreateCapacityRule.authorize!(practice: current_practice, actor: current_user, site:, kind: input[:kind])
         clinician = current_practice.clinician_profiles.find(requested_id!(input[:clinician_id], :clinician_id))
         kind = enum_param!(input[:kind], field: :kind, allowed: %w[weekly block])
         values = { kind: kind, site: site, clinician: clinician, reason: optional_string(input[:reason], field: :reason, maximum: 500) }
@@ -37,31 +28,10 @@ module Clinic
         else
           values.merge!(starts_at: time_param!(input[:starts_at], field: :starts_at), ends_at: time_param!(input[:ends_at], field: :ends_at))
         end
-        result = Clinic::Idempotency.execute(practice: current_practice, actor: current_user,
-          operation_code: "capacity.create", request_key: input[:request_key], payload: input.except(:request_key).to_h,
-          authorization: authorize, result_resource: ->(value) { value },
-          resource_resolver: ->(practice:, receipt:) { CapacityRule.find_by(practice: practice, id: receipt.resource_id) }
-        ) do
-          if kind == "block"
-            # Policy selection is revalidated in the existing creation transaction;
-            # preserve the established clinician/resource interval checks below.
-            values.merge!(BlockCategoryReference.resolve(practice: current_practice, site:, actor: current_user,
-              expected_revision: input[:operational_policy_revision].present? ? bounded_integer!(input[:operational_policy_revision], field: :operational_policy_revision, min: 0) : nil,
-              category_key: input[:reason_category_key]))
-          end
-          clinician.lock!
-          if kind == "block"
-            offers = WaitlistEntry.where(practice: current_practice, clinician: clinician, state: "offered")
-              .where("offer_expires_at > ? AND offer_starts_at < ? AND offer_ends_at > ?", Current.business_time, values[:ends_at], values[:starts_at])
-            holds = ScheduleHold.where(practice: current_practice, clinician: clinician, state: "active")
-              .where("expires_at > ? AND starts_at < ? AND ends_at > ?", Current.business_time, values[:ends_at], values[:starts_at])
-            if offers.exists? || holds.exists?
-              raise ArgumentError, "Release waitlist offers and schedule holds before blocking this time."
-            end
-          end
-          CapacityRule.create!(values.merge(practice: current_practice))
-        end
-        rule = result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
+        rule = CreateCapacityRule.call(practice: current_practice, actor: current_user, values:,
+          request_key: input[:request_key], payload: input.except(:request_key).to_h,
+          expected_revision: input[:operational_policy_revision].present? ? bounded_integer!(input[:operational_policy_revision], field: :operational_policy_revision, min: 0) : nil,
+          category_key: input[:reason_category_key])
         affected = rule.kind == "block" ? affected_appointments(rule) : []
         render json: { rule: serialize(rule), affected_appointments: affected.map { |appointment| serialize_affected_appointment(appointment) } }, status: :created
       end

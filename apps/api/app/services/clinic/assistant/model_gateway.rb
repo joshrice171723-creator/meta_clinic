@@ -66,6 +66,12 @@ module Clinic
         end
       end
 
+      # Shares the exact environment, free-model, and synthetic-runtime gate with
+      # workflow intent extraction without exposing provider configuration to controllers.
+      def workflow_provider
+        configured_provider
+      end
+
       private
 
       def configured_provider

@@ -56,6 +56,30 @@ class Clinic::Assistant::Providers::OpenRouterTest < ActiveSupport::TestCase
     end
   end
 
+  test "workflow schema and bounded input reach the HTTP request body" do
+    schema = {
+      type: "object", additionalProperties: false, required: %w[operation inputs message],
+      properties: { operation: { type: [ "string", "null" ], enum: [ "billing.create_service", nil ] } }
+    }
+    input = { message: "Create a Consultation service", current_date: "2026-10-04", timezone: "UTC",
+      enabled_operations: [ { key: "billing.create_service", fields: [{ key: "name", type: "text" }] } ] }
+    response = http_response("200", { choices: [ { message: { content: JSON.generate(operation: nil, inputs: [], message: "Which service name?") } } ] })
+    provider = Clinic::Assistant::Providers::OpenRouter.new(model: "qwen/qwen3.8-27b:free")
+
+    result, captured = with_stubbed_http(response) do
+      provider.call_workflow(input, schema:, schema_name: "workflow_form_suggestion", system_prompt: "trusted instructions")
+    end
+    body = JSON.parse(captured.fetch(:request).body)
+
+    assert_equal({ "operation" => nil, "inputs" => [], "message" => "Which service name?" }, result)
+    assert_equal "qwen/qwen3.8-27b:free", body.fetch("model")
+    assert_equal JSON.parse(JSON.generate(input)), JSON.parse(body.dig("messages", 1, "content"))
+    assert_equal "trusted instructions", body.dig("messages", 0, "content")
+    assert_equal schema.deep_stringify_keys, body.dig("response_format", "json_schema", "schema")
+    assert_equal "workflow_form_suggestion", body.dig("response_format", "json_schema", "name")
+    assert_equal({ "prompt" => 0, "completion" => 0 }, body.dig("provider", "max_price"))
+  end
+
   test "clarification output discards any accompanying booking fields" do
     provider = Clinic::Assistant::Providers::OpenRouter.new(model: "openrouter/free")
     content = JSON.generate(

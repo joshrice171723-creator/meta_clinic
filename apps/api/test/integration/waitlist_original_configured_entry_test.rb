@@ -19,6 +19,7 @@ class WaitlistOriginalConfiguredEntryTest < ActionDispatch::IntegrationTest
       kind: "weekly", weekday: 4, start_minute: 0, end_minute: 1440, active: true)
     @patient = @practice.patients.create!(display_name: "Synthetic Waitlist Patient", reference: "SYN-WAIT-801")
     @visit_type = @practice.visit_types.create!(code: "SYN-WAIT-VISIT")
+    configure_site!(@site, membership: membership)
     post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json
     assert_response :success
   end

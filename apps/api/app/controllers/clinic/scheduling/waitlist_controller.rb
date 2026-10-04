@@ -40,19 +40,8 @@ module Clinic
           duration_minutes: bounded_integer!(input[:duration_minutes], field: :duration_minutes, min: 5, max: 240),
           reason: optional_string(input[:reason], field: :reason, maximum: 500)
         }
-        raise ArgumentError, "Choose a requested window that has not ended." unless attributes[:latest_at] > Current.business_time
-        result = Clinic::Idempotency.execute(practice: current_practice, actor: current_user,
-          operation_code: "waitlist.create", request_key: input[:request_key],
-          payload: input.except(:request_key).to_h, resource: patient,
-          authorization: -> { Waitlist.authorize!(practice: current_practice, actor: current_user, site: site) },
-          result_resource: ->(entry) { entry },
-          resource_resolver: ->(practice:, receipt:) { WaitlistEntry.find_by(practice: practice, id: receipt.resource_id) }
-        ) do
-          current_practice.lock!
-          Configuration::StarterProfile.require_visit!(practice: current_practice, site: site, visit_type: attributes[:visit_type])
-          WaitlistEntry.create!(attributes.merge(practice: current_practice))
-        end
-        entry = result.value || raise(Clinic::Idempotency::OutcomeUnconfirmed)
+        entry = CreateWaitlistEntry.call(practice: current_practice, actor: current_user, attributes:,
+          request_key: input[:request_key], payload: input.except(:request_key).to_h)
         render json: { entry: Waitlist.serialize(entry) }, status: :created
       end
 

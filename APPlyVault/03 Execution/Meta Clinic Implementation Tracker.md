@@ -8,6 +8,31 @@ canonical_for: meta-clinic-implementation-tracking
 ---
 # Meta Clinic Implementation Tracker
 
+**2026-10-04 — Embedded assistant expansion implemented locally:** Explicit
+clinical, configuration, scheduling, billing, inventory, workforce and office
+handlers now share scoped reads and server-held confirmed changes. Focused domain,
+proposal, gateway/provider checks and final web builds passed after narrow repairs.
+Real AI stock lookup succeeded; a reviewed USD 35.00 billing-service change saved
+through fallback controls during upstream model throttling, with SQL/catalog
+readback and duplicate rejection. The 116-row map records 52 mapped implementations,
+53 partial/dependency criteria and 11 human gates; no complete 116-criterion or
+hosted acceptance is claimed. [Checkpoint](../../docs/development/in-app-assistant-checkpoint.md),
+[coverage](../../docs/development/in-app-assistant-workflow-map.md) and
+[evidence](../../records/implementation/2026-10-04-assistant-workflow-evidence.json).
+
+
+**2026-10-04 — Booking verified locally; broader assistant authorized:** The real
+free-model request produced backend availability, an explicitly confirmed saved
+appointment and a persisted audit receipt. Focused booking/demo/route checks,
+gateway/provider checks, role/visitor isolation, quota and recovery browser states
+are recorded in [booking evidence](../../records/implementation/2026-10-04-assistant-booking-evidence.json).
+Source `ca8c4f50` is committed and pushed on `codex/in-app-assistant`; current main
+was merged into that branch as `c2f63775`. The owner then authorized expanding
+across the existing workflow groups. Expansion is being implemented with shared
+server-held proposals and explicit domain handlers; no expanded or hosted
+acceptance is claimed yet. Human signing/final approval and external-action gates
+remain. [Current checkpoint](../../docs/development/in-app-assistant-checkpoint.md).
+
 **2026-10-04 — Embedded assistant first milestone in progress:** D-082 supersedes the resumed ChatGPT plugin direction. The bounded outcome is login-free demo/staff assistant appointment search, server-held proposal, explicit confirmation and persisted result with actor audit. [Checkpoint and exact ownership](../../docs/development/in-app-assistant-checkpoint.md); [116-workflow reconciliation](../../records/implementation/2026-10-04-assistant-workflow-reconciliation.md). Historical passes and the 19 conflicting IDs confer no assistant acceptance. Later clinical, billing and event capabilities remain gated; no hosted changes authorized.
 
 **2026-10-03 12:53 UTC — Exact newer-main simulator recovery reproduction:** Frozen 94f9ceeba5315dd218096b17bb23c9b25d716783 simulator Git blob c366025de29f3f3c70eabac888e65b558e109268 and caller blob ee618035282fa75bc46637826903ae913356fae5 verified. One controlled mounted Chrome diagnostic passed: stubbed HTTP408 retains exactly equal key/amount/outcome/URL for same-mounted retry, then the verified keyed-caller A→B→A seam loses retry and generates a different key for the original invoice; actual reload loses pending retry too. No page errors. This is a passing defect reproduction, not a repaired regression or backend/duplicate-charge/hosted acceptance. Full checkout/provider navigation was not mounted. Separate read-only harness review found no issue. Failed source-byte and TSX-transform attempts stopped before usable component execution and remain disclosed. Ignored proof receipt SHA256 be9c65411fd64514feb185316d7c89919a10b9122f44f081d546ddb994310653; script SHA256 c93ab7a1c1b12808e638dda960532383fa9f9e4a17037947a705c4f3937f0381; exact source/caller/manifest retained under tmp/repair-validation. No other owner's production paths changed. Current owner/quiescence remains unresolved; supported tools expose no native desktop chat inventory, and uncertain Muse post is not repeated. Existing unknown-intent audit class remains open; fixed packet and original QA counts unchanged. Final frozen BH329 ancestry rechecked true; no duplicate merge. Publication remains blocked by owner/run-pin/drift reconciliation under the publish skill.

@@ -29,3 +29,7 @@ The 19 conflicts are resolved for tool candidacy by retaining the canonical crit
 First-milestone candidates: WF-039 booking and WF-043 capacity denial; WF-001/WF-003 demo identity/isolation and WF-114/WF-115 session/audit supply related criteria. WF-001 previously changed from per-visitor tenant isolation to shared demo lessons: this phase preserves shared demo records while proving ordinary/demo separation and per-visitor session/proposal separation. It does not claim one tenant per visitor.
 
 All other capabilities remain gated. Even the candidate workflows may contain broader website criteria than this milestone; only explicitly exercised assistant behavior may be accepted. No clinical signing, approvals, policy overrides, external sends, shared reset or provider activation is an assistant tool.
+
+## Current expansion crosswalk
+
+The [criterion-first assistant map](../../docs/development/in-app-assistant-workflow-map.md) supersedes the booking-only candidacy scope above while preserving this historical reconciliation. It records 52 mapped implementations pending full criterion verification, 53 partial/dependency criteria and 11 human gates. Complete assistant-accepted criteria remain zero; focused local evidence is separate.

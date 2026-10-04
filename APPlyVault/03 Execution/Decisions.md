@@ -13,6 +13,14 @@ Complete and verify the first booking milestone before starting clinical drafts,
 
 The [implementation checkpoint](../../docs/development/in-app-assistant-checkpoint.md) records ownership and evidence. Historical website workflow passes do not establish assistant acceptance. No main merge, deployment, public publication, paid inference, third-party contact, destructive data operation or live clinical/payment activation is authorized by this direction. The owner separately authorized reuse or creation of an OpenRouter key for this local free-model demo work.
 
+**October 4 follow-up:** After being told that only the first booking workflow was
+supported, the owner explicitly directed building the broader existing-workflow
+coverage now. The first booking milestone has local automated, real-provider,
+persisted-record and browser evidence in the checkpoint. Proceed into the
+remaining workflow groups with criterion-level mapping and verification; the
+human-approval and external-action exclusions above remain in force. Do not
+equate the 107 reusable operation schemas with 116 verified assistant workflows.
+
 ## Version 0.1.9 QA disposition gate — 2026-09-28
 
 **D-081 — founder direction in the active QA task:** the earlier 74% Muse request and 75% Atlas Build publication threshold do not gate version 0.1.9. Review all 70 findings in Muse's 2026-09-28 report against current source. For each, record a fix or implementation, or a concrete, evidence-based reason for no change. Audit report claims rather than treating them as automatically correct. The [70-finding disposition](../../records/audits/2026-09-28-muse-qa-70-disposition.md) records that review. Source disposition does not establish browser acceptance; the existing release runbook and its verification gates still apply.

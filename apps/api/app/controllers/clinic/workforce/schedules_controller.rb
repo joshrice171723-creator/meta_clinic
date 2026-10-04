@@ -75,10 +75,9 @@ module Clinic
         workforce_access.authorize!("workforce.schedule.manage", site: site)
         ensure_schedule_enabled!(site)
         template = input[:schedule_template_id].present? ? ScheduleTemplate.find_by!(practice_id: current_practice.id, site_id: site.id, id: requested_id!(input[:schedule_template_id], :schedule_template_id)) : nil
-        draft = ScheduleDraft.create!(practice: current_practice, site: site, schedule_template: template, created_by_id: current_user.id,
+        draft = CreateScheduleDraft.call(practice: current_practice, actor: current_user, site: site, template: template,
           week_start_on: date_param!(input[:week_start_on], field: :week_start_on),
-          timezone: required_string!(input[:timezone].presence || template&.timezone, field: :timezone, maximum: 80), status: "draft", revision: 1)
-        apply_template!(draft, template) if template
+          timezone: required_string!(input[:timezone].presence || template&.timezone, field: :timezone, maximum: 80))
         render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft.reload)), status: :created
       end
 
@@ -86,28 +85,11 @@ module Clinic
         draft = draft!
         workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
         input = parameter_hash!(:shift, %i[id employment_id local_start local_end start_occurrence end_occurrence role_name break_minutes expected_revision])
-        local_start = ResolveLocalInterval.parse_local(input[:local_start])
-        local_end = ResolveLocalInterval.parse_local(input[:local_end])
-        raise ResolveLocalInterval::InvalidLocalTime, "Shift end must be after its start." unless local_end > local_start
-        unless local_start.to_date.between?(draft.week_start_on, draft.week_start_on + 6.days)
-          raise ResolveLocalInterval::InvalidLocalTime, "Shift start must fall within the selected week."
-        end
-        unless (local_end - Rational(1, 1_000_000)).to_date.between?(draft.week_start_on, draft.week_start_on + 6.days)
-          raise ResolveLocalInterval::InvalidLocalTime, "Shift end must fall within the selected week."
-        end
-        interval = ResolveLocalInterval.call(timezone: draft.timezone, local_start: input[:local_start], local_end: input[:local_end],
-          start_occurrence: input[:start_occurrence].presence || "only", end_occurrence: input[:end_occurrence].presence || "only")
-        shift = nil
-        draft.with_lock do
-          ensure_editable_revision!(draft, input[:expected_revision])
-          employment = Employment.find_by!(practice_id: current_practice.id, id: requested_id!(input[:employment_id], :employment_id))
-          shift = input[:id].present? ? draft.shifts.find_by!(public_id: input[:id]) : draft.shifts.build(practice: current_practice)
-          shift.update!(employment: employment, timezone: draft.timezone, **interval,
-            start_occurrence: input[:start_occurrence].presence || "only", end_occurrence: input[:end_occurrence].presence || "only",
-            role_name: optional_string(input[:role_name], field: :role_name, maximum: 120),
-            break_minutes: bounded_integer!(input[:break_minutes].presence || "0", field: :break_minutes, max: 1_440))
-          draft.update!(revision: draft.revision + 1)
-        end
+        input[:employment_id] = requested_id!(input[:employment_id], :employment_id)
+        input[:expected_revision] = bounded_integer!(input[:expected_revision], field: :expected_revision, min: 1)
+        input[:break_minutes] = bounded_integer!(input[:break_minutes].presence || "0", field: :break_minutes, max: 1_440)
+        input[:role_name] = optional_string(input[:role_name], field: :role_name, maximum: 120)
+        draft, shift = UpsertScheduleShift.call(draft: draft, actor: current_user, attributes: input.to_h)
         render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft.reload), shift: ScheduleSerializer.shift(shift))
       end
 
@@ -186,19 +168,6 @@ module Clinic
         raise ArgumentError, "Published schedules cannot be edited." unless draft.editable?
         expected = bounded_integer!(value, field: :expected_revision, min: 1)
         raise ActiveRecord::StaleObjectError.new(draft, "update") unless draft.revision == expected
-      end
-
-      def apply_template!(draft, template)
-        template.shift_definitions.each do |definition|
-          day = Integer(definition.fetch("day_of_week"))
-          date = draft.week_start_on + ((day - 1) % 7).days
-          interval = ResolveLocalInterval.call(timezone: draft.timezone,
-            local_start: "#{date.iso8601}T#{definition.fetch('start_time')}", local_end: "#{date.iso8601}T#{definition.fetch('end_time')}",
-            start_occurrence: definition["start_occurrence"] || "only", end_occurrence: definition["end_occurrence"] || "only")
-          draft.shifts.create!(practice: current_practice, employment_id: definition.fetch("employment_id"), timezone: draft.timezone,
-            **interval, start_occurrence: definition["start_occurrence"] || "only", end_occurrence: definition["end_occurrence"] || "only",
-            role_name: definition["role_name"], break_minutes: definition["break_minutes"].to_i)
-        end
       end
     end
   end

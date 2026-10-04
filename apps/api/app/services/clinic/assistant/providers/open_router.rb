@@ -27,9 +27,16 @@ module Clinic
           parse(request(input))
         end
 
+        def call_workflow(input, schema:, schema_name:, system_prompt:)
+          parse_json(request(input, response_format: build_response_format(schema:, schema_name:), system_prompt:))
+        end
+
         private
 
-        def request(input)
+        def request(input = nil, response_format: nil, system_prompt: ModelGateway::SYSTEM_PROMPT, **request_input)
+          input ||= request_input
+          input = input.to_h
+          response_format ||= booking_response_format
           request = Net::HTTP::Post.new(ENDPOINT)
           request["Authorization"] = "Bearer #{ENV.fetch("OPENROUTER_API_KEY")}"
           request["Content-Type"] = "application/json"
@@ -41,9 +48,9 @@ module Clinic
             max_tokens: MAX_COMPLETION_TOKENS,
             reasoning: { enabled: false },
             provider: { max_price: { prompt: 0, completion: 0 }, require_parameters: true },
-            response_format: response_format,
+            response_format:,
             messages: [
-              { role: "system", content: ModelGateway::SYSTEM_PROMPT },
+              { role: "system", content: system_prompt },
               { role: "user", content: JSON.generate(input) }
             ]
           )
@@ -73,12 +80,7 @@ module Clinic
         end
 
         def parse(body)
-          payload = JSON.parse(body)
-          @response_metadata = safe_response_metadata(payload)
-          content = payload.dig("choices", 0, "message", "content")
-          raise Error, "OpenRouter returned no structured result." unless content.is_a?(String) && content.bytesize <= 2_000
-
-          decoded = JSON.parse(content)
+          decoded = parse_json(body)
           raise Error, "OpenRouter returned an unsupported result shape." unless
             decoded.is_a?(Hash) && decoded.keys.sort == %w[date duration_minutes message status time]
 
@@ -101,6 +103,20 @@ module Clinic
           end
         rescue JSON::ParserError, TypeError
           raise Error, "OpenRouter returned unreadable booking data."
+        end
+
+        def parse_json(body)
+          payload = JSON.parse(body)
+          @response_metadata = safe_response_metadata(payload)
+          content = payload.dig("choices", 0, "message", "content")
+          raise Error, "OpenRouter returned no structured result." unless content.is_a?(String) && content.bytesize <= 8_000
+
+          decoded = JSON.parse(content)
+          raise Error, "OpenRouter returned an unsupported result shape." unless decoded.is_a?(Hash)
+
+          decoded
+        rescue JSON::ParserError, TypeError
+          raise Error, "OpenRouter returned unreadable assistant data."
         end
 
         def safe_response_metadata(payload)
@@ -126,24 +142,32 @@ module Clinic
           metadata.freeze
         end
 
-        def response_format
+        def build_response_format(schema:, schema_name:)
           {
             type: "json_schema",
             json_schema: {
-              name: "booking_search_intent",
+              name: schema_name,
               strict: true,
-              schema: {
-                type: "object",
-                additionalProperties: false,
-                required: %w[status date time duration_minutes message],
-                properties: {
-                  status: { type: "string", enum: %w[intent clarify] },
-                  date: { type: [ "string", "null" ], description: "ISO date YYYY-MM-DD, or null" },
-                  time: { type: [ "string", "null" ], description: "24-hour clinic-local time HH:MM, or null" },
-                  duration_minutes: { type: [ "integer", "null" ], description: "Requested visit duration in 5-minute increments, or null" },
-                  message: { type: [ "string", "null" ], description: "One short clarification question, or null for an intent" }
-                }
-              }
+              schema:
+            }
+          }
+        end
+
+        def booking_response_format
+          build_response_format(schema: booking_response_schema, schema_name: "booking_search_intent")
+        end
+
+        def booking_response_schema
+          {
+            type: "object",
+            additionalProperties: false,
+            required: %w[status date time duration_minutes message],
+            properties: {
+              status: { type: "string", enum: %w[intent clarify] },
+              date: { type: [ "string", "null" ], description: "ISO date YYYY-MM-DD, or null" },
+              time: { type: [ "string", "null" ], description: "24-hour clinic-local time HH:MM, or null" },
+              duration_minutes: { type: [ "integer", "null" ], description: "Requested visit duration in 5-minute increments, or null" },
+              message: { type: [ "string", "null" ], description: "One short clarification question, or null for an intent" }
             }
           }
         end

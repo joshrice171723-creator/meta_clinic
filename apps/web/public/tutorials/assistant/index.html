@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>Book with the assistant · Meta Clinic</title>
+    <title>Using the clinic assistant · Meta Clinic</title>
     <style>
       :root { color-scheme: light dark; font: 17px/1.6 system-ui,sans-serif; color: #20352f; background: #f5f7f4; }
       * { box-sizing: border-box; }
@@ -13,9 +13,9 @@
       header { border-bottom: 1px solid #ccd8d1; }
       h1 { font-size: clamp(1.8rem,4vw,2.5rem); line-height: 1.2; font-weight: 650; }
       h2 { font-size: 1.3rem; margin: 0 0 12px; }
-      p { max-width: 75ch; }
+      p { max-width: 78ch; }
       a { color: #1f5c4d; text-underline-offset: 3px; }
-      a:focus-visible { outline: 3px solid #1f5c4d; outline-offset: 5px; }
+      a:focus-visible, summary:focus-visible { outline: 3px solid #1f5c4d; outline-offset: 4px; }
       nav { display: flex; flex-wrap: wrap; gap: 14px 22px; }
       section { padding: 30px 0; border-bottom: 1px solid #ccd8d1; scroll-margin-top: 20px; }
       .status { padding: 14px 18px; background: #e6efe8; border-left: 4px solid #1f5c4d; }
@@ -23,63 +23,74 @@
       img { display: block; max-width: 100%; height: auto; border: 1px solid #ccd8d1; border-radius: 6px; }
       figcaption,footer { font-size: .9rem; color: #52655e; }
       li { margin: 8px 0; }
+      .first-milestone { border-left: 4px solid #1f5c4d; padding-left: 18px; }
       @media(prefers-color-scheme:dark) { :root { color:#e8eee9; background:#17241f; } a { color:#a8d4bd; } .status { background:#203a2d; } figcaption,footer { color:#bbcbc0; } }
     </style>
   </head>
   <body>
     <header>
       <a href="/demo">Meta Clinic demo</a>
-      <h1>Book with the assistant</h1>
-      <p>Find an opening, review the appointment, then confirm the exact details. The assistant uses the same schedule and permissions as your clinic workspace.</p>
+      <h1>Using the clinic assistant</h1>
+      <p>The assistant offers a workflow catalogue and a separate appointment-booking path. It can show clinic records and prepare supported changes for review; only an explicit confirmation saves a proposed change.</p>
       <nav aria-label="Tutorial sections">
-        <a href="#open">Open</a><a href="#find">Find openings</a><a href="#review">Review and confirm</a><a href="#saved">Saved appointment</a><a href="#recover">Recover</a><a href="#limits">Availability</a>
+        <a href="#open">Open</a><a href="#context">Clinic context</a><a href="#read">Read records</a><a href="#change">Prepare a change</a><a href="#booking">Book an appointment</a><a href="#limits">Limits and recovery</a><a href="coverage.html">Workflow coverage details</a>
       </nav>
     </header>
     <main>
-      <p class="status" role="note" id="verification-status">The booking journey below was verified locally with a real AI response and a saved appointment. Broader workflow support is under construction. This is not a hosted release.</p>
+      <p class="status" role="note" id="verification-status">Browser captures on this page show the workflow interface and a real saved-result receipt, plus the first appointment-booking milestone. The workflow map covers 116 source criteria; accepted assistant criteria remain 0. See <a href="coverage.html">the full criteria-by-criteria coverage map</a> for partial paths and gaps. A screenshot or mapped operation is not acceptance evidence by itself.</p>
       <section id="open">
         <h2>1. Open the assistant</h2>
-        <p>Enter the demo and choose a clinic role. You do not need to log in or create an account. In the clinic workspace, select <strong>Assistant</strong>. Staff use their existing clinic session.</p>
-        <p>The panel follows your current clinic, location and patient. Check the displayed names before beginning. Changing the patient, clinic, location or role invalidates any pending proposal.</p>
-        <figure><img src="screenshots/demo-entry.png" alt="Demo role chooser with no login or contact form" loading="lazy"><figcaption>Choose a role to enter without creating an account.</figcaption></figure>
+        <p>Enter the demo and choose a clinic role without creating an account. In a clinic workspace, choose <strong>Assistant</strong> in the sidebar. Staff use their current clinic session.</p>
+        <p>The assistant stays available across ordinary workspace routes. Changing patient, encounter, clinic location, or role rebinds the server context and clears protected conversation, form, proposal, and result state.</p>
+        <figure><img src="screenshots/demo-entry.png" alt="Demo role chooser with no login or contact form" loading="lazy"><figcaption>Choose a demo role without entering personal identity details.</figcaption></figure>
+        <figure><img src="screenshots/workflow-open.png" alt="Assistant open in Clinic workflows mode with patient context controls and the Browse workflows section collapsed" loading="lazy"><figcaption>The workflow mode starts with the conversation and context controls in view; the catalogue is available when requested.</figcaption></figure>
       </section>
-      <section id="find">
-        <h2>2. Find appointment openings</h2>
-        <p>Select the patient, visit type and clinician, then ask for a day and time or choose a date. For example: “Find me an appointment tomorrow at 9:30 for 30 minutes.” The returned openings come from the clinic schedule. An opening is not reserved until your booking succeeds.</p>
-        <p>If no openings match, choose another date or clinician. When natural-language assistance is unavailable, the direct scheduling controls remain available under the same permissions.</p>
-        <figure><img src="screenshots/ai-openings.png" alt="Assistant interpreted an appointment request and returned a real available opening" loading="lazy"><figcaption>A real model response followed by backend availability.</figcaption></figure>
+      <section id="context">
+        <h2>2. Set named context when a task needs it</h2>
+        <p>Workspace questions can run with no patient selected. If a workflow needs a patient or encounter, use the named picker in the panel. The assistant shows the selected clinic, location, patient, and safe encounter label; it does not ask you to enter database identifiers.</p>
+        <p>Use <strong>New task</strong> to clear the active form and result while keeping the conversation and draft. A patient or encounter change creates a new server context and clears the previous protected conversation and result.</p>
       </section>
-      <section id="review">
-        <h2>3. Review and confirm</h2>
-        <p>Select an opening to prepare a proposal. Review the patient, location, clinician, visit type and time. Only the confirmation button can submit that proposal. A message such as “yes” does not book an appointment.</p>
-        <p>Proposals expire and the schedule can change. If the proposal is stale, search again and review a fresh proposal. The assistant will not silently substitute another time.</p>
-        <figure><img src="screenshots/review-proposal.png" alt="Review patient, clinician, location, visit and exact time before confirming" loading="lazy"><figcaption>Review the server-held proposal before selecting Confirm appointment.</figcaption></figure>
+      <section id="read">
+        <h2>3. Read clinic records</h2>
+        <p>Ask for a supported read or choose it from <strong>Browse workflows</strong>. The assistant may ask a clarifying question or suggest a task. When required details and context are ready, the clinic returns the actual result directly; reads do not need a save confirmation.</p>
+        <p>A read may include a clinic receipt. That records the read action; it is different from a saved-change receipt.</p>
+        <figure><img src="screenshots/workflow-read.png" alt="Current stock report returned as structured clinic data in the assistant" loading="lazy"><figcaption>A structured read result from the clinic workspace.</figcaption></figure>
       </section>
-      <section id="saved">
-        <h2>4. Check the saved appointment</h2>
-        <p>A successful confirmation displays the appointment read back from the clinic records and its action receipt. Use the schedule link to see the persisted appointment. Repeating confirmation must not create a second appointment.</p>
-        <figure><img src="screenshots/saved-appointment.png" alt="Saved appointment with persisted details and an action receipt" loading="lazy"><figcaption>The saved result was independently read back and found in the schedule.</figcaption></figure>
+      <section id="change">
+        <h2>4. Review and confirm supported changes</h2>
+        <ol>
+          <li>Ask for a supported change or choose it from the catalogue.</li>
+          <li>Complete the semantic form. Record fields use named choices rather than raw internal identifiers.</li>
+          <li>Select <strong>Prepare for review</strong> and inspect the server-returned proposal.</li>
+          <li>Select <strong>Confirm and save</strong> only when the displayed values are correct. The assistant then shows the clinic's saved-result snapshot and receipt.</li>
+        </ol>
+        <p>A chat message, model suggestion, or proposal is not itself a save. The model cannot confirm changes. Some workflows require a human step in their normal clinic workspace; the assistant links there instead of bypassing that step.</p>
+        <figure><img src="screenshots/workflow-proposal.png" alt="Billing service proposal with exact values and an explicit Confirm and save action" loading="lazy"><figcaption>Billing service values were entered through the workflow controls after an upstream model rate-limit response. The model did not generate this proposal.</figcaption></figure>
+        <figure><img src="screenshots/workflow-saved.png" alt="Saved billing service result returned with a clinic confirmation receipt" loading="lazy"><figcaption>The browser read back the saved result and receipt after explicit confirmation. This capture demonstrates the workflow controls, not model-generated billing details.</figcaption></figure>
       </section>
-      <section id="recover">
-        <h2>When something needs attention</h2>
-        <ul>
-          <li><strong>Permission denied:</strong> your selected role cannot perform that action. In the demo, choose another available role through the demo controls; start a new proposal afterward.</li>
-          <li><strong>Availability changed:</strong> refresh openings and review a new proposal.</li>
-          <li><strong>Confirmation outcome unknown:</strong> check the saved result before attempting another booking. Do not assume a network error means nothing was saved.</li>
-          <li><strong>Daily limit reached:</strong> natural-language assistance is paused. Use the direct scheduling controls or try again another day.</li>
-          <li><strong>Context changed or session expired:</strong> reopen the workspace context. Old proposals cannot be confirmed under a different identity or role.</li>
-        </ul>
-        <figure><img src="screenshots/permission-denied.png" alt="Inventory role is denied access to patient search" loading="lazy"><figcaption>The selected role's existing permissions still apply.</figcaption></figure>
-        <figure><img src="screenshots/quota-exhausted.png" alt="Daily assistant limit reached, with direct scheduling still available" loading="lazy"><figcaption>Local budget exhaustion was deliberately exercised; no paid fallback was used.</figcaption></figure>
-        <figure><img src="screenshots/recovery-stale.png" alt="Expired proposal instructs the user to find and review new openings" loading="lazy"><figcaption>A deliberately expired local proposal cannot be confirmed.</figcaption></figure>
+      <section id="booking" class="first-milestone">
+        <h2>Appointment booking: the first milestone</h2>
+        <p>Use the <strong>Book an appointment</strong> tab to choose a patient, visit type, and named clinician, ask for a day or time, then select an available opening. Review the exact patient, visit, clinician, location, and time. Only <strong>Confirm appointment</strong> submits the booking. A successful response is read back from clinic records, with a link to the schedule.</p>
+        <p>Appointments are not reserved while searching. If an opening changes, a proposal expires, or confirmation is uncertain, refresh or check the saved result before retrying.</p>
+        <figure><img src="screenshots/ai-openings.png" alt="Assistant interpreted an appointment request and returned a real available opening" loading="lazy"><figcaption>The booking capture shows a model response followed by backend-validated availability.</figcaption></figure>
+        <figure><img src="screenshots/review-proposal.png" alt="Appointment proposal reviewed before confirmation" loading="lazy"><figcaption>Appointment booking review from the first milestone.</figcaption></figure>
+        <figure><img src="screenshots/saved-appointment.png" alt="Persisted appointment details and action receipt after booking" loading="lazy"><figcaption>Saved appointment readback from the first milestone.</figcaption></figure>
       </section>
       <section id="limits">
-        <h2>What this milestone covers</h2>
-        <p>Appointment openings, reviewed booking and persisted confirmation are the first milestone. Clinical drafts, billing actions, standing briefings and automatic actions remain unavailable. The assistant cannot sign clinical notes, grant permissions or override clinic policy.</p>
-        <p>Conversation text stays in the current browser session's memory and is cleared with a context or account change. It is not a clinical record. Action receipts are stored separately by the backend.</p>
-        <p id="evidence-boundary">These are actual local browser screenshots from October 4, 2026 using fictional records. Historical plugin and website results do not establish assistant acceptance. Other workflow groups are being connected and remain unverified here.</p>
+        <h2>Limits and recovery</h2>
+        <ul>
+          <li><strong>Provider quota or temporary outage:</strong> natural-language help may be unavailable. Use the named workflow catalogue and forms, or the direct appointment controls. A form completed after an AI error is not an AI-generated result.</li>
+          <li><strong>Permission needed:</strong> use a role with the required permission. <strong>Human step:</strong> follow the linked clinic workflow; assistant confirmation is not offered.</li>
+          <li><strong>Stale or expired proposal:</strong> prepare a new proposal and review its current values.</li>
+          <li><strong>Unknown save outcome:</strong> check the clinic readback before trying again.</li>
+          <li><strong>Unsupported or unavailable workflow:</strong> use the normal clinic workspace. The coverage page distinguishes mapped candidates, partial paths, dependencies, and human gates.</li>
+        </ul>
+        <figure><img src="screenshots/permission-denied.png" alt="Inventory role is denied access to patient search" loading="lazy"><figcaption>The assistant respects the selected role's existing permissions.</figcaption></figure>
+        <figure><img src="screenshots/quota-exhausted.png" alt="Assistant quota limit reached while direct scheduling remains available" loading="lazy"><figcaption>A local quota boundary was exercised; no paid fallback was used.</figcaption></figure>
+        <figure><img src="screenshots/recovery-stale.png" alt="Expired proposal asks the user to find current openings and review a new proposal" loading="lazy"><figcaption>An expired proposal cannot be confirmed.</figcaption></figure>
+        <p>The assistant does not sign clinical notes, grant permissions, or replace final human approvals. Conversation text is session UI state, not a clinical record. Clinic action receipts are stored separately.</p>
       </section>
     </main>
-    <footer>Meta Clinic · Booking assistant tutorial · October 4, 2026</footer>
+    <footer>Meta Clinic · Clinic assistant tutorial · October 4, 2026 · <a href="coverage.html">Coverage details</a></footer>
   </body>
 </html>

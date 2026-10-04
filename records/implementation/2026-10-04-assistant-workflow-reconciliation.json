@@ -4,7 +4,7 @@
   "source_sha256": "48ff9909dd089df698af2f445e9bbe451800a7ee1db3ae942e314de560ec473e",
   "source_build": "0.2.9 @ 228ae291351602802ee9d0507d82f3b239fe1ed5; original report also names 60ed12ded8a4320b992774c693b91dad586ce7ad before build changed",
   "assistant_accepted_workflows": 0,
-  "scope": "Booking milestone only; candidate does not mean criterion complete",
+  "scope": "Preserved historical reconciliation; current criterion-first assistant coverage is in docs/development/in-app-assistant-workflow-map.json. No historical pass transfers.",
   "workflows": [
     {
       "id": "WF-001",
@@ -1746,5 +1746,6 @@
       "assistant_evidence": [],
       "decision": "No website or plugin verdict transfers. Verify this exact criterion against the assistant build; retain conflicting subjects separately."
     }
-  ]
+  ],
+  "current_assistant_map": "docs/development/in-app-assistant-workflow-map.json"
 }

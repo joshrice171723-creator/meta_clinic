@@ -8,6 +8,7 @@ Rails.application.config.filter_parameters += [
   :referral, # Supplied referral source, reference and receipt details.
   :evidence, # Signed screenshot source URLs may contain short-lived credentials.
   :payload, # Encrypted working-copy values and pending operation bodies.
+  :inputs, # Assistant workflow forms may contain clinical drafts or financial details.
   :metadata, # Supplied document source/issuer/dates and correction text are encrypted separately from file bytes.
   :pin, :badge, :challenge, :enrollment_code, :activation_code,
   :employee_identifiers, :proposed_values, :interval, # Workforce credentials and private payroll/correction details.

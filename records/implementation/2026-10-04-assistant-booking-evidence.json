@@ -1,0 +1,102 @@
+{
+  "web": "http://127.0.0.1:3340",
+  "browser": [
+    "fresh visitor entry without login/contact form",
+    "real AI requested tomorrow 09:30 for 30 minutes",
+    "backend availability then exact proposal and explicit confirmation",
+    "persisted appointment and audit readback",
+    "normal schedule displays saved appointment",
+    "two concurrent replays returned 409 duplicate_submission",
+    "controlled proposal expiry returns clear recovery",
+    "controlled local daily budget exhaustion leaves direct scheduling",
+    "Inventory-role patient search denied",
+    "role switch rejects old proposal with 404",
+    "second fresh visitor rejects first visitor proposal with 404",
+    "ordinary namespace returns 401 for demo visitor",
+    "Escape restores entry-button focus",
+    "same-context close/reopen retains draft",
+    "834px tablet no horizontal overflow"
+  ],
+  "appointment_id": 2928,
+  "gateway_checks": {
+    "assertions": 36,
+    "failures": 0,
+    "errors": 0,
+    "runs": 6
+  },
+  "environment": "isolated local development",
+  "proposal_id": "faf05d6f-bfbc-4353-b2a9-8e89f0d0d304",
+  "provider_checks": {
+    "assertions": 20,
+    "failures": 0,
+    "errors": 0,
+    "runs": 4
+  },
+  "provider_reported_cost": 0,
+  "booking_checks": {
+    "assertions": 846,
+    "failures": 0,
+    "errors": 0,
+    "runs": 15
+  },
+  "screenshots": [
+    {
+      "file": "ai-openings.png",
+      "sha256": "99c2449a2c4106bdb71024462d508cd4638ee983b9eb3b84e7de6e26e3649e2f"
+    },
+    {
+      "file": "demo-entry.png",
+      "sha256": "acf770825cb1ba0683a1da5e276c1ae335c9b54b47e1f30ef639307ea5a59a56"
+    },
+    {
+      "file": "open-assistant.png",
+      "sha256": "91699a117910b5962c89afe1483776f7147e98078e0b12bdc1e539d7d1694c2b"
+    },
+    {
+      "file": "permission-denied.png",
+      "sha256": "3fa467c54d249c9b9ef57c4bfdf8c1d30291f20baeebe5527b4bb87f86b41313"
+    },
+    {
+      "file": "quota-exhausted.png",
+      "sha256": "327e6f261027e91ceadfe7e54a7251b0429b137cc92f1b3046774b1cb42c307c"
+    },
+    {
+      "file": "recovery-stale.png",
+      "sha256": "60d157bd9eaa71e4bfe5fd85b5dc875a4b672ffbb3c0e0293fff89fe509ba0e5"
+    },
+    {
+      "file": "review-proposal.png",
+      "sha256": "4e28fa6f596eb60408ac7bf36cca1db2f1d8093f834d9a928c7110e289c47ca6"
+    },
+    {
+      "file": "saved-appointment.png",
+      "sha256": "306680d3f2c6b54b6eea9e6d6a59b7e6f876351ced4d6fdc17cd6945a309ef62"
+    },
+    {
+      "file": "schedule-readback.png",
+      "sha256": "01f1fb7cef171ec0157a25e0279cc0b441943995927be928660995a3f38409c9"
+    },
+    {
+      "file": "tablet-assistant.png",
+      "sha256": "c40109b1aa21f8554973c349a9da51a06c151a6026d766a0e86ff09d4fcce500"
+    }
+  ],
+  "limitations": [
+    "No hosted release",
+    "Historical116criteria not inherited",
+    "Expiry and budget induced only in owned local database",
+    "Unrelated architecture whitelist drift not repaired",
+    "Expanded workflows being implemented separately"
+  ],
+  "model": "qwen/qwen3.8-27b:free",
+  "date": "2026-10-04",
+  "api": "http://127.0.0.1:3341",
+  "source_commit": "ca8c4f507ac5",
+  "controlled_quota_fixture_cleanup": {
+    "date": "2026-10-04",
+    "user_id": 55,
+    "artificial_reserved_count": 15,
+    "restored_actual_reserved_count": 3,
+    "reason": "Restore the explicit local exhaustion fixture after negative browser evidence. Actual account/practice reservations and all real attempt counts remain unchanged; no configured cap was raised."
+  }
+}

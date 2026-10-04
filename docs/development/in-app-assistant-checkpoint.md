@@ -13,18 +13,24 @@ demo entry creates the scoped visitor identity; it must not request credentials.
 Phase 1 is parked. `codex/meta-clinic-codex` at `e815cbb9` and its
 [handoff](../../plugins/meta-clinic/HANDOFF.md) remain reference material, including
 their explicit limits. Connector pairing, OAuth, host metering and packaging are
-not the Phase 2 architecture. No later capability group is accepted or started.
+not the Phase 2 architecture. The first booking gate is now locally verified;
+the owner's later explicit direction authorizes broader workflow implementation.
+Representative expanded operations are locally verified below; no complete
+116-criterion assistant acceptance run has been completed.
 
 ## Ownership and Git
 
 - Worktree: `C:/Users/joshr/.codex/worktrees/in-app-assistant/meta_clinic`.
-- Branch: `codex/in-app-assistant`; integration base `00bc9c67d14f31526a48fbdfe1e63017867eeb17`.
-- Main pulled into this branch from `origin/main` (`6b7fde23`); no master ref exists.
+- Branch: `codex/in-app-assistant`; booking commit `ca8c4f50`, main synchronization
+  `c2f63775`, both pushed. Expansion delivery is recorded in the branch history
+  and the companion workflow evidence record.
+- Main merged into this branch from `origin/main` (`e85e5500`); no master ref exists.
 - The primary checkout's unrelated dirty files and all prepared-slot claims are preserved.
 - Integrator owns Git, schema dump, runtime/browser, checkpoint, reconciliation and tutorial.
-- `booking_backend` owns Rails assistant context/proposal/booking controller and services,
-  routes and migration `20261004010000`; `model_adapter` owns provider adapters,
-  model gateway and budget migration `20261004010100`; `assistant_frontend` owns web files.
+- `booking_backend` owns the generalized workflow context/proposal/controller and
+  migration `20261004010300`; clinical/operations workers own their separate
+  domain handlers. `model_adapter` owns workflow mapping and model gateway;
+  `assistant_frontend` owns web files. Integrator owns routes and schema dump.
 - Runtime reservation: web 3340, API 3341, PostgreSQL 54409/container
   `apply-inapp-assistant`; databases `apply_inapp_assistant_development` and
   `apply_inapp_assistant_test`. No shared database or service may be reset or taken over.
@@ -91,34 +97,64 @@ and its ordinary clinic namespace returned 401 while the demo workspace worked.
 The first booking milestone is locally verified within the evidence above;
 this does not accept all 116 workflow criteria or a hosted release.
 
-Current phase: expansion source planning, then cohesive implementation and one
-consolidated verification pass. The three existing workers are mapping backend
-execution, workflow coverage and frontend contracts. No expansion runtime proof
-is claimed yet. Local runtime remains http://127.0.0.1:3340.
+Current phase: local expansion implementation and focused verification complete;
+final delivery review and task-branch publication. Workflow migration
+`20261004010300` is installed in the owned development DB. The additive schema
+change retains unrelated baseline objects (354 additions, zero removals).
 
-## Earlier integration observations (superseded by evidence above)
+The criterion-first [workflow map](in-app-assistant-workflow-map.md) preserves all
+116 criteria and 19 ID conflicts: 52 have mapped implementations pending complete
+criterion verification, 53 have concrete partial/dependency gaps, and 11 remain
+human-gated. No full-criterion acceptance verdict is inferred from those counts.
+Standing briefings and automatic event actions remain outside this implementation.
 
-Integrated implementation is in focused verification. The local stack is running
-at http://127.0.0.1:3340; isolated databases are prepared and all three additive
-migrations applied. The web TypeScript check and both Vite bundles passed after
-Material UI API/type repairs. Twelve initial assistant Ruby files passed RuboCop.
-Vault links/reachability passed; vault size/lifecycle audit reported existing
-advisories. No hosted acceptance is claimed.
+Focused checks after the all-writers freeze and narrow repairs:
+- Scheduling handler: five cases passed in the consolidated domain run.
+- Clinical/Administration: all ten cases passed in the repaired combined run.
+- Operations/Office: seven cases, 80 assertions, zero failures/errors.
+- Generic workflow integration: all nine cases passed across the repaired run and
+  concurrency rerun (one case/seven assertions for concurrent confirmation).
+- Workflow and booking model gateways: 14 cases passed; final provider transport
+  rerun: five cases/27 assertions, zero failures/errors.
+- Existing waitlist regression passed after configuring its synthetic site.
+- Final TypeScript, primary Vite and Office Vite builds passed; pre-existing
+  marketing dynamic-import warning remains. Scoped RuboCop: 44 files, no offenses.
+Failed intermediate checks and repairs are retained in the workflow evidence.
+No entire-repository test pass is claimed.
 
-The fresh-browser check found the existing required visitor-details form. The
-bounded repair now creates a server-generated visitor through the existing demo
-session flow; a fresh browser reaches role selection with no credential or
-contact fields. Interrupted sandbox preparation now has a role-selection recovery
-screen that reuses existing records. Complete fresh demo-to-assistant verification
-is still running.
+Real OpenRouter interpretation selected `reports.current_stock`, followed by a
+200 backend stock read. Final billing model request encountered upstream 429;
+local account count was 9/50, so local quota was not the cause. Free-only routing
+and caps were retained. Direct workflow controls remained usable: explicit review
+and confirmation saved billing service 1, code `AI-REVIEW-1004`, USD 35.00 in
+practice 3. SQL and an independent assistant catalog read matched. A replay
+returned 409 `duplicate_submission`. Receipt:
+`37271ad4-61e6-42b3-9baa-fabb910c24c4`. No AI-generated billing proposal is claimed.
+Named patient selection bound Jamie Brooks; clinical-history read returned 200
+with durable read receipt 1460. The 834px tablet viewport had no horizontal
+page overflow. The final expansion keyboard recheck passed: Escape closes the panel and
+restores focus to its entry button.
 
-Initial focused tests exposed Rails parameter wrapping and the budget model's
-implicit table name; these were corrected. Provider/budget checks now have nine
-passing cases and two test-helper errors being repaired. Expanded booking tests
-are running. Natural-language inference, persisted booking and tutorial workflow
-screenshots remain pending; do not describe this milestone as verified yet.
-Next: finish one actual free-model conversation through proposal, explicit
-confirmation and persisted read-back; then close the named failure-case checks.
+The controlled Admin quota-exhaustion fixture was restored from artificial 15 to
+its actual reservation count 3. Account/practice counts and real attempts were not
+decremented; caps were not raised. Runtime remains http://127.0.0.1:3340.
+
+Next executable product work: choose a criterion with a concrete missing adapter
+from the map (for example patient merge/handoff, structured HPI/ROS, PO-linked
+receiving or count sessions), implement it through its existing backend contract,
+and verify that complete criterion on the assistant build. Full 116-workflow
+acceptance and hosted verification remain pending. The exact release packet is
+[in-app-assistant-release.md](in-app-assistant-release.md). No deployment.
+
+## Runtime and prior integration repairs
+
+The isolated stack is running with the three booking/budget migrations applied.
+All 21 changed booking Ruby files passed scoped RuboCop after three test-helper
+spacing repairs. Vault links/reachability passed; size/lifecycle audit reported
+existing advisories. Prior Rails parameter wrapping, model table naming, context
+UUID, version fallback and free-model response defects were repaired before the
+passing evidence above. Fresh demo provisioning can take several minutes; its
+role-selection recovery reuses existing records. No shared reset was performed.
 
 Read-only hosted observation on October 4: `build.json` reports version `0.2.9`,
 revision `228ae291351602802ee9d0507d82f3b239fe1ed5`, dirty false; `/up` returned
@@ -149,5 +185,6 @@ the exact target, migrations, expected effect and recovery plan for later approv
 Schema generation observation: the baseline structure contains unrelated learning
 tables/versions absent from the current migration directory, plus unrelated
 patient-constraint drift. The task preserves the baseline schema and inserts only
-the 59 generated assistant objects and three migration versions. The full local
+the booking objects and three migration versions; the expansion adds its own
+41 objects and one migration version. The full local
 dump is retained under ignored runtime evidence; no unrelated schema is removed.

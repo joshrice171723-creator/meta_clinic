@@ -5,7 +5,7 @@ module Clinic
 
     SETUP_ENDPOINTS = {
       "clinic/context" => %w[show update],
-      "clinic/facilities" => %w[index create create_department create_room update update_room],
+      "clinic/facilities" => %w[index create create_department update_department create_room update update_room],
       "clinic/practice_features" => %w[show update history],
       "clinic/visit_types" => %w[create update],
       "clinic/clinicians" => %w[index create],

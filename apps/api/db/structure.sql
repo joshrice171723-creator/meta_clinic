@@ -2946,6 +2946,99 @@ ALTER SEQUENCE public.clinic_assistant_request_budgets_id_seq OWNED BY public.cl
 
 
 --
+-- Name: clinic_assistant_workflow_contexts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_assistant_workflow_contexts (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    actor_user_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    member_session_reference bigint CONSTRAINT clinic_assistant_workflow_con_member_session_reference_not_null NOT NULL,
+    site_id bigint NOT NULL,
+    patient_id bigint,
+    encounter_id bigint,
+    public_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    authorization_generation integer CONSTRAINT clinic_assistant_workflow_con_authorization_generation_not_null NOT NULL,
+    session_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    selection_options text DEFAULT '{}'::text NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    invalidated_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT assistant_workflow_context_values CHECK (((authorization_generation >= 0) AND (jsonb_typeof(session_snapshot) = 'object'::text) AND ((invalidated_at IS NULL) OR (invalidated_at >= created_at))))
+);
+
+
+--
+-- Name: clinic_assistant_workflow_contexts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_assistant_workflow_contexts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_assistant_workflow_contexts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_assistant_workflow_contexts_id_seq OWNED BY public.clinic_assistant_workflow_contexts.id;
+
+
+--
+-- Name: clinic_assistant_workflow_proposals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinic_assistant_workflow_proposals (
+    id bigint NOT NULL,
+    practice_id bigint NOT NULL,
+    workflow_context_id bigint CONSTRAINT clinic_assistant_workflow_proposal_workflow_context_id_not_null NOT NULL,
+    actor_user_id bigint NOT NULL,
+    membership_id bigint NOT NULL,
+    site_id bigint NOT NULL,
+    patient_id bigint,
+    encounter_id bigint,
+    member_session_reference bigint CONSTRAINT clinic_assistant_workflow_pro_member_session_reference_not_null NOT NULL,
+    public_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    operation_key character varying(80) NOT NULL,
+    status character varying(16) DEFAULT 'pending'::character varying NOT NULL,
+    arguments text NOT NULL,
+    record_versions jsonb DEFAULT '{}'::jsonb NOT NULL,
+    preview text NOT NULL,
+    result_payload text,
+    result_reference jsonb DEFAULT '{}'::jsonb NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    confirmed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT assistant_workflow_proposal_values CHECK ((((status)::text = ANY ((ARRAY['pending'::character varying, 'confirmed'::character varying, 'expired'::character varying, 'invalidated'::character varying, 'conflicted'::character varying])::text[])) AND (jsonb_typeof(record_versions) = 'object'::text) AND (jsonb_typeof(result_reference) = 'object'::text) AND (((status)::text = 'confirmed'::text) = ((confirmed_at IS NOT NULL) AND (result_payload IS NOT NULL)))))
+);
+
+
+--
+-- Name: clinic_assistant_workflow_proposals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.clinic_assistant_workflow_proposals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: clinic_assistant_workflow_proposals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.clinic_assistant_workflow_proposals_id_seq OWNED BY public.clinic_assistant_workflow_proposals.id;
+
+
+--
 -- Name: clinic_audit_delivery_receipts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -15064,6 +15157,20 @@ ALTER TABLE ONLY public.clinic_assistant_request_budgets ALTER COLUMN id SET DEF
 
 
 --
+-- Name: clinic_assistant_workflow_contexts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts ALTER COLUMN id SET DEFAULT nextval('public.clinic_assistant_workflow_contexts_id_seq'::regclass);
+
+
+--
+-- Name: clinic_assistant_workflow_proposals id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals ALTER COLUMN id SET DEFAULT nextval('public.clinic_assistant_workflow_proposals_id_seq'::regclass);
+
+
+--
 -- Name: clinic_audit_delivery_receipts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -17175,6 +17282,22 @@ ALTER TABLE ONLY public.clinic_assistant_contexts
 
 ALTER TABLE ONLY public.clinic_assistant_request_budgets
     ADD CONSTRAINT clinic_assistant_request_budgets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_assistant_workflow_contexts clinic_assistant_workflow_contexts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT clinic_assistant_workflow_contexts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinic_assistant_workflow_proposals clinic_assistant_workflow_proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT clinic_assistant_workflow_proposals_pkey PRIMARY KEY (id);
 
 
 --
@@ -21959,6 +22082,27 @@ CREATE UNIQUE INDEX idx_assistant_proposal_appointment ON public.clinic_assistan
 
 
 --
+-- Name: idx_assistant_workflow_context_session; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assistant_workflow_context_session ON public.clinic_assistant_workflow_contexts USING btree (member_session_reference, created_at);
+
+
+--
+-- Name: idx_assistant_workflow_proposal_context; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assistant_workflow_proposal_context ON public.clinic_assistant_workflow_proposals USING btree (workflow_context_id, status);
+
+
+--
+-- Name: idx_assistant_workflow_proposal_session; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assistant_workflow_proposal_session ON public.clinic_assistant_workflow_proposals USING btree (member_session_reference, created_at);
+
+
+--
 -- Name: idx_encounter_follow_ups_canonical; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -22491,6 +22635,13 @@ CREATE INDEX idx_on_resource_compatibility_id_c2b41367f4 ON public.clinic_resour
 
 
 --
+-- Name: idx_on_workflow_context_id_4b489e703c; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_workflow_context_id_4b489e703c ON public.clinic_assistant_workflow_proposals USING btree (workflow_context_id);
+
+
+--
 -- Name: idx_on_written_by_membership_id_99091ff232; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -22866,6 +23017,104 @@ CREATE UNIQUE INDEX index_clinic_assistant_contexts_on_public_id ON public.clini
 --
 
 CREATE INDEX index_clinic_assistant_contexts_on_site_id ON public.clinic_assistant_contexts USING btree (site_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_actor_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_contexts_on_actor_user_id ON public.clinic_assistant_workflow_contexts USING btree (actor_user_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_encounter_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_contexts_on_encounter_id ON public.clinic_assistant_workflow_contexts USING btree (encounter_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_membership_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_contexts_on_membership_id ON public.clinic_assistant_workflow_contexts USING btree (membership_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_contexts_on_patient_id ON public.clinic_assistant_workflow_contexts USING btree (patient_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_contexts_on_practice_id ON public.clinic_assistant_workflow_contexts USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_assistant_workflow_contexts_on_public_id ON public.clinic_assistant_workflow_contexts USING btree (public_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_contexts_on_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_contexts_on_site_id ON public.clinic_assistant_workflow_contexts USING btree (site_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_actor_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_proposals_on_actor_user_id ON public.clinic_assistant_workflow_proposals USING btree (actor_user_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_encounter_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_proposals_on_encounter_id ON public.clinic_assistant_workflow_proposals USING btree (encounter_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_membership_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_proposals_on_membership_id ON public.clinic_assistant_workflow_proposals USING btree (membership_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_patient_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_proposals_on_patient_id ON public.clinic_assistant_workflow_proposals USING btree (patient_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_practice_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_proposals_on_practice_id ON public.clinic_assistant_workflow_proposals USING btree (practice_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_clinic_assistant_workflow_proposals_on_public_id ON public.clinic_assistant_workflow_proposals USING btree (public_id);
+
+
+--
+-- Name: index_clinic_assistant_workflow_proposals_on_site_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_clinic_assistant_workflow_proposals_on_site_id ON public.clinic_assistant_workflow_proposals USING btree (site_id);
 
 
 --
@@ -31308,6 +31557,14 @@ ALTER TABLE ONLY public.clinic_items
 
 
 --
+-- Name: clinic_assistant_workflow_contexts fk_rails_0f57be50e7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT fk_rails_0f57be50e7 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
 -- Name: clinic_telehealth_consents fk_rails_103f951780; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31540,6 +31797,14 @@ ALTER TABLE ONLY public.clinic_prescription_transmission_attempts
 
 
 --
+-- Name: clinic_assistant_workflow_proposals fk_rails_1f67d3c272; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_1f67d3c272 FOREIGN KEY (site_id) REFERENCES public.clinic_sites(id);
+
+
+--
 -- Name: clinic_prescription_transmission_attempts fk_rails_20900d9045; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -31689,6 +31954,14 @@ ALTER TABLE ONLY public.clinic_subscription_versions
 
 ALTER TABLE ONLY public.clinic_assistant_booking_proposals
     ADD CONSTRAINT fk_rails_2a06449b60 FOREIGN KEY (appointment_id) REFERENCES public.clinic_appointments(id);
+
+
+--
+-- Name: clinic_assistant_workflow_proposals fk_rails_2a3ca2077a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_2a3ca2077a FOREIGN KEY (actor_user_id) REFERENCES public.users(id);
 
 
 --
@@ -32188,6 +32461,14 @@ ALTER TABLE ONLY public.development_demo_runs
 
 
 --
+-- Name: clinic_assistant_workflow_proposals fk_rails_3f56c8913b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_3f56c8913b FOREIGN KEY (membership_id) REFERENCES public.clinic_memberships(id);
+
+
+--
 -- Name: clinic_workforce_timecard_versions fk_rails_3fe0b246b7; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -32265,6 +32546,14 @@ ALTER TABLE ONLY public.clinic_workforce_punches
 
 ALTER TABLE ONLY public.clinic_working_drafts
     ADD CONSTRAINT fk_rails_4408792dfd FOREIGN KEY (practice_id, patient_id, encounter_id) REFERENCES public.clinic_encounters(practice_id, patient_id, id);
+
+
+--
+-- Name: clinic_assistant_workflow_contexts fk_rails_4438ff5ea7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT fk_rails_4438ff5ea7 FOREIGN KEY (patient_id) REFERENCES public.clinic_patients(id);
 
 
 --
@@ -32401,6 +32690,14 @@ ALTER TABLE ONLY public.clinic_inventory_vendor_returns
 
 ALTER TABLE ONLY public.clinic_workforce_time_segments
     ADD CONSTRAINT fk_rails_4bf7201ea6 FOREIGN KEY (practice_id, site_id) REFERENCES public.clinic_sites(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_workflow_contexts fk_rails_4f39ecc394; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT fk_rails_4f39ecc394 FOREIGN KEY (actor_user_id) REFERENCES public.users(id);
 
 
 --
@@ -33204,6 +33501,14 @@ ALTER TABLE ONLY public.clinic_workforce_adjustment_requests
 
 
 --
+-- Name: clinic_assistant_workflow_contexts fk_rails_821c7aaad5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT fk_rails_821c7aaad5 FOREIGN KEY (membership_id) REFERENCES public.clinic_memberships(id);
+
+
+--
 -- Name: clinic_service_offerings fk_rails_8289b5e824; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -33489,6 +33794,14 @@ ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
 
 ALTER TABLE ONLY public.clinic_workforce_schedule_publications
     ADD CONSTRAINT fk_rails_906779a65f FOREIGN KEY (practice_id, supersedes_id) REFERENCES public.clinic_workforce_schedule_publications(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_workflow_contexts fk_rails_90cb8342d4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT fk_rails_90cb8342d4 FOREIGN KEY (encounter_id) REFERENCES public.clinic_encounters(id);
 
 
 --
@@ -34332,6 +34645,14 @@ ALTER TABLE ONLY public.clinic_resource_reservations
 
 
 --
+-- Name: clinic_assistant_workflow_proposals fk_rails_c50a305a05; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_c50a305a05 FOREIGN KEY (patient_id) REFERENCES public.clinic_patients(id);
+
+
+--
 -- Name: clinic_appointment_series_changes fk_rails_c513475b5f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -34652,11 +34973,35 @@ ALTER TABLE ONLY public.clinic_telehealth_wrap_ups
 
 
 --
+-- Name: clinic_assistant_workflow_proposals fk_rails_d8ccb2ec26; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_d8ccb2ec26 FOREIGN KEY (encounter_id) REFERENCES public.clinic_encounters(id);
+
+
+--
 -- Name: clinic_encounter_follow_ups fk_rails_d8d4d99e52; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.clinic_encounter_follow_ups
     ADD CONSTRAINT fk_rails_d8d4d99e52 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
+
+
+--
+-- Name: clinic_assistant_workflow_contexts fk_rails_d913e0410d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_contexts
+    ADD CONSTRAINT fk_rails_d913e0410d FOREIGN KEY (site_id) REFERENCES public.clinic_sites(id);
+
+
+--
+-- Name: clinic_assistant_workflow_proposals fk_rails_d95b8c8432; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_d95b8c8432 FOREIGN KEY (practice_id) REFERENCES public.clinic_practices(id);
 
 
 --
@@ -34905,6 +35250,14 @@ ALTER TABLE ONLY public.clinic_scribe_recordings
 
 ALTER TABLE ONLY public.clinic_notes
     ADD CONSTRAINT fk_rails_e6def732a1 FOREIGN KEY (practice_id, patient_id) REFERENCES public.clinic_patients(practice_id, id);
+
+
+--
+-- Name: clinic_assistant_workflow_proposals fk_rails_e7c4e839c2; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinic_assistant_workflow_proposals
+    ADD CONSTRAINT fk_rails_e7c4e839c2 FOREIGN KEY (workflow_context_id) REFERENCES public.clinic_assistant_workflow_contexts(id);
 
 
 --
@@ -36650,6 +37003,7 @@ ALTER TABLE ONLY public.clinic_subscription_entitlement_entries
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261004010300'),
 ('20261004010200'),
 ('20261004010100'),
 ('20261004010000'),
