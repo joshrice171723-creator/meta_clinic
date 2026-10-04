@@ -292,18 +292,6 @@ Verification: TypeScript and both Vite bundles passed with the existing marketin
 
 Continuation remains active through 15:39 UTC. Continue bounded workforce implementation from this saved checkpoint.
 
-## Twenty-fifth implementation checkpoint
-
-Source commit: `cf0281ce`, pushed after synchronization with `origin/main` (already current).
-
-- My Hours now filters latest timecards and correction history together by saved workweek boundaries. Available weeks come from both histories, so a correction remains discoverable even when its resulting card is unavailable. Dates are compared as returned, without timezone conversion.
-- Correction history also filters by awaiting-review, approved or denied status. Counts, distinct filtered-empty states and clear filters support returning to the complete loaded history. Refresh retains filter choices and supplies a fallback option if the selected week is no longer returned.
-- Filtering leaves unconfirmed submission recovery and correction-dialog drafts independent of the visible card list. Existing latest-version selection, recalculation, permissions and API read scope remain unchanged.
-
-Verification: TypeScript, both Vite bundles, formatting, source diff review, backend date/order contract review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected refresh/filter/dialog interaction and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
-
-Continuation remains active through 15:39 UTC. Continue bounded implementation without treating source checks as connected acceptance.
-
 ## Twenty-second implementation checkpoint
 
 Source commit: `3ef70e33`, pushed after synchronization with `origin/main` (already current).
@@ -339,3 +327,14 @@ Source commit: `37db3f52`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed after the recovery implementation. A final location-label refinement initially needed formatting; formatting was repaired and TypeScript passed again. Scoped diff and independent recovery/contract review found no further defects. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Lost-response persistence, location/session transitions and connected browser recovery remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue bounded workforce implementation from this saved checkpoint.
+## Twenty-fifth implementation checkpoint
+
+Source commit: `cf0281ce`, pushed after synchronization with `origin/main` (already current).
+
+- My Hours now filters latest timecards and correction history together by saved workweek boundaries. Available weeks come from both histories, so a correction remains discoverable even when its resulting card is unavailable. Dates are compared as returned, without timezone conversion.
+- Correction history also filters by awaiting-review, approved or denied status. Counts, distinct filtered-empty states and clear filters support returning to the complete loaded history. Refresh retains filter choices and supplies a fallback option if the selected week is no longer returned.
+- Filtering leaves unconfirmed submission recovery and correction-dialog drafts independent of the visible card list. Existing latest-version selection, recalculation, permissions and API read scope remain unchanged.
+
+Verification: TypeScript, both Vite bundles, formatting, source diff review, backend date/order contract review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected refresh/filter/dialog interaction and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue bounded implementation without treating source checks as connected acceptance.
