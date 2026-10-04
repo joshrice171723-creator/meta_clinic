@@ -205,3 +205,16 @@ Source commit: `ef90f3d2`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. Frontend formatting, two-file Ruby lint, focused source/contract review and `git diff --check` passed. No tests or executable timezone examples were added/run. Browser controls, actual timezone-gap/repeated-hour persistence and response-loss recovery remain unverified without an owned connected runtime. No deployment or shared runtime changes occurred.
 
 The eleventh checkpoint's edited ambiguous-time source gap is addressed; connected acceptance remains pending. Continuation remains active through 15:39 UTC. Next bounded work should prioritize employee setup or another concrete existing journey, rather than repeating timezone audits.
+
+## Fifteenth implementation checkpoint
+
+Source commit: `7749761e`, pushed after synchronization with `origin/main` (already current).
+
+- Employee setup retains its one-time activation link with the submitted employee name, invitation ID and expiry. Starting unrelated actions no longer silently clears it. Creating another setup requires explicitly finishing with the displayed link; the form also freezes during an active save.
+- Navigation warns before losing activation material even after the setup draft resets. Active or unconfirmed setup blocks navigation. Existing unknown-setup reconciliation remains in place.
+- A successful matching revoke response clears only its invitation's material. Failed or uncertain revocation preserves the material and directs the operator to refresh saved invitations; the displayed link may already be invalid. No generic list-absence effect clears a newly created token because an older pre-create read can arrive later. Explicit dismissal or a matching confirmed revoke is required; external activation, expiry or token rotation is not automatically reconciled.
+- Employees and invitations have an explicit refresh action. Failed refresh reports that previously loaded records remain visible. Tokens remain in component memory only; no persistence or replay endpoint was introduced.
+
+Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. After the final retention/revoke refinement, TypeScript and formatting passed again. Focused source/response-contract review and `git diff --check` passed. No backend source changed and Ruby lint was not repeated. No tests were added/run. Browser navigation, activation and uncertain-revoke persistence remain unverified without an owned connected runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue with a bounded employee scheduling or clock journey; do not equate source/build evidence with connected acceptance.
