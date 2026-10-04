@@ -224,6 +224,22 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
         return;
       }
       const destination = new URL(anchor.href, window.location.origin);
+      // Only authenticated, read-only billing documents may leave the Sandbox
+      // frame for printing. Keep all other new-tab navigation restricted.
+      if (
+        sandboxRun(run) &&
+        anchor.target === "_blank" &&
+        anchor.relList.contains("noopener") &&
+        !anchor.hasAttribute("download") &&
+        destination.origin === window.location.origin &&
+        /^\/api\/demo-workspace\/clinic\/(patients\/[1-9]\d*\/billing_statement|payment_events\/[1-9]\d*\/receipt)$/.test(
+          destination.pathname,
+        ) &&
+        [...destination.searchParams].every(
+          ([key, value]) => key === "receipt_id" && /^[1-9]\d*$/.test(value),
+        )
+      )
+        return;
       if (
         sandboxRun(run) &&
         anchor.hasAttribute("download") &&
