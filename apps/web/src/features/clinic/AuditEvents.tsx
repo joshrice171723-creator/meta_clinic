@@ -319,6 +319,15 @@ function ScopedAuditEvents() {
         <>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small" aria-label="Practice audit events">
+              <Typography
+                component="caption"
+                variant="body2"
+                color="text.secondary"
+                sx={{ captionSide: "top", px: 1.5, py: 1 }}
+              >
+                Names reflect current profiles. Original actor references are in
+                Details.
+              </Typography>
               <TableHead>
                 <TableRow>
                   <TableCell>When</TableCell>
@@ -338,7 +347,11 @@ function ScopedAuditEvents() {
                 )}
                 {resource.data.events.map((event) => (
                   <Fragment key={event.id}>
-                    <TableRow hover>
+                    <TableRow
+                      hover
+                      selected={expandedEvent === event.id}
+                      sx={{ "& > td": { py: 0.5 } }}
+                    >
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
                         {auditDateTime(
                           event.occurred_at,
@@ -346,14 +359,8 @@ function ScopedAuditEvents() {
                         )}
                       </TableCell>
                       <TableCell sx={{ overflowWrap: "anywhere" }}>
-                        <Typography variant="body2">
-                          {event.actor_display_name || "Name unavailable"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {event.actor_display_name
-                            ? "Current clinician name"
-                            : auditActor(event.actor_reference)}
-                        </Typography>
+                        {event.actor_display_name ||
+                          auditActor(event.actor_reference)}
                       </TableCell>
                       <TableCell>{auditAction(event.action_code)}</TableCell>
                       <TableCell>{auditLabel(event.outcome)}</TableCell>
@@ -398,7 +405,11 @@ function ScopedAuditEvents() {
                               Event: {event.id}
                             </Typography>
                             <Typography variant="body2">
-                              Actor: {event.actor_reference}
+                              Current display name:{" "}
+                              {event.actor_display_name || "Name unavailable"}
+                            </Typography>
+                            <Typography variant="body2">
+                              Recorded actor reference: {event.actor_reference}
                             </Typography>
                             <Typography variant="body2">
                               Action: {event.action_code}
