@@ -10,6 +10,14 @@ function parsedDate(value: string | Date | null | undefined) {
   return Number.isFinite(date.valueOf()) ? date : null;
 }
 
+// Shift a calendar date without applying the browser's timezone or DST offset.
+export function shiftCalendarDay(value: string, offset: number) {
+  const date = parsedDate(`${value}T12:00:00Z`);
+  if (!date || date.toISOString().slice(0, 10) !== value) return null;
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
 export function formatDisplayDateTime(
   value: string | Date | null | undefined,
   {

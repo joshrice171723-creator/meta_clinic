@@ -39,6 +39,7 @@ import type {
 } from "../../api/contracts";
 import { api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
+import { shiftCalendarDay } from "../../shared/dateTime";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { workflowStatusLabel } from "./workflowStatus";
@@ -595,7 +596,14 @@ export function ClinicSchedule({
     setDay(date);
     setView("day");
   }
-  function changeMonth(offset: number) {
+  function changePeriod(offset: number) {
+    if (view === "day") {
+      const next = shiftCalendarDay(day, offset);
+      if (!next) return;
+      setDay(next);
+      setMonth(next.slice(0, 7));
+      return;
+    }
     const next = shiftCalendarMonth(month, offset);
     setMonth(next);
     setDay(`${next}-01`);
@@ -920,8 +928,8 @@ export function ClinicSchedule({
       >
         <Stack direction="row" sx={{ gap: 0.5, alignItems: "center" }}>
           <IconButton
-            aria-label="Previous month"
-            onClick={() => changeMonth(-1)}
+            aria-label={view === "day" ? "Previous day" : "Previous month"}
+            onClick={() => changePeriod(-1)}
           >
             <ChevronLeftIcon />
           </IconButton>
@@ -932,13 +940,19 @@ export function ClinicSchedule({
             aria-live="polite"
             aria-atomic="true"
           >
-            {new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-US", {
+            {new Date(
+              `${view === "day" ? day : `${month}-01`}T12:00:00Z`,
+            ).toLocaleDateString("en-US", {
               timeZone: "UTC",
-              month: "long",
-              year: "numeric",
+              ...(view === "day"
+                ? { weekday: "short", month: "short", day: "numeric" }
+                : { month: "long", year: "numeric" }),
             })}
           </Typography>
-          <IconButton aria-label="Next month" onClick={() => changeMonth(1)}>
+          <IconButton
+            aria-label={view === "day" ? "Next day" : "Next month"}
+            onClick={() => changePeriod(1)}
+          >
             <ChevronRightIcon />
           </IconButton>
         </Stack>

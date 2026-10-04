@@ -323,11 +323,11 @@
   }
 
   .front-desk-filters > :nth-child(2) {
-    grid-column: 1;
+    grid-column: 1 / -1;
   }
 
   .front-desk-filters > :nth-child(3) {
-    grid-column: 2;
+    grid-column: 1 / -1;
   }
 
   .front-desk-row {
