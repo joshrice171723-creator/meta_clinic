@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -17,7 +17,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { ApiError, api } from "../../api/client";
+import {
+  ApiError,
+  api,
+  SESSION_CHANGED_EVENT,
+  CLINIC_LOCATION_CHANGED_EVENT,
+} from "../../api/client";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { businessNow } from "../../shared/businessDate";
@@ -85,6 +90,23 @@ export function PayrollExportPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const downloadRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const cancelDownload = () => {
+      if (!downloadRequest.current) return;
+      downloadRequest.current.abort();
+      downloadRequest.current = null;
+      setBusy(false);
+    };
+    window.addEventListener(SESSION_CHANGED_EVENT, cancelDownload);
+    window.addEventListener(CLINIC_LOCATION_CHANGED_EVENT, cancelDownload);
+    return () => {
+      downloadRequest.current?.abort();
+      downloadRequest.current = null;
+      window.removeEventListener(SESSION_CHANGED_EVENT, cancelDownload);
+      window.removeEventListener(CLINIC_LOCATION_CHANGED_EVENT, cancelDownload);
+    };
+  }, []);
   const [reload, setReload] = useState(0);
   const [name, setName] = useState("Payroll hours");
   const [columns, setColumns] = useState<Column[]>([]);
@@ -105,7 +127,7 @@ export function PayrollExportPage() {
     )?.columns || [];
   const controlsLocked = busy || unconfirmedExport !== null;
   const leaveMessage = busy
-    ? "A payroll action is still saving."
+    ? "A payroll action is still in progress."
     : unconfirmedExport
       ? "The export is unconfirmed. Leaving loses its saved retry. Check export history before creating another file."
       : settingsDirty
@@ -279,6 +301,64 @@ export function PayrollExportPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function download(batch: Batch) {
+    if (busy || downloadRequest.current || !canExport) return;
+    const controller = new AbortController();
+    downloadRequest.current = controller;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const file = await api<{
+        filename: string;
+        content_type: string;
+        content: string;
+      }>(`${batch.download_url}?response_format=json`, {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      if (typeof file.content !== "string" || typeof file.filename !== "string")
+        throw new Error("The payroll file response was incomplete.");
+      const bytes = new TextEncoder().encode(file.content);
+      const digest = Array.from(
+        new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      )
+        .map((value) => value.toString(16).padStart(2, "0"))
+        .join("");
+      if (controller.signal.aborted) return;
+      if (digest !== batch.source_digest)
+        throw new Error(
+          "The file did not match this saved export. Refresh export history before downloading again.",
+        );
+      const url = URL.createObjectURL(
+        new Blob([bytes], { type: "text/csv;charset=utf-8" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file.filename;
+      document.body.append(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+      setNotice(
+        `Download requested for ${file.filename}. Check your browser downloads for the file.`,
+      );
+    } catch (reason) {
+      if (!controller.signal.aborted)
+        setError(
+          `${reason instanceof Error ? reason.message : "The download could not be completed."} The saved export remains available; retry its download without creating a new export.`,
+        );
+    } finally {
+      if (downloadRequest.current === controller) {
+        downloadRequest.current = null;
+        setBusy(false);
+      }
     }
   }
 
@@ -545,7 +625,7 @@ export function PayrollExportPage() {
                   key={batch.id}
                   sx={{ borderBottom: 1, borderColor: "divider", py: 1 }}
                 >
-                  <Button component="a" href={batch.download_url}>
+                  <Button disabled={busy} onClick={() => void download(batch)}>
                     Download export {batch.id}
                   </Button>
                   <Typography variant="body2" color="text.secondary">

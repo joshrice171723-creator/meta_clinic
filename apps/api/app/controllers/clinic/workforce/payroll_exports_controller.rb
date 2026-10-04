@@ -69,7 +69,11 @@ module Clinic
         batch = ExportBatch.find_by!(practice: current_practice, id: requested_id!(params[:id], :id))
         workforce_access.authorize!("workforce.payroll.export", site: batch.site)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "workforce.payroll.export", outcome: :released, resource_version_ref: "workforce_export:#{batch.id}")
-        send_data batch.csv_content, type: "text/csv; charset=utf-8", filename: "workforce-hours-#{batch.id}.csv", disposition: "attachment"
+        if params[:response_format] == "json"
+          render json: { filename: "workforce-hours-#{batch.id}.csv", content_type: "text/csv; charset=utf-8", content: batch.csv_content }
+        else
+          send_data batch.csv_content, type: "text/csv; charset=utf-8", filename: "workforce-hours-#{batch.id}.csv", disposition: "attachment"
+        end
       end
 
       private
