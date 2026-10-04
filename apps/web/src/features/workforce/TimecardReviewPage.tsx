@@ -312,7 +312,8 @@ export function TimecardReviewPage() {
         reason instanceof ApiError &&
         reason.status >= 400 &&
         reason.status < 500 &&
-        ![408, 429].includes(reason.status);
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
       if (rejected && !recovering) setPendingDecision(null);
       setError(
         `${reason instanceof Error ? reason.message : "Unable to confirm this correction decision."} ${rejected && !recovering ? "Refresh and review the correction before trying again." : "Retry the saved decision to confirm its original outcome."}`,

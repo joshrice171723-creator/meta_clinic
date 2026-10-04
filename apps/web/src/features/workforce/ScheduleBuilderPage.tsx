@@ -41,6 +41,15 @@ import {
   type ScheduleDraft,
 } from "./scheduleTypes";
 
+type PublicationAttempt = {
+  draftId: string;
+  revision: number;
+  siteId: string;
+  siteName: string;
+  weekStart: string;
+  key: string;
+};
+
 export function ScheduleBuilderPage() {
   const fieldId = useId();
   const { current_site: currentSite, capabilities } = useClinic();
@@ -49,7 +58,7 @@ export function ScheduleBuilderPage() {
   const currentSiteIdRef = useRef(currentSiteId);
   const loadRevision = useRef(0);
   const draftLoadRevision = useRef(0);
-  const publicationAttempts = useRef(new Map<string, string>());
+  const publicationAttempts = useRef(new Map<string, PublicationAttempt>());
   const [unconfirmedPublications, setUnconfirmedPublications] = useState(0);
   const [data, setData] = useState<ScheduleBootstrap>();
   const [draft, setDraft] = useState<ScheduleDraft>();
@@ -426,41 +435,56 @@ export function ScheduleBuilderPage() {
       setBusy(false);
     }
   };
-  const publish = async () => {
+  const publish = async (savedAttempt?: PublicationAttempt) => {
     if (
       busy ||
       loading ||
       !canPublish ||
-      !draft ||
-      draft.site_id !== currentSiteId ||
+      (savedAttempt
+        ? savedAttempt.siteId !== currentSiteId
+        : !draft || draft.site_id !== currentSiteId) ||
       editorDirty
     )
       return;
+    const attempt =
+      savedAttempt ||
+      (draft &&
+        (publicationAttempts.current.get(`${draft.id}:${draft.revision}`) || {
+          draftId: draft.id,
+          revision: draft.revision,
+          siteId: draft.site_id,
+          siteName: data.site.name,
+          weekStart: draft.week_start_on,
+          key: requestKey("publish"),
+        }));
+    if (!attempt) return;
     setBusy(true);
     setError(undefined);
     setPublishError(undefined);
-    const signature = `${draft.id}:${draft.revision}`;
-    const key =
-      publicationAttempts.current.get(signature) ?? requestKey("publish");
-    publicationAttempts.current.set(signature, key);
+    const signature = `${attempt.draftId}:${attempt.revision}`;
+    const recovering = publicationAttempts.current.has(signature);
+    publicationAttempts.current.set(signature, attempt);
     setUnconfirmedPublications(publicationAttempts.current.size);
     try {
-      await api(`/api/clinic/workforce/schedule-drafts/${draft.id}/publish`, {
-        method: "POST",
-        body: {
-          publication: {
-            expected_revision: draft.revision,
-            idempotency_key: key,
+      await api(
+        `/api/clinic/workforce/schedule-drafts/${attempt.draftId}/publish`,
+        {
+          method: "POST",
+          body: {
+            publication: {
+              expected_revision: attempt.revision,
+              idempotency_key: attempt.key,
+            },
           },
         },
-      });
+      );
       publicationAttempts.current.delete(signature);
       setUnconfirmedPublications(publicationAttempts.current.size);
-      if (currentSiteIdRef.current !== draft.site_id) return;
+      if (currentSiteIdRef.current !== attempt.siteId) return;
       setPublishOpen(false);
       setDraft(undefined);
-      const publishedSiteId = draft.site_id;
-      const publishedWeek = draft.week_start_on;
+      const publishedSiteId = attempt.siteId;
+      const publishedWeek = attempt.weekStart;
       await load();
       if (currentSiteIdRef.current === publishedSiteId)
         setNotice(
@@ -468,10 +492,12 @@ export function ScheduleBuilderPage() {
         );
     } catch (reason) {
       if (
+        !recovering &&
         reason instanceof ApiError &&
         reason.status >= 400 &&
         reason.status < 500 &&
-        ![408, 429].includes(reason.status)
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "")
       ) {
         publicationAttempts.current.delete(signature);
         setUnconfirmedPublications(publicationAttempts.current.size);
@@ -480,6 +506,11 @@ export function ScheduleBuilderPage() {
         reason instanceof Error
           ? reason.message
           : "Unable to publish the schedule.",
+      );
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Unable to confirm schedule publication.",
       );
     } finally {
       setBusy(false);
@@ -560,9 +591,51 @@ export function ScheduleBuilderPage() {
       {notice && <Alert severity="success">{notice}</Alert>}
       {unconfirmedPublications > 0 && !busy && (
         <Alert severity="warning">
-          A publication outcome is unconfirmed. Retry publishing the same draft
-          to retrieve its saved result, or refresh the published schedules
-          before leaving.
+          A publication outcome is unconfirmed. Saved retries preserve the
+          original draft and revision even after refreshing or selecting another
+          draft. Return to the original location to recover its publication.
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            {[...publicationAttempts.current.entries()].map(
+              ([signature, attempt]) => (
+                <Stack
+                  key={signature}
+                  direction={{ xs: "column", sm: "row" }}
+                  sx={{ gap: 1, flexWrap: "wrap" }}
+                >
+                  <Button
+                    disabled={
+                      loading ||
+                      editorDirty ||
+                      !canPublish ||
+                      attempt.siteId !== currentSiteId
+                    }
+                    onClick={() => void publish(attempt)}
+                  >
+                    Retry week of {attempt.weekStart} at {attempt.siteName} ·
+                    revision {attempt.revision}
+                  </Button>
+                  <Button
+                    color="inherit"
+                    disabled={loading}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          "Stop retrying this publication? It may already be saved. Review published schedules at the original location before publishing again.",
+                        )
+                      )
+                        return;
+                      publicationAttempts.current.delete(signature);
+                      setUnconfirmedPublications(
+                        publicationAttempts.current.size,
+                      );
+                    }}
+                  >
+                    Stop retrying this publication
+                  </Button>
+                </Stack>
+              ),
+            )}
+          </Stack>
         </Alert>
       )}
       {canManage && data.employments.length === 0 && (
@@ -1027,7 +1100,7 @@ export function ScheduleBuilderPage() {
           </Button>
           <Button
             variant="contained"
-            onClick={publish}
+            onClick={() => void publish()}
             disabled={busy || !draft?.shifts?.length}
           >
             {busy ? "Publishing…" : "Publish schedule"}

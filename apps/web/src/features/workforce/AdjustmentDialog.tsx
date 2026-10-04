@@ -213,7 +213,10 @@ export function AdjustmentDialog({
         reasonValue instanceof ApiError &&
         reasonValue.status >= 400 &&
         reasonValue.status < 500 &&
-        ![408, 429].includes(reasonValue.status);
+        ![408, 429].includes(reasonValue.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(
+          reasonValue.code ?? "",
+        );
       if (rejected && !recovering) setPendingAttempt(null);
       setError(
         `${reasonValue instanceof Error ? reasonValue.message : "Unable to confirm the correction."} ${rejected && !recovering ? "Review the details before submitting again." : "Retry the saved correction to confirm its original outcome."}`,

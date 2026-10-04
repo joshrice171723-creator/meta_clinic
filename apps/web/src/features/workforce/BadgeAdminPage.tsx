@@ -104,7 +104,8 @@ export function BadgeAdminPage() {
       reason instanceof ApiError &&
       reason.status >= 400 &&
       reason.status < 500 &&
-      ![408, 429].includes(reason.status);
+      ![408, 429].includes(reason.status) &&
+      !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
     const message =
       reason instanceof Error ? reason.message : `Unable to confirm ${action}.`;
     return rejected

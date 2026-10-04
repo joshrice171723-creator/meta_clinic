@@ -114,7 +114,8 @@ export function RequestReviewPage() {
         reason instanceof ApiError &&
         reason.status >= 400 &&
         reason.status < 500 &&
-        ![408, 429].includes(reason.status);
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
       if (rejected && !recovering) setPendingAttempt(null);
       setError(
         `${reason instanceof Error ? reason.message : "Unable to confirm this decision."} ${rejected && !recovering ? "Refresh and review the request before trying again." : "Retry the saved decision to confirm its original outcome."}`,
