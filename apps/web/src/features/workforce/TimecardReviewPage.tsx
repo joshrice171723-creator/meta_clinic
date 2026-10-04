@@ -27,6 +27,11 @@ import { timecardAttention, type TimecardAttention } from "./timecardAttention";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 type ReviewDraft = { text: string; employee: string; siteId: string };
+type TimecardTransition = {
+  card: Timecard;
+  action: "submit" | "approve";
+  siteId: string;
+};
 type CorrectionDecision = {
   adjustment: Adjustment;
   siteId: string;
@@ -77,14 +82,19 @@ export function TimecardReviewPage() {
   >({});
   const [pendingDecision, setPendingDecision] =
     useState<CorrectionDecision | null>(null);
-  const controlsLocked = busy || pendingDecision !== null;
+  const [pendingTransition, setPendingTransition] =
+    useState<TimecardTransition | null>(null);
+  const controlsLocked =
+    busy || pendingDecision !== null || pendingTransition !== null;
   const leaveMessage = busy
     ? "A timecard action is still saving."
-    : pendingDecision
-      ? "A correction decision is unconfirmed. Leaving loses its saved retry."
-      : Object.values(decisionReasons).some((draft) => draft.text.trim())
-        ? "Leave unsaved correction review reasons? They will be lost if this page closes."
-        : null;
+    : pendingTransition
+      ? "A timecard action is unconfirmed. Leaving loses its saved retry."
+      : pendingDecision
+        ? "A correction decision is unconfirmed. Leaving loses its saved retry."
+        : Object.values(decisionReasons).some((draft) => draft.text.trim())
+          ? "Leave unsaved correction review reasons? They will be lost if this page closes."
+          : null;
   useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
   useEffect(() => {
     if (!leaveMessage) return;
@@ -233,6 +243,14 @@ export function TimecardReviewPage() {
       !card.workflow?.[action === "submit" ? "can_submit" : "can_approve"]
     )
       return;
+    await sendTransition({ card, action, siteId });
+  }
+
+  async function sendTransition(attempt: TimecardTransition) {
+    if (busy || attempt.siteId !== siteId) return;
+    const recovering = pendingTransition !== null;
+    const { card, action } = attempt;
+    setPendingTransition(attempt);
     setBusy(true);
     setError("");
     setSettingsPath(null);
@@ -240,8 +258,12 @@ export function TimecardReviewPage() {
     try {
       await api(`/api/clinic/workforce/timecards/${card.id}/${action}`, {
         method: "POST",
-        body: { lock_version: card.lock_version, site_id: Number(siteId) },
+        body: {
+          lock_version: card.lock_version,
+          site_id: Number(attempt.siteId),
+        },
       });
+      setPendingTransition(null);
       setNotice(
         action === "submit"
           ? `${card.employee_name}'s timecard was submitted for approval.`
@@ -249,10 +271,15 @@ export function TimecardReviewPage() {
       );
       setRevision((value) => value + 1);
     } catch (reason) {
+      const rejected =
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
+      if (rejected && !recovering) setPendingTransition(null);
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to save the timecard action.",
+        `${reason instanceof Error ? reason.message : "Unable to confirm the timecard action."} ${rejected && !recovering ? "Refresh and review the card before trying again." : "Retry the saved action to confirm its original outcome."}`,
       );
       setSettingsPath(workforceSettingsPath(reason, siteId));
     } finally {
@@ -356,6 +383,42 @@ export function TimecardReviewPage() {
         </Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {pendingTransition && (
+        <Alert severity="warning">
+          The{" "}
+          {pendingTransition.action === "submit" ? "submission" : "approval"}{" "}
+          for {pendingTransition.card.employee_name}, week starting{" "}
+          {formatDisplayDate(pendingTransition.card.period_start)}, version{" "}
+          {pendingTransition.card.version_number}, is unconfirmed.
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ mt: 1 }}
+          >
+            <Button
+              disabled={busy || pendingTransition.siteId !== siteId}
+              onClick={() => void sendTransition(pendingTransition)}
+            >
+              Retry saved timecard action
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Stop retrying this timecard action? It may already be saved. Refresh and review its current status before acting again.",
+                  )
+                )
+                  return;
+                setPendingTransition(null);
+                setRevision((value) => value + 1);
+              }}
+            >
+              Stop retrying and refresh
+            </Button>
+          </Stack>
+        </Alert>
+      )}
       {pendingDecision && (
         <Alert severity="warning">
           The correction decision for {pendingDecision.adjustment.employee_name}{" "}

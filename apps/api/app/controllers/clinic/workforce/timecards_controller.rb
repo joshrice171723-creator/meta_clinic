@@ -48,6 +48,12 @@ module Clinic
         expected = Integer(params.require(:lock_version))
         card.employment.with_lock do
           card.lock!
+          if card.status == "submitted"
+            unless card.submitted_by_membership_id == clinic_membership.id && card.lock_version == expected + 1
+              raise ActiveRecord::StaleObjectError.new(card, "submit")
+            end
+            next
+          end
           raise ActiveRecord::StaleObjectError.new(card, "submit") unless card.lock_version == expected
           raise ArgumentError, "Only a draft timecard can be submitted" unless card.status == "draft"
           raise ArgumentError, "Resolve every timecard exception before submission" if card.unresolved?
@@ -63,6 +69,12 @@ module Clinic
         expected = Integer(params.require(:lock_version))
         card.employment.with_lock do
           card.lock!
+          if card.status == "approved"
+            unless card.approved_by_membership_id == clinic_membership.id && card.lock_version == expected + 1
+              raise ActiveRecord::StaleObjectError.new(card, "approve")
+            end
+            next
+          end
           raise ActiveRecord::StaleObjectError.new(card, "approve") unless card.lock_version == expected
           raise ArgumentError, "Only a submitted timecard can be approved" unless card.status == "submitted"
           raise ArgumentError, "Resolve every timecard exception before approval" if card.unresolved?

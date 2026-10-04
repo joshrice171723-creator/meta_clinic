@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import {
   Alert,
@@ -13,7 +13,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type { Adjustment, Timecard } from "./clockTypes";
 import {
@@ -22,8 +22,11 @@ import {
 } from "../../shared/dateTime";
 import { AdjustmentDialog, type CorrectionSite } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 export function EmployeeHoursPage() {
+  const { registerBlocker } = useClinicNavigation();
   const {
     data,
     error: loadError,
@@ -38,6 +41,31 @@ export function EmployeeHoursPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingSubmission, setPendingSubmission] = useState<Timecard | null>(
+    null,
+  );
+  const controlsLocked = busy || pendingSubmission !== null;
+  const leaveMessage = busy
+    ? "A timecard action is still saving."
+    : pendingSubmission
+      ? "Timecard submission is unconfirmed. Leaving loses its saved retry."
+      : null;
+  useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
+  useEffect(() => {
+    if (!leaveMessage) return;
+    const unregister = registerBlocker(() => leaveMessage, {
+      preventNavigation: busy,
+    });
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = leaveMessage;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [leaveMessage, busy, registerBlocker]);
   const [correctionCard, setCorrectionCard] = useState<Timecard | null>(null);
   const [historyCardId, setHistoryCardId] = useState<number | null>(null);
   const historyCard = data?.timecards.find((card) => card.id === historyCardId);
@@ -55,7 +83,7 @@ export function EmployeeHoursPage() {
   }, [data]);
 
   async function calculate() {
-    if (busy || !data) return;
+    if (controlsLocked || !data) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -79,8 +107,14 @@ export function EmployeeHoursPage() {
     }
   }
 
-  async function submit(card: Timecard) {
-    if (busy || !data || card.workflow?.can_submit !== true) return;
+  async function submit(card: Timecard, recovering = false) {
+    if (
+      busy ||
+      (!recovering &&
+        (pendingSubmission || !data || card.workflow?.can_submit !== true))
+    )
+      return;
+    setPendingSubmission(card);
     setBusy(true);
     setError("");
     setNotice("");
@@ -89,13 +123,19 @@ export function EmployeeHoursPage() {
         method: "POST",
         body: { lock_version: card.lock_version },
       });
+      setPendingSubmission(null);
       setNotice("Timecard submitted for review.");
       refreshRecords();
     } catch (reason) {
+      const rejected =
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
+      if (rejected && !recovering) setPendingSubmission(null);
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to submit this timecard.",
+        `${reason instanceof Error ? reason.message : "Unable to confirm timecard submission."} ${rejected && !recovering ? "Refresh and review the card before trying again." : "Retry the saved submission to confirm its original outcome."}`,
       );
     } finally {
       setBusy(false);
@@ -126,7 +166,7 @@ export function EmployeeHoursPage() {
           <Button
             variant="outlined"
             startIcon={<RefreshOutlinedIcon />}
-            disabled={busy || !data}
+            disabled={controlsLocked || !data}
             onClick={() => void calculate()}
           >
             Recalculate current week
@@ -135,6 +175,40 @@ export function EmployeeHoursPage() {
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {pendingSubmission && (
+        <Alert severity="warning">
+          Submission for the week starting{" "}
+          {formatDisplayDate(pendingSubmission.period_start)}, version{" "}
+          {pendingSubmission.version_number}, is unconfirmed.
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ mt: 1 }}
+          >
+            <Button
+              disabled={busy}
+              onClick={() => void submit(pendingSubmission, true)}
+            >
+              Retry saved submission
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Stop retrying this submission? It may already be saved. Refresh and review its current status before submitting again.",
+                  )
+                )
+                  return;
+                setPendingSubmission(null);
+                refreshRecords();
+              }}
+            >
+              Stop retrying and refresh
+            </Button>
+          </Stack>
+        </Alert>
+      )}
       {!data && <LoadState error={loadError} onRetry={refresh} />}
       {latestCards.map((card) => (
         <TimecardSummary
@@ -148,7 +222,7 @@ export function EmployeeHoursPage() {
             <>
               <Button
                 disabled={
-                  busy ||
+                  controlsLocked ||
                   card.workflow?.can_submit !== true ||
                   card.unresolved_exceptions.length > 0
                 }
@@ -158,7 +232,7 @@ export function EmployeeHoursPage() {
                 Submit for review
               </Button>
               <Button
-                disabled={busy || card.status === "superseded"}
+                disabled={controlsLocked || card.status === "superseded"}
                 onClick={() => setCorrectionCard(card)}
               >
                 Request correction
