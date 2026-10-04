@@ -29,6 +29,11 @@ import type {
 import { punchLabels } from "./clockTypes";
 
 type ResultState = { kind: "saved" | "unknown" | "error"; text: string } | null;
+type PendingPunch = {
+  challenge: string;
+  eventType: PunchEvent;
+  requestKey: string;
+};
 
 export function KioskClockPage() {
   const [configuration, setConfiguration] = useState<KioskConfiguration | null>(
@@ -38,21 +43,32 @@ export function KioskClockPage() {
   const [enrollmentToken, setEnrollmentToken] = useState("");
   const [badge, setBadge] = useState("");
   const [pin, setPin] = useState("");
+  const pinRef = useRef(pin);
+  pinRef.current = pin;
   const [challenge, setChallenge] = useState<ClockChallenge | null>(null);
   const [result, setResult] = useState<ResultState>(null);
   const [busy, setBusy] = useState(false);
+  const [configurationLoading, setConfigurationLoading] = useState(true);
   const [cameraAvailable, setCameraAvailable] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
-  const [pending, setPending] = useState<{
-    challenge: string;
-    eventType: PunchEvent;
-    requestKey: string;
-  } | null>(null);
+  const [pending, setPending] = useState<PendingPunch | null>(null);
+  const busyRef = useRef(false);
+  const pendingRef = useRef<PendingPunch | null>(null);
+  const challengeRef = useRef<ClockChallenge | null>(null);
+  const setWorking = useCallback((value: boolean) => {
+    busyRef.current = value;
+    setBusy(value);
+  }, []);
+  const rememberPending = useCallback((value: PendingPunch | null) => {
+    pendingRef.current = value;
+    setPending(value);
+  }, []);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const clearTimer = useRef<number | null>(null);
 
   const loadConfiguration = useCallback(async () => {
+    setConfigurationLoading(true);
     try {
       const data = await api<KioskConfiguration>("/api/workforce/kiosk");
       setConfiguration(data);
@@ -84,6 +100,8 @@ export function KioskClockPage() {
               ? reason.message
               : "Unable to connect to the clock.",
         });
+    } finally {
+      setConfigurationLoading(false);
     }
   }, []);
 
@@ -107,21 +125,35 @@ export function KioskClockPage() {
     },
     [],
   );
+  useEffect(() => {
+    if (!busy && !pending) return;
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "A clock action is saving or unconfirmed.";
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => window.removeEventListener("beforeunload", unload);
+  }, [busy, pending]);
 
   function clearEmployee(delay = 0) {
     if (clearTimer.current) window.clearTimeout(clearTimer.current);
-    clearTimer.current = window.setTimeout(() => {
+    const clear = () => {
       setBadge("");
       setPin("");
+      challengeRef.current = null;
       setChallenge(null);
-      setPending(null);
+      rememberPending(null);
       setResult(null);
-    }, delay);
+      clearTimer.current = null;
+    };
+    if (delay) clearTimer.current = window.setTimeout(clear, delay);
+    else clear();
   }
 
   async function enroll(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
+    if (busyRef.current) return;
+    setWorking(true);
     setResult(null);
     try {
       await api("/api/workforce/kiosk/enroll", {
@@ -137,7 +169,7 @@ export function KioskClockPage() {
       });
     } finally {
       setEnrollmentToken("");
-      setBusy(false);
+      setWorking(false);
     }
   }
 
@@ -146,8 +178,18 @@ export function KioskClockPage() {
       value: string,
       inputMethod: "scanner" | "camera" | "manual" = "scanner",
     ) => {
-      if (!value.trim()) return;
-      setBusy(true);
+      if (
+        !value.trim() ||
+        busyRef.current ||
+        pendingRef.current ||
+        challengeRef.current ||
+        configurationLoading
+      )
+        return;
+      if (clearTimer.current) window.clearTimeout(clearTimer.current);
+      clearTimer.current = null;
+      stopCamera();
+      setWorking(true);
       setResult(null);
       setChallenge(null);
       try {
@@ -157,11 +199,12 @@ export function KioskClockPage() {
             method: "POST",
             body: {
               badge: value.trim(),
-              pin: pin || null,
+              pin: pinRef.current || null,
               input_method: inputMethod,
             },
           },
         );
+        challengeRef.current = data;
         setChallenge(data);
       } catch (reason) {
         setResult({
@@ -171,14 +214,13 @@ export function KioskClockPage() {
               ? reason.message
               : "Badge could not be verified.",
         });
-        clearEmployee(8_000);
       } finally {
         setBadge("");
         setPin("");
-        setBusy(false);
+        setWorking(false);
       }
     },
-    [pin],
+    [configurationLoading, setWorking],
   );
 
   async function submitScan(event: FormEvent) {
@@ -190,14 +232,20 @@ export function KioskClockPage() {
   }
 
   async function sendPunch(eventType: PunchEvent, retry = pending) {
-    if (!challenge && !retry) return;
+    if (
+      busyRef.current ||
+      (!challenge && !retry) ||
+      (pendingRef.current && !retry)
+    )
+      return;
+    const recovering = pendingRef.current !== null;
     const operation = retry ?? {
       challenge: challenge!.challenge,
       eventType,
       requestKey: crypto.randomUUID(),
     };
-    setPending(operation);
-    setBusy(true);
+    rememberPending(operation);
+    setWorking(true);
     setResult(null);
     try {
       const saved = await api<PunchResult>("/api/workforce/kiosk/punches", {
@@ -208,14 +256,25 @@ export function KioskClockPage() {
           request_key: operation.requestKey,
         },
       });
+      if (!saved.saved || saved.request_key !== operation.requestKey)
+        throw new Error("The clock returned an unconfirmed receipt.");
       setResult({
         kind: "saved",
         text: `${punchLabels[saved.event_type]} saved at ${new Date(saved.occurred_at_utc).toLocaleTimeString()}.`,
       });
+      rememberPending(null);
+      challengeRef.current = null;
+      setChallenge(null);
       clearEmployee(8_000);
     } catch (reason) {
-      if (reason instanceof ApiError) {
-        setPending(null);
+      const rejected =
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
+      if (rejected && !recovering) {
+        rememberPending(null);
         setResult({ kind: "error", text: reason.message });
       } else {
         setResult({
@@ -224,39 +283,54 @@ export function KioskClockPage() {
         });
       }
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
   async function checkStatus() {
-    setBusy(true);
+    if (busyRef.current || !pendingRef.current) return;
+    const operation = pendingRef.current;
+    setWorking(true);
     try {
       const saved = await api<PunchResult>(
-        `/api/workforce/kiosk/punches/status${pending ? `?request_key=${encodeURIComponent(pending.requestKey)}` : ""}`,
+        `/api/workforce/kiosk/punches/status?request_key=${encodeURIComponent(operation.requestKey)}`,
       );
+      if (!saved.saved || saved.request_key !== operation.requestKey)
+        throw new Error("The saved receipt could not be matched.");
       setResult({
         kind: "saved",
         text: `${punchLabels[saved.event_type]} saved at ${new Date(saved.occurred_at_utc).toLocaleTimeString()}.`,
       });
+      rememberPending(null);
+      challengeRef.current = null;
+      setChallenge(null);
       clearEmployee(8_000);
     } catch (reason) {
       setResult({
         kind: "unknown",
         text:
           reason instanceof ApiError && reason.status === 404
-            ? "This request is not saved. Retry the same request or ask a manager for help."
+            ? "No saved result is available yet. Retry the same request or ask a manager for help."
             : "Status is still unavailable. Do not start a new clock action.",
       });
     } finally {
-      setBusy(false);
+      setWorking(false);
     }
   }
 
   async function startCamera() {
+    if (
+      busyRef.current ||
+      pendingRef.current ||
+      challengeRef.current ||
+      configurationLoading
+    )
+      return;
     const Detector = (
       window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }
     ).BarcodeDetector;
     if (!Detector || !videoRef.current) return;
+    setWorking(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
@@ -268,9 +342,10 @@ export function KioskClockPage() {
       setCameraOn(true);
       const detector = new Detector({ formats: ["code_128"] });
       const scan = async () => {
-        if (!streamRef.current || !videoRef.current) return;
+        if (streamRef.current !== stream || !videoRef.current) return;
         try {
           const codes = await detector.detect(videoRef.current);
+          if (streamRef.current !== stream) return;
           if (codes[0]?.rawValue) {
             stopCamera();
             await resolveBadge(codes[0].rawValue, "camera");
@@ -279,14 +354,18 @@ export function KioskClockPage() {
         } catch {
           /* Continue with scanner/manual fallback. */
         }
-        window.requestAnimationFrame(() => void scan());
+        if (streamRef.current === stream)
+          window.requestAnimationFrame(() => void scan());
       };
       void scan();
     } catch {
+      stopCamera();
       setResult({
         kind: "error",
         text: "Camera access is unavailable. Use the scanner or permitted manual entry.",
       });
+    } finally {
+      setWorking(false);
     }
   }
 
@@ -313,6 +392,7 @@ export function KioskClockPage() {
             <TextField
               autoFocus
               label="Enrollment code"
+              disabled={busy || configurationLoading}
               value={enrollmentToken}
               onChange={(event) => setEnrollmentToken(event.target.value)}
               autoComplete="off"
@@ -363,7 +443,20 @@ export function KioskClockPage() {
               {result.text}
             </Alert>
           )}
-          {!challenge && (
+          {configurationLoading && (
+            <Typography role="status">Connecting to the clock…</Typography>
+          )}
+          {!configuration && !configurationLoading && (
+            <Button onClick={() => void loadConfiguration()}>
+              Reconnect clock
+            </Button>
+          )}
+          {result?.kind === "saved" && (
+            <Button disabled={busy} onClick={() => clearEmployee()}>
+              Next employee
+            </Button>
+          )}
+          {!challenge && !pending && result?.kind !== "saved" && (
             <Stack component="form" spacing={2} onSubmit={submitScan}>
               <TextField
                 autoFocus
@@ -374,6 +467,7 @@ export function KioskClockPage() {
                 onChange={(event) => setBadge(event.target.value)}
                 disabled={
                   busy ||
+                  configurationLoading ||
                   (!configuration?.scanner_enabled &&
                     !configuration?.manual_badge_entry_enabled)
                 }
@@ -389,6 +483,7 @@ export function KioskClockPage() {
               {configuration?.pin_required && (
                 <TextField
                   label="PIN"
+                  disabled={busy || configurationLoading}
                   type="password"
                   value={pin}
                   onChange={(event) => setPin(event.target.value)}
@@ -402,7 +497,9 @@ export function KioskClockPage() {
                 type="submit"
                 variant="contained"
                 size="large"
-                disabled={busy || !badge}
+                disabled={
+                  busy || configurationLoading || !configuration || !badge
+                }
               >
                 {busy ? <CircularProgress size={24} /> : "Continue"}
               </Button>
@@ -424,6 +521,14 @@ export function KioskClockPage() {
               />
               {cameraAvailable ? (
                 <Button
+                  disabled={
+                    !cameraOn &&
+                    (busy ||
+                      configurationLoading ||
+                      !!challenge ||
+                      !!pending ||
+                      result?.kind === "saved")
+                  }
                   startIcon={<CameraAltOutlinedIcon />}
                   onClick={cameraOn ? stopCamera : () => void startCamera()}
                 >
@@ -469,14 +574,17 @@ export function KioskClockPage() {
                     key={eventType}
                     variant="contained"
                     size="large"
-                    disabled={busy}
+                    disabled={busy || !!pending}
                     onClick={() => void sendPunch(eventType, null)}
                   >
                     {punchLabels[eventType]}
                   </Button>
                 ))}
               </Stack>
-              <Button onClick={() => clearEmployee()} disabled={busy}>
+              <Button
+                onClick={() => clearEmployee()}
+                disabled={busy || !!pending}
+              >
                 Cancel
               </Button>
             </Stack>
