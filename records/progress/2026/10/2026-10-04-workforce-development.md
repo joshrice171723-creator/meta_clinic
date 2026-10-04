@@ -350,3 +350,14 @@ Source commit: `c101642d`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, formatting, focused source/diff review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected filtering, retained-draft interactions and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Keep remaining work bounded and save a final session handoff at the deadline.
+
+## Twenty-seventh implementation checkpoint
+
+Source commit: `2831ad05`, pushed after synchronization with `origin/main` (already current).
+
+- Payroll preview now pages through every returned row instead of truncating the review to 25 rows. Operators can choose 25, 50 or 100 rows per page; a new preview resets to its first page.
+- The preview identifies the selected configuration name and revision and keeps server-calculated whole-file totals visible. Copy explains that page navigation does not change the export selection. Existing configured column headings, readiness guards and exact export recovery remain unchanged.
+
+Verification: TypeScript, both Vite bundles, formatting, focused source/diff review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected preview pagination, narrow-screen layout and final file acceptance remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Preserve the final checkpoint and stop new scope at the authorized deadline.

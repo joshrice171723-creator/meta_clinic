@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Complete payroll row preview:** Source `2831ad05` adds pagination across every preview row, identifies the selected configuration version and keeps whole-file totals visible. TypeScript, both bundles, formatting and source review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-seventh checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Manager timecard review filters:** Source `c101642d` adds employee/workweek filters across cards and pending corrections, matching counts and reminders for hidden unsaved review reasons. Recovery actions and calculation inputs remain independent. TypeScript, both bundles, formatting and source review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-sixth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — My Hours workweek browsing:** Source `cf0281ce` filters timecards and correction history by the same saved workweek, adds correction-status filtering and counts, and preserves independent submission recovery and correction drafts. TypeScript, both bundles, formatting and source/contract review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-fifth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
