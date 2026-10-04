@@ -22,8 +22,7 @@ Representative expanded operations are locally verified below; no complete
 
 - Worktree: `C:/Users/joshr/.codex/worktrees/in-app-assistant/meta_clinic`.
 - Branch: `codex/in-app-assistant`; booking commit `ca8c4f50`, main synchronization
-  `c2f63775`, both pushed. Expansion delivery is recorded in the branch history
-  and the companion workflow evidence record.
+  `c2f63775`, both pushed. Expansion source is `c385729b`; the companion evidence record pins that source.
 - Main merged into this branch from `origin/main` (`e85e5500`); no master ref exists.
 - The primary checkout's unrelated dirty files and all prepared-slot claims are preserved.
 - Integrator owns Git, schema dump, runtime/browser, checkpoint, reconciliation and tutorial.
@@ -97,8 +96,8 @@ and its ordinary clinic namespace returned 401 while the demo workspace worked.
 The first booking milestone is locally verified within the evidence above;
 this does not accept all 116 workflow criteria or a hosted release.
 
-Current phase: local expansion implementation and focused verification complete;
-final delivery review and task-branch publication. Workflow migration
+Current phase: local expansion implementation and focused verification delivered
+on the task branch. Workflow migration
 `20261004010300` is installed in the owned development DB. The additive schema
 change retains unrelated baseline objects (354 additions, zero removals).
 
