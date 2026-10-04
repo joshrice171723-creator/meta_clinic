@@ -279,3 +279,15 @@ Source commit: `d146dcc5`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, formatting, one-file Ruby lint, focused source/contract review and `git diff --check` passed. The existing marketing import warning remains. No tests were added/run. Actual browser downloads, demo namespace execution, session-switch cancellation and downloaded-byte acceptance remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue a concrete bounded workforce improvement; no deployment or connected acceptance is implied by these commits.
+
+## Twenty-first implementation checkpoint
+
+Source commit: `6e31741b`, pushed after synchronization with `origin/main` (already current).
+
+- Payroll preparation identifies selected employees missing payroll IDs in the chosen configuration and directs authorized operators to save a new configuration version. It reports selected timecard and employee counts.
+- Correction exports list the original employee/workweek combinations still missing from the selection, distinguishing available cards from unavailable eligible approved cards. Unrelated workweeks cannot be selected during correction preparation; authorized operators can open timecard review.
+- New previews and exports are blocked while these preparation gaps remain. Exact unconfirmed export retries bypass the new readiness checks, preserving the server's existing saved-request recovery semantics. No payroll calculation or population policy changed.
+
+Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. A final alert-visibility refinement passed formatting and `git diff --check`; focused parent and independent backend-contract reviews found no concrete defects. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected correction preparation, configuration changes and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue bounded workforce implementation from this saved checkpoint.

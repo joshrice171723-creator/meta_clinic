@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Payroll preparation gaps visible:** Source `6e31741b` identifies missing payroll IDs and correction workweeks before preview, prevents unrelated correction selections, and preserves exact unconfirmed export recovery. TypeScript, both bundles, formatting and focused source/contract reviews passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-first checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Payroll download recovery:** Source `d146dcc5` routes payroll downloads through the API client, verifies saved CSV digests, cancels stale downloads and reports errors inline without losing drafts or creating another export. Raw CSV behavior remains available. TypeScript, both bundles, formatting, scoped Ruby lint and source review passed. No tests or actual browser download verification ran; no deployment occurred. [Twentieth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Settings drafts and future revisions:** Source `8cf41667` protects settings drafts, retains precise save confirmations, and shows authorized future-dated revisions separately from current settings. Unknown saves require explicit draft discard and saved-version review before another submission. A TypeScript prop error was repaired; the build, final TypeScript/formatting, scoped Ruby lint and source review passed. No tests or connected browser verification ran; no deployment occurred. [Nineteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
