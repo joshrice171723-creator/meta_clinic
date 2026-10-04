@@ -156,3 +156,16 @@ Source commit: `f260dcb2`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed; the existing marketing import warning remains. Prettier, scoped source review and `git diff --check` passed. No backend source changed, so Ruby checks were not repeated. No tests were added/run. Browser navigation, response-loss recovery and concurrent reviewer behavior remain unverified without an owned connected runtime. No deployment or runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue a concrete remaining timecard/correction or employee journey; preserve the accumulated verification boundaries.
+
+## Eleventh implementation checkpoint
+
+Source commit: `e4ce2793`, pushed after synchronization with `origin/main` (already current).
+
+- Employee self-view timecards now expose active, currently effective assigned locations for correction entry. The correction form uses those choices for missing time, including an empty card with no source punches from which the server could infer a location. Existing read/self-service authorization is unchanged; other views receive no new site list.
+- Closing or navigating away from an unsaved correction asks before discarding it. An unknown submission retains the exact payload, source lock and retry key, freezes editable controls and offers explicit retry. A rejected recovery attempt does not clear the original uncertainty.
+- Unchanged selected interval boundaries are submitted with their exact saved timestamp strings, preserving the original repeated-hour occurrence and sub-minute precision. Newly entered/edited ambiguous local times still use the existing browser Date interpretation; explicit clock-occurrence selection for those correction fields remains a separate gap.
+- Confirmed employee correction submissions remain visible if the subsequent timecard reload fails.
+
+Verification: TypeScript, both Vite bundles, changed frontend formatting and the timecards controller's scoped RuboCop check passed. The existing marketing import warning remains. Source/diff review and `git diff --check` passed. No tests were added/run; connected empty-card correction, response-loss, database and browser verification remain pending. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. A concrete next employee journey is viewing saved correction history and outcomes from My Hours; the current employee hours response/view does not yet render that separate correction queue.
