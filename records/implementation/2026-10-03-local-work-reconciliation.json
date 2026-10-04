@@ -1606,5 +1606,13 @@
       "Static portfolio publication and browser walkthrough"
     ]
   },
-  "release": "User explicitly requested updating aimetaclinic.com. Use existing matched-image release with restore-checked encrypted database/key recovery; separately publish the static /joshua allowlist and retain its previous symlink."
+  "release": "User explicitly requested updating aimetaclinic.com. Use existing matched-image release with restore-checked encrypted database/key recovery; separately publish the static /joshua allowlist and retain its previous symlink.",
+  "publication_followup": {
+    "revision": "60ed12ded8a4320b992774c693b91dad586ce7ad",
+    "version": "0.2.9",
+    "result": "Published successfully; the pending items above describe the prepublication checkpoint. Matched builds, guarded recovery, all26 hosted checks, live build/health, demo entry and portfolio walkthrough passed.",
+    "original_files_rechecked": 265,
+    "original_file_mismatches": 0,
+    "receipt": "records/progress/2026/10/2026-10-03-all-work-reconciliation-release.md"
+  }
 }

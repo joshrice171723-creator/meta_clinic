@@ -18,3 +18,4 @@ boundaries or explicit authority. When changing an archive, retain original
 headings and update this index if the period/count changes.
 
 - [2026-10-03 marketing quality review and route scores](2026/10/2026-10-03-marketing-quality.md)
+- [2026-10-03 all-work reconciliation and publication](2026/10/2026-10-03-all-work-reconciliation-release.md)
