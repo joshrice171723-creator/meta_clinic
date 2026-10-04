@@ -14,6 +14,7 @@ class ClinicOverbookRescheduleTest < ActionDispatch::IntegrationTest
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Clinician")
     @patients = 3.times.map { |index| @practice.patients.create!(display_name: "Synthetic Reschedule #{index}", reference: "RESCHEDULE-#{index}") }
     @visit_type = @practice.visit_types.create!(code: "Synthetic follow up")
+    configure_site!(@site, membership: @membership)
     @start = ActiveSupport::TimeZone[@practice.timezone].local(2026, 11, 4, 9)
     Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
       kind: "weekly", weekday: @start.wday, start_minute: 540, end_minute: 660, active: true)

@@ -247,7 +247,7 @@ module Development
           end
         end
         room_codes.each { |room_code| site.rooms.find_or_create_by!(practice: practice, code: room_code) }
-        if created_site
+        if created_site || !Clinic::PracticeFeatureVersion.where(practice: practice, site: site).exists?
           practice.visit_types.find_or_create_by!(code: "Follow-up visit")
           Clinic::Configuration::PracticeFeatures.revise(
             practice: practice, site: site, actor: actor.clinic_membership,

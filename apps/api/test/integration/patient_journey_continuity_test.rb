@@ -7,8 +7,9 @@ class PatientJourneyContinuityTest < ActionDispatch::IntegrationTest
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
     @password = SecureRandom.hex(18)
     @practice = Clinic::Practice.create!(name: "Synthetic Continuity Clinic", timezone: "UTC")
-    @site = @practice.sites.create!(code: "CONTINUITY")
+    @site = @practice.sites.create!(code: "CONTINUITY", status: "active")
     @user, @member = staff("owner")
+    configure_site!(@site, membership: @member, services: %w[telehealth])
     @receiver, @receiver_member = staff("receiver")
     @patient = @practice.patients.create!(display_name: "Synthetic Continuity Patient", reference: "CONT-001")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site, started_at: 1.hour.ago, status: "open")

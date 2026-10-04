@@ -165,7 +165,7 @@ class PaymentCollectionBoundaryTest < ActiveSupport::TestCase
 
   test "enforces currency precision and maps the bounded collection worklist" do
     site = @practice.sites.create!(name: "Synthetic cashier", code: "CASH")
-    drawer = @practice.cash_drawer_sessions.create!(site: site, opened_by: @actor, opening_float: "0")
+    drawer = @practice.cash_drawer_sessions.create!(site: site, opened_by: @actor, opening_float: "0", currency: "USD")
 
     assert_no_difference "Clinic::CashTender.count" do
       assert_raises(ArgumentError, match: /two decimal places/) do

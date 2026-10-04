@@ -34,6 +34,8 @@ class PatientAppointmentRequestBookingTest < ActionDispatch::IntegrationTest
     @site = create_site(@practice, "REQUEST-SITE")
     @other_site = create_site(@practice, "OTHER-REQUEST-SITE")
     @visit_type = @practice.visit_types.create!(code: "REQUEST-VISIT")
+    configure_site!(@site, membership: @staff_membership, services: %w[telehealth])
+    configure_site!(@other_site, membership: @staff_membership, services: %w[telehealth])
     @retired_visit_type = @practice.visit_types.create!(code: "RETIRED-VISIT", retired_at: Time.current)
     @room = @practice.rooms.create!(site: @site, code: "REQUEST-ROOM")
     clinician_membership = create_membership(@practice, "appointment-clinician@example.invalid")

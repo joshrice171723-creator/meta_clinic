@@ -11,6 +11,7 @@ class ClinicMedicationAdministrationsTest < ActionDispatch::IntegrationTest
     @practice = @membership.practice
     @site = @practice.sites.create!(code: "MEDS", name: "Medication clinic", status: "active")
     @other_site = @practice.sites.create!(code: "OTHER-MEDS", name: "Other clinic", status: "active")
+    configure_site!(@site, membership: @membership, services: %w[prescription_preparation in_office_medications])
     @patient = @practice.patients.create!(display_name: "SYN_Medication, Avery", reference: "SYN-MEDS-001")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,
       started_at: 2.hours.ago, status: "open")

@@ -155,7 +155,8 @@ class QaMuseWritesTest < ActionDispatch::IntegrationTest
         @build["dirty"] = dirty
         signed_post "/qa/api/verdict", verdict
         assert_response :created
-        assert_equal dirty, response.parsed_body.dig("server_build_observations", 0, "dirty")
+        observed_dirty = response.parsed_body.dig("server_build_observations", 0, "dirty")
+        dirty.nil? ? assert_nil(observed_dirty) : assert_equal(dirty, observed_dirty)
       end
       @build["revision"] = nil
       signed_post "/qa/api/verdict", verdict("build_pin" => nil)

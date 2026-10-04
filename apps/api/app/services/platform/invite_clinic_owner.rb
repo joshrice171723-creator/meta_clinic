@@ -79,6 +79,5 @@ module Platform
       site_ids
     end
     private_class_method :site_ids_for!
-
   end
 end

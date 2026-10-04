@@ -15,6 +15,7 @@ class SchedulingCapacityBoundariesTest < ActionDispatch::IntegrationTest
     @clinician = @practice.clinician_profiles.create!(membership: membership, display_name: "Synthetic capacity clinician")
     @patient = @practice.patients.create!(display_name: "Synthetic capacity patient", reference: "BOUNDARY-PATIENT")
     @visit_type = @practice.visit_types.create!(code: "BOUNDARY-VISIT")
+    configure_site!(@site, membership: membership)
     @rule = Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,
       kind: "weekly", weekday: 4, start_minute: 0, end_minute: 1440, active: true)
     post "/api/session", params: { email_address: @user.email_address, password: @password }, headers: csrf_headers, as: :json

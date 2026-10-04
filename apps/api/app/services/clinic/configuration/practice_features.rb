@@ -57,6 +57,12 @@ module Clinic
         optional["service_scope"] = Array(optional["service_scope"]).select { |code| SERVICE_SCOPE.include?(code) }
         optional["assessment_scope"] = Array(optional["assessment_scope"])
           .select { |code| ASSESSMENT_SCOPE.include?(code) }
+        site_specialty_configured = site_version.present? && CLINIC_TYPES.include?(site_version.optional_features["clinic_type"])
+        configured = if site
+          site_specialty_configured
+        else
+          version.present? && stored.key?("clinic_type") && stored.key?("service_scope")
+        end
         features = {
           core: CORE_FEATURES.index_with(true), optional: optional,
           insurance_workflows_enabled: optional.fetch("insurance_workflows", false),
@@ -71,15 +77,10 @@ module Clinic
           selected_services: stored.fetch("selected_services", optional.fetch("service_scope")),
           site_id: site&.id,
           profile_scope: site ? (site_version ? "site" : "unconfigured") : "clinic_default",
-          site_specialty_configured: site_version.present? && CLINIC_TYPES.include?(site_version.optional_features["clinic_type"]),
+          site_specialty_configured: site_specialty_configured,
           site_revision: site_version&.revision || 0,
           change_handoff: "Clinic staff can change availability, hours, prices and forms within this profile. Capability changes require Meta Clinic review; unsupported transitions require a scoped FDE assignment. No request has been sent.",
-          configured: if site
-            site_specialty_configured = site_version.present? && CLINIC_TYPES.include?(site_version.optional_features["clinic_type"])
-            site_specialty_configured
-          else
-            version.present? && stored.key?("clinic_type") && stored.key?("service_scope")
-          end,
+          configured: configured,
           service_options_by_specialty: SERVICE_OPTIONS_BY_SPECIALTY,
           assessment_options_by_specialty: ASSESSMENT_OPTIONS_BY_SPECIALTY,
           recommended_clinic_type: RECOMMENDED_CLINIC_TYPE,

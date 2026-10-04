@@ -93,7 +93,7 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
         post "/api/workforce/kiosk/enroll", params: { enrollment_token: token }, headers: csrf_headers, as: :json
         assert_response :created
         assert_equal true, response.parsed_body.fetch("enrolled")
-        session_record = enrollment.kiosk_sessions.sole
+        session_record = enrollment.reload.kiosk_sessions.sole
         assert_equal now + 30.days, session_record.expires_at
         assert session_record.active?(at: now)
         get "/api/workforce/kiosk", headers: @headers

@@ -13,6 +13,7 @@ class ClinicScheduleCalendarTest < ActionDispatch::IntegrationTest
     @clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic Calendar Clinician")
     @patient = @practice.patients.create!(display_name: "Synthetic Calendar Patient", reference: "CAL-FLOW")
     @type = @practice.visit_types.create!(code: "Initial visit")
+    configure_site!(@site, membership: @membership)
     @date = Date.current.next_month.beginning_of_month
     @start = ActiveSupport::TimeZone[@practice.timezone].local(@date.year, @date.month, @date.day, 9)
     Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: @site, clinician: @clinician,

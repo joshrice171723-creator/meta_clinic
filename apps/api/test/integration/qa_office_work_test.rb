@@ -124,7 +124,8 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     headers = { "X-CSRF-Token" => response.parsed_body.fetch("csrf_token"), "Origin" => "http://www.example.com" }
     with_build do
       post "/api/qa/pin", params: { revision: @revision, reason: "Untrusted proposed build" }, headers:, as: :json
-      assert_response :accepted
+      assert_response :ok
+      assert_equal false, response.parsed_body.fetch("coordination_gate")
       assert_nil Qa::Snapshot.find_by(key: "pin")
       post "/api/qa/tasks", params: { task: @input.merge(kind: "qa_run") }, headers:, as: :json
       assert_response :created

@@ -9,9 +9,10 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     @actor = User.create!(email_address: "service-offerings@example.invalid", password: @password)
     @membership = @practice.memberships.create!(user: @actor)
     grant_permissions!(@membership, "facilities.read", "facilities.write")
-    @site = @practice.sites.create!(code: "MAIN", name: "Main site", status: "draft")
+    @site = @practice.sites.create!(code: "MAIN", name: "Main site", status: "active")
     @room = @site.rooms.create!(practice: @practice, code: "ROOM-1")
     @visit_type = @practice.visit_types.create!(code: "Weight management follow-up")
+    configure_site!(@site, membership: @membership, services: %w[telehealth])
     @billing_service = @practice.billing_services.create!(name: "Follow-up price", unit_amount: "85.00", currency: "USD")
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }

@@ -11,6 +11,7 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
       "notes.write", "inventory.adjust", "medication_requests.write", "billing.invoice_draft",
       "billing.invoice_post", "billing.payment_record")
     site = practice.sites.create!(code: "JOURNEY", name: "Journey clinic", status: "active")
+    configure_site!(site, membership: membership, services: %w[prescription_preparation])
     patient = practice.patients.create!(display_name: "Journey patient", reference: "CLINIC-JOURNEY-001")
     visit_type = practice.visit_types.create!(code: "Medication follow-up")
     clinician = practice.clinician_profiles.create!(
@@ -159,6 +160,8 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
         service_requests.write immunizations.write encounters.write notes.write appointments.book
         appointments.status_transition inventory.receive inventory.adjust]
     )
+    configure_site!(site, membership: clinician_membership,
+      services: %w[prescription_preparation in_office_medications external_lab_coordination vaccinations])
     clinician_profile = practice.clinician_profiles.create!(
       membership: clinician_membership, display_name: "Synthetic Clinic Day Clinician"
     )

@@ -63,7 +63,7 @@ class ClinicSupplierPricingTest < ActionDispatch::IntegrationTest
   test "supplier prices preview, import, and become the preferred PO default" do
     post "/api/clinic/inventory/suppliers", params: { supplier: { name: "Acme Medical Supply" } }, headers: csrf_headers, as: :json
     assert_response :created
-    supplier_id = response.parsed_body.fetch("data").fetch("suppliers").find { |supplier| supplier.fetch("name") == "Acme Medical Supply" }.fetch("id")
+    supplier_id = response.parsed_body.fetch("id")
 
     csv = <<~CSV
       ndc,vendor_sku,description,package_qty,wholesale_cost,effective_date,currency,ordering_unit,contract_status,available

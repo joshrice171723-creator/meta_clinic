@@ -185,6 +185,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     @admin = create_staff(@practice, "growth-admin@example.invalid",
       "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish",
       "subscriptions.review", "patients.write", "patient_portal.identity.invite")
+    site = @practice.sites.create!(code: "GROWTH", status: "active")
+    configure_site!(site, membership: @admin.clinic_membership)
     @connection = Clinic::Billing::StripeConnection.create!(practice: @practice, connected_by: @admin,
       reference: "storefront-connection", account_id: "acct_storefront", charges_enabled: true, payouts_enabled: true)
     @foreign_practice = Clinic::Practice.create!(name: "Dev Seed South Membership Clinic")

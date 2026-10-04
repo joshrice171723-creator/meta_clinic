@@ -11,6 +11,8 @@ class PatientJourneyOrdersTest < ActionDispatch::IntegrationTest
     @practice = @membership.practice
     @site = @practice.sites.create!(code: "JOURNEY-ORDERS", status: "active")
     @other_site = @practice.sites.create!(code: "OTHER-JOURNEY", status: "active")
+    configure_site!(@site, membership: @membership,
+      services: %w[prescription_preparation take_home_fulfillment external_lab_coordination in_office_medications])
     grant_permissions!(@membership, "clinical_records.read", "medication_requests.write", "service_requests.write")
     @patient = @practice.patients.create!(display_name: "Synthetic Order Journey", reference: "JOURNEY-ORDERS-1")
     @encounter = @practice.encounters.create!(patient: @patient, site: @site,

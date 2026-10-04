@@ -9,6 +9,8 @@ class DependableVisitRecoveryTest < ActionDispatch::IntegrationTest
     @user = User.create!(email_address: "dependable-visit@example.invalid", password: @password)
     @membership = Development::TestClinic.create!(@user)
     @practice = @membership.practice
+    @site = @practice.sites.create!(code: "RECOVERY", status: "active")
+    configure_site!(@site, membership: @membership)
     @patient = @practice.patients.first
     login(@user)
   end

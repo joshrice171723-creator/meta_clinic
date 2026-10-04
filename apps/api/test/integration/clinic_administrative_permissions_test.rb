@@ -225,12 +225,12 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     second_site = @practice.sites.create!(code: "NORTH")
     login(@users.fetch("billing_operator"))
 
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00", currency: "USD" } }, headers: csrf_headers, as: :json
     assert_response :created
     first_drawer_id = response.parsed_body.dig("drawer", "id")
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "11.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "11.00", currency: "USD" } }, headers: csrf_headers, as: :json
     assert_response :conflict
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: second_site.id, opening_float: "12.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: second_site.id, opening_float: "12.00", currency: "USD" } }, headers: csrf_headers, as: :json
     assert_response :created
     second_drawer_id = response.parsed_body.dig("drawer", "id")
 
@@ -247,7 +247,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
   test "cash payment rolls back every linked record when receipt persistence fails" do
     posted_invoice = invoice
     Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
-    drawer = @practice.cash_drawer_sessions.create!(site: @site, opened_by: @users.fetch("billing_operator"), opening_float: "10.00")
+    drawer = @practice.cash_drawer_sessions.create!(site: @site, opened_by: @users.fetch("billing_operator"), opening_float: "10.00", currency: "USD")
     before = [ Clinic::PaymentEvent.count, Clinic::PaymentAllocation.count, Clinic::CashTender.count, Clinic::BillingReceipt.count ]
 
     original_receipt_create = Clinic::BillingReceipt.method(:create!)
@@ -270,7 +270,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     posted_invoice = invoice
     Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
     login(@users.fetch("billing_operator"))
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00", currency: "USD" } }, headers: csrf_headers, as: :json
     drawer_id = response.parsed_body.dig("drawer", "id")
 
     post "/api/clinic/invoices/#{posted_invoice.id}/cash_payments",
@@ -312,7 +312,7 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     posted_invoice = invoice
     Clinic::Billing::PostInvoice.call(invoice: posted_invoice, actor: @users.fetch("billing_operator"))
     login(@users.fetch("billing_operator"))
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "10.00", currency: "USD" } }, headers: csrf_headers, as: :json
     drawer_id = response.parsed_body.dig("drawer", "id")
     post "/api/clinic/cash_drawers/#{drawer_id}/close", params: { drawer: { counted_cash: "10.00" } }, headers: csrf_headers, as: :json
     assert_response :success
@@ -327,14 +327,14 @@ class ClinicAdministrativePermissionsTest < ActionDispatch::IntegrationTest
     login(reader)
     get "/api/clinic/cash_drawers", headers: @headers
     assert_response :forbidden
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "1.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: @site.id, opening_float: "1.00", currency: "USD" } }, headers: csrf_headers, as: :json
     assert_response :forbidden
 
     other_organization = Organization.create!(name: "Synthetic Other Organization")
     other_practice = Clinic::Practice.create!(name: "Synthetic Other Practice", organization: other_organization)
     other_site = other_practice.sites.create!(code: "OTHER")
     login(@users.fetch("billing_operator"))
-    post "/api/clinic/cash_drawers", params: { drawer: { site_id: other_site.id, opening_float: "1.00" } }, headers: csrf_headers, as: :json
+    post "/api/clinic/cash_drawers", params: { drawer: { site_id: other_site.id, opening_float: "1.00", currency: "USD" } }, headers: csrf_headers, as: :json
     assert_response :not_found
   end
 

@@ -66,7 +66,7 @@ class PatientLedgerTest < ActiveSupport::TestCase
   test "projects cash refund availability from the payment drawer state" do
     actor = User.create!(email_address: "ledger-cash@example.invalid", password: SecureRandom.hex(20))
     site = @practice.sites.create!(code: "LEDGER-CASH")
-    drawer = @practice.cash_drawer_sessions.create!(site: site, opened_by: actor, opening_float: "0")
+    drawer = @practice.cash_drawer_sessions.create!(site: site, opened_by: actor, opening_float: "0", currency: "USD")
     cash_payment = payment(reference: "ledger-cash", amount: "100.00")
     Clinic::CashTender.create!(
       practice: @practice, patient: @patient, payment_event: cash_payment,

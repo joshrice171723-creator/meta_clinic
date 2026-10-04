@@ -60,7 +60,6 @@ module Clinic
           pagination: { page:, per_page: LIMIT, total: count, total_pages: }, items: rows
         }
       end
-
     end
   end
 end

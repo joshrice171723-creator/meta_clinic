@@ -81,6 +81,5 @@ module Platform
       role
     end
     private_class_method :administrator_role!
-
   end
 end

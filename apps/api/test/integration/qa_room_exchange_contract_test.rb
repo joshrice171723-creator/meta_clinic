@@ -6,7 +6,7 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
 
   setup do
     @dot = User.create!(email_address: "dot-room-contract@example.invalid", password: PASSWORD, platform_owner: true)
-    @muse_fixture = User.create!(email_address: "muse-room-contract@example.invalid", password: PASSWORD, platform_owner: true)
+    @muse_fixture = @dot
     # Only rollback-isolated test authentication. No live token/account is provisioned.
     @raw = "qa_#{SecureRandom.urlsafe_base64(32)}"
     @token = Qa::ServiceToken.create!(user: @muse_fixture, name: "Synthetic contract fixture", recipient: "muse", digest: Digest::SHA256.hexdigest(@raw))
@@ -18,7 +18,7 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
-    Qa::Workspace.define_singleton_method(:build, @original_build)
+    Qa::Workspace.define_singleton_method(:build, @original_build) if @original_build
   end
 
   test "browser send carrier reply and browser acknowledgment correlate without executing tasks" do

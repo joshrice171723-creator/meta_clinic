@@ -141,7 +141,8 @@ class QaObservationTest < ActionDispatch::IntegrationTest
       assert_response :created
       assert_equal REVISION, response.parsed_body.fetch("revision")
       observation = response.parsed_body.dig("payload", "server_build_observations", 0)
-      assert_equal build["revision"], observation.fetch("revision")
+      observed_revision = observation.fetch("revision")
+      build["revision"].nil? ? assert_nil(observed_revision) : assert_equal(build["revision"], observed_revision)
       assert_equal(build["revision"] ? "observed" : "unavailable", observation.fetch("status"))
     end
   end

@@ -13,7 +13,7 @@ class WorkforceClockTest < ActiveSupport::TestCase
       membership: @employee_membership, effective_from: 1.day.ago)
     Clinic::Workforce::EmploymentSite.create!(practice: @practice, employment: @employment, site: @site, effective_from: 1.day.ago)
     Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 1,
-      effective_from: 1.day.ago, created_by_membership: @manager_membership, values: settings)
+      effective_from: 14.days.ago, created_by_membership: @manager_membership, values: settings)
     enrollment = Clinic::Workforce::KioskEnrollment.create!(practice: @practice, site: @site,
       token_digest: Digest::SHA256.hexdigest("enrollment"), issued_by_membership: @manager_membership,
       expires_at: 1.day.from_now, enrolled_at: Time.current, status: "enrolled")

@@ -610,6 +610,8 @@ class ClinicWorkspaceTest < ActionDispatch::IntegrationTest
     order = @practice.inventory_purchase_orders.order(id: :desc).first
     assert_equal "Main Clinic", order.destination
     assert_equal location.formatted_address, order.destination_address
+    get "/api/clinic/inventory/bootstrap", headers: @headers
+    assert_response :success
     assert_equal location.formatted_address, response.parsed_body.dig("data", "purchase_orders", 0, "destination_address")
   end
 

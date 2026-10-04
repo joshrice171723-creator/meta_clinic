@@ -40,6 +40,8 @@ class TelehealthWorkflowTest < ActionDispatch::IntegrationTest
     @site = create_site!(@practice, "VIDEO-MAIN")
     @other_site = create_site!(@practice, "VIDEO-OTHER")
     @visit_type = @practice.visit_types.create!(code: "VIDEO-FOLLOW-UP")
+    configure_site!(@site, membership: @membership, services: %w[telehealth])
+    configure_site!(@other_site, membership: @membership, services: %w[telehealth])
     @patient = @practice.patients.create!(display_name: "Telehealth Patient", reference: "TH-001")
     @patient_user = User.create!(email_address: Development::TestAccounts::PROFILES.dig("patient", :email),
       password: Development::TestAccounts.send(:password_for, "patient"))

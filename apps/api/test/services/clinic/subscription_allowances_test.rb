@@ -8,7 +8,8 @@ class SubscriptionAllowancesTest < ActiveSupport::TestCase
     @practice = Clinic::Practice.create!(name: "Synthetic allowance clinic")
     @actor = User.create!(email_address: "allowance-staff@example.invalid", password: SecureRandom.hex(20))
     membership = @practice.memberships.create!(user: @actor)
-    grant_permissions!(membership, "subscription_catalog.write", "subscription_catalog.publish", "billing.read", "billing.payment_record")
+    grant_permissions!(membership, "subscription_catalog.write", "subscription_catalog.publish", "billing.read", "billing.payment_record",
+      effective_from: Time.utc(2026, 1, 1))
     @patient = @practice.patients.create!(display_name: "Synthetic allowance patient", reference: "ALLOWANCE-001")
     @user = User.create!(email_address: "allowance-patient@example.invalid", password: SecureRandom.hex(20))
     @identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: @patient, user: @user,
