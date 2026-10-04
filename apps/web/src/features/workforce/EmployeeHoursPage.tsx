@@ -9,8 +9,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import { ApiError, api } from "../../api/client";
@@ -24,6 +26,10 @@ import { AdjustmentDialog, type CorrectionSite } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
+
+function workweekKey(period: { period_start: string; period_end: string }) {
+  return `${period.period_start}|${period.period_end}`;
+}
 
 export function EmployeeHoursPage() {
   const { registerBlocker } = useClinicNavigation();
@@ -41,6 +47,8 @@ export function EmployeeHoursPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [workweek, setWorkweek] = useState("all");
+  const [correctionStatus, setCorrectionStatus] = useState("all");
   const [pendingSubmission, setPendingSubmission] = useState<Timecard | null>(
     null,
   );
@@ -81,6 +89,24 @@ export function EmployeeHoursPage() {
     });
     return [...found.values()];
   }, [data]);
+  const workweeks = [
+    ...new Map(
+      [...latestCards, ...(corrections.data?.adjustments ?? [])].map(
+        (period) => [workweekKey(period), period],
+      ),
+    ).entries(),
+  ].sort(([, left], [, right]) =>
+    right.period_start.localeCompare(left.period_start),
+  );
+  const visibleCards = latestCards.filter(
+    (card) => workweek === "all" || workweekKey(card) === workweek,
+  );
+  const visibleCorrections =
+    corrections.data?.adjustments.filter(
+      (adjustment) =>
+        (workweek === "all" || workweekKey(adjustment) === workweek) &&
+        (correctionStatus === "all" || adjustment.status === correctionStatus),
+    ) ?? [];
 
   async function calculate() {
     if (controlsLocked || !data) return;
@@ -175,6 +201,41 @@ export function EmployeeHoursPage() {
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        sx={{ gap: 2, flexWrap: "wrap" }}
+      >
+        <TextField
+          select
+          label="Workweek for hours and corrections"
+          value={workweek}
+          onChange={(event) => setWorkweek(event.target.value)}
+          sx={{ minWidth: { sm: 280 } }}
+        >
+          <MenuItem value="all">All available workweeks</MenuItem>
+          {workweek !== "all" &&
+            !workweeks.some(([key]) => key === workweek) && (
+              <MenuItem value={workweek}>
+                Selected workweek is unavailable
+              </MenuItem>
+            )}
+          {workweeks.map(([key, period]) => (
+            <MenuItem key={key} value={key}>
+              Starting {formatDisplayDate(period.period_start)}
+            </MenuItem>
+          ))}
+        </TextField>
+        {(workweek !== "all" || correctionStatus !== "all") && (
+          <Button
+            onClick={() => {
+              setWorkweek("all");
+              setCorrectionStatus("all");
+            }}
+          >
+            Clear history filters
+          </Button>
+        )}
+      </Stack>
       {pendingSubmission && (
         <Alert severity="warning">
           Submission for the week starting{" "}
@@ -210,7 +271,13 @@ export function EmployeeHoursPage() {
         </Alert>
       )}
       {!data && <LoadState error={loadError} onRetry={refresh} />}
-      {latestCards.map((card) => (
+      {data && latestCards.length > 0 && (
+        <Typography role="status" color="text.secondary">
+          Showing {visibleCards.length} of {latestCards.length} latest
+          timecards.
+        </Typography>
+      )}
+      {visibleCards.map((card) => (
         <TimecardSummary
           key={card.id}
           card={card}
@@ -247,6 +314,11 @@ export function EmployeeHoursPage() {
           first saved clock action.
         </Alert>
       )}
+      {data && latestCards.length > 0 && !visibleCards.length && (
+        <Alert severity="info">
+          No calculated timecard is available for this workweek.
+        </Alert>
+      )}
       <Stack component="section" aria-label="My correction history" spacing={2}>
         <Typography variant="h2">Correction history</Typography>
         <Typography color="text.secondary">
@@ -254,14 +326,36 @@ export function EmployeeHoursPage() {
           timecard versions. Times use your device timezone (
           {Intl.DateTimeFormat().resolvedOptions().timeZone}).
         </Typography>
+        <TextField
+          select
+          label="Correction status"
+          value={correctionStatus}
+          onChange={(event) => setCorrectionStatus(event.target.value)}
+          sx={{ maxWidth: 320 }}
+        >
+          <MenuItem value="all">All correction statuses</MenuItem>
+          <MenuItem value="submitted">Awaiting review</MenuItem>
+          <MenuItem value="approved">Approved</MenuItem>
+          <MenuItem value="denied">Denied</MenuItem>
+        </TextField>
+        {corrections.data && corrections.data.adjustments.length > 0 && (
+          <Typography role="status" color="text.secondary">
+            Showing {visibleCorrections.length} of{" "}
+            {corrections.data.adjustments.length} correction requests.
+          </Typography>
+        )}
         {!corrections.data ? (
           <LoadState error={corrections.error} onRetry={corrections.refresh} />
         ) : corrections.data.adjustments.length === 0 ? (
           <Typography color="text.secondary">
             No timecard corrections have been requested.
           </Typography>
+        ) : visibleCorrections.length === 0 ? (
+          <Typography color="text.secondary">
+            No corrections match these history filters.
+          </Typography>
         ) : (
-          corrections.data.adjustments.map((adjustment) => {
+          visibleCorrections.map((adjustment) => {
             const result = data?.timecards.find(
               (card) => card.id === adjustment.resulting_timecard_version_id,
             );
