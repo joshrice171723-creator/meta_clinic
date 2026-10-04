@@ -580,7 +580,7 @@ export function PatientClinicalHistory({
 
   if (!history.data) {
     return (
-      <Paper variant="outlined" sx={{ p: 2 }}>
+      <Paper id="clinical-history" variant="outlined" sx={{ p: 2 }}>
         <Typography component="h3" variant="h6">
           Clinical history
         </Typography>

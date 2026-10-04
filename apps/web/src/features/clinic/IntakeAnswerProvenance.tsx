@@ -146,7 +146,7 @@ function SavedAnswerInspector({ intake, fields, questionIds }: Props) {
       >
         <Typography>Inspect saved answer source</Typography>
       </AccordionSummary>
-      <AccordionDetails id={`${disclosureId}-details`}>
+      <AccordionDetails>
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
             Saved intake #{intake.id} · Revision {intake.version} · Patient #

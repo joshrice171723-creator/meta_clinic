@@ -546,16 +546,17 @@ function storedTrackingBoardColumns(): ColumnKey[] {
   }
 }
 const minimumPatientColumnWidth = 248;
+const minimumColumnWidth = 112;
 const initialColumnWidths: Record<ColumnKey, number> = {
   patient: minimumPatientColumnWidth,
   stage: 175,
-  wait: 96,
-  location: 80,
-  provider: 176,
-  reason: 192,
-  care: 136,
-  triage: 144,
-  action: 64,
+  wait: minimumColumnWidth,
+  location: minimumColumnWidth,
+  provider: 164,
+  reason: 168,
+  care: 120,
+  triage: 136,
+  action: minimumColumnWidth,
 };
 const columnLabels: Record<ColumnKey, string> = {
   patient: "Patient",
@@ -1665,7 +1666,7 @@ export function TrackingBoardView({
       [current.column]:
         current.column === "patient"
           ? Math.max(minimumPatientColumnWidth, nextWidth)
-          : nextWidth,
+          : Math.max(minimumColumnWidth, nextWidth),
     }));
   };
   const finishColumnResize = () => {
@@ -1678,7 +1679,7 @@ export function TrackingBoardView({
       [column]: Math.min(
         600,
         Math.max(
-          column === "patient" ? minimumPatientColumnWidth : 0,
+          column === "patient" ? minimumPatientColumnWidth : minimumColumnWidth,
           widths[column] + delta,
         ),
       ),
@@ -1708,7 +1709,11 @@ export function TrackingBoardView({
         <div>
           <h1>Tracking Board</h1>
           {boardDate && <p className="tracking-board-date">{boardDate}</p>}
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            className="tracking-board-scope"
+            variant="body2"
+            color="text.secondary"
+          >
             <span
               role="note"
               aria-label="All authorized locations. The Location selector does not filter this clinic-wide board."
@@ -1938,7 +1943,7 @@ export function TrackingBoardView({
                     aria-valuemin={
                       column === "patient"
                         ? minimumPatientColumnWidth
-                        : undefined
+                        : minimumColumnWidth
                     }
                     aria-valuemax={600}
                     aria-valuenow={columnWidths[column]}
@@ -2038,7 +2043,9 @@ export function TrackingBoardView({
       {filtered.length === 0 && (
         <ClinicEmptyState
           title={
-            visits.length ? "No visits match these filters" : "No current visits"
+            visits.length
+              ? "No visits match these filters"
+              : "No current visits"
           }
           description={
             visits.length

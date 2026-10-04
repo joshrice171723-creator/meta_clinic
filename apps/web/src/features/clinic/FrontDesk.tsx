@@ -6,6 +6,9 @@ import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CloseIcon from "@mui/icons-material/Close";
 import { ClinicEmptyState } from "./ClinicEmptyState";
 import {
   Accordion,
@@ -22,6 +25,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  IconButton,
   InputAdornment,
   MenuItem,
   Paper,
@@ -41,6 +45,7 @@ import type {
   VisitType,
 } from "../../api/contracts";
 import { businessNow } from "../../shared/businessDate";
+import { shiftCalendarDay } from "../../shared/dateTime";
 import { useResource } from "../../shared/ui";
 import {
   bookingAvailability,
@@ -286,6 +291,7 @@ function AppointmentDayQueue({
     currentSiteId === null ? "" : String(currentSiteId),
   );
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const [closedSite, setClosedSite] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const [page, setPage] = useState(1);
@@ -817,6 +823,14 @@ function AppointmentDayQueue({
   const records = response?.appointments ?? [];
   const pagination = response?.pagination;
 
+  function changeQueueDay(offset: number) {
+    const next = shiftCalendarDay(date, offset);
+    if (!next || closedSite) return;
+    setDate(next);
+    setDemoDayMessage("");
+    setPage(1);
+  }
+
   return (
     <Paper component="section" variant="outlined" className="front-desk-ledger">
       <div className="front-desk-toolbar">
@@ -825,9 +839,11 @@ function AppointmentDayQueue({
             {closedSite ? "Closed-site recovery" : "Day queue"}
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            {closedSite
-              ? "Upcoming visits needing a new location"
-              : queueDateLabel(date, timezone)}
+            <span aria-live="polite" aria-atomic="true">
+              {closedSite
+                ? "Upcoming visits needing a new location"
+                : queueDateLabel(date, timezone)}
+            </span>
             {refreshedAt
               ? ` · Updated ${freshnessLabel(refreshedAt, timezone)}`
               : ""}
@@ -874,7 +890,7 @@ function AppointmentDayQueue({
             closedSite
               ? "Date filtering is unavailable: recovery includes all upcoming affected visits."
               : date === today
-                ? `Today is selected in ${timezone}; Today is disabled.`
+                ? "Showing today"
                 : `Date in ${timezone}`
           }
           type="date"
@@ -888,28 +904,50 @@ function AppointmentDayQueue({
           }}
           slotProps={{ inputLabel: { shrink: true } }}
         />
-        <Button
-          variant="outlined"
-          startIcon={<TodayOutlinedIcon />}
-          onClick={() => {
-            setDate(today);
-            setDemoDayMessage("");
-            setPage(1);
-          }}
-          disabled={closedSite || date === today}
-          title={
-            closedSite
-              ? "Closed-site recovery includes all upcoming affected visits."
-              : date === today
-                ? "The queue is already showing today in the clinic timezone."
-                : undefined
-          }
+        <Stack
+          className="front-desk-date-actions"
+          direction="row"
+          spacing={0.5}
+          role="group"
+          aria-label="Appointment date navigation"
         >
-          Today
-        </Button>
+          <IconButton
+            aria-label="Previous day"
+            disabled={closedSite}
+            onClick={() => changeQueueDay(-1)}
+          >
+            <ChevronLeftIcon />
+          </IconButton>
+          <Button
+            variant="outlined"
+            startIcon={<TodayOutlinedIcon />}
+            onClick={() => {
+              setDate(today);
+              setDemoDayMessage("");
+              setPage(1);
+            }}
+            disabled={closedSite || date === today}
+            title={
+              closedSite
+                ? "Closed-site recovery includes all upcoming affected visits."
+                : date === today
+                  ? "The queue is already showing today in the clinic timezone."
+                  : undefined
+            }
+          >
+            Today
+          </Button>
+          <IconButton
+            aria-label="Next day"
+            disabled={closedSite}
+            onClick={() => changeQueueDay(1)}
+          >
+            <ChevronRightIcon />
+          </IconButton>
+        </Stack>
         <TextField
           select
-          label="Site"
+          label="Location"
           size="small"
           value={siteId}
           slotProps={{
@@ -922,7 +960,7 @@ function AppointmentDayQueue({
             setPage(1);
           }}
         >
-          <MenuItem value="">All authorized sites</MenuItem>
+          <MenuItem value="">All authorized locations</MenuItem>
           {sites.map((site) => (
             <MenuItem key={site.id} value={String(site.id)}>
               {site.name || site.code}
@@ -931,6 +969,7 @@ function AppointmentDayQueue({
         </TextField>
         <TextField
           label="Search appointments"
+          inputRef={searchInput}
           size="small"
           value={query}
           onChange={(event) => {
@@ -945,6 +984,21 @@ function AppointmentDayQueue({
                   <SearchIcon aria-hidden="true" />
                 </InputAdornment>
               ),
+              endAdornment: query ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="Clear appointment search"
+                    size="small"
+                    onClick={() => {
+                      setQuery("");
+                      setPage(1);
+                      searchInput.current?.focus();
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
             },
           }}
         />
@@ -1014,7 +1068,7 @@ function AppointmentDayQueue({
           description={
             closedSite
               ? "No matching upcoming visits affected by a location closure."
-              : "Try another date, site, or search term."
+              : "Try another date, location, or search term."
           }
           action={
             (query || siteId || date !== today) ? (

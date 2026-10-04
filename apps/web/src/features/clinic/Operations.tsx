@@ -1,4 +1,12 @@
 import type { ReactNode } from "react";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Stack,
+  Typography,
+} from "@mui/material";
 import type { ClinicOverview } from "../../api/contracts";
 import { Card } from "../../shared/ui";
 import { LabReviewWorklist } from "./LabReviewWorklist";
@@ -12,6 +20,45 @@ import { OwnerMorningView } from "./OwnerMorningView";
 import { OwnerCloseOfDayView } from "./OwnerCloseOfDayView";
 import { RolePermissionMatrix } from "./RolePermissionMatrix";
 import { useClinic, useClinicOverview } from "./Workspace";
+
+function OperationsReference({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Accordion
+      disableGutters
+      variant="outlined"
+      slotProps={{ heading: { component: "h2" } }}
+      sx={{ "&::before": { display: "none" } }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreRoundedIcon />}
+        id={`${id}-heading`}
+        aria-controls={`${id}-content`}
+      >
+        <Stack spacing={0.5}>
+          <Typography component="span" variant="h2">
+            {title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {description}
+          </Typography>
+        </Stack>
+      </AccordionSummary>
+      <AccordionDetails sx={{ px: { xs: 1, sm: 2 }, pt: 0 }}>
+        {children}
+      </AccordionDetails>
+    </Accordion>
+  );
+}
 
 export function OperationsView({
   clinic,
@@ -177,26 +224,40 @@ export function Operations() {
             <LabFollowUpWorklist />
             <OperationFollowUps />
             <OperationsWorkflowGuide capabilities={context.capabilities} />
-            <div className="clinic-grid">
-              <OperationsProviderReadiness
-                canConfigureTelehealth={
-                  context.capabilities.telehealth_configure === true
-                }
-              />
-              <OperationsIntegrationInventory
-                canReadScribe={context.capabilities.scribe_read === true}
-                canReadBilling={context.capabilities.billing_read === true}
-                canReadReminders={context.capabilities.reminders === true}
-                canReadClinical={
-                  context.capabilities.clinical_records_read === true
-                }
-              />
-              <OperationsReportsCatalog
-                capabilities={context.capabilities}
-                siteId={context.current_site?.id}
-                timezone={context.practice.timezone}
-              />
-            </div>
+            <Stack spacing={1.5} sx={{ mb: 3 }}>
+              <OperationsReference
+                id="operations-connections"
+                title="Connections and readiness"
+                description="Review provider setup, payments, reminders, and transmission activity."
+              >
+                <div className="clinic-grid">
+                  <OperationsProviderReadiness
+                    canConfigureTelehealth={
+                      context.capabilities.telehealth_configure === true
+                    }
+                  />
+                  <OperationsIntegrationInventory
+                    canReadScribe={context.capabilities.scribe_read === true}
+                    canReadBilling={context.capabilities.billing_read === true}
+                    canReadReminders={context.capabilities.reminders === true}
+                    canReadClinical={
+                      context.capabilities.clinical_records_read === true
+                    }
+                  />
+                </div>
+              </OperationsReference>
+              <OperationsReference
+                id="operations-reports"
+                title="Reports"
+                description="Open clinic reports, review their filters, and export available records."
+              >
+                <OperationsReportsCatalog
+                  capabilities={context.capabilities}
+                  siteId={context.current_site?.id}
+                  timezone={context.practice.timezone}
+                />
+              </OperationsReference>
+            </Stack>
           </>
         }
       />
@@ -215,7 +276,15 @@ export function Operations() {
           )}
         </ul>
       </Card>
-      {context.capabilities.roles && <RolePermissionMatrix />}
+      {context.capabilities.roles && (
+        <OperationsReference
+          id="operations-access"
+          title="Access and permissions"
+          description="Inspect stored role definitions and the actions each role permits."
+        >
+          <RolePermissionMatrix />
+        </OperationsReference>
+      )}
     </>
   );
 }

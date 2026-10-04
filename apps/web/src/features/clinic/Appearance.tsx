@@ -161,6 +161,40 @@ export function ClinicAppearanceScope({
                   outlineOffset: 3,
                 },
               },
+              sizeSmall: { fontSize: "0.875rem", paddingInline: 12 },
+            },
+          },
+          MuiOutlinedInput: {
+            styleOverrides: {
+              root: {
+                minHeight: 44,
+                "&.MuiInputBase-multiline": { alignItems: "flex-start" },
+              },
+            },
+          },
+          MuiToggleButton: {
+            styleOverrides: {
+              root: {
+                minHeight: 44,
+                textTransform: "none",
+                fontWeight: 600,
+              },
+            },
+          },
+          MuiTab: {
+            styleOverrides: {
+              root: {
+                minHeight: 48,
+                textTransform: "none",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+              },
+            },
+          },
+          MuiTabs: {
+            defaultProps: { allowScrollButtonsMobile: true },
+            styleOverrides: {
+              scrollButtons: { width: 44, minHeight: 48 },
             },
           },
           MuiLink: { defaultProps: { underline: "hover" } },
@@ -185,7 +219,7 @@ export function ClinicAppearanceScope({
               sizeSmall: { padding: "8px 12px" },
               head: {
                 color: tokens.muted,
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 fontWeight: 650,
                 lineHeight: 1.35,
               },

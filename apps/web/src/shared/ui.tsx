@@ -1,4 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import {
   api,
   ApiError,
@@ -310,15 +313,50 @@ export function Pager({
     return base + "?" + query.toString();
   };
   return (
-    <nav aria-label="Pages">
-      {page > 1 && <a href={url(page - 1)}>← Previous</a>} · Page {page}
-      {page * size < total && (
-        <>
-          {" "}
-          · <a href={url(page + 1)}>Next →</a>
-        </>
+    <Stack
+      component="nav"
+      direction="row"
+      aria-label="Pages"
+      sx={{
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 1,
+        pt: 2,
+        borderTop: 1,
+        borderColor: "divider",
+      }}
+    >
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ flex: "1 1 180px" }}
+      >
+        Page {page} of {Math.max(1, Math.ceil(total / size))} ·{" "}
+        {total.toLocaleString()} {total === 1 ? "record" : "records"}
+      </Typography>
+      {page > 1 && (
+        <Button
+          href={url(page - 1)}
+          rel="prev"
+          aria-label="Previous page"
+          variant="outlined"
+          size="small"
+        >
+          Previous
+        </Button>
       )}
-    </nav>
+      {page * size < total && (
+        <Button
+          href={url(page + 1)}
+          rel="next"
+          aria-label="Next page"
+          variant="outlined"
+          size="small"
+        >
+          Next
+        </Button>
+      )}
+    </Stack>
   );
 }
 export function createdPath(base: string) {

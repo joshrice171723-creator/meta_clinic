@@ -1010,22 +1010,27 @@ export function LiveStaffMessagingWorkspace() {
           {actionError}
         </Alert>
       )}
-      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-        {capability(capabilities, "staff_messaging_create_conversation") && (
-          <Button variant="outlined" onClick={() => void openCreate()}>
-            New conversation
-          </Button>
-        )}
-        {capability(capabilities, "staff_messaging_escalate") &&
-          state.selectedConversationId > 0 && (
-            <Button variant="outlined" onClick={() => void openRecovery()}>
-              Recover conversation
-            </Button>
-          )}
-      </Stack>
       <StaffMessagingWorkspace
         key={scopeKey}
         state={state}
+        headerActions={
+          <>
+            {capability(
+              capabilities,
+              "staff_messaging_create_conversation",
+            ) && (
+              <Button variant="contained" onClick={() => void openCreate()}>
+                New conversation
+              </Button>
+            )}
+            {capability(capabilities, "staff_messaging_escalate") &&
+              state.selectedConversationId > 0 && (
+                <Button variant="outlined" onClick={() => void openRecovery()}>
+                  Recover conversation
+                </Button>
+              )}
+          </>
+        }
         onSelectConversation={selectConversation}
         onMarkRead={markRead}
         onSend={send}

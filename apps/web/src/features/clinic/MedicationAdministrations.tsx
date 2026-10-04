@@ -210,7 +210,12 @@ export function MedicationAdministrations({
   const context = useClinic();
   if (context.capabilities.notes_read !== true) {
     return (
-      <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+      <Paper
+        id="medication-administration"
+        component="section"
+        variant="outlined"
+        sx={{ p: 2 }}
+      >
         <Typography component="h2" variant="subtitle2">
           Medication administration
         </Typography>
@@ -493,7 +498,12 @@ function MedicationAdministrationPanel({
 
   if (!resource.data) {
     return (
-      <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+      <Paper
+        id="medication-administration"
+        component="section"
+        variant="outlined"
+        sx={{ p: 2 }}
+      >
         <Typography component="h2" variant="subtitle2">
           Medication administration
         </Typography>

@@ -236,9 +236,6 @@ export function TimecardReviewPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="overline" color="text.secondary">
-          TEAM / WORKFORCE
-        </Typography>
         <Typography variant="h1">Timecard review</Typography>
         <Typography color="text.secondary">
           Review location-scoped hours, resolve exceptions, and approve only

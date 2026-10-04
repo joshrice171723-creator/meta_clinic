@@ -548,7 +548,13 @@ export function EmploymentAdminPage() {
     if (employeeRole) setRoleVersionId(String(employeeRole.id));
   }, [data, roleVersionId]);
 
-  if (!data) return <LoadState error={error} />;
+  if (!data)
+    return (
+      <Stack spacing={3}>
+        <Typography variant="h1">Employees</Typography>
+        <LoadState error={error} onRetry={refresh} />
+      </Stack>
+    );
 
   const frontDeskRole = data.role_options.find(
     (role) => role.role_code === "front-desk-coordinator",
@@ -824,9 +830,6 @@ export function EmploymentAdminPage() {
   return (
     <Stack spacing={3}>
       <Stack spacing={0.75}>
-        <Typography variant="overline" color="text.secondary">
-          TEAM / WORKFORCE
-        </Typography>
         <Typography variant="h1">Employees</Typography>
         <Typography color="text.secondary">
           Add an employee, their clinic login access, role, work sites, and

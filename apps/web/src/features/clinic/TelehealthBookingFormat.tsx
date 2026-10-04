@@ -98,7 +98,7 @@ export function TelehealthBookingFormat({
               Video unavailable · In-person booking is available
             </Typography>
           </AccordionSummary>
-          <AccordionDetails id="video-availability-details">
+          <AccordionDetails>
             <Stack spacing={1}>
               <Typography variant="body2" color="text.secondary">
                 Video visits are unavailable for this clinic. An authorized

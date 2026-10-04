@@ -9,7 +9,6 @@ import { api } from "../../api/client";
 import { Card, ErrorMessage, Field, Form, LoadState } from "../../shared/ui";
 import { useAppearance } from "../clinic/Appearance";
 import {
-  CLINIC_MODES,
   CLINIC_PALETTES,
   CLINIC_STATUS_COLORS,
   CLINIC_THEMES,
@@ -97,17 +96,13 @@ export function AppearanceSettings({
     <div className="clinic-settings">
       <h1>My preferences</h1>
       <p className="clinic-lead">
-        Appearance preferences for your signed-in account.
+        Personal preferences for{" "}
+        <span className="settings-account">{user.email_address}</span>.
       </p>
-      <Card title="Signed-in account">
-        <p className="settings-account">{user.email_address}</p>
-        <p>Appearance changes apply to your signed-in account.</p>
-      </Card>
       <Card title="Appearance">
         <p>
-          Choose a color palette and set light or dark mode for this account.
-          There is no Follow system option on this screen; changing the switch
-          sets an explicit light or dark mode.
+          Choose your colors and brightness. Changes save automatically to your
+          account.
         </p>
         <form
           className="settings-form appearance-form"
@@ -119,33 +114,37 @@ export function AppearanceSettings({
             value={settings.appearance.version}
             readOnly
           />
+          <div className="appearance-brightness">
+            <div>
+              <strong>Brightness</strong>
+              <p className="form-note">
+                Use light or dark mode on every device.
+              </p>
+            </div>
+            <label className="appearance-mode-toggle">
+              <span>Dark mode</span>
+              <Switch
+                disabled={saveState === "saving"}
+                checked={
+                  resolveColorScheme(selection.mode, systemDark) === "dark"
+                }
+                onChange={() =>
+                  changeAppearance({
+                    mode:
+                      resolveColorScheme(selection.mode, systemDark) === "dark"
+                        ? "light"
+                        : "dark",
+                  })
+                }
+                slotProps={{ input: { "aria-label": "Dark mode" } }}
+              />
+            </label>
+          </div>
           <fieldset
             className="appearance-picker"
             disabled={saveState === "saving"}
           >
-            <legend className="appearance-picker-header">
-              <span className="appearance-picker-title">
-                Select a color theme
-              </span>
-              <label className="appearance-mode-toggle">
-                <span>Dark mode</span>
-                <Switch
-                  checked={
-                    resolveColorScheme(selection.mode, systemDark) === "dark"
-                  }
-                  onChange={() =>
-                    changeAppearance({
-                      mode:
-                        resolveColorScheme(selection.mode, systemDark) ===
-                        "dark"
-                          ? "light"
-                          : "dark",
-                    })
-                  }
-                  slotProps={{ input: { "aria-label": "Dark mode" } }}
-                />
-              </label>
-            </legend>
+            <legend className="appearance-picker-title">Color theme</legend>
             <div className="appearance-preview-grid">
               {CLINIC_PALETTES.map(({ id, label }) => {
                 const scheme = resolveColorScheme(selection.mode, systemDark);
@@ -167,6 +166,7 @@ export function AppearanceSettings({
                       type="radio"
                       name="appearance[palette]"
                       value={id}
+                      aria-label={label}
                       checked={selected}
                       onChange={() =>
                         changeAppearance({
@@ -220,25 +220,25 @@ export function AppearanceSettings({
           {saveState === "error" && (
             <>
               <ErrorMessage message={saveError} />
-              <button
-                className="primary-link appearance-retry"
-                type="button"
+              <Button
+                className="appearance-retry"
+                variant="outlined"
                 onClick={() => void saveAppearance(selection)}
                 disabled={inFlight.current}
               >
                 Retry saving appearance
-              </button>
+              </Button>
               <p className="form-note">
                 Your saved appearance is unchanged until the retry succeeds.
+              </p>
+              <p className="form-note">
+                If another device changed your settings,{" "}
+                <a href="/clinic/settings">reload saved settings</a> before
+                trying again. Reloading discards unsaved selections.
               </p>
             </>
           )}
         </div>
-        <p className="form-note">
-          If saving fails or another device changes your settings,{" "}
-          <a href="/clinic/settings">reload the page</a> before trying again.
-          Reloading discards unsaved selections.
-        </p>
       </Card>
       {settings.development_access && (
         <div className="development-settings">

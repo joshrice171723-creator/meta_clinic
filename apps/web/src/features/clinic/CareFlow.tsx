@@ -393,19 +393,33 @@ export function Schedule({
   );
 }
 
+function focusChartSection(id: string, block: ScrollLogicalPosition = "start") {
+  const target = document.getElementById(id);
+  if (!target) return;
+  if (!target.matches("a[href], button, input, select, textarea, [tabindex]"))
+    target.tabIndex = -1;
+  target.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "instant"
+      : "smooth",
+    block,
+  });
+  target.focus({ preventScroll: true });
+}
+
 export function ChartQuickJump() {
-  const links = [
+  const links: Array<[string, string, string?]> = [
     ["Education", "#patient-education"],
     ["History", "#clinical-history"],
     ["Labs", "#chart-labs"],
     ["Medication", "#medication-administration"],
     ["Orders & plans", "#clinical-plan-workspace"],
-    ["HPI", "#chart-hpi"],
-    ["ROS", "#chart-ros"],
-    ["SOAP assessment", "#chart-assessment"],
-    ["Plan", "#chart-plan"],
+    ["HPI", "#chart-hpi", "#chart-documentation"],
+    ["ROS", "#chart-ros", "#chart-documentation"],
+    ["SOAP assessment", "#chart-assessment", "#chart-documentation"],
+    ["Plan", "#chart-plan", "#chart-documentation"],
     ["Signing", "#chart-signing"],
-  ] as const;
+  ];
 
   return (
     <Accordion
@@ -423,20 +437,32 @@ export function ChartQuickJump() {
       </AccordionSummary>
       <AccordionDetails>
         <Stack direction="row" className="chart-quick-jump-links">
-          {links.map(([label, href]) => (
+          {links.map(([label, href, fallbackHref]) => (
             <Button
               key={href}
               href={href}
               variant="text"
               size="small"
               onClick={(event) => {
+                if (
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                )
+                  return;
                 event.preventDefault();
                 event.stopPropagation();
-                document.querySelector(href)?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-                window.history.replaceState(null, "", href);
+                const destination = document.getElementById(href.slice(1))
+                  ? href
+                  : (fallbackHref ?? href);
+                focusChartSection(destination.slice(1));
+                window.history.replaceState(
+                  window.history.state,
+                  "",
+                  destination,
+                );
               }}
             >
               {label}
@@ -557,10 +583,7 @@ export function EncounterSectionRail({
                 return;
               event.preventDefault();
               event.stopPropagation();
-              document.querySelector(href)?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
+              focusChartSection(href.slice(1));
               window.history.replaceState(window.history.state, "", href);
             }}
           >
@@ -644,10 +667,7 @@ export function ProviderEncounterWorkflow({
         )
       : [];
   const focusReview = (topic: "allergies" | "medications") => {
-    const href = `#clinical-history-${topic}-review`;
-    const target = document.getElementById(href.slice(1));
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
-    target?.focus();
+    focusChartSection(`clinical-history-${topic}-review`, "center");
   };
 
   useEffect(() => {
@@ -656,9 +676,7 @@ export function ProviderEncounterWorkflow({
     );
     if (requestedFocus === "nurse-workspace") {
       const timer = window.setTimeout(() => {
-        const target = document.getElementById(requestedFocus);
-        target?.scrollIntoView({ behavior: "smooth", block: "start" });
-        target?.focus();
+        focusChartSection(requestedFocus);
       }, 0);
       return () => window.clearTimeout(timer);
     }
@@ -668,9 +686,7 @@ export function ProviderEncounterWorkflow({
       return;
     }
     const timer = window.setTimeout(() => {
-      const target = document.getElementById(requestedFocus);
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-      target?.focus();
+      focusChartSection(requestedFocus);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [chartConfirmed]);

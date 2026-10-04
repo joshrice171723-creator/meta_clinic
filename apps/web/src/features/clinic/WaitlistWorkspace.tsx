@@ -473,12 +473,21 @@ export function WaitlistWorkspace() {
   ) => (
     <TextField
       select
+      size="small"
+      fullWidth
       label={label}
       value={value}
       onChange={(event) => change(event.target.value)}
       disabled={disabled}
-      sx={{ minWidth: 190 }}
+      sx={{ minWidth: 0 }}
+      slotProps={{
+        select: { displayEmpty: true },
+        inputLabel: { shrink: true },
+      }}
     >
+      <MenuItem value="" disabled>
+        Choose a {label.toLowerCase()}
+      </MenuItem>
       {options.map((option) => (
         <MenuItem key={option.id} value={String(option.id)}>
           {option.name}
@@ -803,17 +812,30 @@ export function WaitlistWorkspace() {
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={2}>
               <Typography variant="h6" component="h2">
-                Site and clinician
+                Location and clinician
               </Typography>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                {selector("Site", site, setSite, queue.data.sites)}
+              <Typography variant="body2" color="text.secondary">
+                Used when adding a waitlist request or capacity rule.
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "minmax(0, 1fr)",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                  },
+                  gap: 2,
+                  maxWidth: 640,
+                }}
+              >
+                {selector("Location", site, setSite, queue.data.sites)}
                 {selector(
                   "Clinician",
                   clinician,
                   setClinician,
                   queue.data.clinicians,
                 )}
-              </Stack>
+              </Box>
             </Stack>
           </Paper>
           {canBook && (
@@ -839,6 +861,7 @@ export function WaitlistWorkspace() {
               <AccordionDetails sx={{ p: 2, pt: 0 }}>
                 <Stack spacing={2}>
                   <Autocomplete
+                    size="small"
                     options={patients}
                     value={patient}
                     onChange={(_, value) => setPatient(value)}
@@ -852,7 +875,17 @@ export function WaitlistWorkspace() {
                       <TextField {...params} label="Find patient" />
                     )}
                   />
-                  <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "minmax(0, 1fr)",
+                        sm: "repeat(2, minmax(0, 1fr))",
+                        xl: "repeat(4, minmax(0, 1fr))",
+                      },
+                      gap: 2,
+                    }}
+                  >
                     {selector(
                       "Visit type",
                       visitType,
@@ -860,6 +893,7 @@ export function WaitlistWorkspace() {
                       availableVisitTypes,
                     )}
                     <TextField
+                      size="small"
                       label="Duration (minutes)"
                       type="number"
                       value={duration}
@@ -868,6 +902,7 @@ export function WaitlistWorkspace() {
                       slotProps={{ htmlInput: { min: 5, max: 240 } }}
                     />
                     <TextField
+                      size="small"
                       label="Earliest time"
                       type="datetime-local"
                       value={earliest}
@@ -876,6 +911,7 @@ export function WaitlistWorkspace() {
                       slotProps={{ inputLabel: { shrink: true } }}
                     />
                     <TextField
+                      size="small"
                       label="Latest end"
                       type="datetime-local"
                       value={latest}
@@ -883,8 +919,9 @@ export function WaitlistWorkspace() {
                       onChange={(event) => setLatest(event.target.value)}
                       slotProps={{ inputLabel: { shrink: true } }}
                     />
-                  </Stack>
+                  </Box>
                   <TextField
+                    size="small"
                     label="Scheduling reason or preferences"
                     value={reason}
                     disabled={disabled}
@@ -893,6 +930,7 @@ export function WaitlistWorkspace() {
                   />
                   <Button
                     variant="contained"
+                    sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
                     disabled={
                       disabled ||
                       !patient ||
@@ -1020,6 +1058,7 @@ export function WaitlistWorkspace() {
                   </Typography>
                   <TextField
                     select
+                    size="small"
                     label="Rule type"
                     value={kind}
                     disabled={disabled}
@@ -1034,19 +1073,37 @@ export function WaitlistWorkspace() {
                     </MenuItem>
                   </TextField>
                   <Typography variant="body2">
-                    New rule for{" "}
-                    {queue.data.sites.find((item) => item.id === Number(site))
-                      ?.name ?? "choose a site"}{" "}
-                    ·{" "}
-                    {queue.data.clinicians.find(
-                      (item) => item.id === Number(clinician),
-                    )?.name ?? "choose a clinician"}
-                    . Changes apply only after Save capacity rule.
+                    {site && clinician ? (
+                      <>
+                        New rule for{" "}
+                        {queue.data.sites.find(
+                          (item) => item.id === Number(site),
+                        )?.name ?? "Location unavailable"}{" "}
+                        ·{" "}
+                        {queue.data.clinicians.find(
+                          (item) => item.id === Number(clinician),
+                        )?.name ?? "Clinician unavailable"}
+                        . Changes apply only after Save capacity rule.
+                      </>
+                    ) : (
+                      "Choose a location and clinician above before saving a capacity rule."
+                    )}
                   </Typography>
                   {kind === "weekly" ? (
-                    <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "minmax(0, 1fr)",
+                          sm: "repeat(3, minmax(0, 1fr))",
+                        },
+                        gap: 2,
+                        maxWidth: 720,
+                      }}
+                    >
                       <TextField
                         select
+                        size="small"
                         label="Day"
                         value={weekday}
                         disabled={disabled}
@@ -1059,6 +1116,7 @@ export function WaitlistWorkspace() {
                         ))}
                       </TextField>
                       <TextField
+                        size="small"
                         type="time"
                         label="Start"
                         value={startTime}
@@ -1066,13 +1124,14 @@ export function WaitlistWorkspace() {
                         onChange={(event) => setStartTime(event.target.value)}
                       />
                       <TextField
+                        size="small"
                         type="time"
                         label="End"
                         value={endTime}
                         disabled={disabled}
                         onChange={(event) => setEndTime(event.target.value)}
                       />
-                    </Stack>
+                    </Box>
                   ) : (
                     <Stack spacing={2}>
                       <Alert severity="info">
@@ -1082,7 +1141,7 @@ export function WaitlistWorkspace() {
                       </Alert>
                       {!site && (
                         <Typography>
-                          Select a site to load its block categories.
+                          Select a location to load its block categories.
                         </Typography>
                       )}
                       {site && policy.error && (
@@ -1115,6 +1174,7 @@ export function WaitlistWorkspace() {
                           {categoryRequired ? (
                             <TextField
                               select
+                              size="small"
                               label="Block reason category"
                               value={categoryKey}
                               disabled={disabled}
@@ -1143,6 +1203,7 @@ export function WaitlistWorkspace() {
                         </>
                       )}
                       <TextField
+                        size="small"
                         type="datetime-local"
                         label="Block starts"
                         value={blockStart}
@@ -1151,6 +1212,7 @@ export function WaitlistWorkspace() {
                         slotProps={{ inputLabel: { shrink: true } }}
                       />
                       <TextField
+                        size="small"
                         type="datetime-local"
                         label="Block ends"
                         value={blockEnd}
@@ -1161,6 +1223,7 @@ export function WaitlistWorkspace() {
                     </Stack>
                   )}
                   <TextField
+                    size="small"
                     label="Capacity reason"
                     value={capacityReason}
                     disabled={disabled}
@@ -1168,6 +1231,8 @@ export function WaitlistWorkspace() {
                     slotProps={{ htmlInput: { maxLength: 500 } }}
                   />
                   <Button
+                    variant="contained"
+                    sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
                     disabled={
                       disabled ||
                       !site ||

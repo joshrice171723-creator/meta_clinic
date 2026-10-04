@@ -400,29 +400,40 @@ export function TelehealthQueue() {
         </Stack>
       )}
       <Paper variant="outlined" sx={{ p: 1.5 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          useFlexGap
-          sx={{ flexWrap: "wrap" }}
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            alignItems: "start",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(4, minmax(0, 1fr))",
+            },
+          }}
         >
           <TextField
             label="Date"
+            size="small"
+            fullWidth
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
             helperText={`Appointments in ${clinic.practice.timezone}`}
           />
-          <FormControl sx={{ minWidth: 190 }}>
-            <InputLabel id="telehealth-site-filter">Site</InputLabel>
+          <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+            <InputLabel id="telehealth-site-filter" shrink>
+              Location
+            </InputLabel>
             <Select
               labelId="telehealth-site-filter"
-              label="Site"
+              label="Location"
+              displayEmpty
               value={siteId}
               onChange={(event) => setSiteId(event.target.value)}
             >
-              <MenuItem value="">All authorized sites</MenuItem>
+              <MenuItem value="">All authorized locations</MenuItem>
               {clinic.sites.map((site) => (
                 <MenuItem key={site.id} value={String(site.id)}>
                   {site.name || site.code}
@@ -430,11 +441,14 @@ export function TelehealthQueue() {
               ))}
             </Select>
           </FormControl>
-          <FormControl sx={{ minWidth: 210 }}>
-            <InputLabel id="telehealth-clinician-filter">Clinician</InputLabel>
+          <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+            <InputLabel id="telehealth-clinician-filter" shrink>
+              Clinician
+            </InputLabel>
             <Select
               labelId="telehealth-clinician-filter"
               label="Clinician"
+              displayEmpty
               value={clinicianId}
               onChange={(event) => setClinicianId(event.target.value)}
             >
@@ -449,11 +463,14 @@ export function TelehealthQueue() {
               ))}
             </Select>
           </FormControl>
-          <FormControl sx={{ minWidth: 180 }}>
-            <InputLabel id="telehealth-status-filter">Status</InputLabel>
+          <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+            <InputLabel id="telehealth-status-filter" shrink>
+              Status
+            </InputLabel>
             <Select
               labelId="telehealth-status-filter"
               label="Status"
+              displayEmpty
               value={status}
               onChange={(event) => setStatus(event.target.value)}
             >
@@ -483,7 +500,7 @@ export function TelehealthQueue() {
               ))}
             </Select>
           </FormControl>
-        </Stack>
+        </Box>
       </Paper>
       {error && (
         <Alert
@@ -522,7 +539,14 @@ export function TelehealthQueue() {
         </Paper>
       )}
       {visits.length > 0 && (
-        <TableContainer component={Paper} variant="outlined">
+        <TableContainer
+          component={Paper}
+          variant="outlined"
+          className="clinic-table-wrap"
+          role="region"
+          aria-label="Video visit list"
+          tabIndex={0}
+        >
           <Table aria-label="Virtual waiting room">
             <TableHead>
               <TableRow>

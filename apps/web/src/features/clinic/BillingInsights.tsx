@@ -232,11 +232,6 @@ export function BillingCollectionWorklist({
           size="small"
           variant="outlined"
         />
-        <Chip
-          label="Next action: resolve uncertain outcomes before recollecting"
-          size="small"
-          variant="outlined"
-        />
       </Stack>
       {summaryScope === "shown" && (
         <Typography
@@ -252,7 +247,19 @@ export function BillingCollectionWorklist({
         <p className="billing-clear-state">No collection activity yet.</p>
       ) : (
         <>
-          <TableContainer className="billing-table-wrap">
+          <TableContainer
+            className="billing-table-wrap"
+            role="region"
+            aria-label="Collections and reconciliation worklist"
+            tabIndex={0}
+            sx={{
+              "&:focus-visible": {
+                outline: "3px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 2,
+              },
+            }}
+          >
             <Table
               size="small"
               aria-label="Collections and reconciliation worklist"
@@ -315,6 +322,7 @@ export function BillingCollectionWorklist({
                     <TableCell align="right">
                       <Button
                         size="small"
+                        aria-label={`Open invoice ${item.invoice_id} for collection ${item.id}`}
                         onClick={() => onOpenInvoice(item.invoice_id, item.id)}
                       >
                         Open invoice

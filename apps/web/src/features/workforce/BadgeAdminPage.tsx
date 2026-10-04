@@ -266,9 +266,6 @@ export function BadgeAdminPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="overline" color="text.secondary">
-          TEAM / WORKFORCE
-        </Typography>
         <Typography variant="h1">Badges and kiosks</Typography>
         <Typography color="text.secondary">
           Issue one active clock badge per employee and manage clock-only device

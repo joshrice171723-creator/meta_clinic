@@ -162,7 +162,7 @@ export function ClinicFrame({
           if (
             drawer &&
             (event.target as Element).closest(
-              "nav a, nav button, .clinic-sidebar-bottom a, .clinic-sidebar-bottom button",
+              "nav a[href], .clinic-sidebar-bottom a[href], .clinic-sidebar-bottom button",
             )
           )
             close();

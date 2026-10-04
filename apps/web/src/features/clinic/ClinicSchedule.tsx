@@ -25,6 +25,10 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import type {
   Appointment,
   Patient,
@@ -35,6 +39,7 @@ import type {
 } from "../../api/contracts";
 import { api } from "../../api/client";
 import { businessNow } from "../../shared/businessDate";
+import { shiftCalendarDay } from "../../shared/dateTime";
 import { useResource } from "../../shared/ui";
 import { useClinic } from "./Workspace";
 import { workflowStatusLabel } from "./workflowStatus";
@@ -591,7 +596,14 @@ export function ClinicSchedule({
     setDay(date);
     setView("day");
   }
-  function changeMonth(offset: number) {
+  function changePeriod(offset: number) {
+    if (view === "day") {
+      const next = shiftCalendarDay(day, offset);
+      if (!next) return;
+      setDay(next);
+      setMonth(next.slice(0, 7));
+      return;
+    }
     const next = shiftCalendarMonth(month, offset);
     setMonth(next);
     setDay(`${next}-01`);
@@ -831,7 +843,7 @@ export function ClinicSchedule({
     );
   }
   return (
-    <Stack spacing={1}>
+    <Stack spacing={2}>
       <Stack
         direction="row"
         sx={{
@@ -849,7 +861,7 @@ export function ClinicSchedule({
             Appointments and availability · {timezone}
           </Typography>
         </Box>
-        <Stack direction="row" sx={{ gap: 1 }}>
+        <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
           <Button href="/clinic" data-clinic-view="tracking">
             Tracking Board
           </Button>
@@ -901,22 +913,52 @@ export function ClinicSchedule({
       )}
       <Stack
         direction="row"
-        sx={{ gap: 1, alignItems: "center", flexWrap: "wrap" }}
+        component="section"
+        aria-label="Calendar controls"
+        sx={{
+          gap: 1.5,
+          alignItems: "center",
+          flexWrap: "wrap",
+          p: 1.5,
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
+          bgcolor: "background.paper",
+        }}
       >
-        <Button aria-label="Previous month" onClick={() => changeMonth(-1)}>
-          ←
-        </Button>
-        <Typography component="h2" variant="h6" sx={{ minWidth: 160 }}>
-          {new Date(`${month}-01T12:00:00Z`).toLocaleDateString("en-US", {
-            timeZone: "UTC",
-            month: "long",
-            year: "numeric",
-          })}
-        </Typography>
-        <Button aria-label="Next month" onClick={() => changeMonth(1)}>
-          →
-        </Button>
+        <Stack direction="row" sx={{ gap: 0.5, alignItems: "center" }}>
+          <IconButton
+            aria-label={view === "day" ? "Previous day" : "Previous month"}
+            onClick={() => changePeriod(-1)}
+          >
+            <ChevronLeftIcon />
+          </IconButton>
+          <Typography
+            component="h2"
+            variant="h6"
+            sx={{ minWidth: 150, textAlign: "center" }}
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {new Date(
+              `${view === "day" ? day : `${month}-01`}T12:00:00Z`,
+            ).toLocaleDateString("en-US", {
+              timeZone: "UTC",
+              ...(view === "day"
+                ? { weekday: "short", month: "short", day: "numeric" }
+                : { month: "long", year: "numeric" }),
+            })}
+          </Typography>
+          <IconButton
+            aria-label={view === "day" ? "Next day" : "Next month"}
+            onClick={() => changePeriod(1)}
+          >
+            <ChevronRightIcon />
+          </IconButton>
+        </Stack>
         <Button
+          size="small"
+          variant="outlined"
           onClick={() => {
             setMonth(today.slice(0, 7));
             setDay(today);
@@ -930,7 +972,7 @@ export function ClinicSchedule({
           label="Location"
           value={siteId}
           onChange={(event) => setSiteId(event.target.value)}
-          sx={{ minWidth: 170 }}
+          sx={{ minWidth: 170, flex: "1 1 170px", maxWidth: { sm: 280 } }}
         >
           {context.sites.map((site) => (
             <MenuItem key={site.id} value={String(site.id)}>
@@ -977,9 +1019,17 @@ export function ClinicSchedule({
             <MenuItem value="room">Room</MenuItem>
           </TextField>
         )}
-        <Button onClick={calendar.refresh}>Refresh</Button>
         <Button
+          size="small"
+          startIcon={<RefreshIcon />}
+          onClick={calendar.refresh}
+        >
+          Refresh
+        </Button>
+        <Button
+          size="small"
           variant="outlined"
+          startIcon={<FileDownloadOutlinedIcon />}
           onClick={exportCalendar}
           disabled={!data}
           aria-label={`${exportActionLabel} for ${view === "day" ? dateLabel(day) : month}`}
@@ -1031,7 +1081,7 @@ export function ClinicSchedule({
                   Some scheduling options are unavailable at this location
                 </Typography>
               </AccordionSummary>
-              <AccordionDetails id="schedule-policy-details">
+              <AccordionDetails>
                 <Stack spacing={1}>
                   <Typography variant="body2" color="text.secondary">
                     {[data.policy?.recurrence === "not_configured"
@@ -1057,7 +1107,20 @@ export function ClinicSchedule({
             </Accordion>
           )}
           {view === "month" ? (
-            <Paper variant="outlined" sx={{ overflowX: "auto" }}>
+            <Paper
+              variant="outlined"
+              role="region"
+              aria-label="Monthly schedule"
+              tabIndex={0}
+              sx={{
+                overflowX: "auto",
+                "&:focus-visible": {
+                  outline: "3px solid",
+                  outlineColor: "primary.main",
+                  outlineOffset: 2,
+                },
+              }}
+            >
               <Box
                 sx={{
                   display: "grid",
@@ -1085,7 +1148,8 @@ export function ClinicSchedule({
                 )}
                 {data.days.map((item) => {
                   const completed = item.appointments.filter(
-                    (appointment) => appointment.calendar_status === "completed",
+                    (appointment) =>
+                      appointment.calendar_status === "completed",
                   ).length;
                   const appointments = item.appointments
                     .filter(
@@ -1096,7 +1160,8 @@ export function ClinicSchedule({
                     )
                     .sort(
                       (left, right) =>
-                        Date.parse(left.starts_at) - Date.parse(right.starts_at),
+                        Date.parse(left.starts_at) -
+                        Date.parse(right.starts_at),
                     );
                   return (
                     <ButtonBase
@@ -1105,7 +1170,10 @@ export function ClinicSchedule({
                       aria-pressed={item.date === day}
                       aria-label={`${dateLabel(item.date)}: ${completed} completed, ${item.scheduled} scheduled, ${item.confirmed} confirmed, ${item.available ?? "unknown"} available slots, ${item.holds.length} active holds, ${item.conflicts} conflicts`}
                       sx={{
-                        display: "block",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "stretch",
+                        justifyContent: "flex-start",
                         textAlign: "left",
                         p: 1.25,
                         minHeight: 128,
