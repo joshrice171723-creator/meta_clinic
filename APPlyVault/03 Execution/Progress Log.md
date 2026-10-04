@@ -2,11 +2,13 @@
 
 type: progress-log
 status: active
-updated: 2026-10-03
+updated: 2026-10-04
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+**2026-10-04 — PR #72 portfolio published:** Joshua authorized publication of `6b7fde2310fc9671480138c9852b64c15c91d558` to `https://aimetaclinic.com/joshua/`. The clean main release checkout was fast-forwarded to that merged revision. Published only the seven allowlisted static files under the Windows `Global\MetaClinicReleaseRunner` mutex and host `/opt/meta-clinic/release.lock`; nginx configuration passed before and after the atomic symlink switch. All seven HTTPS file SHA-256 hashes matched the committed archive, including the portrait and Word resume. Canonical redirects passed for `/joshua`, `/Joshua` and `/Joshua/`; missing files, README and deployment configuration returned 404; `/demo` and `/up` returned 200. The application build response stayed unchanged; no application containers or databases were released. Previous portfolio `60ed12ded8a4320b992774c693b91dad586ce7ad` remains available. Configuration and previous-target backup: `/var/backups/joshua-portfolio/20261004T080119Z-6b7fde2310fc9671480138c9852b64c15c91d558`. No rollback was needed. Visual browser acceptance remains unverified: the in-app browser timed out and Chrome's connector returned `Debugger unattached`. No tests ran; existing PR application CI failures/cancellation are not a static-release pass or resolved by this publication.
 
 **2026-10-03 — Clinical and statement follow-up released:** Deployed `228ae291` through guarded recovery and all 26 hosted checks. Appended Guided Clinic profile revision 2 for existing Sandbox run 79/site 145, enabling procedure, immunization-history and tobacco assessment authoring; all 603 patient IDs, 1,004 encounter IDs and prior profile records retained. Chrome opened all three Add forms without saving and confirmed statement standalone-tab opening plus working preview Close. Native PDF output remains unverified; clinic-administered immunizations retain their separate gate. Located saved provider console/configuration: Twilio Video key reads successfully, but saved account/callback credentials fail; Stripe current key lacks account-read permission and older key expired. Provider connections remain disabled pending corrected credentials and private-access choice. [Release and remaining provider evidence](../../records/progress/2026/10/2026-10-03-clinical-print-provider-repair.md).
 
