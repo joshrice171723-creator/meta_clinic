@@ -243,3 +243,15 @@ Source commit: `1db28cb3`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, frontend formatting, focused source/API contract review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed; Ruby lint was not repeated. No tests were added/run. Connected weekly browsing, publication replacement and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue a bounded existing workflow from this clean checkpoint.
+
+## Eighteenth implementation checkpoint
+
+Source commit: `4845dceb`, pushed after synchronization with `origin/main` (already current).
+
+- Employee submission and manager submission/approval now retain the original card, action, lock version and selected location after an unknown response. Explicit retry works independently of a refreshed card's action availability. Rejected recovery does not erase the earlier uncertainty; stopping recovery warns and refreshes current records.
+- Competing timecard writes, new corrections and manager location changes remain blocked while a transition is unconfirmed. Refresh stays available, and navigation warns before losing the saved retry.
+- The controller accepts an immediately completed submission/approval only for the original actor and original pre-save version, after current authorization and inside the existing employment/card lock order. Replay makes no mutation. All new-transition source, exception, policy, pending-correction and newer-version checks remain. A submission that has already advanced to approval still conflicts rather than fabricating a durable receipt.
+
+Verification: TypeScript, both Vite bundles, frontend formatting, one-file Ruby lint, focused source/contract review and `git diff --check` passed. The existing marketing import warning remains. No tests were added/run. Lost-response/concurrent-transition persistence and browser recovery remain unverified without an owned connected runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue concrete bounded workforce implementation; preserve these connected-verification limits.
