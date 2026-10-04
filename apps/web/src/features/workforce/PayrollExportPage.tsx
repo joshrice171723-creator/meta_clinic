@@ -13,6 +13,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
@@ -135,6 +136,11 @@ export function PayrollExportPage() {
   const [configurationId, setConfigurationId] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewPage, setPreviewPage] = useState(0);
+  const [previewPageSize, setPreviewPageSize] = useState(25);
+  useEffect(() => {
+    setPreviewPage(0);
+  }, [preview]);
   const [supersedes, setSupersedes] = useState("");
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -709,6 +715,11 @@ export function PayrollExportPage() {
               </Stack>
               {preview && (
                 <Box>
+                  <Typography variant="h6">File preview</Typography>
+                  <Typography color="text.secondary">
+                    {configuration?.name} · configuration version{" "}
+                    {configuration?.revision}
+                  </Typography>
                   <Typography>
                     {preview.rows.length} rows · {preview.totals.paid_hours}{" "}
                     paid hours · {preview.totals.overtime_hours} overtime hours
@@ -725,24 +736,41 @@ export function PayrollExportPage() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {preview.rows.slice(0, 25).map((row, index) => (
-                          <TableRow key={index}>
-                            {previewColumns.map((column) => (
-                              <TableCell key={column.field}>
-                                {row[column.field]}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
+                        {preview.rows
+                          .slice(
+                            previewPage * previewPageSize,
+                            (previewPage + 1) * previewPageSize,
+                          )
+                          .map((row, index) => (
+                            <TableRow key={index}>
+                              {previewColumns.map((column) => (
+                                <TableCell key={column.field}>
+                                  {row[column.field]}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   </TableContainer>
-                  {preview.rows.length > 25 && (
-                    <Typography>
-                      Showing the first 25 rows. All {preview.rows.length} rows
-                      are included in the file.
-                    </Typography>
-                  )}
+                  <TablePagination
+                    component="div"
+                    count={preview.rows.length}
+                    page={previewPage}
+                    rowsPerPage={previewPageSize}
+                    rowsPerPageOptions={[25, 50, 100]}
+                    onPageChange={(_, page) => setPreviewPage(page)}
+                    onRowsPerPageChange={(event) => {
+                      setPreviewPageSize(Number(event.target.value));
+                      setPreviewPage(0);
+                    }}
+                    labelRowsPerPage="Preview rows:"
+                    sx={{ ".MuiTablePagination-toolbar": { flexWrap: "wrap" } }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    Totals cover all {preview.rows.length} rows. Changing the
+                    preview page does not change the file selection.
+                  </Typography>
                 </Box>
               )}
             </Stack>
