@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Workforce timecard review connected:** Source `cd1015df` adds manager submission, server-derived action availability, manual-interval correction chaining, correction review context, and latest/location-correct payroll candidates. Scoped snapshots remove unrelated punch references; hours views identify their scope. TypeScript, both frontend bundles, six-file Ruby lint, formatting and diff review passed; no tests or connected browser/database verification ran. Pushed to the owned workforce branch after main synchronization. [Second checkpoint and remaining boundaries](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Workforce request and correction checkpoint:** Source `99646cfa` adds employee/time context to requests, effective availability dates, retained request retries, selected-location filtering, correction retry/permission repairs and payroll correction population checks. TypeScript, both frontend bundles, scoped Ruby lint, formatting and diff checks passed. Connected database/browser proof remains open after a Docker inventory query hung; no tests or deployment ran. The three-hour work window continues. [Dated evidence and remaining findings](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Embedded assistant expansion implemented locally:** Explicit
