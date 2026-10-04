@@ -119,3 +119,16 @@ Source commit: `992f5de9`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, Prettier and the changed Ruby controller's RuboCop check passed. The existing marketing import warning remains. Source/diff review and `git diff --check` passed. No tests were added/run. Actual badge printing, kiosk enrollment, navigation dialogs and database behavior are unverified without an owned runtime. No deployment or shared runtime reset occurred.
 
 The authorized work window remains active until 15:39 UTC. A next bounded employee request journey can proceed from this clean source checkpoint; do not present these source/build results as connected acceptance.
+
+## Eighth implementation checkpoint
+
+Source commit: `5cb82e1c`, pushed after synchronization with `origin/main` (already current).
+
+- Employee request drafts warn before changing location, changing request type or leaving the page. Discard and successful submission reset the complete editor; history refresh and unrelated decision success preserve an unsaved draft. Stale shift/employee choices are identified and cannot be submitted as a new swap.
+- Submission, cancellation and swap responses retain one exact payload and retry key while their outcome is unknown. The page offers explicit recovery, freezes conflicting edits/actions, and keeps that retry through history refresh or a later rejected retry. Stopping recovery explicitly warns that the action may already have saved. Confirmed-save notices remain visible even when history reload fails.
+- Time-off controls expose the API's existing first/second clock-occurrence fields. The shared resolver remains unchanged: equal or backward local endpoints are interpreted as overnight before timezone resolution, so short intervals spanning the repeated fall-back hour in that direction are still unsupported. This is a concrete remaining temporal boundary, not a completed repair.
+- Create replay now verifies both saved employment/requester identity and persisted requesting user before returning a prior availability, time-off or swap request. Normal replay and concurrent-create recovery use the same ownership check; existing context checks and payload conflict behavior remain intact.
+
+Verification: TypeScript and both Vite bundles passed, with the existing marketing import warning. After the final success-notice rendering repair, TypeScript and Prettier passed again. The changed request controller passed scoped RuboCop. Source/diff review and `git diff --check` passed. No tests were added/run; no database, browser or daylight-saving runtime acceptance is claimed. Shared runtimes were untouched and no deployment occurred.
+
+Continuation remains active through 15:39 UTC. The next batch may address the known shared local-interval resolver boundary only after tracing its callers and preserving template overnight behavior, or proceed with another concrete workforce journey.
