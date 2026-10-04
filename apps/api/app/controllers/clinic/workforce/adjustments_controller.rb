@@ -13,7 +13,9 @@ module Clinic
       def create
         card = TimecardVersion.where(practice_id: current_practice.id).find(requested_id!(params[:timecard_version_id], :timecard_version_id))
         expected = Integer(params.require(:source_lock_version))
-        changes = params.require(:proposed_changes).permit(:source_segment_id, :site_id, :started_at_utc, :ended_at_utc).to_h
+        changes = params.require(:proposed_changes).permit(:source_segment_id, :site_id, :started_at_utc, :ended_at_utc,
+          :local_start, :local_end, :start_occurrence, :end_occurrence, :timezone).to_h
+        normalize_local_changes!(changes)
         correction_type = params.require(:correction_type).to_s
         reason = params.require(:reason).to_s.strip
         request_key = params.require(:request_key).to_s
@@ -69,6 +71,23 @@ module Clinic
       end
 
       private
+
+      def normalize_local_changes!(changes)
+        timezone = changes.delete("timezone")
+        { "local_start" => [ "started_at_utc", "start_occurrence", "start" ],
+          "local_end" => [ "ended_at_utc", "end_occurrence", "end" ] }.each do |local_key, (utc_key, occurrence_key, label)|
+          local = changes.delete(local_key)
+          occurrence = changes.delete(occurrence_key)
+          next if local.nil? && occurrence.nil?
+
+          raise ArgumentError, "Provide a local #{label} for its clock occurrence." if local.nil?
+          raise ArgumentError, "Provide either a UTC or local #{label}, not both." if changes.key?(utc_key)
+          raise ArgumentError, "A timezone is required for local correction times." if timezone.blank?
+
+          changes[utc_key] = ResolveLocalInterval.resolve_instant(timezone: timezone, local_time: local,
+            occurrence: occurrence.presence || "only", label: label).iso8601(6)
+        end
+      end
 
       def infer_changes!(card, changes, correction_type, prior:)
         if correction_type != "remove_segment" && changes["site_id"].blank?

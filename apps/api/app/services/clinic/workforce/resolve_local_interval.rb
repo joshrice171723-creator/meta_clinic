@@ -9,8 +9,10 @@ module Clinic
         start_local = parse_local(local_start)
         end_local = parse_local(local_end)
         end_local += 1.day if infer_overnight && end_local <= start_local
-        starts_at = resolve(timezone, start_local, start_occurrence, "start")
-        ends_at = resolve(timezone, end_local, end_occurrence, "end")
+        starts_at = resolve_instant(timezone: timezone, local_time: start_local.strftime("%Y-%m-%dT%H:%M"),
+          occurrence: start_occurrence, label: "start")
+        ends_at = resolve_instant(timezone: timezone, local_time: end_local.strftime("%Y-%m-%dT%H:%M"),
+          occurrence: end_occurrence, label: "end")
         raise InvalidLocalTime, "Interval end must be after its start." unless ends_at > starts_at
 
         {
@@ -19,6 +21,10 @@ module Clinic
           local_start: start_local.strftime("%Y-%m-%dT%H:%M"),
           local_end: end_local.strftime("%Y-%m-%dT%H:%M")
         }
+      end
+
+      def self.resolve_instant(timezone:, local_time:, occurrence: "only", label: "time")
+        resolve(timezone, parse_local(local_time), occurrence, label)
       rescue TZInfo::InvalidTimezoneIdentifier
         raise InvalidLocalTime, "Timezone must be a valid IANA name."
       end

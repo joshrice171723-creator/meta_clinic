@@ -16,6 +16,7 @@ import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 export type CorrectionSite = { id: number; name: string; timezone: string };
+type ClockOccurrence = "recorded" | "only" | "first" | "second";
 type CorrectionAttempt = {
   timecard_version_id: number;
   correction_type: string;
@@ -24,6 +25,11 @@ type CorrectionAttempt = {
     site_id?: number;
     started_at_utc?: string;
     ended_at_utc?: string;
+    timezone?: string;
+    local_start?: string;
+    local_end?: string;
+    start_occurrence?: string;
+    end_occurrence?: string;
   };
   reason: string;
   source_lock_version: number;
@@ -59,6 +65,9 @@ export function AdjustmentDialog({
   const [sourceSegmentId, setSourceSegmentId] = useState("");
   const [startedAt, setStartedAt] = useState("");
   const [endedAt, setEndedAt] = useState("");
+  const [startOccurrence, setStartOccurrence] =
+    useState<ClockOccurrence>("only");
+  const [endOccurrence, setEndOccurrence] = useState<ClockOccurrence>("only");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -124,19 +133,22 @@ export function AdjustmentDialog({
       ? Number(selectedSiteId)
       : undefined;
   const originalStart =
-    selected && needsSource && startedAt === localInput(selected.started_at_utc)
+    selected &&
+    needsSource &&
+    startOccurrence === "recorded" &&
+    startedAt === localInput(selected.started_at_utc)
       ? selected.started_at_utc
       : undefined;
   const originalEnd =
-    selected && needsSource && endedAt === localInput(selected.ended_at_utc)
+    selected &&
+    needsSource &&
+    endOccurrence === "recorded" &&
+    endedAt === localInput(selected.ended_at_utc)
       ? selected.ended_at_utc
       : undefined;
-  const startedInstant = new Date(originalStart ?? startedAt);
-  const endedInstant = new Date(originalEnd ?? endedAt);
   const validTimes =
-    Number.isFinite(startedInstant.getTime()) &&
-    Number.isFinite(endedInstant.getTime()) &&
-    endedInstant.getTime() > startedInstant.getTime();
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(startedAt) &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(endedAt);
   const canSave =
     !controlsLocked &&
     reason.trim().length > 0 &&
@@ -156,12 +168,26 @@ export function AdjustmentDialog({
         proposed_changes: {
           source_segment_id: needsSource ? sourceSegmentId : undefined,
           site_id: correctionSiteId,
-          started_at_utc: needsTimes
-            ? (originalStart ?? startedInstant.toISOString())
-            : undefined,
-          ended_at_utc: needsTimes
-            ? (originalEnd ?? endedInstant.toISOString())
-            : undefined,
+          started_at_utc: needsTimes ? originalStart : undefined,
+          ended_at_utc: needsTimes ? originalEnd : undefined,
+          timezone:
+            needsTimes && (!originalStart || !originalEnd)
+              ? deviceTimezone
+              : undefined,
+          local_start: needsTimes && !originalStart ? startedAt : undefined,
+          local_end: needsTimes && !originalEnd ? endedAt : undefined,
+          start_occurrence:
+            needsTimes && !originalStart
+              ? startOccurrence === "recorded"
+                ? "only"
+                : startOccurrence
+              : undefined,
+          end_occurrence:
+            needsTimes && !originalEnd
+              ? endOccurrence === "recorded"
+                ? "only"
+                : endOccurrence
+              : undefined,
         },
         reason,
         source_lock_version: card.lock_version,
@@ -177,6 +203,8 @@ export function AdjustmentDialog({
       setReason("");
       setStartedAt("");
       setEndedAt("");
+      setStartOccurrence("only");
+      setEndOccurrence("only");
       setSourceSegmentId("");
       onSaved();
       onClose();
@@ -218,6 +246,10 @@ export function AdjustmentDialog({
             value={correctionType}
             onChange={(event) => {
               setCorrectionType(event.target.value as typeof correctionType);
+              if (event.target.value === "add_segment") {
+                setStartOccurrence("only");
+                setEndOccurrence("only");
+              }
               setDirty(true);
             }}
           >
@@ -260,6 +292,8 @@ export function AdjustmentDialog({
                 if (segment) {
                   setStartedAt(localInput(segment.started_at_utc));
                   setEndedAt(localInput(segment.ended_at_utc));
+                  setStartOccurrence("recorded");
+                  setEndOccurrence("recorded");
                 }
               }}
               helperText={`Times shown in your device timezone (${deviceTimezone}).`}
@@ -276,8 +310,8 @@ export function AdjustmentDialog({
             <>
               {needsSource && selected && (
                 <Alert severity="info">
-                  Unchanged times keep their recorded clock occurrence and
-                  precision.
+                  Keep the recorded occurrence to preserve an unchanged time's
+                  precision. Edited times are checked in your device timezone.
                 </Alert>
               )}
               <TextField
@@ -287,11 +321,34 @@ export function AdjustmentDialog({
                 value={startedAt}
                 onChange={(event) => {
                   setStartedAt(event.target.value);
+                  setStartOccurrence("only");
                   setDirty(true);
                 }}
                 slotProps={{ inputLabel: { shrink: true } }}
                 helperText={`Your device timezone (${deviceTimezone}).`}
               />
+              <TextField
+                select
+                label="Start clock occurrence"
+                disabled={controlsLocked}
+                value={startOccurrence}
+                onChange={(event) => {
+                  setStartOccurrence(event.target.value as ClockOccurrence);
+                  setDirty(true);
+                }}
+                helperText="Choose first or second only when the clock repeats this time."
+              >
+                {needsSource &&
+                  selected &&
+                  startedAt === localInput(selected.started_at_utc) && (
+                    <MenuItem value="recorded">
+                      Keep recorded occurrence and precision
+                    </MenuItem>
+                  )}
+                <MenuItem value="only">Not repeated</MenuItem>
+                <MenuItem value="first">First occurrence</MenuItem>
+                <MenuItem value="second">Second occurrence</MenuItem>
+              </TextField>
               <TextField
                 label="Corrected end"
                 disabled={controlsLocked}
@@ -299,16 +356,34 @@ export function AdjustmentDialog({
                 value={endedAt}
                 onChange={(event) => {
                   setEndedAt(event.target.value);
+                  setEndOccurrence("only");
                   setDirty(true);
                 }}
                 slotProps={{ inputLabel: { shrink: true } }}
-                error={Boolean(startedAt && endedAt && !validTimes)}
-                helperText={
-                  startedAt && endedAt && !validTimes
-                    ? "End must be after the start."
-                    : `Your device timezone (${deviceTimezone}).`
-                }
+                helperText={`Your device timezone (${deviceTimezone}). The resolved end must be after the start.`}
               />
+              <TextField
+                select
+                label="End clock occurrence"
+                disabled={controlsLocked}
+                value={endOccurrence}
+                onChange={(event) => {
+                  setEndOccurrence(event.target.value as ClockOccurrence);
+                  setDirty(true);
+                }}
+                helperText="Choose first or second only when the clock repeats this time."
+              >
+                {needsSource &&
+                  selected &&
+                  endedAt === localInput(selected.ended_at_utc) && (
+                    <MenuItem value="recorded">
+                      Keep recorded occurrence and precision
+                    </MenuItem>
+                  )}
+                <MenuItem value="only">Not repeated</MenuItem>
+                <MenuItem value="first">First occurrence</MenuItem>
+                <MenuItem value="second">Second occurrence</MenuItem>
+              </TextField>
             </>
           )}
           <TextField
