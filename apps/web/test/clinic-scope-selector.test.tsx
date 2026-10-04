@@ -60,6 +60,30 @@ describe("clinic scope selector", () => {
     expect(html).toContain("No accessible locations");
   });
 
+  it("links setup administrators to their only unfinalized location", () => {
+    const context = {
+      practice: { id: 2, name: "Independent clinic" },
+      sites: [],
+      setup_incomplete_sites: [
+        { id: 7, name: "North clinic", code: "NORTH", finalized: false },
+      ],
+      current_site: null,
+      capabilities: { clinic_setup_write: true },
+    } as unknown as ClinicWorkspaceContext;
+    const html = renderToStaticMarkup(
+      <ClinicScopeSelector
+        context={context}
+        onPracticeChange={() => {}}
+        onLocationChange={() => {}}
+      />,
+    );
+
+    expect(html).toContain(
+      "North clinic isn&#x27;t finalized yet — complete clinic setup to open its workspaces.",
+    );
+    expect(html).toContain('href="/clinic/setup"');
+  });
+
   it("keeps the selector fields and option lists readable in every clinic theme", () => {
     const source = renderToStaticMarkup(
       <ClinicScopeSelector

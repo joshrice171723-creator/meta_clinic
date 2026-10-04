@@ -44,6 +44,7 @@ module Clinic
         %w[Room\ 1 Room\ 2].each { |code| created_site.rooms.create!(practice: current_practice, code: code, kind: "physical") }
         created_site
       end
+      session[:clinic_site_id] = site.id
       render json: { id: site.id, site: FacilitySerializer.site(site, detail: true) }, status: :created
     end
 

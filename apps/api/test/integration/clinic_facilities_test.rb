@@ -57,6 +57,11 @@ class ClinicFacilitiesTest < ActionDispatch::IntegrationTest
     assert_equal "08:00", monday.fetch("open_time")
     assert_equal "Synthetic holiday closure", site.fetch("hour_exceptions").sole.fetch("reason")
 
+    get "/api/clinic/context", headers: @headers
+    assert_response :success
+    assert_equal site.fetch("id"), response.parsed_body.dig("current_site", "id")
+    assert_includes response.parsed_body.fetch("setup_incomplete_sites").map { |row| row.fetch("id") }, site.fetch("id")
+
     patch "/api/clinic/facilities/#{site.fetch("id")}", params: {
       site: { name: "North clinic updated", status: "temporarily_closed" }
     }, headers: csrf_headers, as: :json
