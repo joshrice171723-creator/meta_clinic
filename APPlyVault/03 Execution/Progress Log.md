@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Kiosk clock recovery protected:** Source `983712e3` preserves exact uncertain punches, blocks competing actions, matches recovery receipts, prevents stale reset timers and binds camera results to their stream. TypeScript and both bundles passed; final camera/receipt refinements passed TypeScript/formatting again. Source/API review passed. No tests, kiosk hardware or connected browser verification ran; no deployment occurred. [Sixteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Employee activation material preserved:** Source `7749761e` protects one-time invitation links across unrelated setup actions, adds an explicit finish action and navigation guard, and clears only a confirmed matching revoke. Failed refresh/revoke outcomes remain visible. TypeScript, both bundles and source review passed; final retention refinement passed TypeScript/formatting again. No tests or connected browser verification ran; no deployment occurred. [Fifteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Explicit correction clock occurrences:** Source `ef90f3d2` sends edited correction times to the existing server timezone resolver with explicit occurrence choices, while preserving exact unchanged source boundaries. Local transport fields normalize into the existing UTC storage/replay contract. TypeScript, both bundles, formatting, two-file Ruby lint and focused source review passed. No tests or connected timezone/browser verification ran; no deployment occurred. [Fourteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).

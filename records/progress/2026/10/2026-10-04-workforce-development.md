@@ -218,3 +218,16 @@ Source commit: `7749761e`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. After the final retention/revoke refinement, TypeScript and formatting passed again. Focused source/response-contract review and `git diff --check` passed. No backend source changed and Ruby lint was not repeated. No tests were added/run. Browser navigation, activation and uncertain-revoke persistence remain unverified without an owned connected runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue with a bounded employee scheduling or clock journey; do not equate source/build evidence with connected acceptance.
+
+## Sixteenth implementation checkpoint
+
+Source commit: `983712e3`, pushed after synchronization with `origin/main` (already current).
+
+- Unknown kiosk punches retain the original challenge, event and request key through network failures, server errors, timeout/session-change responses and rejected recovery attempts. New actions, scans and cancellation are blocked while recovery is pending; page unload warns before losing the in-memory retry.
+- Status lookup always uses the pending request key. A receipt confirms success only when it reports saved and matches that key. A not-found lookup no longer claims that an earlier in-flight write cannot still commit. Existing server replay and kiosk authorization remain unchanged.
+- Successful receipts clear the active challenge and offer Next employee before the existing automatic reset. Badge verification failures no longer schedule a delayed reset that can erase the next scan. Initial configuration/status loading gates input, with a reconnect action when configuration could not load.
+- Synchronous guards prevent overlapping punch/challenge requests. Manual badge verification stops the camera; detector results belong to their captured stream and cannot act after restart. Camera scanning reads the current in-memory PIN.
+
+Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. After final camera/receipt refinements, TypeScript and formatting passed again. Focused source/API contract review and `git diff --check` passed. No backend source changed and Ruby lint was not repeated. No tests were added/run. Kiosk hardware, camera permission lifecycle, interrupted-network persistence and connected browser behavior remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue another concrete workforce slice rather than broadening this into hardware or release acceptance.
