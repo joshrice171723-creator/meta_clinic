@@ -338,3 +338,15 @@ Source commit: `cf0281ce`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, formatting, source diff review, backend date/order contract review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected refresh/filter/dialog interaction and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue bounded implementation without treating source checks as connected acceptance.
+
+## Twenty-sixth implementation checkpoint
+
+Source commit: `c101642d`, pushed after synchronization with `origin/main` (already current).
+
+- Manager timecard review filters the selected attention view and pending corrections by employee-name text and saved workweek. Matching counts, a filtered-empty state and clear controls distinguish the visible results from all records in the attention view.
+- Hidden pending correction review drafts remain stored and trigger a reminder to clear filters. Existing orphaned-draft recovery and unconfirmed submission/approval/correction actions remain outside the filtered lists.
+- Review filters reset on an explicit location change and remain separate from employee/date inputs used to calculate a card. Current-source, permission and action-availability guards remain unchanged; no new server read or write scope was introduced.
+
+Verification: TypeScript, both Vite bundles, formatting, focused source/diff review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected filtering, retained-draft interactions and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Keep remaining work bounded and save a final session handoff at the deadline.
