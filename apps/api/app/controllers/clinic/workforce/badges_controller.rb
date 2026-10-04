@@ -7,12 +7,12 @@ module Clinic
           .includes(employment: :staff_member).order(created_at: :desc)
         render json: {
           badges: badges.map { |badge| ClockSerializer.badge(badge).merge(employee_name: badge.employment.staff_member.display_name) },
-          employees: employments.includes(:staff_member, membership: :user).map do |employment|
+          employees: employments.includes(:staff_member, :employment_sites, membership: :user).map do |employment|
             { id: employment.id, employee_name: employment.staff_member.display_name,
-              active_for_work: employment.active_for_work? }
+              active_for_work: employment.active_for_work? && (!site || employment.eligible_site?(site)) }
           end,
           site_id: site&.id
-        }
+        }.merge(badge_settings(site))
       end
 
       def create
@@ -37,6 +37,15 @@ module Clinic
       end
 
       private
+
+      def badge_settings(site)
+        return { pin_required: nil } unless site
+
+        values = EffectiveSettings.call(practice: current_practice, site: site).fetch(:values)
+        { pin_required: values.fetch("pin_required", false) }
+      rescue EffectiveSettings::Unconfigured => error
+        { pin_required: nil, settings_error: error.message }
+      end
 
       def authorized_employments(permission)
         if workforce_access.allow?(permission)
