@@ -141,6 +141,8 @@ module Clinic
       end
 
       def publish_swap_revision!
+        # Hold the publication lock while choosing and copying the source revision.
+        request.site.lock!
         offered = request.offered_shift
         raise ArgumentError, "The offered published shift is unavailable." unless offered
         raise ArgumentError, "The offered shift is not assigned to the requester." unless offered["employment_id"].to_i == request.requester_employment_id

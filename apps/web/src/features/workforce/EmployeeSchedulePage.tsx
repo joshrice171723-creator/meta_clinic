@@ -1,28 +1,14 @@
-import { useEffect, useState } from "react";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import { Alert, Chip, Paper, Stack, Typography } from "@mui/material";
-import { api } from "../../api/client";
-import { LoadState } from "../../shared/ui";
+import { Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { LoadState, useResource } from "../../shared/ui";
 import { displayInterval, type SchedulePublication } from "./scheduleTypes";
 
 export function EmployeeSchedulePage() {
-  const [publications, setPublications] = useState<SchedulePublication[]>();
-  const [error, setError] = useState<string>();
-  useEffect(() => {
-    const controller = new AbortController();
-    api<{ publications: SchedulePublication[] }>(
-      "/api/clinic/workforce/my-schedule",
-      { signal: controller.signal },
-    )
-      .then((data) => setPublications(data.publications))
-      .catch((reason) => {
-        if (reason instanceof Error && reason.name !== "AbortError")
-          setError(reason.message);
-      });
-    return () => controller.abort();
-  }, []);
-  if (!publications) return <LoadState error={error} />;
-  const shifts = publications
+  const { data, error, refresh } = useResource<{
+    publications: SchedulePublication[];
+  }>("/api/clinic/workforce/my-schedule");
+  if (!data) return <LoadState error={error} onRetry={refresh} />;
+  const shifts = data.publications
     .flatMap((publication) =>
       publication.shifts.map((shift) => ({ publication, shift })),
     )
@@ -41,7 +27,9 @@ export function EmployeeSchedulePage() {
           never visible here.
         </Typography>
       </div>
-      {error && <Alert severity="error">{error}</Alert>}
+      <Button onClick={refresh} sx={{ alignSelf: "flex-start" }}>
+        Refresh published shifts
+      </Button>
       {shifts.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 3, textAlign: "center" }}>
           <CalendarMonthIcon color="disabled" sx={{ fontSize: 42 }} />
@@ -77,7 +65,7 @@ export function EmployeeSchedulePage() {
                   <Typography color="text.secondary">
                     {publication.site_name} ·{" "}
                     {shift.role_name || "Assigned shift"} ·{" "}
-                    {shift.break_minutes} min planned break
+                    {shift.break_minutes} min planned break · {shift.timezone}
                   </Typography>
                 </div>
                 <Chip

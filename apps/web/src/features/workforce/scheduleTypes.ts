@@ -64,6 +64,7 @@ export type SchedulePublication = {
 };
 export type ScheduleBootstrap = {
   schema_version: string;
+  permissions: { manage: boolean; publish: boolean };
   site: WorkforceSite;
   settings: Record<string, boolean | string | number | null>;
   employments: WorkforceEmployment[];
