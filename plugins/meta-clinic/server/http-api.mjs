@@ -1,5 +1,3 @@
-import { callTool } from './service.mjs';
-
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const only = (input, keys) => {
   if (!object(input) || Object.keys(input).some(key => !keys.includes(key))) throw new Error('Unexpected request fields. Read the local OpenAPI contract.');
@@ -8,7 +6,8 @@ const only = (input, keys) => {
 // Local prototype aliases reuse the same serialized session, catalog validation,
 // review tickets and Rails permission checks as the installed MCP tools.
 // The broker must authenticate the local caller before invoking this function.
-export async function routePrototypeApi(method, url, input, port) {
+export async function routePrototypeApi(method, url, input, port, service) {
+  if (!service || typeof service.callTool !== 'function') throw new Error('An authenticated clinic connection is required.');
   const path = url.pathname;
   let name = 'meta_clinic_panel';
   let args;
@@ -38,7 +37,7 @@ export async function routePrototypeApi(method, url, input, port) {
     only(input, ['arguments', 'expected_context']);
     args = { view: 'billing', arguments: input.arguments || {}, expected_context: input.expected_context };
   } else return null;
-  return callTool(name, args, port);
+  return service.callTool(name, args, port);
 }
 
 function queryArguments(url) {

@@ -79,6 +79,8 @@ Rails.application.routes.draw do
   post "public/membership_accounts/checkout", to: "public/membership_storefronts#resume_checkout"
   post "public/membership_accounts/local_payment", to: "public/local_membership_payments#create"
   namespace :clinic do
+    get "plugin_events/catalog", to: "plugin_events#catalog"
+    get "plugin_events", to: "plugin_events#index"
     root "dashboard#show"
     get "realtime/events", to: "realtime/events#show"
     get "context", to: "context#show"

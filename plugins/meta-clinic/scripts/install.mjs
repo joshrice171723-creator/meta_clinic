@@ -9,7 +9,7 @@ const plugin = join(marketplace, 'plugins', 'meta-clinic');
 await readFile(join(source, 'dist', 'server.mjs'));
 await readFile(join(source, 'dist', 'panel.html'));
 await mkdir(plugin, { recursive: true });
-for (const path of ['plugin.json', '.codex-plugin', 'mcp.json', '.mcp.json', 'dist', 'assets', 'skills', 'README.md', 'CAPABILITIES.md']) await cp(join(source, path), join(plugin, path), { recursive: true });
+for (const path of ['plugin.json', '.codex-plugin', 'mcp.json', '.mcp.json', 'dist', 'assets', 'skills', 'README.md', 'CAPABILITIES.md', 'CONNECTIONS.md', 'PLATFORM.md', 'EVENTS.md', 'DEMO.md', 'CARE-WORKFLOWS.md', 'INTAKE.md', 'WORKFLOW-COVERAGE.md', 'WORKFLOW-116.md', 'workflow-116.json', 'VERIFICATION.md', 'SUBMISSION.md']) await cp(join(source, path), join(plugin, path), { recursive: true });
 await mkdir(join(marketplace, '.agents', 'plugins'), { recursive: true });
 await writeFile(join(marketplace, '.agents', 'plugins', 'marketplace.json'), JSON.stringify({
   name: 'meta-clinic-local', interface: { displayName: 'Meta Clinic' },

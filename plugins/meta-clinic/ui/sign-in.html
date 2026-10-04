@@ -49,7 +49,7 @@
     </form>
     <p id="status" class="status" role="status" aria-live="polite"></p>
     <p id="return" hidden><a href="/">Open clinic workspace</a></p>
-    <p class="footnote">This connects to the local Meta Clinic runtime. The form sends your credentials directly to the local connection service.</p>
+    <p class="footnote">Your credentials go directly to this connection service. Open Sign in from the Codex panel to connect that account; opening this page directly signs in only this browser.</p>
   </main>
   <script>
     const form = document.getElementById('sign-in');
@@ -57,6 +57,9 @@
     const passwordInput = document.getElementById('password');
     const button = document.getElementById('submit');
     const status = document.getElementById('status');
+    // The server consumes the one-time link and binds it to an HttpOnly browser
+    // session. Remove the handoff from history before accepting credentials.
+    if (new URLSearchParams(location.search).has('handoff')) history.replaceState(null, '', location.pathname);
     let submitting = false;
     const showStatus = (message, kind) => {
       status.textContent = message;
@@ -88,7 +91,7 @@
         const data = await response.json().catch(() => null);
         if (!response.ok || data?.isError || data?.error || data?.structuredContent?.error) {
           const message = data?.error || data?.structuredContent?.error;
-          throw new Error(typeof message === 'string' ? message : `Sign-in failed (HTTP ${response.status}). Check the local runtime and try again.`);
+          throw new Error(typeof message === 'string' ? message : `Sign-in failed (HTTP ${response.status}). Check the connection and try again.`);
         }
         if (data?.connected !== true && data?.connection?.connected !== true && data?.structuredContent?.connection?.connected !== true)
           throw new Error('The clinic connection could not be confirmed. Return to the panel to check its status.');
@@ -96,7 +99,7 @@
         document.getElementById('return').hidden = false;
         showStatus('Connected. Return to Meta Clinic in Codex, or open the clinic workspace here.', 'success');
       } catch (error) {
-        showStatus(error instanceof Error ? error.message : 'Sign-in could not be confirmed. Check the local runtime and try again.', 'error');
+        showStatus(error instanceof Error ? error.message : 'Sign-in could not be confirmed. Check the connection and try again.', 'error');
       } finally {
         credentials = undefined;
         passwordInput.value = '';

@@ -1,7 +1,7 @@
 {
   "name": "meta-clinic",
-  "version": "0.2.0",
-  "description": "Meta Clinic workspace and workflow tools inside Codex, connected to an isolated local clinic.",
+  "version": "0.3.0",
+  "description": "Meta Clinic schedules, clinical workflows and reviewed changes through your authorized clinic connection.",
   "author": {
     "name": "Joshua Rice"
   },
@@ -9,8 +9,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Meta Clinic",
-    "shortDescription": "Your clinic, inside Codex",
-    "longDescription": "Clinic records, schedules, patients, billing, inventory, workforce and operations with reviewed changes, existing permissions, a native panel and illustrated tutorial. Local development runtime only.",
+    "shortDescription": "Your clinic, inside ChatGPT",
+    "longDescription": "Work with clinic schedules, patients, recorded care, billing, inventory and team operations. Includes interactive panels, guided demonstrations and reviewed changes through existing Meta Clinic permissions. Hosted connections require explicit configuration; remote distribution requires deployment and registration.",
     "developerName": "Joshua Rice",
     "category": "Productivity",
     "capabilities": [

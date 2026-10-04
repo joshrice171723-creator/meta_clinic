@@ -1,5 +1,7 @@
 // Curated existing Rails API contracts. Each operation names its executable source.
 // No backend authority, fixture values, provider credentials, or replay logic live here.
+import { CARE_OPERATIONS } from './care-operations.mjs';
+import { INTAKE_OPERATIONS } from './intake-operations.mjs';
 const string = (maxLength = 160) => ({ type: 'string', maxLength });
 const text = (maxLength = 160) => ({ ...string(maxLength), minLength: 1 });
 const choice = (...values) => ({ type: 'string', enum: values });
@@ -45,6 +47,8 @@ const invoiceLines = array({ oneOf: [
 const inventoryPage = { q: string(), page };
 
 export const OPERATIONS = [
+  ...CARE_OPERATIONS,
+  ...INTAKE_OPERATIONS,
   read('clinic_context', 'Current clinic context', 'Context', 'context', {}, [], '/clinic/settings', 'context'),
   write('select_clinic_site', 'Select clinic location', 'Context', 'PATCH', 'context', { site_id: id }, ['site_id'], '/clinic/settings', 'context', null, { description: 'Change the session location to an authorized site. Refresh context before another operation.' }),
 

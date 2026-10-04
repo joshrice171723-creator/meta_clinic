@@ -1,8 +1,10 @@
 # Meta Clinic plugin operation coverage
 
-This is a curated catalog of 95 operations (66 reads and 29 deliberate writes) backed by the existing Rails API at integration base `74c5b15abbec`. It exposes practical clinic operations; it does not implement every application function or add backend business logic. Source presence is not runtime, browser, hosted, clinical, legal, or release acceptance.
+This is a curated catalog of 103 unique operations (69 reads and 34 deliberate writes) backed by the existing Rails API in candidate 0.3.0. It exposes practical clinic operations; it does not implement every application function or add backend business logic. Source presence is not runtime, browser, hosted, clinical, legal, or release acceptance.
 
 `server/catalog.mjs` exports `OPERATIONS`. Each operation carries its HTTP method, clinic API path, closed JSON Schema, query/body field allowlists, optional body wrapper, existing app link and controller source. IDs remain strings. Money and stock quantities remain exact decimal strings. Integer stock reorder points remain integers. API responses retain their backend ownership and pagination.
+
+See [workflow coverage](WORKFLOW-COVERAGE.md) and [verification](VERIFICATION.md) for current journey evidence. The guided Care workspace adds vitals entry, unsigned SOAP revisions, follow-up disposition and reviewed encounter completion. Identity, demo and events have separate documented contracts.
 
 ## Calling contract
 

@@ -1,0 +1,8 @@
+.care-journey { max-width: 1120px; margin-inline: auto; }
+.care-journey__section { padding: 24px; }
+.care-journey__visit { display: flex; gap: 16px; align-items: center; justify-content: space-between; padding-block: 14px; border-bottom: 1px solid #d7dee2; }
+.care-journey__vital-fields, .care-journey__soap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.care-journey__observations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.care-journey__completion-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.care-journey .MuiFormControl-root { min-width: 0; }
+@media (max-width: 720px) { .care-journey__section { padding: 16px; } .care-journey__vital-fields, .care-journey__soap, .care-journey__completion-fields { grid-template-columns: minmax(0, 1fr); } .care-journey__observations { grid-template-columns: repeat(2, minmax(0, 1fr)); } .care-journey__visit { align-items: flex-start; flex-direction: column; } }

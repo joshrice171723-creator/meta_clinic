@@ -19,7 +19,7 @@ const describe = (schema, context) => {
   return copy;
 };
 
-export function prototypeOpenApi(port = 3320) {
+export function prototypeOpenApi(port = 3323) {
   const calendar = describe(OPERATIONS.find(op => op.id === 'schedule_calendar').inputSchema, 'calendar search');
   const booking = describe(OPERATIONS.find(op => op.id === 'book_appointment').inputSchema, 'appointment booking');
   const panels = Object.fromEntries(Object.entries(PANEL_SCHEMAS).map(([key, schema]) => [key, describe(schema, `${key} panel`)]));
@@ -38,9 +38,9 @@ export function prototypeOpenApi(port = 3320) {
   const postBody = schema => ({ required: true, description: 'Exact prototype operation arguments; no credentials or patient narrative.', content: { 'application/json': { schema } } });
   return {
     openapi: '3.0.3',
-    info: { title: 'Meta Clinic local prototype facade', version: '0.2.0', description: 'Executable aliases for the installed local MCP plugin. Uses its existing signed-in Rails account and selected clinic, not OAuth. One local OS installation shares one account connection. Loopback-only and synthetic development runtime only. These contracts adapt the architecture proposal to actual backend fields. No new triage, live payer verification, remote customer service, or spatial layout writer is implied. The browser header is a same-origin request guard, not a user identity credential.' },
+    info: { title: 'Meta Clinic local API facade', version: '0.3.0', description: 'Executable aliases for the local MCP broker. Uses the selected isolated connection and its signed-in Rails account. Backend mode is explicitly configured as local or approved hosted origin. These loopback routes are separate from the remote OAuth /mcp endpoint. No new triage, live payer verification or spatial layout writer is implied. Browser cookies and private broker connection headers bind each caller to its own connection.' },
     servers: [{ url: `http://127.0.0.1:${port}`, description: 'Local loopback broker; hosted origins are rejected.' }],
-    security: [{ BrokerBearer: [] }, { SameOriginPanel: [] }],
+    security: [{ BrokerBearer: [], BrokerConnection: [] }, { SameOriginPanel: [], BrowserSession: [] }],
     paths: {
       '/api/v1/appointments/schedule': { post: {
         operationId: 'prototypeSchedule', summary: 'Read calendar, prepare booking, or apply a reviewed booking',
@@ -58,6 +58,8 @@ export function prototypeOpenApi(port = 3320) {
     components: {
       securitySchemes: {
         BrokerBearer: { type: 'http', scheme: 'bearer', description: 'Local broker credential held by the installed MCP process. Never enter it in chat or commit it. Clinical identity comes from the broker signed-in account.' },
+        BrokerConnection: { type: 'apiKey', in: 'header', name: 'X-Meta-Clinic-Connection', description: 'Private per-process connection identifier. Requires the broker bearer credential; never accept this value as a model-selected account.' },
+        BrowserSession: { type: 'apiKey', in: 'cookie', name: 'meta_clinic_panel_session', description: 'HttpOnly same-origin browser session issued when opening the local panel. It binds the caller to an isolated or explicitly paired connection.' },
         SameOriginPanel: { type: 'apiKey', in: 'header', name: 'X-Meta-Clinic-UI', description: 'Browser request marker value 1. Also requires exact local Origin for POST, or same-origin Fetch Metadata for GET. It does not independently authenticate a person.' },
       },
       schemas: { ToolResult: { type: 'object', description: 'MCP result envelope shared by the prototype facade.', properties: {

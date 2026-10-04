@@ -1,0 +1,60 @@
+# Workflow coverage
+
+Source snapshot: October 4, 2026, while the next candidate is being integrated.
+**Implemented source is not a verified journey.** Selected current-candidate local checks are recorded in [VERIFICATION.md](VERIFICATION.md); native ChatGPT and remote deployment acceptance remain pending. The full canonical 116-ID criteria and reported-result reconciliation are in [WORKFLOW-116.md](WORKFLOW-116.md). The
+historical 0.2.0 walkthrough in [DELIVERY.md](DELIVERY.md) covered only selected
+local views and writes; it does not transfer to this candidate.
+
+Job descriptions below identify likely users, not granted roles. An active
+backend membership, its current permissions and authorized site/resource decide
+access. OAuth `clinic:read`, `clinic:write`, `clinic:context` and `clinic:events`
+are independent consent bounds and never grant clinic permissions. Every change
+uses deliberate prepare/review/apply unless a documented demo action has its own
+confirmation. Runtime errors, empty states and stale context must remain visible;
+uncertain writes must not replay.
+
+## Catalog domains and connected workflows
+
+`server/catalog.mjs` supplies exact operation schemas and Rails controller source
+paths; `server/service.mjs` dispatches constrained reads and reviewed changes.
+The domain count and endpoint count are not measures of completed journeys.
+
+| Domain / user | Prerequisite | Current read surface | Current change / persistence boundary | Failure and gap | Source status |
+| --- | --- | --- | --- | --- | --- |
+| Context / every connected account | Active authorized clinic membership; configured location; context consent for switches | Account, clinic, location and permission context | Select authorized site/sign out; clears pending reviews; Rails session owns context | Stale actor/site/authorization generation must reject prior work; no clinic provisioning or new membership assignment | `client.mjs`, `service.mjs`, `ui/app.tsx`; source integrated, current journey unverified |
+| Schedule / front desk, scheduler | Allowed appointments/site; published service/provider policy; backend-returned patient and slot | Day/week calendar, appointment detail, availability, tracking board, requests and callbacks | Booking/rescheduling/transitions; request approval/decline, callback outcome, encounter room; reviewed writes persist in Rails | Availability is not reservation; stale revisions/capacity/cancel acknowledgement can reject. Callback outcome does not place a call. Full reschedule/cancel journey unverified | `catalog.mjs`, `ui/Scheduler.tsx`; specialized calendar plus generic extra actions |
+| Patients / registration or clinical staff | Patient/identity permission for actual record; configured registration site | Registry, matching and chart detail | Registration/corrections and general patient note through reviewed API calls | No global identity merge, patient deletion or automatic clinical interpretation. Reference/required fields/concurrent edit checks remain backend-owned | `catalog.mjs`, `ui/app.tsx`; generic forms/detail, no completed registration journey proof |
+| Chart / clinical reader | Actual patient/encounter and relevant observation/note/document permissions | Care summary, observations, recorded-vitals plots/dictionary, encounter notes/history, lab reports and document metadata | Existing encounter-start operation; broader care writes separately below | Unsupported dictionary values must not be relabeled; empty vitals stay empty. Metadata listing is not attachment upload/download or complete longitudinal workflow | `catalog.mjs`, `panels.mjs`, `ui/ClinicalViews.tsx`; plots specialized, other reads generic |
+| Billing / billing staff | Authorized billing account/site and existing invoice/patient; exact decimals | Dashboard, invoice/ledger, outlook, stored insurance preparation, agreements/catalog | Unposted draft invoice create/update and billing-service settings; no payment collection | Lock/revision and exact amounts matter; empty/disabled insurance is not live payer status. Claims submission, insurer integration, payment/refund execution and populated insurance journey are not established | `catalog.mjs`, `panels.mjs`, `ui/ClinicalViews.tsx`; summary specialized, other actions generic |
+| Inventory / inventory coordinator | Inventory permissions; existing location, lot/count/assignee; exact quantities | Catalog, exceptions, locations, replenishment, purchase orders, receiving reads, positions, ledger, recalls and counts | Assign count, record count observation, update reorder/active settings | Count observation is not automatically an approved stock adjustment. Receiving reads do not implement receipt posting; no supplier purchase, transfer, recall disposition or full inventory transaction journey here | `catalog.mjs`, `ui/app.tsx`; generic catalog forms and records |
+| Staff / directory or workforce administrator | Relevant staff/workforce grants; allowed site/employment | Directory, employment/access projections, schedules and timecards | Directory create and active status update only | A directory entry creates no login, grant, invitation, payroll or employment contract. Schedule/timecard reads do not prove editing/approval workflows | `catalog.mjs`, `ui/app.tsx`; generic forms; historical directory write is earlier evidence |
+| Facilities / clinic administrator | Facility/room/site permissions and valid room lifecycle | Facility/department/visit-type lookup; recorded room and open encounter view | Create/update room, create visit type | Room view is not reserved capacity or persisted spatial layout. Linked-room kind changes can reject; full site/resource configuration not implemented in plugin | `catalog.mjs`, `panels.mjs`, `ui/ClinicalViews.tsx`; room view specialized, edits generic |
+| Settings / authorized administrator | Relevant workforce/telehealth configuration grants | Workforce settings contract and telehealth settings | No settings mutation in original catalog | A settings read is not complete setup, policy authoring or external integration configuration | `catalog.mjs`, `ui/app.tsx`; generic reads |
+| Messages / staff conversation participant | Active staff membership, conversation participation and messaging permissions | Conversations, messages and available participants | Create conversation, internal message, acknowledge, mark read; explicit review/apply persists in Rails | Recipient/participation and request-key constraints apply. No external patient SMS/email, fax or emergency notification delivery | `catalog.mjs`, `ui/app.tsx`; generic actions; send/acknowledge/read journey unverified |
+| Tasks / clinical coordinator, staff request assignee | Worklist's actual permission branch, allowed site/patient/conversation | Follow-up/task worklist and lab review queue | Transition internal staff request; clinical task lifecycle is not in original catalog | Do not present a worklist read as task claim/complete, lab review or patient follow-up completion. No dedicated operations workspace yet | `catalog.mjs`, `ui/app.tsx`; generic operations, current journey unverified |
+| Telehealth / permitted clinic staff | Existing telehealth permission/configuration, actual allowed visit | Visit queue/detail, preparation and booking rules | No visit start/join/end/provider action in original catalog | Reading visit preparation does not create a video session or prove provider connectivity/consent | `catalog.mjs`, `ui/app.tsx`; generic reads |
+| Reports / authorized operations staff | Each report's own read permission; bounded dates/site/page | Daily visits, invoices, stock/payments, current stock and open work | No report mutation or scheduled export | Preserve filter/page boundaries; report availability is not reconciled financial totals, export delivery or analytics acceptance | `catalog.mjs`, `ui/app.tsx`; generic reports |
+
+## New integration slices
+
+| Slice / user | Prerequisite and source | Implemented scope | Remaining journey evidence / actual gap |
+| --- | --- | --- | --- |
+| Care / clinician or intake staff | Selected backend patient/encounter, applicable clinical grants, template/dictionary versions; `server/care-operations.mjs` | Integrated guided patient/encounter UI and eight additional operations for vitals, SOAP drafts/revisions, follow-up and reviewed completion; existing encounter IDs reused | Local encounter creation and unsigned SOAP save/read-back passed; vitals service write and panel/website display passed. Full intake-to-checkout journey remains incomplete. SOAP signing/correction, lab actions, clinical task transitions, prescriptions and broader plan authoring are absent from this module; completion must respect backend evidence gates rather than invent them. |
+| Intake / permitted intake staff and responding clinician | Existing nurse workspace, intake.write / notes.write, current revisions and record scope; `server/intake-operations.mjs` | Dedicated patient/encounter panel; five intake status fields, reviewed handoff request and role-separated transitions | Questionnaire and evidence-link editing remain in the website. Multi-person handoff and clinical readiness acceptance remain pending. See [INTAKE.md](INTAKE.md). |
+| Guided demo / independently synthetic visitor or account | Backend-owned visitor/run/session; optional demo access gate; `server/demo.mjs`, `ui/DemoWorkspace.tsx` | Snapshot, register, lesson/sandbox entry, bounded preparation, available account/view switches, resume/complete, confirmed leave/start-over; shared restart is denied | Registration/session/start-over checked locally; sandbox preparation hit the existing creator-ownership guard. Run/account identity and context clearing must hold across isolation/navigation. Shared sandbox rebuilding is rejected; patient view is a guided/demo surface, not a complete native patient portal. |
+| Events / permitted monitoring user | Remote `clinic:events` consent, configured exact HTTPS callbacks and persisted encrypted state; `server/events.mjs`, Rails `Clinic::PluginEvents` | Future metadata changes for one existing appointment/report/task and backend-scheduled reminder-due occurrences; signed verification, delivery/retry, expiry/refresh and unsubscribe | Local appointment change/acknowledgment and permission boundaries checked; no real callback or host lifecycle proof. No site-wide schedule/new-resource discovery or client replay; 256 acknowledged IDs/24-hour private cursor bounds; restarted retained expired/stopped streams report truncation. See [EVENTS.md](EVENTS.md). |
+| Remote connector / separately authenticated accounts | Approved hosted clinic access, HTTPS origin, predefined OAuth clients, S256 PKCE, operator store/key; `remote.mjs`, `oauth.mjs`, `storage.mjs` | Source for resource/auth metadata, browser sign-in/consent, account-scoped service/session persistence, token scopes/expiry/revocation and MCP/UI dispatch | Real local Rails HTTP OAuth checks proved separate accounts, scopes, restart recovery and revocation. No deployed remote endpoint or registered OpenAI client/callback. Code presence does not establish host compatibility or authorized hosted access. Sign in with ChatGPT trial and Sites hosting are separate unavailable/optional paths. |
+
+## What a verified journey must establish
+
+For each claimed journey, record the exact package/build and account grants,
+actual read/form/review/apply path, persisted read-back or explicit denial, and
+loading/empty/failure recovery. Include the principal role/site/patient boundary,
+stale context and uncertain-save behavior for affected changes. Capture the
+supported native/ChatGPT surface separately from a standalone browser.
+
+Until that evidence exists, label each row **source implemented**, **integration
+pending** or **unavailable** as above; selected evidence is not full canonical workflow acceptance. Read-only
+discovery cannot establish a workflow's write/persistence behavior. Real-data,
+clinical/legal/security release, integrations and publication remain separate
+gates, even after an independently synthetic walkthrough succeeds.

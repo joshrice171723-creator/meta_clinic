@@ -7,10 +7,12 @@ $env:APPLY_DEVELOPMENT_DATABASE = 'apply_codex_plugin_development'
 $env:APPLY_WEB_PORT = '3310'
 $env:APPLY_API_PORT = '3311'
 $env:RAILS_ENV = 'development'
+$panelPort = if ($env:META_CLINIC_PANEL_PORT) { [int]$env:META_CLINIC_PANEL_PORT } else { 3323 }
+if ($panelPort -lt 1024 -or $panelPort -gt 65535) { throw 'Invalid plugin panel port.' }
 Push-Location $repo
 try {
   if ($Action -eq 'stop') {
-    $panelStatePath = Join-Path $env:LOCALAPPDATA 'MetaClinicCodex/connection-3320.json'
+    $panelStatePath = Join-Path $env:LOCALAPPDATA "MetaClinicCodex/connection-$panelPort.json"
     if (Test-Path -LiteralPath $panelStatePath) {
       $panelState = Get-Content -Raw -LiteralPath $panelStatePath | ConvertFrom-Json
       $panelProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$panelState.pid)"

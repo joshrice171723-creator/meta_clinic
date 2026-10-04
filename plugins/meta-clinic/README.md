@@ -1,8 +1,20 @@
-# Meta Clinic for Codex
+# Meta Clinic integration
 
-A local Codex plugin for reading and proposing changes to a synthetic Meta Clinic development instance. The Rails API remains authoritative for identity, clinic scope, permissions, validation and persistence. The plugin adds a native Codex panel and MCP tools; it does not add a second clinical data model.
+A ChatGPT-hosted integration for clinic workflows through an authorized Meta Clinic connection. Codex is the development and local preview environment. Rails remains authoritative for identity, clinic scope, permissions, validation and persistence. The plugin combines MCP tools, an interactive workspace and host extensions, with a separate deployable OAuth connector for supported remote hosts. All project data remains independently synthetic.
 
-## Local setup
+Version 0.3.0 adds isolated connections, explicitly configured access to the existing hosted backend, a remote Authorization Code/PKCE service, demo lifecycle controls and persisted-record event subscriptions. Read [connections](CONNECTIONS.md), [platform decisions](PLATFORM.md), [workflow coverage](WORKFLOW-COVERAGE.md), and [events](EVENTS.md) for exact scope and remaining acceptance. These source additions do not deploy or publish the connector.
+
+## ChatGPT distribution
+
+The primary deliverable is a portable directory plugin containing an authenticated remote MCP connection, an MCP App and supported navigation extensions. The existing local stdio package remains useful for development. The assistant embedded inside Meta Clinic is phase 2 and is not implemented here.
+
+After an authorized connector deployment, run `npm run package:chatgpt -- <deployed-HTTPS-MCP-URL>`. The packager requires the real `/mcp` endpoint, checks resource/issuer metadata, S256 support and unauthenticated denial, then creates a separate portable upload directory without local executables, private app bindings or credentials. It performs no upload or deployment. Complete [SUBMISSION.md](SUBMISSION.md) before submission. No public endpoint is currently configured or claimed.
+
+Clinic sign-in grants access to clinic records; it does not replace ChatGPT host access or extend an API BAA to a consumer host. See [PLATFORM.md](PLATFORM.md) for the synthetic-data and host eligibility boundary. Host model token costs are not visible to this MCP server.
+
+The canonical 116-workflow map and reported-result conflicts are in [WORKFLOW-116.md](WORKFLOW-116.md).
+
+## Local developer setup
 
 Prerequisites: Node.js 24+, the repository's Ruby/PostgreSQL development dependencies, and the Codex CLI.
 
@@ -15,23 +27,26 @@ pwsh ./scripts/runtime.ps1 start
 npm run install:codex
 ```
 
-The runtime helper supports `start`, `stop`, `status`, and `seed`. Use `seed` only when the isolated development database needs synthetic records. The plugin API and web app use ports 3311 and 3310; the panel uses 3320. The helper configures the separate `apply_codex_plugin_development` database. Plugin connections are restricted to loopback; hosted targets are disabled.
+The runtime helper supports `start`, `stop`, `status`, and `seed`. Use `seed` only when the isolated development database needs synthetic records. The plugin API and web app use ports 3311 and 3310; the panel uses 3323. The helper configures the separate `apply_codex_plugin_development` database. For an explicitly configured hosted backend connection, follow [CONNECTIONS.md](CONNECTIONS.md) instead of starting a second clinic database.
 
 Open Meta Clinic in Codex and choose **Sign in to Meta Clinic**. The panel opens the local `/sign-in` page in a browser; enter your own clinic account there, never in chat. Return to the panel, which refreshes the authenticated session. The account's existing clinic membership and backend permissions determine available records and actions. The local development-account picker is disabled by default; enable it only for development work with `META_CLINIC_ENABLE_DEVELOPMENT_ACCOUNTS=1` in the plugin runtime environment. For runtime control, run `pwsh ./scripts/runtime.ps1 status` or `pwsh ./scripts/runtime.ps1 stop` from this directory.
 
-Each local OS installation has its own plugin runtime and account session. Open panels and Codex chats using that same local installation share the session; separate OS installations do not. This is a local development integration, not customer-hosted distribution. Public hosting, remote customer authentication and deployment readiness remain pending. The full clinic application remains available separately at the local web app.
+Each stdio connection and unlinked browser session has separate account state. A one-time browser link connects sign-in to the intended Codex connection. Browser tabs in the same profile share that browser session. Remote connections use distinct OAuth grants and encrypted backend sessions. Public hosting and native-host acceptance remain separate from implementation.
 
 ## How it works
 
 - `server/index.mjs` registers the native MCP tools and panel resource.
-- The MCP server registers eight tools, including `meta_clinic_panel` for these panel-only projections. The earlier walkthrough's seven-tool discovery is historical evidence for that earlier checkpoint.
-- `server/catalog.mjs` defines 95 schema-backed operations mapped to existing Rails endpoints: 66 reads and 29 deliberate writes.
+- The local MCP server registers eleven tools (nine on the remote connector), including `meta_clinic_panel` for these panel-only projections. The earlier walkthrough's seven-tool discovery is historical evidence for that earlier checkpoint.
+- `server/catalog.mjs` defines 103 unique schema-backed operations mapped to existing Rails endpoints: 69 reads and 34 deliberate writes, including the guided Care workspace.
 - `server/panels.mjs` builds three bounded display views—recorded vitals, rooms/encounters, and invoices/insurance history—from existing Rails reads. `meta_clinic_panel` exposes these views to the panel; it does not add clinical decisions or backend write models.
 - `server/http-api.mjs` adapts four loopback `/api/v1` paths to the existing tools and Rails contracts. The generated local API description is available at `/openapi.json`.
 - `server/openapi.mjs` generates that description from the supported local route schemas.
-- `server/client.mjs` owns the loopback-only API session and refreshes clinic context.
+- `server/client.mjs` owns one API session and refreshes clinic context; hosted mode has a fixed HTTPS origin allowlist.
 - `server/service.mjs` validates operation schemas and manages five-minute, single-use change tickets. A prepared write is not saved until separately applied after review.
-- `server/broker.mjs` hosts the loopback panel and serializes calls from the panel and Codex tools.
+- `server/broker.mjs` hosts the loopback panel with isolated, explicitly paired connections.
+- `server/oauth.mjs`, `remote.mjs`, and `storage.mjs` provide remote authentication, scoped MCP requests and encrypted connector persistence.
+- `server/demo.mjs` and `ui/DemoWorkspace.tsx` reuse the existing guided-demo and sandbox lifecycle.
+- `server/events.mjs` consumes the authorized Rails event feed and delivers configured signed callbacks.
 - `ui/app.tsx` and `ui/style.css` implement the panel; `tutorial/tutorial.html` is packaged as its local walkthrough.
 - `CAPABILITIES.md` documents operation coverage and omissions.
 - `ui/sign-in.html` provides the local browser sign-in form. Passwords are entered there and are not sent in chat.
@@ -44,11 +59,11 @@ The clinical views are projections of existing synthetic records. Vitals are dis
 
 Version 0.2.0 retains and extends the workspace around the clinic app's shared cobalt theme. Home now provides task search and direct read shortcuts. Tables show patient identity and readable times; individual sign-in retains authorized clinic and location selection. Use the appearance control to switch the open panel between light and dark. The screenshot tutorial reflects this interface update; the saved staff entry comes from the original local walkthrough, and no duplicate record was created for the new screenshots.
 
-Open a fresh Codex chat, select **Meta Clinic**, and ask **“Open Meta Clinic.”** If the current chat has not refreshed its tools, it cannot discover a plugin installed during that chat. The standalone panel is also available at <http://127.0.0.1:3320/> while the plugin broker is running; `npm run serve` starts it directly.
+Open a fresh Codex chat, select **Meta Clinic**, and ask **“Open Meta Clinic.”** If the current chat has not refreshed its tools, it cannot discover a plugin installed during that chat. The standalone panel is also available at <http://127.0.0.1:3323/> while the plugin broker is running; `npm run serve` starts it directly.
 
-The [screenshot tutorial](tutorial/tutorial.html) is served at <http://127.0.0.1:3320/tutorial.html>. It covers individual sign-in, schedule/patient/inventory/billing examples, recorded vitals/rooms/insurance views, reviewed changes, and recovery. Follow-up screenshots for the new sign-in, calendar and panel views are pending capture; earlier local panel screenshots remain as dated walkthrough evidence.
+The [screenshot tutorial](tutorial/tutorial.html) is served at <http://127.0.0.1:3323/tutorial.html>. It covers individual sign-in, schedule/patient/inventory/billing examples, recorded vitals/rooms/insurance views, reviewed changes, and recovery. Current 0.3.0 captures show the calendar, reviewed care changes, recorded vitals and the corresponding local website. Earlier screenshots remain dated. See [verification](VERIFICATION.md) for the exact checks and remaining gaps.
 
-The local panel and Codex tools share one account session. Changing the account or clinic affects other open plugin panels/chats. Review the account and location shown before applying a change. Restarting the broker clears its session and pending proposals; saved records remain in the separate database.
+Review the account and location shown before applying a change. Account or clinic changes invalidate that connection's pending proposals. Restarting the local broker clears local connection state; persisted records remain in its selected backend. Encrypted remote sessions survive connector restarts, while pending review tickets deliberately do not.
 
 ## Earlier local panel walkthrough — October 3, 2026
 

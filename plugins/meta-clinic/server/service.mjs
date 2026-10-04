@@ -1,19 +1,28 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import Ajv from 'ajv';
 import { ClinicClient } from './client.mjs';
 import { OPERATIONS } from './catalog.mjs';
 import { loadPanel, PANEL_SCHEMAS } from './panels.mjs';
+import { demoSnapshot, demoAction } from './demo.mjs';
 
 const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
 const validators = new Map(OPERATIONS.map(op => [op.id, ajv.compile(op.inputSchema)]));
 const panelValidators = new Map(Object.entries(PANEL_SCHEMAS).map(([view, schema]) => [view, ajv.compile(schema)]));
 const operations = new Map(OPERATIONS.map(op => [op.id, op]));
-const client = new ClinicClient();
+if (operations.size !== OPERATIONS.length) throw new Error('Clinic operation identifiers must be unique.');
+// Authentication, pending review tickets, receipts and serialization belong to
+// one authenticated connection. Catalog validators are immutable and shared.
+export function createClinicService({ client = new ClinicClient(), links = {} } = {}) {
 const pending = new Map();
 const receipts = [];
 let queue = Promise.resolve();
-const result = data => ({ content: [{ type: 'text', text: data.saved ? 'Meta Clinic confirmed the saved change.' : data.change_id ? 'Change prepared for review; no record has been saved.' : data.operation ? `Loaded ${data.operation} from Meta Clinic.` : 'Meta Clinic workspace information loaded.' }], structuredContent: data });
-const fail = error => ({ isError: true, content: [{ type: 'text', text: error.message || 'The action could not be completed.' }], structuredContent: { error: error.message, code: error.code, status: error.status, connection: client.snapshot(), context: client.context } });
+const result = data => {
+  const { loginUrl, tutorialUrl, ...connection } = data.connection || {};
+  return { content: [{ type: 'text', text: data.saved ? 'Meta Clinic confirmed the saved change.' : data.change_id ? 'Change prepared for review; no record has been saved.' : data.operation ? `Loaded ${data.operation} from Meta Clinic.` : 'Meta Clinic workspace information loaded.' }],
+    structuredContent: { ...data, ...(data.connection ? { connection } : {}) },
+    ...(loginUrl || tutorialUrl ? { _meta: { connection: data.connection } } : {}) };
+};
+const fail = error => ({ isError: true, content: [{ type: 'text', text: error.message || 'The action could not be completed.' }], structuredContent: { error: error.message, code: error.code, status: error.status, ...(error.scopes ? { required_scopes: error.scopes } : {}), connection: client.snapshot(), context: client.context } });
 const summary = op => `${op.title} in ${client.context?.practice?.name || 'the selected clinic'}`;
 
 function assertContext(expected) {
@@ -47,21 +56,39 @@ function requestFor(op, args) {
 
 async function snapshot(port) {
   let error;
-  try { await client.configure(); if (client.user) await client.refreshContext(); } catch (e) { error = e.message; }
+  try {
+    await client.configure();
+    if (client.authMode === 'demo') await demoSnapshot(client);
+    else if (client.user) await client.refreshContext();
+  } catch (e) { error = e.message; }
   return {
-    connection: { ...client.snapshot(), ...(error ? { connected: false, error } : {}), loginUrl: `http://127.0.0.1:${port}/sign-in`, tutorialUrl: `http://127.0.0.1:${port}/tutorial.html` },
+    connection: { ...client.snapshot(), demoEnabled: links.demoEnabled !== false, ...(error ? { connected: false, error } : {}),
+      loginUrl: typeof links.loginUrl === 'function' ? await links.loginUrl({ port, client }) : links.loginUrl || `http://127.0.0.1:${port}/sign-in`,
+      tutorialUrl: typeof links.tutorialUrl === 'function' ? await links.tutorialUrl({ port, client }) : links.tutorialUrl || `http://127.0.0.1:${port}/tutorial.html` },
     profiles: client.profiles(), context: client.context,
     operations: OPERATIONS, recent_changes: receipts.slice(-15).reverse(),
   };
 }
 
-async function execute(name, args, port) {
+async function execute(name, args, port, authorizeOperation) {
   for (const [id, ticket] of pending) if (ticket.expires < Date.now()) pending.delete(id);
   switch (name) {
+    case 'meta_clinic_profile': {
+      await client.refreshContext();
+      const profile = { id: createHash('sha256').update(`${client.baseUrl}:${client.user.id}`).digest('hex'),
+        email: client.user.email_address, nickname: client.context?.practice?.name || 'Meta Clinic' };
+      return { structuredContent: profile, content: [{ type: 'text', text: JSON.stringify(profile) }] };
+    }
+    case 'meta_clinic_demo': return result(await demoSnapshot(client));
+    case 'meta_clinic_demo_action': {
+      pending.clear(); receipts.length = 0;
+      return result(await demoAction(client, args.action, args));
+    }
     case 'meta_clinic_open': {
       const data = await snapshot(port);
       const { operations, profiles, ...visible } = data;
-      return { ...result({ ...visible, operation_count: operations.length, domains: [...new Set(operations.map(op => op.domain))] }), _meta: { operations, profiles } };
+      const response = result({ ...visible, operation_count: operations.length, domains: [...new Set(operations.map(op => op.domain))] });
+      return { ...response, _meta: { ...response._meta, operations, profiles } };
     }
     case 'meta_clinic_catalog': return result({ operations: OPERATIONS.filter(op => (!args.domain || op.domain === args.domain) && (!args.search || `${op.id} ${op.title} ${op.description} ${op.domain}`.toLowerCase().includes(args.search.toLowerCase()))) });
     case 'meta_clinic_connection':
@@ -94,6 +121,7 @@ async function execute(name, args, port) {
       await client.refreshContext();
       assertContext(args.expected_context);
       const request = requestFor(op, args.arguments || {});
+      authorizeOperation(op);
       const data = await client.request(request.path, request.options);
       return result({ operation: op.id, data, connection: client.snapshot(), context: client.context, refreshed_at: new Date().toISOString() });
     }
@@ -103,6 +131,7 @@ async function execute(name, args, port) {
       await client.refreshContext();
       assertContext(args.expected_context);
       requestFor(op, args.arguments || {});
+      authorizeOperation(op);
       if (pending.size >= 30) throw new Error('Too many pending changes. Complete or discard an existing change.');
       const id = randomUUID(); const expires = Date.now() + 5 * 60 * 1000;
       const ticket = { id, op, args: structuredClone(args.arguments || {}), generation: client.generation, expires };
@@ -117,6 +146,7 @@ async function execute(name, args, port) {
       await client.refreshContext();
       if (client.generation !== ticket.generation || ticket.expires < Date.now()) throw new Error('Account, clinic, location, permissions, or session changed. Review a new change before applying.');
       const request = requestFor(ticket.op, ticket.args);
+      authorizeOperation(ticket.op);
       try {
         const data = await client.request(request.path, request.options);
         if (ticket.op.path === '/api/clinic/context') { await client.refreshContext(); pending.clear(); }
@@ -132,15 +162,15 @@ async function execute(name, args, port) {
   }
 }
 
-// Serialize cookie updates, account changes and writes across chat and panel callers.
-export function callTool(name, args = {}, port = 3320) {
-  const run = queue.then(() => execute(name, args, port)).catch(fail);
+// Serialize cookie updates, account changes and writes within this connection.
+function callTool(name, args = {}, port = 3323, { authorizeOperation = () => {} } = {}) {
+  const run = queue.then(() => execute(name, args, port, authorizeOperation)).catch(fail);
   queue = run.then(() => undefined);
   return run;
 }
 
 // Only the same-origin browser login route may supply credentials. Never an MCP tool.
-export function signIn(credentials) {
+function signIn(credentials) {
   const run = queue.then(async () => {
     pending.clear(); receipts.length = 0;
     await client.signIn(credentials);
@@ -148,4 +178,6 @@ export function signIn(credentials) {
   });
   queue = run.catch(() => undefined);
   return run;
+}
+return { client, callTool, signIn };
 }

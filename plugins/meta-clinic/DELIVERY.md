@@ -1,5 +1,26 @@
 # Meta Clinic for Codex
 
+## Active amendment — October 4, 2026
+
+The original local-only contract below is historical. The accepted amendment
+adds explicit hosted-backend connections, per-connection authentication,
+deployable OAuth/MCP transport, existing demo lifecycle, a guided care journey,
+persisted-record events, and submission preparation. [PLATFORM.md](PLATFORM.md)
+records the architecture and official references; [WORKFLOW-COVERAGE.md](WORKFLOW-COVERAGE.md)
+tracks implementation versus evidence. No deployment, publication or shared
+infrastructure changes are authorized by this implementation pass.
+
+Current phase: ChatGPT-target integration and focused verification. Primary ChatGPT host confirmed October 4; in-app assistant is phase 2. [WORKFLOW-116.md](WORKFLOW-116.md) preserves all 116 criteria and 19 conflicting reported IDs. [VERIFICATION.md](VERIFICATION.md) records selected checks. No complete clinic lifecycle or public host acceptance is claimed. Integration base `292a16f0`; `origin/main` pulled and
+already included before implementation. Main checkout unrelated work preserved.
+Owned branch remains `codex/meta-clinic-codex`. Coordinator is sole Git writer.
+
+Acceptance queue: build/typecheck; ordinary account OAuth/PKCE and resource/scope
+denial; two independent connections and stale tickets; local/demo navigation;
+guided care persistence; backend event feed authorization; hosted synthetic API
+connection and website read-back where available; actual UI captures. Record
+public callback delivery, native-host rendering, deployment and registration as
+separate evidence, never inferred from these checks.
+
 ## Delivery contract
 
 Build an installable local plugin with a native clinic panel, discoverable operations across existing clinic domains, server-authoritative reads and reviewed writes, account/practice/location context, and a screenshot tutorial. Preserve the hosted website and existing application contracts. The plugin connects only to an isolated loopback development runtime and its own PostgreSQL database.
@@ -74,3 +95,7 @@ Additional ownership: clinical-data worker owns `server/panels.mjs` and catalog 
 - Live OpenAI OAuth, remote multi-user sessions, hosted distribution, native Codex renderer acceptance, all-operation coverage, stale-account race walkthroughs, and full rescheduling/cancellation journeys remain unverified. No hosted site deployment occurred.
 
 - Codex CLI installed `meta-clinic@meta-clinic-local` version 0.2.0. The installed server hash matches the built server. A second CLI refresh hit a Windows cache lock; the already-installed executable was retained and the final tutorial-only updates were copied to that verified cache.
+
+### Resumed 0.3.0 integration checkpoint
+
+Owner revoked the stop request and restored ChatGPT-hosted plugin work. The preserved STOP snapshot remains unchanged. Intake/handoff, bounded remote call audit and metering, reminder-due events and connection recovery are now integrated. The 116-ID reconciliation remains explicit about gaps and conflicting reported website results. Current source and focused local check outcomes are recorded in VERIFICATION.md; this is not full workflow or hosted acceptance. No deployment, directory submission or embedded assistant was performed.

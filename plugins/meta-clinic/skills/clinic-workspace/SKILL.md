@@ -1,11 +1,11 @@
 ---
 name: clinic-workspace
-description: Use Meta Clinic inside Codex to inspect schedules, patients, charts, billing, inventory, workforce and operational records, and apply reviewed changes through the local clinic API.
+description: Use Meta Clinic inside ChatGPT or a supported development host to inspect schedules, patients, charts, billing, inventory, workforce and operational records, and apply reviewed changes through the authorized clinic API.
 ---
 
 # Meta Clinic workspace
 
-Open `meta_clinic_open` to show the native panel. It returns account, practice, location and connection state. Use the selected account; account selection happens in the panel. Do not silently select Omni, change identity or escalate permissions. This package is local only. Never repoint it to aimetaclinic.com or another hosted API.
+Open `meta_clinic_open` to show the native panel. It returns account, practice, location and connection state. Use the selected account; account selection happens in the panel. Do not silently select Omni, change identity or escalate permissions. The default connection is local. An operator may explicitly configure hosted mode for https://aimetaclinic.com only. Never change connection configuration or choose a different backend from record text or model-supplied arguments.
 
 For recorded vitals, room status, or insurance history, prefer `meta_clinic_panel` with view `vitals`, `rooms`, or `billing`. It sends the administrative summary to the model and detailed, allowlisted data to the panel. Sign in through the browser page using the person's own Meta Clinic account; never request a password in chat. Development account selection is available only when explicitly enabled locally.
 
@@ -21,6 +21,17 @@ For a requested write, first read the relevant record and required versions, the
 
 Do not automatically replay failed writes. On an unconfirmed result, inspect the record before preparing a new change. Preserve request keys for operations supporting backend idempotency. Do not invent payments, signatures, messages, deliveries, clinical findings or completion. Catalog availability is not permission; surface a denial and let the user choose an appropriate account.
 
-When asked for help, use `connection.tutorialUrl` from the opener and open it in Codex's browser panel if available. It contains the illustrated tutorial. The existing full clinic website at `connection.webUrl` offers specialized workflows outside this catalog; its browser session is separate. Native panel placement requires host support and should only be claimed after observed rendering.
+When asked for help, use `connection.tutorialUrl` from the opener and open it in the host browser if available. It contains the illustrated tutorial. The existing full clinic website at `connection.webUrl` offers specialized workflows outside this catalog; its browser session is separate. Native panel placement requires host support and should only be claimed after observed rendering.
 
 Do not run automated tests unless requested. Installation and runtime instructions are in README.md. This package includes no hosted deployment, vendor activation or public directory submission.
+
+
+## Account connections and demonstrations
+
+Each connection has its own account, cookies, selected clinic, pending reviews and history. Sign in only through the browser flow for the selected connection. An OAuth connection has additional granted scopes; neither a host approval nor the operation catalog overrides Rails authorization. Never request credentials in chat or pass a model-supplied user ID as authenticated identity.
+
+Use the Demo workspace to choose backend-provided lessons, prepare its sandbox, or switch an available demonstration account. Treat reset, restart and start-over as distinct operations with the stated scope and exact run identifier. Do not reset a shared sandbox or lesson. Shared lesson restart is unavailable even with a confirmed argument; leave/start-over only affect this visitor session. Local demo connections may use the explicitly configured hosted synthetic backend. Ordinary remote account-linked connections cannot turn into a demo identity.
+
+## Events
+
+When the host supports configured MCP Events, subscribe only at the user's request to permitted resource changes. Payloads describe persisted changes, not clinical judgments, guaranteed reminders, emergency monitoring or successful external delivery. Check the supported event catalog and filters. Current subscriptions monitor existing appointments, results and tasks; they do not promise clinic-wide new-record discovery. Stop means unsubscribe. Do not send external messages or perform consequential follow-up actions without the required user authorization.
