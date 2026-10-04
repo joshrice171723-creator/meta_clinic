@@ -5,7 +5,7 @@ module Clinic
         cards, site_id = readable_cards
         cards = cards.includes({ employment: :staff_member }, { time_segments: :site }, :adjustment_requests)
           .order(period_start: :desc, version_number: :desc).to_a
-        prepare_workflow_context(cards)
+        prepare_workflow_context(cards, site_id: site_id)
         employees = calculable_employments
         render json: {
           timecards: cards.map { |card| serialize_card(card, site_id: site_id) },
@@ -75,13 +75,19 @@ module Clinic
       private
 
       def serialize_card(card, site_id: nil)
-        prepare_workflow_context([ card ]) unless @workflow_settings
+        prepare_workflow_context([ card ], site_id: site_id) unless @workflow_settings
         TimecardSerializer.call(card, site_id: site_id,
-          include_global_exceptions: site_id.present? && card.time_segments.empty?).merge(workflow: workflow_for(card))
+          include_global_exceptions: @full_site_card_ids.key?(card.id)).merge(workflow: workflow_for(card))
       end
 
-      def prepare_workflow_context(cards)
+      def prepare_workflow_context(cards, site_id: nil)
         @workflow_settings_error = nil
+        @full_site_card_ids = {}
+        if site_id
+          site = current_practice.sites.find(site_id)
+          @full_site_card_ids = TimecardSiteScope.fully_at_site(scope: TimecardVersion.where(id: cards.map(&:id)), site: site)
+            .pluck(:id).index_with(true)
+        end
         sites = cards.flat_map { |card| card.time_segments.map(&:site) }.uniq
         @workflow_settings = EffectiveSettings.for_site_times(practice: current_practice,
           points: cards.flat_map { |card| card.time_segments.map { |segment| [ segment.site, segment.started_at_utc ] } })
