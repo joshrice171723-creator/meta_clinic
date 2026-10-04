@@ -83,3 +83,14 @@ Source commit: `c16266c7`, pushed after synchronization with `origin/main` (alre
 Verification: six changed/new Ruby files passed scoped RuboCop; source review and staged diff checks passed. No frontend source changed, so the preceding successful frontend build was not repeated. No tests were added/run. The new PostgreSQL relation, transaction outcomes and browser exception queue still need connected verification; Docker was not retried or reset without a changed prerequisite. No deployment occurred.
 
 Further bounded findings remain: scoped cards with some completed intervals can still omit card-level missing-punch exception codes from their attention projection; a site-only manager correcting their own card still follows the existing self-service branch. Review those exact paths before expanding the next batch. The three-hour continuation remains active until its recorded deadline.
+
+## Fifth implementation checkpoint
+
+Source commit: `0c9aeedf`, pushed after synchronization with `origin/main` (already current).
+
+- Location-restricted timecard projections retain card-level exception codes when every completed interval and saved source punch belongs to that location. This includes a partly completed card with a missing final punch. Mixed-location cards keep their restricted exception projection. The whole-card proof is loaded once for the list, rather than queried separately for each card.
+- Correction lists and review authorization reuse the same whole-card location proof, including unfinished source punches. A location manager can request a correction to their own card through their review permission without requiring employee self-service. Proposed destinations still participate in the location proof, and the separate prohibition on deciding one's own correction remains unchanged.
+
+Verification: all three changed Ruby files passed scoped RuboCop; source/diff review and `git diff --check` passed. No frontend files changed, so the prior successful frontend build was not repeated. No tests were added/run. PostgreSQL execution, persisted correction decisions and browser behavior remain unverified without an owned runtime; no shared Docker resources were reset and no deployment occurred.
+
+These two findings from the fourth checkpoint are implemented in source. Continue with a new bounded employee, scheduling, request or payroll journey during the remaining authorized window; avoid repeatedly auditing the same scope. Connected verification remains a separate gap, not a source acceptance claim.
