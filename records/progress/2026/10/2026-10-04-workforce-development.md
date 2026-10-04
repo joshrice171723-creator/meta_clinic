@@ -267,3 +267,15 @@ Source commit: `8cf41667`, pushed after synchronization with `origin/main` (alre
 Verification: An initial TypeScript failure identified an invalid Typography prop; it was repaired, then TypeScript and both Vite bundles passed. The existing marketing import warning remains. Final wording/value-display refinements passed TypeScript and formatting; one-file Ruby lint, focused source/contract review and `git diff --check` passed. No tests were added/run. Connected future-revision activation, unknown-save recovery and browser draft guards remain unverified without an owned runtime. Settings effective-time entry still uses the existing device Date interpretation. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue bounded existing workforce workflows from this checkpoint.
+
+## Twentieth implementation checkpoint
+
+Source commit: `d146dcc5`, pushed after synchronization with `origin/main` (already current).
+
+- Payroll history downloads use the existing API client, preserving demo routing and clinic actor/practice/site context instead of navigating through a raw anchor. An optional JSON response returns the same saved CSV after unchanged authorization and audit; raw CSV download remains the default for existing callers.
+- The client verifies the downloaded UTF-8 bytes against the saved batch's SHA-256 before issuing a browser download. It preserves CSV line endings and adds no BOM. Session/location changes or unmount cancel a pending download, including the asynchronous digest stage.
+- Download errors stay inline and preserve file-setting drafts and unconfirmed export retries. The success notice says a download was requested and directs the operator to browser downloads; it does not claim that a browser file write completed. Retrying retrieves the same saved file without creating an export.
+
+Verification: TypeScript, both Vite bundles, formatting, one-file Ruby lint, focused source/contract review and `git diff --check` passed. The existing marketing import warning remains. No tests were added/run. Actual browser downloads, demo namespace execution, session-switch cancellation and downloaded-byte acceptance remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue a concrete bounded workforce improvement; no deployment or connected acceptance is implied by these commits.
