@@ -7,9 +7,18 @@ module Clinic
           .order(period_start: :desc, version_number: :desc).to_a
         prepare_workflow_context(cards, site_id: site_id)
         employees = calculable_employments
+        correction_sites = if params[:view] == "self"
+          workforce_access.own_employment.sites.merge(EmploymentSite.active.effective_at(Current.business_time))
+            .where(status: "active").distinct.order(:id).map do |site|
+              { id: site.id, name: site.name, timezone: site.timezone_override.presence || current_practice.timezone }
+            end
+        else
+          []
+        end
         render json: {
           timecards: cards.map { |card| serialize_card(card, site_id: site_id) },
           employees: employees.map { |employment| { id: employment.id, name: employment.staff_member.display_name } },
+          correction_sites: correction_sites,
           default_period_start: CalculateTimecard.current_period_start(practice: current_practice).iso8601
         }
       end

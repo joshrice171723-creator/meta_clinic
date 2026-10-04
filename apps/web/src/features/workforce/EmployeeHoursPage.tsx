@@ -4,7 +4,7 @@ import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type { Timecard } from "./clockTypes";
-import { AdjustmentDialog } from "./AdjustmentDialog";
+import { AdjustmentDialog, type CorrectionSite } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
 
 export function EmployeeHoursPage() {
@@ -12,9 +12,10 @@ export function EmployeeHoursPage() {
     data,
     error: loadError,
     refresh,
-  } = useResource<{ timecards: Timecard[] }>(
-    "/api/clinic/workforce/timecards?view=self",
-  );
+  } = useResource<{
+    timecards: Timecard[];
+    correction_sites: CorrectionSite[];
+  }>("/api/clinic/workforce/timecards?view=self");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,7 +77,13 @@ export function EmployeeHoursPage() {
     }
   }
 
-  if (!data) return <LoadState error={loadError} onRetry={refresh} />;
+  if (!data)
+    return (
+      <Stack spacing={2}>
+        {notice && <Alert severity="success">{notice}</Alert>}
+        <LoadState error={loadError} onRetry={refresh} />
+      </Stack>
+    );
 
   return (
     <Stack spacing={3}>
@@ -142,6 +149,7 @@ export function EmployeeHoursPage() {
       {correctionCard && (
         <AdjustmentDialog
           card={correctionCard}
+          sites={data.correction_sites}
           open={true}
           onClose={() => setCorrectionCard(null)}
           onSaved={() => {
