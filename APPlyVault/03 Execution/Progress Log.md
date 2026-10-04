@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Workforce request and correction checkpoint:** Source `99646cfa` adds employee/time context to requests, effective availability dates, retained request retries, selected-location filtering, correction retry/permission repairs and payroll correction population checks. TypeScript, both frontend bundles, scoped Ruby lint, formatting and diff checks passed. Connected database/browser proof remains open after a Docker inventory query hung; no tests or deployment ran. The three-hour work window continues. [Dated evidence and remaining findings](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Embedded assistant expansion implemented locally:** Explicit
 clinical, configuration, scheduling, billing, inventory, workforce and office
 handlers now share scoped reads and server-held confirmed changes. Focused domain,
