@@ -193,3 +193,15 @@ Source commit: `be281f78`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. Frontend formatting, one-file Ruby lint, focused source review and `git diff --check` passed. No tests were added/run. Lost-response recovery, concurrent reviewer persistence and navigation behavior remain unverified in a connected runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Remaining concrete scope includes explicit repeated-clock occurrence selection for newly entered correction times and employee setup journeys, subject to bounded source inspection.
+
+## Fourteenth implementation checkpoint
+
+Source commit: `ef90f3d2`, pushed after synchronization with `origin/main` (already current).
+
+- Correction entry now offers explicit first/second repeated-clock choices for each edited endpoint. Newly entered times go to the server as local minute values plus the displayed device timezone, avoiding the browser's implicit ambiguous-time choice or silent gap normalization.
+- Unchanged source endpoints can retain their recorded occurrence and exact timestamp precision. Hybrid corrections preserve one original UTC boundary while resolving the other edited local boundary. Choosing a new occurrence explicitly replaces that boundary's recorded precision.
+- The existing local-time resolver exposes a shared single-instant entry point. Correction input normalizes to the existing persisted UTC shape before canonical request replay checks, rejects dual local/UTC input for one endpoint and orphan occurrence fields, and keeps existing source/location authorization and final positive-interval validation. Scheduling callers retain existing overnight semantics.
+
+Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. Frontend formatting, two-file Ruby lint, focused source/contract review and `git diff --check` passed. No tests or executable timezone examples were added/run. Browser controls, actual timezone-gap/repeated-hour persistence and response-loss recovery remain unverified without an owned connected runtime. No deployment or shared runtime changes occurred.
+
+The eleventh checkpoint's edited ambiguous-time source gap is addressed; connected acceptance remains pending. Continuation remains active through 15:39 UTC. Next bounded work should prioritize employee setup or another concrete existing journey, rather than repeating timezone audits.

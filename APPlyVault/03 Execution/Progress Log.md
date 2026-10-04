@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Explicit correction clock occurrences:** Source `ef90f3d2` sends edited correction times to the existing server timezone resolver with explicit occurrence choices, while preserving exact unchanged source boundaries. Local transport fields normalize into the existing UTC storage/replay contract. TypeScript, both bundles, formatting, two-file Ruby lint and focused source review passed. No tests or connected timezone/browser verification ran; no deployment occurred. [Fourteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Correction review recovery:** Source `be281f78` preserves manager review drafts and exact unconfirmed correction decisions. API replay now matches the original reviewer, decision, reason and pre-save version after authorization guards, avoiding duplicate recalculation and rejecting mismatches. TypeScript, both bundles, formatting, scoped Ruby lint and focused source/diff review passed. No tests or connected recovery/browser verification ran; no deployment occurred. [Thirteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Employee correction history connected:** Source `2cdb6aaa` shows saved correction outcomes, interval/reason/review context and authorized read-only resulting cards in My Hours. Hours and corrections load and retry independently, refreshing together after successful actions. TypeScript, both bundles, formatting and focused source/diff review passed. No tests or connected browser/database verification ran; no deployment occurred. [Twelfth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
