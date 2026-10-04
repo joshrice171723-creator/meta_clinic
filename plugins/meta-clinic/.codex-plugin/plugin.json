@@ -1,6 +1,6 @@
 {
   "name": "meta-clinic",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Meta Clinic workspace and workflow tools inside Codex, connected to an isolated local clinic.",
   "author": { "name": "Joshua Rice" },
   "skills": "./skills/",
@@ -12,6 +12,6 @@
     "developerName": "Joshua Rice", "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": ["Open Meta Clinic", "Show my clinic schedule and follow-up work", "Open the Meta Clinic tutorial"],
-    "logo": "./assets/icon.svg", "composerIcon": "./assets/icon.svg", "brandColor": "#1D6659"
+    "logo": "./assets/icon.svg", "composerIcon": "./assets/icon.svg", "brandColor": "#1d4ed8"
   }
 }

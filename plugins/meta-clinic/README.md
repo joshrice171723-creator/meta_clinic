@@ -31,6 +31,8 @@ Open Meta Clinic in Codex, then select the available development account, practi
 
 ## Use it
 
+Version 0.1.1 refines the workspace around the clinic app's shared cobalt theme. Home now provides task search and direct read shortcuts. Tables show patient identity and readable times; account choices include their clinic and account type. Use the appearance control to switch the open panel between light and dark. The screenshot tutorial reflects this interface update; the saved staff entry comes from the original local walkthrough, and no duplicate record was created for the new screenshots.
+
 Open a fresh Codex chat, select **Meta Clinic**, and ask **“Open Meta Clinic.”** If the current chat has not refreshed its tools, it cannot discover a plugin installed during that chat. The standalone panel is also available at <http://127.0.0.1:3320/> while the plugin broker is running; `npm run serve` starts it directly.
 
 The [screenshot tutorial](tutorial/tutorial.html) is served at <http://127.0.0.1:3320/tutorial.html>. It covers connecting, reading records, schedule/patient/inventory/billing examples, reviewing changes, and recovery. Try “Show today's appointments for the selected clinic” or “Find inventory exceptions; do not adjust stock.”
