@@ -303,3 +303,15 @@ Source commit: `3ef70e33`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, formatting, focused parent/independent recovery review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Lost-response persistence, session transitions and browser recovery remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue a bounded existing workforce journey from this checkpoint.
+
+## Twenty-third implementation checkpoint
+
+Source commit: `09d6a1bf`, pushed after synchronization with `origin/main` (already current).
+
+- Employee request history can be filtered independently of the request draft by request type, saved status, or swaps awaiting the employee's response. Counts, clear-filter and distinct filtered-empty states preserve access to the full returned history; a selected status stays available if a refresh removes its last matching row.
+- History shows saved creation and decision timestamps in the request timezone. Swap explanations distinguish replacement-employee acceptance from manager approval and schedule publication. No cancellation/target-response timestamp or inferred expired status is fabricated.
+- Request submission, cancellation and swap-response recovery retains the exact original request when the API reports an explicit unknown outcome or session change, including 4xx statuses. These are no longer mistaken for definite rejection.
+
+Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. Final responsive-wrap/wording refinements passed formatting and `git diff --check`. Focused source and backend-contract review confirmed status semantics. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected filtering, refresh/recovery and browser layout remain unverified without an owned runtime. History still uses the existing unpaginated API; this batch adds no read limits or pagination. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue another bounded workforce slice and preserve these verification limits.
