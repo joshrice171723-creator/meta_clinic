@@ -238,6 +238,11 @@ export function ScheduleBuilderPage() {
     );
   const canManage = data.permissions.manage;
   const canPublish = data.permissions.publish;
+  const hasRepeatedHourOnlyShift = (draft?.shifts ?? []).some(
+    (shift) =>
+      shift.local_start.slice(0, 10) === shift.local_end.slice(0, 10) &&
+      shift.local_end <= shift.local_start,
+  );
   const validWeek =
     /^\d{4}-\d{2}-\d{2}$/.test(weekStart) &&
     new Date(`${weekStart}T00:00:00Z`).getUTCDay() === 1;
@@ -293,6 +298,12 @@ export function ScheduleBuilderPage() {
       !confirmDiscard()
     )
       return;
+    if (hasRepeatedHourOnlyShift) {
+      setError(
+        "A shift that ends within the repeated clock hour cannot be reused as a weekly template. Keep that shift in its dated schedule.",
+      );
+      return;
+    }
     setBusy(true);
     setError(undefined);
     const definitions = (draft.shifts ?? []).map((shift) => ({
@@ -350,6 +361,10 @@ export function ScheduleBuilderPage() {
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
     const nextWeekDate = weekEnd.toISOString().slice(0, 10);
     const validLocal = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    const repeatedClockOrder =
+      start.slice(0, 10) === end.slice(0, 10) &&
+      startOccurrence === "first" &&
+      endOccurrence === "second";
     const nextStartError = !validLocal.test(start)
       ? "Enter a complete start date and time."
       : start.slice(0, 10) < draft.week_start_on ||
@@ -360,8 +375,8 @@ export function ScheduleBuilderPage() {
       ? "Enter a complete end date and time."
       : end.slice(0, 10) < draft.week_start_on || end > `${nextWeekDate}T00:00`
         ? `End must fall within the week of ${draft.week_start_on}.`
-        : start && end <= start
-          ? "End must be later than start. Overnight shifts must end within the selected week."
+        : start && end <= start && !repeatedClockOrder
+          ? "End must follow start. For a repeated clock hour, choose first start and second end. Overnight shifts need the next date within this week."
           : undefined;
     setStartError(nextStartError);
     setEndError(nextEndError);
@@ -843,7 +858,7 @@ export function ScheduleBuilderPage() {
                     error={Boolean(endError)}
                     helperText={
                       endError ??
-                      "End must be after start and within the selected week."
+                      "End must follow start in this timezone and remain within the selected week."
                     }
                     onChange={(e) => {
                       setLocalEnd(e.target.value);
@@ -918,6 +933,13 @@ export function ScheduleBuilderPage() {
                   Save the current assignments and times as a weekly template
                   for a future draft.
                 </Typography>
+                {hasRepeatedHourOnlyShift && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    This draft contains a shift within the repeated clock hour.
+                    Keep it in the dated schedule; its times cannot be reused as
+                    a weekly template.
+                  </Alert>
+                )}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                   <TextField
                     label="Template name"
@@ -932,6 +954,7 @@ export function ScheduleBuilderPage() {
                       busy ||
                       loading ||
                       editorDirty ||
+                      hasRepeatedHourOnlyShift ||
                       !templateName.trim() ||
                       !draft.shifts?.length
                     }

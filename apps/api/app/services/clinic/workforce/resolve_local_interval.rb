@@ -5,13 +5,17 @@ module Clinic
 
       LOCAL_PATTERN = /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}\z/
 
-      def self.call(timezone:, local_start:, local_end:, start_occurrence: "only", end_occurrence: "only")
+      def self.call(timezone:, local_start:, local_end:, start_occurrence: "only", end_occurrence: "only", infer_overnight: true)
         start_local = parse_local(local_start)
         end_local = parse_local(local_end)
-        end_local += 1.day if end_local <= start_local
+        end_local += 1.day if infer_overnight && end_local <= start_local
+        starts_at = resolve(timezone, start_local, start_occurrence, "start")
+        ends_at = resolve(timezone, end_local, end_occurrence, "end")
+        raise InvalidLocalTime, "Interval end must be after its start." unless ends_at > starts_at
+
         {
-          starts_at: resolve(timezone, start_local, start_occurrence, "start"),
-          ends_at: resolve(timezone, end_local, end_occurrence, "end"),
+          starts_at: starts_at,
+          ends_at: ends_at,
           local_start: start_local.strftime("%Y-%m-%dT%H:%M"),
           local_end: end_local.strftime("%Y-%m-%dT%H:%M")
         }

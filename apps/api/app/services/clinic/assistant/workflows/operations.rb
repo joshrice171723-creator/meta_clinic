@@ -430,7 +430,7 @@ module Clinic
               raise ArgumentError, "Break minutes must be between 0 and 1440." unless resolved["break_minutes"].between?(0, 1_440)
               Clinic::Workforce::ResolveLocalInterval.call(timezone: resolved["_draft"].timezone,
                 local_start: inputs.fetch("local_start"), local_end: inputs.fetch("local_end"),
-                start_occurrence: inputs.fetch("start_occurrence"), end_occurrence: inputs.fetch("end_occurrence"))
+                start_occurrence: inputs.fetch("start_occurrence"), end_occurrence: inputs.fetch("end_occurrence"), infer_overnight: false)
             end
           when "workforce.create_schedule_draft"
             resolved["week_start_on"] = Date.iso8601(inputs.fetch("week_start_on"))

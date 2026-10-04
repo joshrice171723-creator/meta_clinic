@@ -71,7 +71,7 @@ module Clinic
         record, created = idempotent_create(TimeOffRequest, input[:idempotency_key], input.to_h, employment: employment) do |key, digest|
           interval = ResolveLocalInterval.call(timezone: required_string!(input[:timezone], field: :timezone, maximum: 80),
             local_start: input[:local_start], local_end: input[:local_end], start_occurrence: input[:start_occurrence].presence || "only",
-            end_occurrence: input[:end_occurrence].presence || "only")
+            end_occurrence: input[:end_occurrence].presence || "only", infer_overnight: false)
           status = values.fetch("time_off_approval_required") == true ? "submitted" : "approved"
           TimeOffRequest.create!(practice: current_practice, site: site, employment: employment,
             requested_by_id: current_user.id, starts_at: interval[:starts_at], ends_at: interval[:ends_at],

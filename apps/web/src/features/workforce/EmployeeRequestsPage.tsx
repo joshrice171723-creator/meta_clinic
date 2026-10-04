@@ -754,7 +754,15 @@ export function EmployeeRequestsPage() {
                 controlsLocked ||
                 !canSubmitRequest ||
                 !reason.trim() ||
-                (tab === "time_off" && (!start || !end || end <= start)) ||
+                (tab === "time_off" &&
+                  (!start ||
+                    !end ||
+                    (end <= start &&
+                      !(
+                        start.slice(0, 10) === end.slice(0, 10) &&
+                        startOccurrence === "first" &&
+                        endOccurrence === "second"
+                      )))) ||
                 (tab === "availability" &&
                   (!effectiveFrom ||
                     (effectiveUntil !== "" && effectiveUntil < effectiveFrom) ||
