@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Payroll settings recovery protected:** Source `3ef70e33` preserves and freezes unknown file-setting saves until explicit discard/refresh, reports confirmed configuration revisions, and retains export retries for explicit unknown-outcome/session-change errors. TypeScript, both bundles, formatting and focused source reviews passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-second checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Payroll preparation gaps visible:** Source `6e31741b` identifies missing payroll IDs and correction workweeks before preview, prevents unrelated correction selections, and preserves exact unconfirmed export recovery. TypeScript, both bundles, formatting and focused source/contract reviews passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-first checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Payroll download recovery:** Source `d146dcc5` routes payroll downloads through the API client, verifies saved CSV digests, cancels stale downloads and reports errors inline without losing drafts or creating another export. Raw CSV behavior remains available. TypeScript, both bundles, formatting, scoped Ruby lint and source review passed. No tests or actual browser download verification ran; no deployment occurred. [Twentieth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).

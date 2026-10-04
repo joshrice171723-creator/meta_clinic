@@ -291,3 +291,15 @@ Source commit: `6e31741b`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. A final alert-visibility refinement passed formatting and `git diff --check`; focused parent and independent backend-contract reviews found no concrete defects. No backend source changed and Ruby lint was not repeated. No tests were added/run. Connected correction preparation, configuration changes and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue bounded workforce implementation from this saved checkpoint.
+
+## Twenty-second implementation checkpoint
+
+Source commit: `3ef70e33`, pushed after synchronization with `origin/main` (already current).
+
+- Unknown payroll file-setting saves preserve and freeze the draft, including when a session change arrives after the request. Refresh explicitly confirms draft discard before fetching saved configuration versions. The existing revision guard remains; no durable configuration replay receipt was introduced.
+- Successful file-setting saves validate the returned configuration identifier/revision and report that saved revision. An incomplete successful response is treated as unconfirmed, preserving the draft.
+- Export recovery no longer treats explicit `outcome_unconfirmed` or `session_changed` client errors as definite rejections merely because their status is 4xx. It retains the exact original request for recovery; rejected retries still do not erase earlier uncertainty.
+
+Verification: TypeScript, both Vite bundles, formatting, focused parent/independent recovery review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed and Ruby lint was not repeated. No tests were added/run. Lost-response persistence, session transitions and browser recovery remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue a bounded existing workforce journey from this checkpoint.
