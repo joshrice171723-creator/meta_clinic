@@ -2869,78 +2869,83 @@ function PatientDetails({
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                xl: "minmax(0, 1.8fr) minmax(16rem, 1fr) minmax(16rem, 1fr)",
+                lg: "minmax(0, 1.7fr) minmax(18rem, 1fr)",
               },
-              gap: 1.5,
+              gap: 3,
               alignItems: "start",
+              "& > .patient-history-overview": {
+                minWidth: 0,
+              },
             }}
           >
             <PatientClinicalHistory patientId={patient.id} compactOverview />
-            <Card title="Recent vital signs">
-              {patient.vital_signs?.length ? (
-                <Stack
-                  component="ul"
-                  spacing={0}
-                  divider={<Divider />}
-                  sx={{ p: 0, m: 0, listStyle: "none" }}
-                >
-                  {patient.vital_signs.map((v, index) => {
-                    const label = vitalLabel(v.code);
-                    const value = v.numeric_value ?? "Not recorded";
-                    const unit = vitalUnit(v.unit_code);
-                    return (
-                      <Box
-                        component="li"
-                        key={`${v.code}:${v.observed_at}:${index}`}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 2,
-                          py: 1,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <Box>
-                          <Typography variant="body2">{label}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Observed {clinicDateTime(v.observed_at, timezone)}
-                          </Typography>
-                        </Box>
-                        <Typography
-                          variant="body2"
+            <Stack spacing={2} sx={{ minWidth: 0 }}>
+              <Card title="Recent vital signs">
+                {patient.vital_signs?.length ? (
+                  <Stack
+                    component="ul"
+                    spacing={0}
+                    divider={<Divider />}
+                    sx={{ p: 0, m: 0, listStyle: "none" }}
+                  >
+                    {patient.vital_signs.map((v, index) => {
+                      const label = vitalLabel(v.code);
+                      const value = v.numeric_value ?? "Not recorded";
+                      const unit = vitalUnit(v.unit_code);
+                      return (
+                        <Box
+                          component="li"
+                          key={`${v.code}:${v.observed_at}:${index}`}
                           sx={{
-                            fontWeight: 600,
-                            fontVariantNumeric: "tabular-nums",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 2,
+                            py: 1,
+                            flexWrap: "wrap",
                           }}
                         >
-                          {value}
-                          {unit ? ` ${unit}` : ""}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              ) : (
-                <Typography color="text.secondary" variant="body2">
-                  No vital-sign observations recorded.
-                </Typography>
-              )}
-              {patient.vital_signs?.length ? (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ mt: 1, display: "block" }}
-                >
-                  Measurements are shown as recorded in the clinic time zone. No
-                  trend, normal range, or clinical status is inferred.
-                </Typography>
-              ) : null}
-            </Card>
-            <PatientCareCoordination
-              patientId={patient.id}
-              onSaved={onCoordinationSaved}
-              compactOverview
-            />
+                          <Box>
+                            <Typography variant="body2">{label}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Observed {clinicDateTime(v.observed_at, timezone)}
+                            </Typography>
+                          </Box>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 600,
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {value}
+                            {unit ? ` ${unit}` : ""}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                ) : (
+                  <Typography color="text.secondary" variant="body2">
+                    No vital-sign observations recorded.
+                  </Typography>
+                )}
+                {patient.vital_signs?.length ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 1, display: "block" }}
+                  >
+                    Measurements are shown as recorded in the clinic time zone. No
+                    trend, normal range, or clinical status is inferred.
+                  </Typography>
+                ) : null}
+              </Card>
+              <PatientCareCoordination
+                patientId={patient.id}
+                onSaved={onCoordinationSaved}
+                compactOverview
+              />
+            </Stack>
           </Box>
           <IntakeConsentEvidence patientId={patient.id} />
           <PatientLabReports

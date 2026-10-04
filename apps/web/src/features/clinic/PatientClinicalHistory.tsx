@@ -646,9 +646,7 @@ export function PatientClinicalHistory({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: compactOverview
-              ? { xs: "1fr", lg: "minmax(0, 1.8fr) minmax(18rem, 1fr)" }
-              : "1fr",
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: 1.5,
             alignItems: "start",
           }}
@@ -656,11 +654,13 @@ export function PatientClinicalHistory({
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                lg: "repeat(3, minmax(0, 1fr))",
-              },
+              gridTemplateColumns: compactOverview
+                ? "repeat(auto-fit, minmax(min(100%, 14rem), 1fr))"
+                : {
+                    xs: "1fr",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    lg: "repeat(3, minmax(0, 1fr))",
+                  },
               gap: 1.5,
               alignItems: "start",
             }}
@@ -671,9 +671,18 @@ export function PatientClinicalHistory({
               return (
                 <Paper
                   key={kind}
-                  variant="outlined"
+                  variant={compactOverview ? undefined : "outlined"}
+                  elevation={compactOverview ? 0 : undefined}
                   component="section"
-                  sx={{ minWidth: 0 }}
+                  sx={{
+                    minWidth: 0,
+                    ...(compactOverview && {
+                      bgcolor: "transparent",
+                      borderRadius: 0,
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                    }),
+                  }}
                 >
                   <Stack
                     direction="row"
