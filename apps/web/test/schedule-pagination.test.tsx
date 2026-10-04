@@ -25,7 +25,7 @@ vi.mock("../src/features/clinic/Workspace", () => ({
 }));
 
 describe("clinic calendar navigation and authoritative booking handoff", () => {
-  it("shows all source revisions and site-local calculation time for an opening", () => {
+  it("shows the saved source count and site-local calculation time for an opening", () => {
     const booking: CalendarBooking = {
       site_id: 4,
       clinician_id: 9,
@@ -46,7 +46,9 @@ describe("clinic calendar navigation and authoritative booking handoff", () => {
     };
     const html = renderToStaticMarkup(<SlotProvenance booking={booking} />);
     expect(html).toContain("Sep 16, 2026, 9:00:00 AM CDT");
-    expect(html).toContain("rule #41, version 0; rule #42, version 3");
+    expect(html).toContain(
+      "Capacity calculated from 2 saved availability rules.",
+    );
     expect(html).toContain("Availability is checked again when booking.");
     for (const mismatched of [
       { ...booking, clinician_id: undefined },

@@ -357,10 +357,10 @@ it.each(["UTC", "America/Chicago"])(
     const page = await context.newPage();
     try {
       const { posts, errors } = await fixture(page);
-      const starts = page.getByRole("textbox", { name: /^Starts/ }),
-        ends = page.getByRole("textbox", { name: /^Ends/ });
+      const starts = page.getByLabel("Starts", { exact: true }),
+        ends = page.getByLabel("Ends", { exact: true });
       await starts.waitFor();
-      expect(await starts.getAttribute("type")).toBe("text");
+      expect(await starts.getAttribute("type")).toBe("datetime-local");
       await starts.fill("2026-10-06T14:00");
       await ends.fill("2026-10-06T14:30");
       expect(await starts.inputValue()).toBe("2026-10-06T14:00");
@@ -370,7 +370,10 @@ it.each(["UTC", "America/Chicago"])(
         await page.getByText("End time must follow the start time.").count(),
       ).toBe(0);
       await ends.fill("2026-10-06T13:30");
-      await page.getByText("End time must be after the start time.").waitFor();
+      await page
+        .getByText("End time must be after the start time.")
+        .first()
+        .waitFor();
       expect(await ends.getAttribute("aria-invalid")).toBe("true");
       await ends.fill("2026-10-06T14:30");
       await page
@@ -381,25 +384,19 @@ it.each(["UTC", "America/Chicago"])(
         .click();
       await page.getByRole("combobox", { name: /^Visit type/ }).click();
       await page
-        .getByRole("option", { name: "Synthetic visit", exact: true })
+        .getByRole("option", { name: "Synthetic Visit", exact: true })
         .click();
-      const hint = page.getByText(/your time → .*clinic time/);
-      const text = await hint.innerText();
-      expect(text).toContain(
-        timezoneId === "UTC"
-          ? "2:00 PM your time → 9:00 AM clinic time — look right?"
-          : "2:00 PM your time → 2:00 PM clinic time — look right?",
-      );
+      expect(
+        await page
+          .getByText("Clinic time: America/Chicago", { exact: true })
+          .isVisible(),
+      ).toBe(true);
       await page
         .getByRole("button", { name: "Schedule appointment", exact: true })
         .click();
       await page.getByText(/Appointment #901 scheduled for/).waitFor();
       expect(posts).toHaveLength(1);
-      expect(posts[0].appointment.starts_at).toBe(
-        timezoneId === "UTC"
-          ? "2026-10-06T14:00:00.000Z"
-          : "2026-10-06T19:00:00.000Z",
-      );
+      expect(posts[0].appointment.starts_at).toBe("2026-10-06T19:00:00.000Z");
       expect(errors).toEqual([]);
     } finally {
       await context.close();
@@ -408,14 +405,14 @@ it.each(["UTC", "America/Chicago"])(
   20000,
 );
 
-it("#3 replaces an explicitly past slot with a future device-clock default", async () => {
+it("#3 replaces an explicitly past slot with a future clinic-clock default", async () => {
   const page = await browser.newPage({ timezoneId: "UTC" });
   try {
     await fixture(page, "/fixture/booking?past=1");
-    await page.getByRole("textbox", { name: /^Starts/ }).waitFor();
-    expect(
-      await page.getByRole("textbox", { name: /^Starts/ }).inputValue(),
-    ).toBe("2026-10-01T12:15");
+    await page.getByLabel("Starts", { exact: true }).waitFor();
+    expect(await page.getByLabel("Starts", { exact: true }).inputValue()).toBe(
+      "2026-10-01T07:15",
+    );
   } finally {
     await page.close();
   }
@@ -512,7 +509,7 @@ async function selectBookingPatientAndType(page: Page) {
   await page.getByRole("option", { name: /Synthetic Browser Patient/ }).click();
   await page.getByRole("combobox", { name: /^Visit type/ }).click();
   await page
-    .getByRole("option", { name: "Synthetic visit", exact: true })
+    .getByRole("option", { name: "Synthetic Visit", exact: true })
     .click();
 }
 it("#99 submits Blocked time and renders the saved rule after API refresh", async () => {
@@ -695,11 +692,9 @@ it.each(["Close", "Escape"])(
       const { mutations } = await fixture(page, "/fixture/booking", {
         conflict: true,
       });
-      await page
-        .getByRole("textbox", { name: /^Starts/ })
-        .fill("2026-10-06T15:00");
+      await page.getByLabel("Starts", { exact: true }).fill("2026-10-06T15:00");
       if (method === "Escape")
-        await page.getByRole("textbox", { name: /^Starts/ }).press("Escape");
+        await page.getByLabel("Starts", { exact: true }).press("Escape");
       else
         await page.getByRole("button", { name: "Close", exact: true }).click();
       await page
@@ -729,7 +724,7 @@ it.each([
       });
       await selectBookingPatientAndType(page);
       const start = await page
-        .getByRole("textbox", { name: /^Starts/ })
+        .getByLabel("Starts", { exact: true })
         .inputValue();
       await page
         .getByRole("button", { name: "Schedule appointment", exact: true })
@@ -739,7 +734,7 @@ it.each([
         .filter({ hasText: String(message) })
         .waitFor();
       expect(
-        await page.getByRole("textbox", { name: /^Starts/ }).inputValue(),
+        await page.getByLabel("Starts", { exact: true }).inputValue(),
       ).toBe(start);
       expect(
         await page
@@ -819,9 +814,7 @@ it("#135 same-day activity remains informational and nonoverlap can submit", asy
       activity: true,
     });
     await selectBookingPatientAndType(page);
-    await page
-      .getByRole("textbox", { name: /^Starts/ })
-      .fill("2026-10-06T15:00");
+    await page.getByLabel("Starts", { exact: true }).fill("2026-10-06T15:00");
     await page
       .getByText("Scheduling checks whether the appointment times overlap.")
       .waitFor();

@@ -121,7 +121,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       assert_response :forbidden
       assert_difference "Clinic::Care::Patient.count", 1 do
         post "/api/clinic/patients", params: { clinic_patient: {
-          display_name: "Changed During Demo [Synthetic]", reference: "DEMO-NEW"
+          display_name: "Changed During Demo [Synthetic]", reference: "DEMO-NEW", sex: "unknown"
         } }, headers: csrf, as: :json
         assert_response :created
       end

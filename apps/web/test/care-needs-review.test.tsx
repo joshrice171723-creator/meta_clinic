@@ -15,6 +15,8 @@ import type { ClinicalHistoryResponse } from "../src/features/clinic/clinicalHis
 const harness = vi.hoisted(() => ({
   active: false,
   cursor: 0,
+  refCursor: 0,
+  refs: [] as { current: unknown }[],
   states: [] as unknown[],
   data: null as ClinicalHistoryResponse | null,
   api: vi.fn(),
@@ -37,6 +39,11 @@ vi.mock("react", async (original) => {
         },
       ];
     },
+    useRef: (initial: unknown) => {
+      if (!harness.active) return actual.useRef(initial);
+      const index = harness.refCursor++;
+      return (harness.refs[index] ??= { current: initial });
+    },
     useMemo: (factory: () => unknown, deps: unknown[]) =>
       harness.active ? factory() : actual.useMemo(factory, deps),
     useEffect: (...args: Parameters<typeof actual.useEffect>) => {
@@ -57,6 +64,7 @@ vi.mock("../src/features/clinic/clinicNavigation", () => ({
 }));
 beforeEach(() => {
   harness.states = [];
+  harness.refs = [];
   harness.data = {
     schema_version: "patient-clinical-history-v1",
     patient_id: 7,
@@ -79,6 +87,7 @@ function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
 }
 function render(encounterId: number | null = 9) {
   harness.cursor = 0;
+  harness.refCursor = 0;
   harness.active = true;
   try {
     return PatientClinicalHistory({

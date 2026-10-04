@@ -14,7 +14,7 @@ import {
 
 describe("i2E added-clinic financial model", () => {
   it("separates the central monthly stack from one added clinic's usage", () => {
-    expect(investorCosts).toHaveLength(12);
+    expect(investorCosts).toHaveLength(13);
     expect(investorBudget.upfront).toBe(10500);
     expect(investorBudget.monthly).toBe(2960);
     expect(
@@ -33,10 +33,9 @@ describe("i2E added-clinic financial model", () => {
     expect(scribeAllowance(500)).toBe(110);
   });
 
-  it("keeps the conversion comparison tied to its listed subscriptions", () => {
-    expect(conversionTarget.baseline).toBe(1334);
-    expect(conversionTarget.baseline! - conversionTarget.price).toBe(234);
-    expect(conversionTarget.namedAddons).toBe(1185);
+  it("does not invent a clinic subscription baseline or add-on total", () => {
+    expect(conversionTarget.baseline).toBeNull();
+    expect(conversionTarget.namedAddons).toBeNull();
   });
 
   it("covers ten specialties and both Jane payment profiles", () => {

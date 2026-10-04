@@ -188,6 +188,7 @@ async function fixture(
   await page.goto(`${base}qa`);
   const frame = page.frameLocator('iframe[name="clinic-demo-workspace"]');
   try {
+    await frame.getByRole("button", { name: /^Add employee/ }).click();
     await frame.getByRole("textbox", { name: /^Employee name/ }).waitFor();
   } catch (error) {
     console.error(await page.locator("body").innerText());

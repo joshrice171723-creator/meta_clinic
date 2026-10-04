@@ -848,10 +848,6 @@ it("#54 opens the recorded cash receipt and its print control invokes browser pr
       },
     ],
   });
-  const link = page.getByRole("link", { name: "Print receipt", exact: true });
-  expect(await link.getAttribute("href")).toBe(
-    "/api/clinic/payment_events/88/receipt",
-  );
   expect(
     await page
       .getByRole("button", { name: "Refund cash", exact: true })
@@ -879,6 +875,19 @@ it("#54 opens the recorded cash receipt and its print control invokes browser pr
         body: `${button}<script>window.printCalls=0;window.print=()=>window.printCalls++;${handler}</script>`,
       }),
     );
+  await page
+    .getByRole("button", { name: "Print receipt", exact: true })
+    .click();
+  const preview = page.getByRole("dialog", { name: "Receipt" });
+  await preview.waitFor();
+  const link = preview.getByRole("link", {
+    name: "Open print / PDF view",
+    exact: true,
+  });
+  await link.waitFor();
+  expect(await link.getAttribute("href")).toBe(
+    "/api/clinic/payment_events/88/receipt",
+  );
   const popupPromise = page.waitForEvent("popup");
   await link.click();
   const receipt = await popupPromise;

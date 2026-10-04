@@ -355,27 +355,32 @@ async function prepareIndividualEdit(page: Page) {
     .click();
 }
 async function select(page: Page, ids: number[]) {
-  await page
-    .getByRole("combobox", { name: "Role for selected accounts" })
-    .click();
+  const bulk = page.getByRole("button", {
+    name: "Bulk role changes",
+    exact: true,
+  });
+  if ((await bulk.getAttribute("aria-expanded")) === "false")
+    await bulk.click();
+  await page.getByRole("combobox", { name: "Role to assign" }).click();
   await page
     .getByRole("option", { name: "Front Desk Coordinator · version 2" })
     .click();
   for (const id of ids)
     await page
       .getByRole("checkbox", {
-        name: `Synthetic Person ${id} — person${id}@example.invalid (account ${id + 200})`,
-        exact: true,
+        name: new RegExp(
+          `Synthetic Person ${id} · person${id}@example.invalid.*Account ${id + 200}`,
+        ),
       })
       .check();
   await page
     .getByRole("button", {
-      name: `Review ${ids.length} selected accounts`,
+      name: `Review ${ids.length} selected`,
       exact: true,
     })
     .click();
   await page.getByRole("dialog").waitFor();
-  return ids.length + 3;
+  return ids.length + 4;
 }
 async function confirm(page: Page, count: number) {
   await page
@@ -387,7 +392,7 @@ async function confirm(page: Page, count: number) {
   return 1;
 }
 
-it("three-account representative bulk journey takes seven deliberate actions", async () => {
+it("three-account representative bulk journey takes eight deliberate actions", async () => {
   const { page, writes } = await open();
   try {
     const actions = (await select(page, [1, 2, 3])) + (await confirm(page, 3));
@@ -396,10 +401,10 @@ it("three-account representative bulk journey takes seven deliberate actions", a
         exact: false,
       })
       .waitFor();
-    expect(actions).toBe(7);
+    expect(actions).toBe(8);
     expect(writes.map((write) => write.id)).toEqual([1, 2, 3]);
     console.info(
-      "Synthetic bulk role actions: N=3, after=7 (2 role choices + 3 account checks + review + confirm); pinned individual path source-derived before=9.",
+      "Synthetic bulk role actions: N=3, after=8 (expand bulk editor + 2 role choices + 3 account checks + review + confirm); pinned individual path source-derived before=9.",
     );
   } finally {
     await page.close();
@@ -425,9 +430,7 @@ it("only selected accounts are reviewed; cancellation writes nothing; confirmed 
     expect(writes).toEqual([]);
     await page.getByRole("button", { name: "Back to selection" }).click();
     expect(writes).toEqual([]);
-    await page
-      .getByRole("button", { name: "Review 2 selected accounts" })
-      .click();
+    await page.getByRole("button", { name: "Review 2 selected" }).click();
     await confirm(page, 2);
     await expect.poll(() => writes.length).toBe(2);
     await page
@@ -482,9 +485,7 @@ it("authority denial stops the batch; another review skips successful grants", a
         )
         .count(),
     ).toBe(1);
-    await page
-      .getByRole("button", { name: "Review 2 selected accounts" })
-      .click();
+    await page.getByRole("button", { name: "Review 2 selected" }).click();
     expect(await page.getByRole("dialog").innerText()).not.toContain(
       "person1@example.invalid",
     );
@@ -508,13 +509,13 @@ it.each(["unknown", "timeout408"])(
       expect(writes.map((write) => write.id)).toEqual([1, 2]);
       expect(
         await page
-          .getByRole("combobox", { name: "Role for selected accounts" })
+          .getByRole("combobox", { name: "Role to assign" })
           .isDisabled(),
       ).toBe(true);
       expect(
         await page
           .getByRole("button", {
-            name: "Review 2 selected accounts",
+            name: "Review 2 selected",
             exact: true,
           })
           .isDisabled(),
@@ -549,9 +550,7 @@ it.each(["unknown", "timeout408"])(
             ).readBlockers().blocked,
         ),
       ).toBe(false);
-      await page
-        .getByRole("button", { name: "Review 1 selected accounts" })
-        .click();
+      await page.getByRole("button", { name: "Review 1 selected" }).click();
       await confirm(page, 1);
       await expect.poll(() => writes.length).toBe(3);
       expect(writes.map((write) => write.id)).toEqual([1, 2, 3]);
@@ -773,9 +772,7 @@ it("existing unsaved employee setup and unknown setup switching guards remain ac
       ),
     ).toBe(false);
     expect(
-      await page
-        .getByRole("combobox", { name: "Role for selected accounts" })
-        .isDisabled(),
+      await page.getByRole("combobox", { name: "Role to assign" }).isDisabled(),
     ).toBe(true);
     await page
       .getByRole("textbox", { name: "Job title", exact: true })
@@ -804,9 +801,7 @@ it("existing unsaved employee setup and unknown setup switching guards remain ac
       ),
     ).toBe(true);
     expect(
-      await page
-        .getByRole("combobox", { name: "Role for selected accounts" })
-        .isDisabled(),
+      await page.getByRole("combobox", { name: "Role to assign" }).isDisabled(),
     ).toBe(true);
     expect(writes).toEqual([]);
   } finally {
@@ -855,9 +850,7 @@ it("the reviewed revision rejects a role/scope change after the last fresh read 
 it("a projection without an access revision cannot open a bulk confirmation or mutate access", async () => {
   const { page, writes } = await open("missing-revision");
   try {
-    await page
-      .getByRole("combobox", { name: "Role for selected accounts" })
-      .click();
+    await page.getByRole("combobox", { name: "Role to assign" }).click();
     await page
       .getByRole("option", { name: "Front Desk Coordinator · version 2" })
       .click();
@@ -868,7 +861,7 @@ it("a projection without an access revision cannot open a bulk confirmation or m
       })
       .check();
     await page
-      .getByRole("button", { name: "Review 1 selected accounts", exact: true })
+      .getByRole("button", { name: "Review 1 selected", exact: true })
       .click();
     await page
       .getByText("Selected access changed or has a different scope.", {

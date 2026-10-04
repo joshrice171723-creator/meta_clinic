@@ -131,6 +131,14 @@ describe("appointment change dialog handlers with controlled hooks", () => {
     "retains %s after 408 then denial and closes only on exact acknowledgement",
     async (value) => {
       kind = value;
+      if (kind === "reschedule") {
+        field("Preferred start (your local time)").onChange!({
+          target: { value: "2026-10-03T12:00" },
+        });
+        field("Preferred end (your local time)").onChange!({
+          target: { value: "2026-10-03T13:00" },
+        });
+      }
       harness.api
         .mockRejectedValueOnce(new ApiError(408, "Synthetic timeout"))
         .mockRejectedValueOnce(new ApiError(403, "Synthetic denied"))
@@ -171,6 +179,14 @@ describe("appointment change dialog handlers with controlled hooks", () => {
     "serializes %s repeated handlers and rejects foreign acknowledgement",
     async (value) => {
       kind = value;
+      if (kind === "reschedule") {
+        field("Preferred start (your local time)").onChange!({
+          target: { value: "2026-10-03T12:00" },
+        });
+        field("Preferred end (your local time)").onChange!({
+          target: { value: "2026-10-03T13:00" },
+        });
+      }
       let complete!: (value: unknown) => void;
       harness.api.mockImplementation(
         () =>

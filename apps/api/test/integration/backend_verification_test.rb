@@ -11,7 +11,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       user = User.create!(email_address: "verification-#{label}@example.invalid", password: @password)
       practice = Clinic::Practice.create!(name: "Synthetic Practice #{label}", organization: organization)
       membership = Clinic::Membership.create!(practice: practice, user: user)
-      grant_permissions!(membership, *Development::TestClinic::DEFAULT_PERMISSIONS)
+      grant_permissions!(membership, *Development::TestClinic::DEFAULT_PERMISSIONS, "clinical_records.read")
       patient = practice.patients.create!(display_name: "Synthetic Patient #{label}", reference: "VERIFY-#{label}")
       site = practice.sites.create!(code: "MAIN", status: "active")
       configure_site!(site, membership: membership)
@@ -99,7 +99,7 @@ class BackendVerificationTest < ActionDispatch::IntegrationTest
       submit "/api/clinic/patients", { clinic_patient: { display_name: "Synthetic", reference: "NEW", practice_id: @tenants.last[:practice].id } }
       assert_response :bad_request
     end
-    submit "/api/clinic/patients", { clinic_patient: { display_name: "Synthetic unique marker", reference: "NEW" }, actor_reference: "forged" }
+    submit "/api/clinic/patients", { clinic_patient: { display_name: "Synthetic unique marker", reference: "NEW", sex: "unknown" }, actor_reference: "forged" }
     assert_response :created
     patient = own[:practice].patients.find(response.parsed_body.fetch("id"))
     version = patient.versions.last

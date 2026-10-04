@@ -22,7 +22,7 @@ class ClinicSiteScopedProviderTest < ActionDispatch::IntegrationTest
     @other_note = create_signed_note(@other_encounter, "site-provider-other")
     revoke_all_permissions!(@membership)
     grant_permissions!(@membership, "patients.read")
-    grant_permissions!(@membership, "notes.read", "notes.write", "notes.sign", "encounters.write", "observations.write",
+    grant_permissions!(@membership, "notes.read", "notes.write", "notes.sign", "encounters.write", "observations.write", "clinical_records.read",
       scope_kind: "site", site: @allowed_site)
     login
   end

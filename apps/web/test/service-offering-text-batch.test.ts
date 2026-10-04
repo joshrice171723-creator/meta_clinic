@@ -112,17 +112,17 @@ it("rejects empty selection, missing/non-draft/foreign destinations and duplicat
 });
 
 it("retains the single-import allowlist and missing-value safeguards for every batch item", () => {
-  for (const fields of [
-    ["description"],
-    ["visit_type_id"],
-    ["name", "name"],
-    ["__proto__"],
-  ])
+  for (const fields of [["visit_type_id"], ["name", "name"], ["__proto__"]])
     expect(() =>
       offeringTextBatchPlan(source, targets, [
         { ...mappings[0], fields: fields as OfferingTextMapping["fields"] },
       ]),
     ).toThrow("supported");
+  expect(() =>
+    offeringTextBatchPlan(source, targets, [
+      { ...mappings[0], fields: ["description"] },
+    ]),
+  ).toThrow("reload the complete destination");
   expect(() =>
     offeringTextBatchPlan(source, targets, [
       { ...mappings[0], fields: ["referral_instructions"] },

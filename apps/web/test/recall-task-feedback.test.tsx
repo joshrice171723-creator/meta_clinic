@@ -35,7 +35,7 @@ beforeAll(async () => {
           if (id === "\0recall-context")
             return "export const useClinic=()=>({capabilities:{patients:true,encounters:true}});";
           if (id === "\0recall-resource")
-            return 'export const useResource=()=>({data:{summary:{due:Number(new URLSearchParams(location.search).get("due")||0),upcoming:0,snoozed:0},recalls:[]}});';
+            return 'export {LoadState} from "/src/shared/ui"; export const useResource=()=>({data:{summary:{due:Number(new URLSearchParams(location.search).get("due")||0),upcoming:0,snoozed:0},recalls:[]}});';
           if (id !== virtualId) return;
           return `import React from "react";
           import {createRoot} from "react-dom/client";

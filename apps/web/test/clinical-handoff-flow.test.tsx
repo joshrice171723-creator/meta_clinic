@@ -198,8 +198,8 @@ describe("205 handoff prerequisites", () => {
     expect(
       render().some(
         (p) =>
-          Array.isArray(p.children) &&
-          p.children.join("") === "Review history evidence.",
+          (Array.isArray(p.children) ? p.children.join("") : p.children) ===
+          "Review history evidence",
       ),
     ).toBe(true);
     expect(

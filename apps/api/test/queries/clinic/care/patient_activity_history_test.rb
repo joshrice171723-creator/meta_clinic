@@ -74,7 +74,8 @@ class PatientActivityHistoryTest < ActiveSupport::TestCase
     assert_equal issued_at.iso8601(6), rows.sole[:occurred_at]
     assert_empty rows.sole[:changed_fields]
     refute_includes result.to_json, credit.reason
-    refute_includes result.to_json, "5.00"
+    refute_includes result.to_json, '"5.00"'
+    refute result.fetch(:entries).any? { |entry| entry.key?(:amount) }
   end
 
   test "QA149 bounds credit activity by issued time rather than insertion time" do

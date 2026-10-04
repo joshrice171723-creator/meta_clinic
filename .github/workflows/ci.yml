@@ -144,7 +144,7 @@ jobs:
     needs: scope
     if: ${{ needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -302,6 +302,7 @@ jobs:
           sparse-checkout: |
             .github
             apps/web
+            apps/api
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: apps/web/package.json

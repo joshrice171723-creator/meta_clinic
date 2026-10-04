@@ -205,7 +205,7 @@ it("#59 explains organization scope and exposes eligible alternate locations thr
     const dialog = page.getByRole("dialog", { name: "Choose your location" });
     await dialog
       .getByText(
-        "Choose another organization to see its clinics and locations.",
+        "This is a staff workspace. Choose a location you are authorized to use before entering the clinic workspace.",
         { exact: true },
       )
       .waitFor();

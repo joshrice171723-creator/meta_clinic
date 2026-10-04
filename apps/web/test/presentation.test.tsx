@@ -40,8 +40,20 @@ describe("frontend responsibility", () => {
         expect(source.content).toContain(
           'const trackingBoardColumnsStorageKey = "apply.tracking-board.columns.v2"',
         );
+      const sessionReferences = source.content.match(/sessionStorage/g) ?? [];
+      expect(sessionReferences).toHaveLength(
+        source.path.endsWith("DemoJourney.tsx") ? 2 : 0,
+      );
+      if (sessionReferences.length) {
+        expect(source.content).toContain(
+          "sessionStorage.setItem(sandboxDurationKey, String(duration))",
+        );
+        expect(source.content).toContain(
+          "sessionStorage.getItem(sandboxDurationKey)",
+        );
+      }
       expect(source.content).not.toMatch(
-        /sessionStorage|indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
+        /indexedDB|dangerouslySetInnerHTML|serviceWorker\.register|from ['"].*apps\/api/,
       );
     }
   });

@@ -459,6 +459,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   end
 
   test "account-first local simulator API preserves entitlement through renewal failure and period-end cancellation" do
+    ENV["APP_DEVELOPMENT_LOGIN"] = "1"
     travel_to Time.utc(2026, 9, 22, 12) do
       practice = Clinic::Practice.create!(name: "Local Account First Clinic")
       admin = create_staff(practice, "local-account-admin@example.invalid",
@@ -605,6 +606,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   end
 
   test "loopback synthetic signup activates only with development access" do
+    ENV["APP_DEVELOPMENT_LOGIN"] = "1"
     version_id = publish_catalog(@admin, "LocalSetup")
     configure_storefront(@admin, "local-setup", enabled: true)
     ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = @practice.id.to_s

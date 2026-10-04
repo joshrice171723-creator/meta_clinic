@@ -220,10 +220,13 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
   end
 
   test "clinic type selects an idempotent unpublished membership starter" do
+    @site = @practice.sites.create!(code: "WEIGHT-LOSS", status: "active")
     Clinic::Configuration::PracticeFeatures.revise(practice: @practice, actor: @membership, site: @site,
-      request_key: "weight-loss-membership-profile", expected_revision: 1, insurance_workflows_enabled: false,
+      request_key: "weight-loss-membership-profile", expected_revision: 0, insurance_workflows_enabled: false,
       clinic_type: "weight_loss", service_scope: [], assessment_scope: [], finalize: true)
     sign_in(@admin)
+    patch "/api/clinic/context", params: { context: { site_id: @site.id } }, headers: headers, as: :json
+    assert_response :success
     get "/api/clinic/subscription_catalog", headers: headers
     assert_response :success
     assert_equal "weight_loss", response.parsed_body.fetch("clinic_type")

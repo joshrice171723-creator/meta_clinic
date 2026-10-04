@@ -17,11 +17,13 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {OperationsView} from '/src/features/clinic/Operations.tsx';
 import {InventoryApp} from '/src/features/inventory/InventoryApp.tsx';
+import {ClinicNavigationProvider} from '/src/features/clinic/clinicNavigation.tsx';
 const clinic = {capabilities: {inventory_access: true}, low_stock: []};
 createRoot(document.getElementById('root')).render(
+  React.createElement(ClinicNavigationProvider, {value: {navigate: path => {window.location.href = path; return true;}, registerBlocker: () => () => {}}},
   location.pathname === '/clinic/operations'
     ? React.createElement(OperationsView, {clinic})
-    : React.createElement(InventoryApp, {path: location.pathname})
+    : React.createElement(InventoryApp, {path: location.pathname}))
 );
 `;
 const storage = {
@@ -179,7 +181,7 @@ it("Muse106 Operations inventory locations link opens the actual storage screen"
     await page.waitForURL(base + "clinic/inventory/locations");
     await page
       .getByRole("heading", {
-        name: "Inventory storage locations",
+        name: "Storage locations",
         exact: true,
       })
       .waitFor();
@@ -702,7 +704,9 @@ it("Muse43 authorized inventory setup posts the exact initial configuration and 
       .getByRole("button", { name: "Confirm action", exact: true })
       .click();
     await page.waitForURL(base + "clinic/inventory");
-    await page.getByRole("heading", { name: "Catalog", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "Inventory overview", exact: true })
+      .waitFor();
     expect(posts).toHaveLength(1);
     expect(posts[0].body).toMatchObject({
       status: "configured",
@@ -750,7 +754,7 @@ it("Muse138 the updated banner preserves the server timestamp and labels its cli
     await page.goto(base + "clinic/inventory/locations");
     await page
       .getByRole("heading", {
-        name: "Inventory storage locations",
+        name: "Storage locations",
         exact: true,
       })
       .waitFor();
@@ -762,7 +766,7 @@ it("Muse138 the updated banner preserves the server timestamp and labels its cli
     await page.reload();
     await page
       .getByRole("heading", {
-        name: "Inventory storage locations",
+        name: "Storage locations",
         exact: true,
       })
       .waitFor();

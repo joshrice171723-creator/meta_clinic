@@ -1,5 +1,4 @@
 require "test_helper"
-require "digest"
 
 class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
   setup do
@@ -61,8 +60,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
             violations << "#{before.fetch(:practice)} table counts: #{differences.inspect}" if differences.any?
             next
           end
-          next if Digest::SHA256.hexdigest(Marshal.dump(value)) ==
-            Digest::SHA256.hexdigest(Marshal.dump(after.fetch(section)))
+          next if value == after.fetch(section)
 
           details = if section == :patients
             old_rows = value.to_h { |reference, name, site| [ reference, [ name, site ] ] }

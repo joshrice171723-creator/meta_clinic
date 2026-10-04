@@ -403,7 +403,9 @@ it("keeps sensitive disclosure closed during keyboard error navigation", async (
       await disclosure.evaluate((node) => node === document.activeElement),
     ).toBe(true);
     await page.keyboard.press("Enter");
-    await question.getByRole("button", { name: "Record an exception" }).click();
+    await question
+      .getByRole("button", { name: /^Choose a response for/ })
+      .click();
     await page.getByRole("menuitem", { name: "Unknown", exact: true }).click();
     expect(await question.getByText("Recorded as Unknown").count()).toBe(1);
     await page.screenshot({

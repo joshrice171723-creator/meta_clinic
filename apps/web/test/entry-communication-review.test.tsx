@@ -115,7 +115,7 @@ describe("cancellation communication review source contract", () => {
     expect(frontDesk).toContain(
       "href={`/clinic/reminders?patient_id=${noticeContext.patientId}&appointment_id=${noticeContext.appointmentId}`}",
     );
-    expect(frontDesk).toContain('? "Review patient message"');
+    expect(frontDesk).toContain("Review reminders");
     expect(frontDesk).toContain("patientId: appointment.patient_id");
     expect(frontDesk).toContain("appointmentId: appointment.id");
   });

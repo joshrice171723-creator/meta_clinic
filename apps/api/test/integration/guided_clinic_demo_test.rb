@@ -309,7 +309,7 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
         assert_equal 560, visits.pluck(:booked_clinician_id, :starts_at).uniq.length
         upcoming_start = Current.business_time.in_time_zone(practice.timezone).to_date.beginning_of_week(:monday) + 1.week
         upcoming = practice.appointments.joins(:patient).where(site:, starts_at: upcoming_start...upcoming_start + 2.weeks)
-          .where("clinic_patients.reference LIKE 'SBX-%'")
+          .where("clinic_patients.reference LIKE 'SBX-%'").where(reason: nil)
         assert_equal 120, upcoming.count
         assert_equal 30, upcoming.where(status: "scheduled").count
         assert_equal 90, upcoming.where(status: "confirmed").count
@@ -343,6 +343,18 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
         assert_equal 1, Clinic::Care::CarePlanRevision.where(practice:, status: "active").count
         assert_equal 1, Clinic::Care::CareGoalRevision.where(practice:).count
       end
+    end
+  end
+
+  test "expired lesson recovery does not restore a revoked clinic identity" do
+    register_visitor
+    run = Development::DemoRun.find(enter_lesson("navigation_tour").fetch("id"))
+    MemberSession.find_by!(user: run.operator_user).destroy!
+    run.practice.memberships.find_by!(user: run.operator_user).update!(active: false)
+
+    assert_no_difference "MemberSession.count" do
+      post "/api/demo/run/resume", headers: csrf_headers, as: :json
+      assert_response :not_found
     end
   end
 

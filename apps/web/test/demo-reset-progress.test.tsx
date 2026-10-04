@@ -47,6 +47,7 @@ vi.mock("@mui/material", () =>
       "Alert",
       "Box",
       "Button",
+      "IconButton",
       "Chip",
       "CircularProgress",
       "Dialog",

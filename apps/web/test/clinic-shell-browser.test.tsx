@@ -287,8 +287,8 @@ describe("compact clinic shell browser behavior", () => {
           after.links.find((link) => link.href === "/clinic/growth")?.current,
         ).toBe("page");
         if (width > 900) {
-          expect(after.sidebar.width).toBe(200);
-          expect(after.content.width).toBe(width - 200);
+          expect(after.sidebar.width).toBe(232);
+          expect(after.content.width).toBe(width - 232);
           expect(after.scope.height).toBeLessThan(before.scope.height);
           expect(after.navigation.height).toBeLessThan(
             before.navigation.height,
@@ -348,8 +348,8 @@ describe("compact clinic shell browser behavior", () => {
         await page.locator(".clinic-shell").getAttribute("data-rail"),
       ).toBe("true");
       const rail = await measure(page, "rail-1440");
-      expect(rail.sidebar.width).toBe(56);
-      expect(rail.content.width).toBe(1384);
+      expect(rail.sidebar.width).toBe(54);
+      expect(rail.content.width).toBe(1386);
       const growth = page.getByRole("link", { name: "Growth", exact: true });
       await growth.focus();
       await page
@@ -380,7 +380,7 @@ describe("compact clinic shell browser behavior", () => {
       });
       await scope.focus();
       const scopeBox = await scope.boundingBox();
-      expect(scopeBox!.y).toBeGreaterThanOrEqual(56);
+      expect(scopeBox!.y).toBeGreaterThanOrEqual(54);
       await measure(page, "rail-scope-focus");
       await page.keyboard.press("Enter");
       const organization = page.getByRole("combobox", { name: /Organization/ });

@@ -243,7 +243,7 @@ class ClinicalHistoryApiTest < ActionDispatch::IntegrationTest
 
   test "Muse220 intake condition projection uses exact source and does not fall back around denied newest intake" do
     grant_permissions!(@membership, "intake.write", "encounters.read")
-    optional_features = { "clinic_type" => "primary_care", "service_scope" => [], "assessment_scope" => [] }
+    optional_features = @practice.practice_feature_versions.where(site: @site).order(:revision).last!.optional_features.deep_dup
     Clinic::PracticeFeatureVersion.create!(
       practice: @practice, site: @site, created_by_membership: @membership, revision: @practice.practice_feature_versions.where(site: @site).maximum(:revision).to_i + 1, optional_features:,
       effective_from: Current.business_time, request_key: "synthetic-intake-condition-primary-care-site",

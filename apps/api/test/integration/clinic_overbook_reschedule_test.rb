@@ -121,7 +121,7 @@ class ClinicOverbookRescheduleTest < ActionDispatch::IntegrationTest
     inputs[4][:appointment][:room_id] = nil
     inputs.each_with_index do |input, index|
       patch_appointment(input)
-      assert_response index.zero? || index == 3 ? :bad_request : :unprocessable_entity
+      assert_response(index.zero? ? :bad_request : :unprocessable_entity)
       assert_equal original, @moving.reload.attributes
       assert_equal 0, @moving.overbook_exceptions.count
     end

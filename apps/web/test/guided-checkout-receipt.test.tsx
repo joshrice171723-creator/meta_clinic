@@ -3,6 +3,18 @@ import { expect, it, vi } from "vitest";
 import type { BillingPatientLedger } from "../src/api/contracts";
 import { GuidedCheckout } from "../src/features/clinic/GuidedCheckout";
 
+// Capture the receipt identity passed to the shared preview control. The browser
+// receipt test exercises that control's real dialog, GET, popup and printing.
+vi.mock("../src/features/clinic/BillingDocumentPreview", () => ({
+  BillingReceiptButton: ({
+    paymentId,
+    children,
+  }: {
+    paymentId: number;
+    children: import("react").ReactNode;
+  }) => <button data-payment-id={paymentId}>{children}</button>,
+}));
+
 vi.mock("../src/shared/ui", () => ({
   useResource: (path: string) => ({
     data: path.includes("/completion?")
@@ -72,7 +84,5 @@ it("#129 sends an unrecorded receipt to the real payment-status anchor", () => {
 it("#129 links an available receipt to its matching recorded payment", () => {
   const html = receiptMarkup(true);
   expect(html).toContain("Receipt is available for payment #88.");
-  expect(html).toMatch(
-    /href="\/api\/clinic\/payment_events\/88\/receipt"[^>]*>[\s\S]*?Open receipt</,
-  );
+  expect(html).toMatch(/data-payment-id="88"[^>]*>[\s\S]*?Open receipt</);
 });

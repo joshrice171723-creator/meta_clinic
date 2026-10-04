@@ -232,7 +232,8 @@ it("fills the live sandbox viewport and keeps the clinic toggle in its header", 
     await page.keyboard.press("Enter");
     await expectToggleInsideHeader("Collapse sidebar");
 
-    await page.getByRole("button", { name: "Give feedback" }).click();
+    await page.getByRole("button", { name: "Demo options" }).click();
+    await page.getByRole("menuitem", { name: "Give feedback" }).click();
     const feedback = page.getByRole("dialog");
     expect(await feedback.isVisible()).toBe(true);
     expect(
