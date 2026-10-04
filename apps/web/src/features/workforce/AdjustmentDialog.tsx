@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -12,6 +12,13 @@ import {
 } from "@mui/material";
 import { api } from "../../api/client";
 import type { Timecard } from "./clockTypes";
+
+function localInput(iso: string) {
+  const date = new Date(iso);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+}
 
 export function AdjustmentDialog({
   card,
@@ -35,44 +42,59 @@ export function AdjustmentDialog({
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const attempts = useRef(new Map<string, string>());
   useEffect(() => {
-    if (open) {
-      setError("");
-      setRequestKey(crypto.randomUUID());
-    }
+    if (open) setError("");
   }, [open]);
 
+  const needsSource = correctionType !== "add_segment";
+  const needsTimes = correctionType !== "remove_segment";
+  const selected = card.snapshot.segments.find(
+    (segment) => String(segment.id) === sourceSegmentId,
+  );
+  const correctionSiteId = needsSource
+    ? selected?.site_id
+    : (siteId ?? card.snapshot.segments[0]?.site_id);
+  const validTimes =
+    Number.isFinite(new Date(startedAt).getTime()) &&
+    Number.isFinite(new Date(endedAt).getTime()) &&
+    new Date(endedAt).getTime() > new Date(startedAt).getTime();
+  const canSave =
+    !busy &&
+    reason.trim().length > 0 &&
+    (!needsSource || Boolean(selected)) &&
+    (!needsTimes || validTimes);
+  const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   async function save() {
+    if (!canSave) return;
     setBusy(true);
     setError("");
     try {
-      const selected = card.snapshot.segments.find(
-        (segment) => String(segment.id) === sourceSegmentId,
-      );
+      const values = {
+        timecard_version_id: card.id,
+        correction_type: correctionType,
+        proposed_changes: {
+          source_segment_id: needsSource ? sourceSegmentId : undefined,
+          site_id: correctionSiteId,
+          started_at_utc: needsTimes
+            ? new Date(startedAt).toISOString()
+            : undefined,
+          ended_at_utc: needsTimes
+            ? new Date(endedAt).toISOString()
+            : undefined,
+        },
+        reason,
+        source_lock_version: card.lock_version,
+      };
+      const signature = JSON.stringify(values);
+      const requestKey = attempts.current.get(signature) ?? crypto.randomUUID();
+      attempts.current.set(signature, requestKey);
       await api("/api/clinic/workforce/adjustments", {
         method: "POST",
-        body: {
-          timecard_version_id: card.id,
-          correction_type: correctionType,
-          proposed_changes: {
-            source_segment_id: sourceSegmentId || undefined,
-            site_id:
-              siteId ?? selected?.site_id ?? card.snapshot.segments[0]?.site_id,
-            started_at_utc:
-              correctionType === "remove_segment"
-                ? undefined
-                : new Date(startedAt).toISOString(),
-            ended_at_utc:
-              correctionType === "remove_segment"
-                ? undefined
-                : new Date(endedAt).toISOString(),
-          },
-          reason,
-          request_key: requestKey,
-          source_lock_version: card.lock_version,
-        },
+        body: { ...values, request_key: requestKey },
       });
+      attempts.current.delete(signature);
       setReason("");
       setStartedAt("");
       setEndedAt("");
@@ -90,8 +112,6 @@ export function AdjustmentDialog({
     }
   }
 
-  const needsSource = correctionType !== "add_segment";
-  const needsTimes = correctionType !== "remove_segment";
   return (
     <Dialog
       open={open}
@@ -110,6 +130,7 @@ export function AdjustmentDialog({
           <TextField
             select
             label="Correction"
+            disabled={busy}
             value={correctionType}
             onChange={(event) =>
               setCorrectionType(event.target.value as typeof correctionType)
@@ -125,14 +146,24 @@ export function AdjustmentDialog({
             <TextField
               select
               label="Interval"
+              disabled={busy}
               value={sourceSegmentId}
-              onChange={(event) => setSourceSegmentId(event.target.value)}
+              onChange={(event) => {
+                setSourceSegmentId(event.target.value);
+                const segment = card.snapshot.segments.find(
+                  (item) => String(item.id) === event.target.value,
+                );
+                if (segment) {
+                  setStartedAt(localInput(segment.started_at_utc));
+                  setEndedAt(localInput(segment.ended_at_utc));
+                }
+              }}
+              helperText={`Times shown in your device timezone (${deviceTimezone}).`}
             >
               {card.snapshot.segments.map((segment) => (
                 <MenuItem key={segment.id} value={String(segment.id)}>
-                  {segment.local_date} ·{" "}
-                  {new Date(segment.started_at_utc).toLocaleTimeString()}–
-                  {new Date(segment.ended_at_utc).toLocaleTimeString()}
+                  {new Date(segment.started_at_utc).toLocaleString()}–
+                  {new Date(segment.ended_at_utc).toLocaleString()}
                 </MenuItem>
               ))}
             </TextField>
@@ -141,22 +172,32 @@ export function AdjustmentDialog({
             <>
               <TextField
                 label="Corrected start"
+                disabled={busy}
                 type="datetime-local"
                 value={startedAt}
                 onChange={(event) => setStartedAt(event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
+                helperText={`Your device timezone (${deviceTimezone}).`}
               />
               <TextField
                 label="Corrected end"
+                disabled={busy}
                 type="datetime-local"
                 value={endedAt}
                 onChange={(event) => setEndedAt(event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
+                error={Boolean(startedAt && endedAt && !validTimes)}
+                helperText={
+                  startedAt && endedAt && !validTimes
+                    ? "End must be after the start."
+                    : `Your device timezone (${deviceTimezone}).`
+                }
               />
             </>
           )}
           <TextField
             label="Reason"
+            disabled={busy}
             multiline
             minRows={3}
             value={reason}
@@ -173,12 +214,7 @@ export function AdjustmentDialog({
         <Button
           variant="contained"
           onClick={() => void save()}
-          disabled={
-            busy ||
-            !reason.trim() ||
-            (needsSource && !sourceSegmentId) ||
-            (needsTimes && (!startedAt || !endedAt))
-          }
+          disabled={!canSave}
         >
           {busy ? "Submitting…" : "Submit correction"}
         </Button>

@@ -6,12 +6,15 @@ module Clinic
       def call(timecard, site_id: nil)
         snapshot = timecard.snapshot.deep_dup
         if site_id
-          segments = Array(snapshot["segments"]).select { |segment| segment["site_id"] == site_id }
+          segments = Array(snapshot["segments"]).select { |segment| segment["site_id"].to_s == site_id.to_s }
           snapshot["segments"] = segments
           snapshot["totals"] = restricted_totals(segments)
+          snapshot["schedule_checks"] = Array(snapshot["schedule_checks"]).select { |check| check["site_id"].to_s == site_id.to_s }
+          snapshot.delete("source_punch_ids")
         end
         {
           id: timecard.id,
+          scoped_site_id: site_id&.to_i,
           employment_id: timecard.employment_id,
           employee_name: timecard.employment.staff_member.display_name,
           period_start: timecard.period_start.iso8601,
@@ -29,12 +32,19 @@ module Clinic
       end
 
       def adjustment(adjustment)
+        source_id = adjustment.proposed_changes["source_segment_id"]
+        source_interval = Array(adjustment.timecard_version.snapshot["segments"])
+          .find { |segment| source_id.present? && segment["id"].to_s == source_id.to_s }
         {
           id: adjustment.id,
           employment_id: adjustment.employment_id,
+          employee_name: adjustment.employment.staff_member.display_name,
           timecard_version_id: adjustment.timecard_version_id,
+          period_start: adjustment.timecard_version.period_start.iso8601,
+          period_end: adjustment.timecard_version.period_end.iso8601,
           status: adjustment.status,
           correction_type: adjustment.correction_type,
+          source_interval: source_interval&.slice("site_id", "started_at_utc", "ended_at_utc"),
           proposed_changes: adjustment.proposed_changes,
           reason: adjustment.reason,
           requested_at: adjustment.requested_at.utc.iso8601(6),

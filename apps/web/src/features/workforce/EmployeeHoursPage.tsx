@@ -1,49 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { api } from "../../api/client";
+import { LoadState, useResource } from "../../shared/ui";
 import type { Timecard } from "./clockTypes";
 import { AdjustmentDialog } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
 
 export function EmployeeHoursPage() {
-  const [cards, setCards] = useState<Timecard[]>([]);
+  const {
+    data,
+    error: loadError,
+    refresh,
+  } = useResource<{ timecards: Timecard[] }>(
+    "/api/clinic/workforce/timecards?view=self",
+  );
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [revision, setRevision] = useState(0);
   const [correctionCard, setCorrectionCard] = useState<Timecard | null>(null);
-
-  useEffect(() => {
-    const abort = new AbortController();
-    setError("");
-    api<{ timecards: Timecard[] }>(
-      "/api/clinic/workforce/timecards?view=self",
-      { signal: abort.signal },
-    )
-      .then((data) => {
-        if (!abort.signal.aborted) setCards(data.timecards);
-      })
-      .catch((reason: unknown) => {
-        if (!abort.signal.aborted)
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "Unable to load your hours.",
-          );
-      });
-    return () => abort.abort();
-  }, [revision]);
 
   const latestCards = useMemo(() => {
     const found = new Map<string, Timecard>();
-    cards.forEach((card) => {
+    data?.timecards.forEach((card) => {
       if (!found.has(card.period_start)) found.set(card.period_start, card);
     });
     return [...found.values()];
-  }, [cards]);
+  }, [data]);
 
   async function calculate() {
+    if (busy || !data) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -55,7 +41,7 @@ export function EmployeeHoursPage() {
       setNotice(
         "Current hours recalculated from saved punches and approved corrections.",
       );
-      setRevision((value) => value + 1);
+      refresh();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -68,6 +54,7 @@ export function EmployeeHoursPage() {
   }
 
   async function submit(card: Timecard) {
+    if (busy || !data || card.workflow?.can_submit !== true) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -77,7 +64,7 @@ export function EmployeeHoursPage() {
         body: { lock_version: card.lock_version },
       });
       setNotice("Timecard submitted for review.");
-      setRevision((value) => value + 1);
+      refresh();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -88,6 +75,8 @@ export function EmployeeHoursPage() {
       setBusy(false);
     }
   }
+
+  if (!data) return <LoadState error={loadError} onRetry={refresh} />;
 
   return (
     <Stack spacing={3}>
@@ -126,7 +115,7 @@ export function EmployeeHoursPage() {
               <Button
                 disabled={
                   busy ||
-                  card.status !== "draft" ||
+                  card.workflow?.can_submit !== true ||
                   card.unresolved_exceptions.length > 0
                 }
                 variant="contained"
@@ -157,7 +146,7 @@ export function EmployeeHoursPage() {
           onClose={() => setCorrectionCard(null)}
           onSaved={() => {
             setNotice("Correction request submitted.");
-            setRevision((value) => value + 1);
+            refresh();
           }}
         />
       )}

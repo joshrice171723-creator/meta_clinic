@@ -4,7 +4,7 @@ module Clinic
       def index
         scope, site_id = readable_adjustments
         render json: {
-          adjustments: scope.includes(:timecard_version).order(requested_at: :desc)
+          adjustments: scope.includes(:timecard_version, employment: :staff_member).order(requested_at: :desc)
             .map { |adjustment| TimecardSerializer.adjustment(adjustment) },
           site_id: site_id
         }

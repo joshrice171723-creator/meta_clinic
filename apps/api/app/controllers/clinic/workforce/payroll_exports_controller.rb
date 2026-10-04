@@ -13,7 +13,18 @@ module Clinic
         batches = ExportBatch.where(practice: current_practice, site: site).order(id: :desc).limit(50)
         employee_ids = EmploymentSite.where(practice: current_practice, site: site).select(:employment_id)
         employees = Employment.where(practice: current_practice, id: employee_ids).includes(:staff_member).order(:id)
-        cards = TimecardVersion.where(practice: current_practice, employment_id: employees.select(:id), status: "approved").order(period_start: :desc, id: :desc).limit(250)
+        cards = TimecardVersion.where(practice: current_practice, employment_id: employees.select(:id), status: "approved")
+          .joins(:time_segments).where(clinic_workforce_time_segments: { site_id: site.id }).distinct
+          .where(<<~SQL)
+            NOT EXISTS (
+              SELECT 1 FROM clinic_workforce_timecard_versions newer
+              WHERE newer.practice_id = clinic_workforce_timecard_versions.practice_id
+                AND newer.employment_id = clinic_workforce_timecard_versions.employment_id
+                AND newer.period_start = clinic_workforce_timecard_versions.period_start
+                AND newer.version_number > clinic_workforce_timecard_versions.version_number
+            )
+          SQL
+          .order(period_start: :desc, id: :desc).limit(250)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "workforce.payroll.export", outcome: :released)
         render json: { configurations: configurations.map { |configuration| configuration_json(configuration) },
           batches: exporter ? batches.map { |batch| batch_json(batch) } : [], fields: GeneratePayrollExport::FIELDS,

@@ -58,11 +58,21 @@ export function TimecardSummary({
             sx={{ alignSelf: "start" }}
           />
         </Stack>
+        <Typography variant="body2" color="text.secondary">
+          {card.scoped_site_id
+            ? "Hours shown for the selected location. Approval applies to the full timecard."
+            : "Hours shown across all recorded locations."}{" "}
+          Interval times use your device timezone (
+          {Intl.DateTimeFormat().resolvedOptions().timeZone}).
+        </Typography>
         {card.unresolved_exceptions.length > 0 && (
           <Alert severity="warning">
             This timecard cannot be approved or exported yet:{" "}
             {card.unresolved_exceptions.map(humanize).join(", ")}.
           </Alert>
+        )}
+        {card.workflow?.note && (
+          <Alert severity="info">{card.workflow.note}</Alert>
         )}
         {card.snapshot.schedule_checks?.some(
           (check) => check.status === "no_published_schedule",

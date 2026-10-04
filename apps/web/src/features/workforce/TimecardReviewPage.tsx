@@ -14,6 +14,10 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { ApiError, api } from "../../api/client";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+} from "../../shared/dateTime";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import type { Adjustment, Timecard, TimecardEmployee } from "./clockTypes";
@@ -175,25 +179,33 @@ export function TimecardReviewPage() {
     }
   }
 
-  async function approve(card: Timecard) {
+  async function transition(card: Timecard, action: "submit" | "approve") {
+    if (
+      busy ||
+      !currentSource ||
+      !card.workflow?.[action === "submit" ? "can_submit" : "can_approve"]
+    )
+      return;
     setBusy(true);
     setError("");
     setSettingsPath(null);
     setNotice("");
     try {
-      await api(`/api/clinic/workforce/timecards/${card.id}/approve`, {
+      await api(`/api/clinic/workforce/timecards/${card.id}/${action}`, {
         method: "POST",
-        body: { lock_version: card.lock_version },
+        body: { lock_version: card.lock_version, site_id: Number(siteId) },
       });
       setNotice(
-        `${card.employee_name}'s timecard was approved as an immutable version.`,
+        action === "submit"
+          ? `${card.employee_name}'s timecard was submitted for approval.`
+          : `${card.employee_name}'s timecard was approved as an immutable version.`,
       );
       setRevision((value) => value + 1);
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "Unable to approve the timecard.",
+          : "Unable to save the timecard action.",
       );
       setSettingsPath(workforceSettingsPath(reason, siteId));
     } finally {
@@ -206,7 +218,7 @@ export function TimecardReviewPage() {
     decision: "approved" | "denied",
   ) {
     const decisionReason = decisionReasons[adjustment.id]?.trim();
-    if (!decisionReason) return;
+    if (busy || !currentSource || !decisionReason) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -240,8 +252,8 @@ export function TimecardReviewPage() {
       <Box>
         <Typography variant="h1">Timecard review</Typography>
         <Typography color="text.secondary">
-          Review location-scoped hours, resolve exceptions, and approve only
-          current calculated versions.
+          Review employee hours, resolve exceptions, and approve only current
+          calculated versions.
         </Typography>
       </Box>
       {error && (
@@ -280,9 +292,8 @@ export function TimecardReviewPage() {
         <Stack spacing={1}>
           <Typography variant="h3">Timecard attention</Typography>
           <Typography variant="body2">
-            Latest recorded versions at this location. Submitted does not mean
-            eligible for approval; the existing server policy and correction
-            checks still apply.
+            Latest recorded versions with hours at this location. Resolve
+            exceptions and pending corrections before approval.
           </Typography>
           {loading && (
             <Typography role="status">Loading timecard attention…</Typography>
@@ -358,8 +369,38 @@ export function TimecardReviewPage() {
           <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
             <Stack spacing={1}>
               <Typography variant="h3">
-                Correction request #{adjustment.id}
+                {adjustment.employee_name} · correction request #{adjustment.id}
               </Typography>
+              <Typography variant="body2">
+                Week starting {formatDisplayDate(adjustment.period_start)}
+              </Typography>
+              {adjustment.source_interval && (
+                <Typography variant="body2">
+                  Original interval:{" "}
+                  {formatDisplayDateTime(
+                    adjustment.source_interval.started_at_utc,
+                  )}
+                  {" – "}
+                  {formatDisplayDateTime(
+                    adjustment.source_interval.ended_at_utc,
+                  )}{" "}
+                  ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+                </Typography>
+              )}
+              {adjustment.proposed_changes.started_at_utc &&
+                adjustment.proposed_changes.ended_at_utc && (
+                  <Typography variant="body2">
+                    Proposed interval:{" "}
+                    {formatDisplayDateTime(
+                      String(adjustment.proposed_changes.started_at_utc),
+                    )}
+                    {" – "}
+                    {formatDisplayDateTime(
+                      String(adjustment.proposed_changes.ended_at_utc),
+                    )}{" "}
+                    ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+                  </Typography>
+                )}
               <Typography>{adjustment.reason}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {adjustment.correction_type.replaceAll("_", " ")} · submitted{" "}
@@ -367,6 +408,8 @@ export function TimecardReviewPage() {
               </Typography>
               <TextField
                 label="Decision reason"
+                disabled={busy}
+                slotProps={{ htmlInput: { maxLength: 1000 } }}
                 value={decisionReasons[adjustment.id] ?? ""}
                 onChange={(event) =>
                   setDecisionReasons((current) => ({
@@ -410,15 +453,20 @@ export function TimecardReviewPage() {
             actions={
               canReview || canApprove ? (
                 <>
+                  {canReview && card.status === "draft" && (
+                    <Button
+                      variant="contained"
+                      disabled={busy || card.workflow?.can_submit !== true}
+                      onClick={() => void transition(card, "submit")}
+                    >
+                      Submit for approval
+                    </Button>
+                  )}
                   {canApprove && (
                     <Button
                       variant="contained"
-                      disabled={
-                        busy ||
-                        card.status !== "submitted" ||
-                        card.unresolved_exceptions.length > 0
-                      }
-                      onClick={() => void approve(card)}
+                      disabled={busy || card.workflow?.can_approve !== true}
+                      onClick={() => void transition(card, "approve")}
                     >
                       Approve timecard
                     </Button>

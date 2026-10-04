@@ -3,6 +3,7 @@ module Clinic
     class CalculateTimecard
       class InvalidPunchSequence < StandardError; end
       CALCULATION_VERSION = "explicit-policy-and-schedule-v2".freeze
+      MANUAL_CORRECTION_VERSION = "manual-source-correction-v3".freeze
 
       def self.call(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil)
         new(employment: employment, period_start: period_start, actor_membership: actor_membership,
@@ -42,6 +43,12 @@ module Clinic
       def call
         employment.with_lock do
           validate_period_boundary!
+          if pending_adjustment && manual_source_correction?([ pending_adjustment ])
+            current_digest = self.class.current_source_digest(employment: employment, period_start: period_start)
+            unless pending_adjustment.timecard_version.source_digest == current_digest
+              raise ActiveRecord::StaleObjectError.new(pending_adjustment.timecard_version, "correct")
+            end
+          end
           digest = source_digest
           if expected_source_digest.present? && expected_source_digest != digest
             raise ActiveRecord::StaleObjectError.new(employment, "calculate")
@@ -75,7 +82,7 @@ module Clinic
 
       def source_digest
         payload = {
-          calculation_version: CALCULATION_VERSION,
+          calculation_version: manual_source_correction? ? MANUAL_CORRECTION_VERSION : CALCULATION_VERSION,
           schedule_publications: schedule_variance.source_versions,
           punches: punches.map { |p| [ p.id, p.site_id, p.event_type, p.occurred_at_utc.utc.iso8601(6) ] },
           adjustments: effective_adjustments.map { |adjustment| adjustment_source_tuple(adjustment) },
@@ -118,6 +125,15 @@ module Clinic
           adjustment.proposed_changes.to_h.stringify_keys.sort.to_h,
           adjustment.request_key
         ]
+      end
+
+      def manual_source_correction?(adjustments = effective_adjustments)
+        adjustments.any? do |adjustment|
+          next false unless %w[replace_segment remove_segment].include?(adjustment.correction_type)
+
+          source_id = adjustment.proposed_changes["source_segment_id"].to_i
+          adjustment.timecard_version.time_segments.any? { |segment| segment.id == source_id && segment.segment_kind == "manual" }
+        end
       end
 
       def settings_sources
@@ -311,11 +327,33 @@ module Clinic
           source_segment = changes["source_segment_id"].present? ? adjustment.timecard_version.time_segments.find { |segment| segment.id == changes["source_segment_id"].to_i } : nil
           if %w[replace_segment remove_segment].include?(adjustment.correction_type)
             source_ids = source_segment&.source_punch_ids
+            if source_segment&.segment_kind == "manual"
+              candidates = intervals.select do |row|
+                row.fetch(:segment_kind) == "manual" && row.fetch(:site).id == source_segment.site_id &&
+                  row.fetch(:source_punch_ids) == source_ids && source_segment.started_at_utc < row.fetch(:ended_at_utc) &&
+                  source_segment.ended_at_utc > row.fetch(:started_at_utc)
+              end
+              if candidates.many?
+                exceptions << "adjustment_source_ambiguous"
+                next
+              end
+              candidate = candidates.first
+              unless candidate && candidate.fetch(:started_at_utc) <= source_segment.started_at_utc &&
+                  candidate.fetch(:ended_at_utc) >= source_segment.ended_at_utc
+                exceptions << "adjustment_source_not_found"
+                next
+              end
+            end
             matched = false
             intervals.replace(intervals.flat_map do |row|
               overlaps = source_segment && source_segment.started_at_utc < row.fetch(:ended_at_utc) &&
                 source_segment.ended_at_utc > row.fetch(:started_at_utc)
-              next [ row ] unless source_ids.present? && row.fetch(:source_punch_ids) == source_ids && overlaps
+              matches_source = if source_segment&.segment_kind == "manual"
+                row.equal?(candidate)
+              else
+                source_ids.present? && row.fetch(:source_punch_ids) == source_ids && overlaps
+              end
+              next [ row ] unless matches_source
 
               matched = true
               subtract_interval(row, source_segment.started_at_utc, source_segment.ended_at_utc)

@@ -3,10 +3,12 @@ module Clinic
     class TimecardsController < Clinic::Workforce::BaseController
       def index
         cards, site_id = readable_cards
+        cards = cards.includes({ employment: :staff_member }, { time_segments: :site }, :adjustment_requests)
+          .order(period_start: :desc, version_number: :desc).to_a
+        prepare_workflow_context(cards)
         employees = calculable_employments
         render json: {
-          timecards: cards.includes(employment: :staff_member).order(period_start: :desc, version_number: :desc)
-            .map { |card| TimecardSerializer.call(card, site_id: site_id) },
+          timecards: cards.map { |card| serialize_card(card, site_id: site_id) },
           employees: employees.map { |employment| { id: employment.id, name: employment.staff_member.display_name } },
           default_period_start: CalculateTimecard.current_period_start(practice: current_practice).iso8601
         }
@@ -14,7 +16,7 @@ module Clinic
 
       def show
         card, site_id = readable_card
-        render json: { timecard: TimecardSerializer.call(card, site_id: site_id) }
+        render json: { timecard: serialize_card(card, site_id: site_id) }
       end
 
       def calculate
@@ -27,7 +29,7 @@ module Clinic
           expected_source_digest: params[:expected_source_digest]
         )
         _, site_id = read_scope_for(card)
-        render json: { timecard: TimecardSerializer.call(card, site_id: site_id) }, status: :created
+        render json: { timecard: serialize_card(card, site_id: site_id) }, status: :created
       end
 
       def submit
@@ -43,7 +45,7 @@ module Clinic
           ensure_source_is_current!(card)
           card.update!(status: "submitted", submitted_at: Current.business_time, submitted_by_membership: clinic_membership)
         end
-        render json: { timecard: TimecardSerializer.call(card.reload, site_id: site_id) }
+        render json: { timecard: serialize_card(card.reload, site_id: site_id) }
       end
 
       def approve
@@ -67,10 +69,73 @@ module Clinic
           raise ActiveRecord::StaleObjectError.new(card, "approve") if newer
           card.update!(status: "approved", approved_at: Current.business_time, approved_by_membership: clinic_membership)
         end
-        render json: { timecard: TimecardSerializer.call(card.reload) }
+        render json: { timecard: serialize_card(card.reload) }
       end
 
       private
+
+      def serialize_card(card, site_id: nil)
+        prepare_workflow_context([ card ]) unless @workflow_settings
+        TimecardSerializer.call(card, site_id: site_id).merge(workflow: workflow_for(card))
+      end
+
+      def prepare_workflow_context(cards)
+        @workflow_settings_error = nil
+        sites = cards.flat_map { |card| card.time_segments.map(&:site) }.uniq
+        @workflow_settings = EffectiveSettings.for_site_times(practice: current_practice,
+          points: cards.flat_map { |card| card.time_segments.map { |segment| [ segment.site, segment.started_at_utc ] } })
+        @latest_versions = TimecardVersion.where(practice_id: current_practice.id, employment_id: cards.map(&:employment_id))
+          .group(:employment_id, :period_start).maximum(:version_number)
+        @workflow_own_employment_id = workforce_access.own_employment&.id
+        @workflow_practice_reviewer = workforce_access.allow?("workforce.timecards.review")
+        @workflow_practice_approver = workforce_access.allow?("workforce.timecards.approve")
+        @workflow_review_sites = sites.to_h { |site| [ site.id, @workflow_practice_reviewer || workforce_access.allow?("workforce.timecards.review", site: site) ] }
+        @workflow_approve_sites = sites.to_h { |site| [ site.id, @workflow_practice_approver || workforce_access.allow?("workforce.timecards.approve", site: site) ] }
+        @workflow_self_service_sites = EffectiveSettings.for_sites(practice: current_practice, sites: sites)
+          .transform_values { |settings| settings.dig(:values, "employee_self_service_enabled") == true }
+      rescue EffectiveSettings::Unconfigured => error
+        @workflow_settings_error = error.message
+      end
+
+      def workflow_for(card)
+        if @workflow_settings_error
+          return { approval_mode: nil, can_submit: false, can_approve: false, note: @workflow_settings_error }
+        end
+        mode = approval_mode_for(card, settings_by_segment: @workflow_settings)
+        sites = card.time_segments.map(&:site).uniq
+        latest = @latest_versions[[ card.employment_id, card.period_start ]] == card.version_number
+        reviewer = @workflow_practice_reviewer || (sites.any? && sites.all? { |site| @workflow_review_sites[site.id] })
+        approver = @workflow_practice_approver || (sites.one? && @workflow_approve_sites[sites.first.id])
+        own = @workflow_own_employment_id == card.employment_id
+        employee_submission = mode == "employee_submit_manager_approve"
+        pending_corrections = card.adjustment_requests.any? { |adjustment| adjustment.status == "submitted" }
+        can_submit = latest && card.status == "draft" && !card.unresolved? && (employee_submission ? own : reviewer)
+        if can_submit && employee_submission
+          can_submit = sites.any? && sites.all? { |site| @workflow_self_service_sites[site.id] }
+        end
+        submission_valid = !employee_submission ||
+          (card.submitted_by_membership_id == card.employment.membership_id && card.submitted_by_membership_id != clinic_membership.id)
+        note = if !latest
+          "A newer timecard version is available. Refresh and review that version."
+        elsif card.unresolved?
+          "Resolve the recorded exceptions before submitting or approving."
+        elsif pending_corrections
+          "Review pending correction requests before approval."
+        elsif card.status == "draft" && employee_submission && !own
+          "The employee must submit this timecard before manager approval."
+        elsif card.status == "draft" && employee_submission && !can_submit
+          "Employee self-service must be enabled at every timecard location before submission."
+        elsif card.status == "draft" && !can_submit
+          "An authorized timecard reviewer must submit this timecard."
+        elsif card.status == "submitted" && employee_submission && !submission_valid
+          "Employee submission and approval by a different manager are required."
+        end
+        { approval_mode: mode, can_submit: can_submit,
+          can_approve: latest && card.status == "submitted" && !card.unresolved? && !pending_corrections && approver && submission_valid,
+          note: note }
+      rescue ArgumentError, EffectiveSettings::Unconfigured => error
+        { approval_mode: nil, can_submit: false, can_approve: false, note: error.message }
+      end
 
       def readable_cards
         own = workforce_access.own_employment
@@ -103,12 +168,12 @@ module Clinic
       end
 
       def read_scope_for(card)
-        if workforce_access.own_employment&.id == card.employment_id
+        return [ card, nil ] if workforce_access.allow?("workforce.timecards.read")
+
+        if params[:site_id].blank? && workforce_access.own_employment&.id == card.employment_id
           authorize_self_service!(card.employment, card: card)
           return [ card, nil ]
         end
-        return [ card, nil ] if workforce_access.allow?("workforce.timecards.read")
-
         site = current_practice.sites.find(requested_id!(params[:site_id], :site_id))
         workforce_access.authorize!("workforce.timecards.read", site: site)
         raise Clinic::Authorization::Denied unless card.time_segments.exists?(site_id: site.id)
@@ -192,9 +257,9 @@ module Clinic
         raise Clinic::Authorization::Denied unless enabled
       end
 
-      def approval_mode_for(card)
-        segments = card.time_segments.includes(:site).to_a
-        settings_by_segment = EffectiveSettings.for_site_times(practice: current_practice,
+      def approval_mode_for(card, settings_by_segment: nil)
+        segments = card.time_segments.to_a
+        settings_by_segment ||= EffectiveSettings.for_site_times(practice: current_practice,
           points: segments.map { |segment| [ segment.site, segment.started_at_utc ] })
         modes = segments.map do |segment|
           settings_by_segment.fetch([ segment.site_id, segment.started_at_utc.utc ])&.dig(:values, "approval_mode") || "unconfigured"

@@ -72,6 +72,7 @@ export type TimeSegment = {
 
 export type Timecard = {
   id: number;
+  scoped_site_id?: number | null;
   employment_id: number;
   employee_name: string;
   period_start: string;
@@ -101,6 +102,13 @@ export type Timecard = {
   lock_version: number;
   submitted_at: string | null;
   approved_at: string | null;
+  workflow?: {
+    approval_mode:
+      "manager_required" | "employee_submit_manager_approve" | null;
+    can_submit: boolean;
+    can_approve: boolean;
+    note: string | null;
+  };
 };
 
 export type TimecardEmployee = {
@@ -111,9 +119,17 @@ export type TimecardEmployee = {
 export type Adjustment = {
   id: number;
   employment_id: number;
+  employee_name: string;
+  period_start: string;
+  period_end: string;
   timecard_version_id: number;
   status: "submitted" | "approved" | "denied";
   correction_type: "add_segment" | "replace_segment" | "remove_segment";
+  source_interval: {
+    site_id: number;
+    started_at_utc: string;
+    ended_at_utc: string;
+  } | null;
   proposed_changes: Record<string, string | number>;
   reason: string;
   requested_at: string;
