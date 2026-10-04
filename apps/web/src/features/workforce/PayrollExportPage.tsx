@@ -80,6 +80,17 @@ type ExportAttempt = {
   supersedes_batch_id: string | null;
 };
 
+function sameWorkweek(
+  left: Batch["source_periods"][number],
+  right: Batch["source_periods"][number],
+) {
+  return (
+    left.employment_id === right.employment_id &&
+    left.period_start === right.period_start &&
+    left.period_end === right.period_end
+  );
+}
+
 export function PayrollExportPage() {
   const clinic = useClinic();
   const { navigate, registerBlocker } = useClinicNavigation();
@@ -121,10 +132,38 @@ export function PayrollExportPage() {
     useState<ExportAttempt | null>(null);
   const canConfigure = data?.permissions.configure === true;
   const canExport = data?.permissions.export === true;
-  const previewColumns =
-    data?.configurations.find(
-      (configuration) => configuration.id === configurationId,
-    )?.columns || [];
+  const configuration = data?.configurations.find(
+    (item) => item.id === configurationId,
+  );
+  const previewColumns = configuration?.columns || [];
+  const selectedCards =
+    data?.timecards.filter((card) => selected.includes(card.id)) ?? [];
+  const originalBatch = data?.batches.find((batch) => batch.id === supersedes);
+  const missingCorrectionPeriods =
+    originalBatch?.source_periods.filter(
+      (period) => !selectedCards.some((card) => sameWorkweek(period, card)),
+    ) ?? [];
+  const extraCorrectionCards = originalBatch
+    ? selectedCards.filter(
+        (card) =>
+          !originalBatch.source_periods.some((period) =>
+            sameWorkweek(period, card),
+          ),
+      )
+    : [];
+  const missingPayrollEmployees = [
+    ...new Set(selectedCards.map((card) => card.employment_id)),
+  ].filter((id) => !configuration?.employee_identifiers[id]?.trim());
+  const selectionNotReady =
+    !configuration ||
+    selectedCards.length !== selected.length ||
+    missingPayrollEmployees.length > 0 ||
+    missingCorrectionPeriods.length > 0 ||
+    extraCorrectionCards.length > 0 ||
+    (!!supersedes && !originalBatch);
+  const employeeName = (id: string) =>
+    data?.employees.find((employee) => employee.id === id)?.name ||
+    `Employee ${id}`;
   const controlsLocked = busy || unconfirmedExport !== null;
   const leaveMessage = busy
     ? "A payroll action is still in progress."
@@ -255,6 +294,7 @@ export function PayrollExportPage() {
 
   async function generate(isPreview: boolean) {
     if (busy || settingsDirty || !configurationId || !selected.length) return;
+    if (!unconfirmedExport && selectionNotReady) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -502,6 +542,51 @@ export function PayrollExportPage() {
                   cards, then refresh before continuing.
                 </Alert>
               )}
+              {missingCorrectionPeriods.length > 0 && (
+                <Alert severity="warning">
+                  Select an approved timecard for every employee and workweek in
+                  the original export:
+                  <Stack component="ul" spacing={0.5} sx={{ my: 1, pl: 2 }}>
+                    {missingCorrectionPeriods.map((period) => (
+                      <Typography
+                        component="li"
+                        key={`${period.employment_id}-${period.period_start}-${period.period_end}`}
+                      >
+                        {employeeName(period.employment_id)} ·{" "}
+                        {period.period_start} to {period.period_end} (end
+                        exclusive) ·{" "}
+                        {data.timecards.some((card) =>
+                          sameWorkweek(period, card),
+                        )
+                          ? "available below, not selected"
+                          : "no eligible approved card available"}
+                      </Typography>
+                    ))}
+                  </Stack>
+                  {canOpenTimecards && (
+                    <Button
+                      color="inherit"
+                      onClick={() => navigate("/clinic/workforce/timecards")}
+                    >
+                      Review timecards
+                    </Button>
+                  )}
+                </Alert>
+              )}
+              {configuration && missingPayrollEmployees.length > 0 && (
+                <Alert severity="warning">
+                  The selected file configuration has no payroll ID for{" "}
+                  {missingPayrollEmployees.map(employeeName).join(", ")}.{" "}
+                  {canConfigure
+                    ? "Save their IDs in File settings, then select the new configuration version."
+                    : "Ask a payroll configuration administrator to save their IDs before previewing this selection."}
+                </Alert>
+              )}
+              <Typography role="status">
+                {selectedCards.length} timecards selected for{" "}
+                {new Set(selectedCards.map((card) => card.employment_id)).size}{" "}
+                employees.
+              </Typography>
               {settingsDirty && (
                 <Alert severity="info">
                   Save or discard file-setting changes before preparing an
@@ -518,7 +603,13 @@ export function PayrollExportPage() {
                   key={card.id}
                   control={
                     <Checkbox
-                      disabled={controlsLocked}
+                      disabled={
+                        controlsLocked ||
+                        (!!originalBatch &&
+                          !originalBatch.source_periods.some((period) =>
+                            sameWorkweek(period, card),
+                          ))
+                      }
                       checked={selected.includes(card.id)}
                       onChange={(event) => {
                         setSelected((current) =>
@@ -561,7 +652,8 @@ export function PayrollExportPage() {
                     controlsLocked ||
                     settingsDirty ||
                     !selected.length ||
-                    !configurationId
+                    !configurationId ||
+                    selectionNotReady
                   }
                   onClick={() => void generate(true)}
                 >
@@ -570,7 +662,9 @@ export function PayrollExportPage() {
                 <Button
                   variant="contained"
                   disabled={
-                    busy || settingsDirty || (!preview && !unconfirmedExport)
+                    busy ||
+                    settingsDirty ||
+                    (!unconfirmedExport && (!preview || selectionNotReady))
                   }
                   onClick={() => void generate(false)}
                 >
