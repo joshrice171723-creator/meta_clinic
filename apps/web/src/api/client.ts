@@ -368,7 +368,16 @@ export async function api<T>(
       ) {
         if (method !== "GET") clearCsrf();
       }
-      if (method !== "GET" && method !== "HEAD" && isDemoFrame()) {
+      // Assistant setup, reads and proposals do not change clinic records.
+      const changesClinicRecords =
+        !path.startsWith("/api/clinic/assistant/") ||
+        /\/proposals\/[^/]+\/confirm(?:\?|$)/.test(path);
+      if (
+        method !== "GET" &&
+        method !== "HEAD" &&
+        changesClinicRecords &&
+        isDemoFrame()
+      ) {
         window.dispatchEvent(new Event("demo:changed"));
         notifyDemo("demo:changed");
       }

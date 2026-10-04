@@ -65,6 +65,8 @@ export function WorkflowContextPicker({
   patientOptions,
   encounterOptions,
   disabled,
+  needsPatient = false,
+  needsEncounter = false,
   onSearch,
   onSelectPatient,
   onSelectEncounter,
@@ -74,12 +76,19 @@ export function WorkflowContextPicker({
   patientOptions: WorkflowOption[];
   encounterOptions: WorkflowOption[];
   disabled: boolean;
+  needsPatient?: boolean;
+  needsEncounter?: boolean;
   onSearch: (field: "patient" | "encounter", query: string) => void;
   onSelectPatient: (selectionId: string) => void;
   onSelectEncounter: (selectionId: string) => void;
   onClearPatient: () => void;
 }) {
   const [changingPatient, setChangingPatient] = useState(false);
+  const [choosingEncounter, setChoosingEncounter] = useState(false);
+  const showPatientSearch =
+    changingPatient || (needsPatient && !context.patient);
+  const showEncounterSearch =
+    choosingEncounter || (needsEncounter && !context.encounter);
   const searchPatient = useCallback(
     (query: string) => onSearch("patient", query),
     [onSearch],
@@ -90,17 +99,19 @@ export function WorkflowContextPicker({
   );
   return (
     <Stack spacing={1.25} className="clinic-assistant__workflow-context">
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Typography
-          variant="body2"
-          sx={{ alignSelf: "center", minWidth: 0, flex: 1 }}
-        >
-          Patient context:{" "}
-          {context.patient?.name ||
-            "None selected; workspace tasks remain available."}
-        </Typography>
-        {context.patient && (
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
+        {context.patient ? (
           <>
+            <Typography
+              variant="body2"
+              sx={{ minWidth: 0, flex: 1, fontWeight: 600 }}
+            >
+              {context.patient.name}
+            </Typography>
             <Button
               size="small"
               disabled={disabled}
@@ -112,15 +123,24 @@ export function WorkflowContextPicker({
               Clear
             </Button>
           </>
+        ) : (
+          <Button
+            size="small"
+            disabled={disabled}
+            onClick={() => setChangingPatient((value) => !value)}
+          >
+            {changingPatient ? "Cancel patient selection" : "Choose a patient"}
+          </Button>
+        )}
+        {!context.patient && !showPatientSearch && (
+          <Typography variant="caption" color="text.secondary">
+            For patient-specific tasks
+          </Typography>
         )}
       </Stack>
-      {(!context.patient || changingPatient) && (
+      {showPatientSearch && (
         <SearchBinding
-          label={
-            context.patient
-              ? "Choose a different patient"
-              : "Add patient context"
-          }
+          label="Search patients by name"
           options={patientOptions}
           disabled={disabled}
           onSearch={searchPatient}
@@ -132,18 +152,26 @@ export function WorkflowContextPicker({
       )}
       {context.patient && (
         <Stack spacing={0.5}>
-          {context.encounter?.label && (
-            <Typography variant="caption" color="text.secondary">
-              Encounter context: {context.encounter.label}
-            </Typography>
-          )}
-          <SearchBinding
-            label="Select encounter (optional)"
-            options={encounterOptions}
+          <Button
+            size="small"
             disabled={disabled}
-            onSearch={searchEncounter}
-            onSelect={onSelectEncounter}
-          />
+            sx={{ alignSelf: "flex-start" }}
+            onClick={() => setChoosingEncounter((value) => !value)}
+          >
+            {context.encounter?.label || "Choose a visit (optional)"}
+          </Button>
+          {showEncounterSearch && (
+            <SearchBinding
+              label="Search this patient’s visits"
+              options={encounterOptions}
+              disabled={disabled}
+              onSearch={searchEncounter}
+              onSelect={(selectionId) => {
+                onSelectEncounter(selectionId);
+                setChoosingEncounter(false);
+              }}
+            />
+          )}
         </Stack>
       )}
     </Stack>

@@ -24,6 +24,53 @@ afterEach(() => {
 });
 
 describe("same-origin API boundary", () => {
+  it.each([
+    ["/api/clinic/assistant/context", "POST", false],
+    ["/api/clinic/assistant/context", "DELETE", false],
+    ["/api/clinic/assistant/openings", "POST", false],
+    ["/api/clinic/assistant/messages", "POST", false],
+    ["/api/clinic/assistant/proposals", "POST", false],
+    ["/api/clinic/assistant/workflows/context", "POST", false],
+    ["/api/clinic/assistant/workflows/options", "POST", false],
+    ["/api/clinic/assistant/workflows/read", "POST", false],
+    ["/api/clinic/assistant/workflows/messages", "POST", false],
+    ["/api/clinic/assistant/workflows/proposals", "POST", false],
+    ["/api/clinic/assistant/proposals/booking-id/confirm", "POST", true],
+    [
+      "/api/clinic/assistant/workflows/proposals/workflow-id/confirm",
+      "POST",
+      true,
+    ],
+    ["/api/clinic/appointments", "POST", true],
+  ])(
+    "refreshes demo records only when needed for %s %s",
+    async (path, method, refresh) => {
+      const dispatchEvent = vi.fn();
+      const postMessage = vi.fn();
+      vi.stubGlobal("window", {
+        name: "clinic-demo-workspace",
+        location: {
+          hostname: "localhost",
+          pathname: "/clinic",
+          origin: "http://localhost",
+        },
+        parent: { postMessage },
+        dispatchEvent,
+      });
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce(json({ csrf_token: "synthetic" }))
+          .mockResolvedValueOnce(json({ ok: true })),
+      );
+      await api(path as string, { method: method as string });
+      expect(dispatchEvent).toHaveBeenCalledTimes(refresh ? 1 : 0);
+      expect(postMessage).toHaveBeenCalledTimes(refresh ? 1 : 0);
+      if (refresh)
+        expect(dispatchEvent.mock.calls[0][0].type).toBe("demo:changed");
+    },
+  );
   it.each(["/login", "/clinic", "/owner", "/portal"])(
     "keeps hosted authenticated workspace %s on the ordinary API",
     async (pathname) => {

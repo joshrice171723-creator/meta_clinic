@@ -2,6 +2,24 @@
 
 Updated: 2026-10-04. Owner: current Codex task (integrator); synthetic development only.
 
+## Loading and usability repair
+
+The October 4 follow-up replaces the blocking context banner with a compact
+connection indicator and an immediately editable composer. Closing/reopening
+preserves the current task; identity/scope changes still clear protected state.
+Patient and visit pickers expand on demand. Context and workflow-list requests
+have separate progress, failure and retry handling. Assistant setup/read/proposal
+requests no longer trigger demo record refreshes; successful confirmations do.
+The catalog computes site readiness once while retaining per-operation authorization.
+
+Local browser evidence: context connected in 2.285 seconds; the subsequent catalog
+loaded in 4.033 seconds. Reopening made zero assistant API requests and preserved
+the typed draft. Selecting a synthetic patient cleared the prior draft. Desktop
+and tablet views were inspected, and the workflow browser expanded successfully.
+The full web build, final TypeScript check, 49 API-client tests and focused registry
+test (3 assertions) passed. These are local results, not hosted acceptance.
+See `records/implementation/2026-10-04-assistant-loading-repair.md`.
+
 ## Direction and preserved history
 
 The owner's October 4 Phase 2 request supersedes the intervening cancellation of

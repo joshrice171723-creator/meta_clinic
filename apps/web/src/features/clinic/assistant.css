@@ -132,3 +132,36 @@
     justify-self: end;
   }
 }
+
+.clinic-assistant__welcome {
+  padding: 20px 4px 12px;
+}
+
+.clinic-assistant__connection {
+  display: grid;
+  gap: 8px;
+}
+
+.clinic-assistant__header .MuiTypography-h6 {
+  font-weight: 600;
+}
+
+.clinic-assistant__workflow-form {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.clinic-assistant .MuiTab-root,
+.clinic-assistant .MuiButton-root {
+  text-transform: none;
+}
+
+.clinic-assistant__composer {
+  align-items: start;
+  padding-top: 20px;
+}
+
+.clinic-assistant__composer > .MuiButton-root {
+  min-height: 52px;
+}

@@ -84,10 +84,12 @@ module Clinic
       end
 
       def self.catalog(context:)
-        definitions.map do |definition|
+        entries = definitions
+        site_ready = site_ready?(context) unless entries.all? { |definition| setup_workflow?(definition) }
+        entries.map do |definition|
           item = definition.except("handler")
           reason = gate_reason(definition)
-          reason ||= "Complete clinic setup for this location before using this workflow." unless setup_workflow?(definition) || site_ready?(context)
+          reason ||= "Complete clinic setup for this location before using this workflow." unless setup_workflow?(definition) || site_ready
           if reason.nil? && context.patient.nil? && definition.fetch("patient_required")
             reason = "Select a patient to use this workflow."
           elsif reason.nil? && context.encounter.nil? && definition.fetch("encounter_required")
