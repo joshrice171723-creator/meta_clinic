@@ -43,7 +43,7 @@ module Clinic
         effective_from = date_param!(input[:effective_from], field: :effective_from)
         effective_until = input[:effective_until].present? ? date_param!(input[:effective_until], field: :effective_until) : nil
         raise ArgumentError, "Availability end date must be on or after its start date." if effective_until && effective_until < effective_from
-        record, created = idempotent_create(AvailabilityVersion, input[:idempotency_key], payload) do |key, digest|
+        record, created = idempotent_create(AvailabilityVersion, input[:idempotency_key], payload, employment: employment) do |key, digest|
           status = values.fetch("availability_approval_required") == true ? "submitted" : "approved"
           AvailabilityVersion.transaction do
             AvailabilityVersion.where(practice_id: current_practice.id, site_id: site.id, employment_id: employment.id, status: "approved")
@@ -68,7 +68,7 @@ module Clinic
       def create_time_off
         employment, site, values = own_request_context!("time_off_enabled")
         input = parameter_hash!(:time_off, %i[site_id local_start local_end start_occurrence end_occurrence timezone reason idempotency_key])
-        record, created = idempotent_create(TimeOffRequest, input[:idempotency_key], input.to_h) do |key, digest|
+        record, created = idempotent_create(TimeOffRequest, input[:idempotency_key], input.to_h, employment: employment) do |key, digest|
           interval = ResolveLocalInterval.call(timezone: required_string!(input[:timezone], field: :timezone, maximum: 80),
             local_start: input[:local_start], local_end: input[:local_end], start_occurrence: input[:start_occurrence].presence || "only",
             end_occurrence: input[:end_occurrence].presence || "only")
@@ -99,7 +99,7 @@ module Clinic
             target.eligible_site?(site, at: starts_at) && target.eligible_site?(site, at: shift_end)
           raise ArgumentError, "Target employee is not active or eligible for the full shift."
         end
-        record, created = idempotent_create(ShiftSwapRequest, input[:idempotency_key], input.to_h) do |key, digest|
+        record, created = idempotent_create(ShiftSwapRequest, input[:idempotency_key], input.to_h, employment: employment) do |key, digest|
           ShiftSwapRequest.create!(practice: current_practice, site: site, requester_employment: employment,
             target_employment: target, requested_by_id: current_user.id, schedule_publication: publication,
             offered_shift_public_id: required_string!(input[:offered_shift_public_id], field: :offered_shift_public_id, maximum: 80),
@@ -159,19 +159,27 @@ module Clinic
         []
       end
 
-      def idempotent_create(klass, key_value, payload)
+      def idempotent_create(klass, key_value, payload, employment:)
         key = required_string!(key_value, field: :idempotency_key, maximum: 120)
         digest = Digest::SHA256.hexdigest(JSON.generate(payload.deep_stringify_keys.sort.to_h))
         existing = klass.find_by(practice_id: current_practice.id, idempotency_key: key)
         if existing
+          authorize_create_replay!(existing, employment)
           raise Clinic::Idempotency::Conflict unless existing.request_digest == digest
           return [ existing, false ]
         end
         [ yield(key, digest), true ]
       rescue ActiveRecord::RecordNotUnique
         retry_record = klass.find_by!(practice_id: current_practice.id, idempotency_key: key)
+        authorize_create_replay!(retry_record, employment)
         raise Clinic::Idempotency::Conflict unless retry_record.request_digest == digest
         [ retry_record, false ]
+      end
+
+      def authorize_create_replay!(record, employment)
+        owner_id = record.is_a?(ShiftSwapRequest) ? record.requester_employment_id : record.employment_id
+        actor_id = record.is_a?(AvailabilityVersion) ? record.created_by_id : record.requested_by_id
+        raise Clinic::Authorization::Denied unless owner_id == employment.id && actor_id == current_user.id
       end
 
       def find_request!

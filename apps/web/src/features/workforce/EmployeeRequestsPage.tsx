@@ -1,11 +1,4 @@
-import {
-  useId,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useId, useEffect, useMemo, useState, type FormEvent } from "react";
 import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
@@ -22,9 +15,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import { WorkforceRequestDetails } from "./WorkforceRequestDetails";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import {
   displayInterval,
   mondayIso,
@@ -54,6 +49,12 @@ const requestTabs = [
   ["swap", "shift_swaps_enabled"],
 ] as const;
 type RequestTab = (typeof requestTabs)[number][0];
+type RequestAttempt = {
+  path: string;
+  body: Record<string, unknown>;
+  submission: boolean;
+  notice: string;
+};
 
 function enabledRequestTab(
   options: Record<string, boolean> | undefined,
@@ -68,17 +69,19 @@ function enabledRequestTab(
 
 export function EmployeeRequestsPage() {
   const fieldId = useId();
+  const { registerBlocker } = useClinicNavigation();
   const {
     data,
     error: loadError,
     refresh,
   } = useResource<RequestData>("/api/clinic/workforce/requests");
-  const attempts = useRef(new Map<string, string>());
   const [tab, setTab] = useState<RequestTab>("time_off");
   const [siteId, setSiteId] = useState("");
   const [reason, setReason] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [startOccurrence, setStartOccurrence] = useState("only");
+  const [endOccurrence, setEndOccurrence] = useState("only");
   const [effectiveFrom, setEffectiveFrom] = useState(() => mondayIso());
   const [effectiveUntil, setEffectiveUntil] = useState("");
   const [targetEmploymentId, setTargetEmploymentId] = useState("");
@@ -95,14 +98,129 @@ export function EmployeeRequestsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [pendingAttempt, setPendingAttempt] = useState<RequestAttempt | null>(
+    null,
+  );
+  const controlsLocked = busy || pendingAttempt !== null;
+  const leaveMessage = busy
+    ? "A workforce request action is still saving."
+    : pendingAttempt
+      ? "A request action is unconfirmed. Leaving loses its saved retry."
+      : draftDirty
+        ? "Discard the unsaved request?"
+        : null;
+  useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
   useEffect(() => {
-    if (data)
+    if (!leaveMessage) return;
+    const unregister = registerBlocker(() => leaveMessage, {
+      preventNavigation: busy,
+    });
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = leaveMessage;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [leaveMessage, busy, registerBlocker]);
+
+  function resetDraft() {
+    setReason("");
+    setStart("");
+    setEnd("");
+    setStartOccurrence("only");
+    setEndOccurrence("only");
+    setEffectiveFrom(mondayIso());
+    setEffectiveUntil("");
+    setPublicationId("");
+    setShiftId("");
+    setTargetEmploymentId("");
+    setRules(
+      dayNames.map((_, day) => ({
+        day_of_week: day,
+        start_time: "",
+        end_time: "",
+        available: false,
+      })),
+    );
+    setDraftDirty(false);
+  }
+
+  function confirmDiscard() {
+    return (
+      !controlsLocked &&
+      (!draftDirty || window.confirm("Discard the unsaved request?"))
+    );
+  }
+
+  async function sendAttempt(attempt: RequestAttempt) {
+    if (busy) return;
+    const recovering = pendingAttempt !== null;
+    setPendingAttempt(attempt);
+    setBusy(true);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      await api(attempt.path, { method: "POST", body: attempt.body });
+      setPendingAttempt(null);
+      if (attempt.submission) resetDraft();
+      setNotice(attempt.notice);
+      refresh();
+    } catch (reason) {
+      const rejected =
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 429].includes(reason.status);
+      if (rejected && !recovering) setPendingAttempt(null);
+      setError(
+        `${reason instanceof Error ? reason.message : "Unable to confirm this request action."} ${rejected && !recovering ? "Review the request details before trying again." : "Use Retry saved action to confirm the original request."}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const pendingNotice = pendingAttempt && (
+    <Alert severity="warning">
+      The last request action is unconfirmed. Its original details are held for
+      retry. Refreshing history preserves this retry.
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1 }}>
+        <Button
+          disabled={busy}
+          onClick={() => void sendAttempt(pendingAttempt)}
+        >
+          Retry saved action
+        </Button>
+        <Button
+          disabled={busy}
+          onClick={() => {
+            if (
+              !window.confirm(
+                "Stop retrying this action? It may already be saved. Review request history before submitting again.",
+              )
+            )
+              return;
+            setPendingAttempt(null);
+            refresh();
+          }}
+        >
+          Stop retrying and review history
+        </Button>
+      </Stack>
+    </Alert>
+  );
+  useEffect(() => {
+    if (data && !draftDirty && !pendingAttempt)
       setSiteId((value) =>
         data.sites.some((item) => item.id === value)
           ? value
           : data.sites[0]?.id || "",
       );
-  }, [data]);
+  }, [data, draftDirty, pendingAttempt]);
   const site = useMemo(
     () => data?.sites.find((item) => item.id === siteId),
     [data, siteId],
@@ -114,20 +232,28 @@ export function EmployeeRequestsPage() {
   const activeTab = enabledRequestTab(site?.request_options, tab);
   const canSubmitRequest = activeTab === tab;
   useEffect(() => {
-    if (activeTab && activeTab !== tab) setTab(activeTab);
-  }, [activeTab, tab]);
+    if (activeTab && activeTab !== tab && !draftDirty && !pendingAttempt)
+      setTab(activeTab);
+  }, [activeTab, tab, draftDirty, pendingAttempt]);
   const changeSite = (nextSiteId: string) => {
+    if (!confirmDiscard()) return;
+    resetDraft();
     setSiteId(nextSiteId);
-    setPublicationId("");
-    setShiftId("");
-    setTargetEmploymentId("");
     setError(undefined);
   };
-  if (!data) return <LoadState error={loadError} onRetry={refresh} />;
+  if (!data)
+    return (
+      <Stack spacing={2}>
+        {pendingNotice}
+        {error && <Alert severity="error">{error}</Alert>}
+        {notice && <Alert severity="success">{notice}</Alert>}
+        <LoadState error={loadError} onRetry={refresh} />
+      </Stack>
+    );
   const option = site?.request_options ?? {};
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!site || !canSubmitRequest || busy) return;
+    if (!site || !canSubmitRequest || controlsLocked) return;
     const kind =
       tab === "time_off"
         ? "time_off"
@@ -147,8 +273,8 @@ export function EmployeeRequestsPage() {
         ? {
             local_start: start,
             local_end: end,
-            start_occurrence: "only",
-            end_occurrence: "only",
+            start_occurrence: startOccurrence,
+            end_occurrence: endOccurrence,
             timezone: site.timezone,
           }
         : tab === "availability"
@@ -164,87 +290,48 @@ export function EmployeeRequestsPage() {
               target_employment_id: targetEmploymentId,
             }),
     };
-    const signature = JSON.stringify([endpoint, values]);
-    const key = attempts.current.get(signature) ?? requestKey(tab);
-    attempts.current.set(signature, key);
-    setBusy(true);
-    setError(undefined);
-    setNotice(undefined);
-    try {
-      await api(`/api/clinic/workforce/${endpoint}`, {
-        method: "POST",
-        body: { [kind]: { ...values, idempotency_key: key } },
-      });
-      attempts.current.delete(signature);
-      setNotice("Request saved.");
-      setReason("");
-      refresh();
-    } catch (e) {
-      setError(
-        `${e instanceof Error ? e.message : "Unable to save this request."} Retry with the same details to confirm this request.`,
-      );
-    } finally {
-      setBusy(false);
-    }
+    await sendAttempt({
+      path: `/api/clinic/workforce/${endpoint}`,
+      body: { [kind]: { ...values, idempotency_key: requestKey(tab) } },
+      submission: true,
+      notice: "Request saved.",
+    });
   };
   const cancel = async (request: WorkforceRequest) => {
-    if (busy) return;
-    const signature = JSON.stringify([request.id, request.revision, "cancel"]);
-    const key = attempts.current.get(signature) ?? requestKey("cancel");
-    attempts.current.set(signature, key);
-    setBusy(true);
-    setError(undefined);
-    try {
-      await api(`/api/clinic/workforce/requests/${request.id}/decision`, {
-        method: "POST",
-        body: {
-          decision: {
-            decision: "cancel",
-            expected_revision: request.revision,
-            idempotency_key: key,
-          },
+    if (controlsLocked) return;
+    await sendAttempt({
+      path: `/api/clinic/workforce/requests/${request.id}/decision`,
+      body: {
+        decision: {
+          decision: "cancel",
+          expected_revision: request.revision,
+          idempotency_key: requestKey("cancel"),
         },
-      });
-      attempts.current.delete(signature);
-      refresh();
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Unable to cancel this request.",
-      );
-    } finally {
-      setBusy(false);
-    }
+      },
+      submission: false,
+      notice: "Request canceled.",
+    });
   };
   const answerSwap = async (
     request: WorkforceRequest,
     decision: "target_accept" | "target_decline",
   ) => {
-    if (busy) return;
-    const signature = JSON.stringify([request.id, request.revision, decision]);
-    const key = attempts.current.get(signature) ?? requestKey(decision);
-    attempts.current.set(signature, key);
-    setBusy(true);
-    setError(undefined);
-    try {
-      await api(`/api/clinic/workforce/requests/${request.id}/decision`, {
-        method: "POST",
-        body: {
-          decision: {
-            decision,
-            expected_revision: request.revision,
-            idempotency_key: key,
-          },
+    if (controlsLocked) return;
+    await sendAttempt({
+      path: `/api/clinic/workforce/requests/${request.id}/decision`,
+      body: {
+        decision: {
+          decision,
+          expected_revision: request.revision,
+          idempotency_key: requestKey(decision),
         },
-      });
-      attempts.current.delete(signature);
-      refresh();
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Unable to answer this swap request.",
-      );
-    } finally {
-      setBusy(false);
-    }
+      },
+      submission: false,
+      notice:
+        decision === "target_accept"
+          ? "Swap accepted. Review requirements still apply."
+          : "Swap declined.",
+    });
   };
   return (
     <Stack spacing={3}>
@@ -260,6 +347,10 @@ export function EmployeeRequestsPage() {
       </div>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {pendingNotice}
+      <Button disabled={busy} onClick={refresh} sx={{ alignSelf: "start" }}>
+        Refresh request history
+      </Button>
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="h2" sx={{ mb: 2 }}>
           Request history
@@ -283,14 +374,14 @@ export function EmployeeRequestsPage() {
                     <>
                       <Button
                         color="inherit"
-                        disabled={busy}
+                        disabled={controlsLocked}
                         onClick={() => answerSwap(request, "target_decline")}
                       >
                         Decline
                       </Button>
                       <Button
                         variant="contained"
-                        disabled={busy}
+                        disabled={controlsLocked}
                         onClick={() => answerSwap(request, "target_accept")}
                       >
                         Accept swap
@@ -300,7 +391,7 @@ export function EmployeeRequestsPage() {
                   {request.can_cancel && (
                     <Button
                       color="inherit"
-                      disabled={busy}
+                      disabled={controlsLocked}
                       onClick={() => cancel(request)}
                     >
                       Cancel
@@ -335,9 +426,14 @@ export function EmployeeRequestsPage() {
                 labelId={`${fieldId}-1-label`}
                 label="Location"
                 value={siteId}
-                disabled={busy}
+                disabled={controlsLocked}
                 onChange={(e) => changeSite(e.target.value)}
               >
+                {siteId && !site && (
+                  <MenuItem value={siteId} disabled>
+                    Previously selected location is unavailable
+                  </MenuItem>
+                )}
                 {data.sites.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -347,23 +443,29 @@ export function EmployeeRequestsPage() {
             </FormControl>
             <Tabs
               value={tab}
-              onChange={(_, value) => setTab(value)}
+              onChange={(_, value: RequestTab) => {
+                if (!confirmDiscard()) return;
+                resetDraft();
+                setTab(value);
+              }}
               variant="scrollable"
             >
               <Tab
                 value="time_off"
                 label="Time off"
-                disabled={busy || !option.time_off_enabled}
+                disabled={controlsLocked || !option.time_off_enabled}
               />
               <Tab
                 value="availability"
                 label="Availability"
-                disabled={busy || !option.availability_editing_enabled}
+                disabled={
+                  controlsLocked || !option.availability_editing_enabled
+                }
               />
               <Tab
                 value="swap"
                 label="Shift swap"
-                disabled={busy || !option.shift_swaps_enabled}
+                disabled={controlsLocked || !option.shift_swaps_enabled}
               />
             </Tabs>
             {!canSubmitRequest && (
@@ -381,22 +483,57 @@ export function EmployeeRequestsPage() {
               >
                 <TextField
                   required
-                  label={`Starts (${site?.timezone})`}
-                  disabled={busy}
+                  label={`Starts (${site?.timezone || "location time"})`}
+                  disabled={controlsLocked}
                   type="datetime-local"
                   value={start}
-                  onChange={(e) => setStart(e.target.value)}
+                  onChange={(e) => {
+                    setStart(e.target.value);
+                    setDraftDirty(true);
+                  }}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <TextField
                   required
-                  label={`Ends (${site?.timezone})`}
-                  disabled={busy}
+                  label={`Ends (${site?.timezone || "location time"})`}
+                  disabled={controlsLocked}
                   type="datetime-local"
                   value={end}
-                  onChange={(e) => setEnd(e.target.value)}
+                  onChange={(e) => {
+                    setEnd(e.target.value);
+                    setDraftDirty(true);
+                  }}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
+                <TextField
+                  select
+                  label="Start clock occurrence"
+                  value={startOccurrence}
+                  disabled={controlsLocked}
+                  onChange={(event) => {
+                    setStartOccurrence(event.target.value);
+                    setDraftDirty(true);
+                  }}
+                  helperText="Choose first or second only when this local time repeats."
+                >
+                  <MenuItem value="only">Only occurrence</MenuItem>
+                  <MenuItem value="first">First occurrence</MenuItem>
+                  <MenuItem value="second">Second occurrence</MenuItem>
+                </TextField>
+                <TextField
+                  select
+                  label="End clock occurrence"
+                  value={endOccurrence}
+                  disabled={controlsLocked}
+                  onChange={(event) => {
+                    setEndOccurrence(event.target.value);
+                    setDraftDirty(true);
+                  }}
+                >
+                  <MenuItem value="only">Only occurrence</MenuItem>
+                  <MenuItem value="first">First occurrence</MenuItem>
+                  <MenuItem value="second">Second occurrence</MenuItem>
+                </TextField>
               </Box>
             )}
             {tab === "availability" && (
@@ -407,16 +544,22 @@ export function EmployeeRequestsPage() {
                     type="date"
                     label="Effective from"
                     value={effectiveFrom}
-                    onChange={(event) => setEffectiveFrom(event.target.value)}
-                    disabled={busy}
+                    onChange={(event) => {
+                      setEffectiveFrom(event.target.value);
+                      setDraftDirty(true);
+                    }}
+                    disabled={controlsLocked}
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
                   <TextField
                     type="date"
                     label="Effective through (optional)"
                     value={effectiveUntil}
-                    onChange={(event) => setEffectiveUntil(event.target.value)}
-                    disabled={busy}
+                    onChange={(event) => {
+                      setEffectiveUntil(event.target.value);
+                      setDraftDirty(true);
+                    }}
+                    disabled={controlsLocked}
                     slotProps={{
                       inputLabel: { shrink: true },
                       htmlInput: { min: effectiveFrom },
@@ -440,54 +583,57 @@ export function EmployeeRequestsPage() {
                     <Button
                       variant={rule.available ? "contained" : "outlined"}
                       color="inherit"
-                      disabled={busy}
-                      onClick={() =>
+                      disabled={controlsLocked}
+                      onClick={() => {
+                        setDraftDirty(true);
                         setRules((current) =>
                           current.map((item, i) =>
                             i === index
                               ? { ...item, available: !item.available }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     >
                       {rule.available ? "Available" : "Unavailable"}
                     </Button>
                     <TextField
                       size="small"
                       type="time"
-                      disabled={busy || !rule.available}
+                      disabled={controlsLocked || !rule.available}
                       label={`${dayNames[rule.day_of_week]} start`}
                       required={rule.available}
                       slotProps={{ inputLabel: { shrink: true } }}
                       value={rule.start_time}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setDraftDirty(true);
                         setRules((current) =>
                           current.map((item, i) =>
                             i === index
                               ? { ...item, start_time: e.target.value }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     />
                     <TextField
                       size="small"
                       type="time"
-                      disabled={busy || !rule.available}
+                      disabled={controlsLocked || !rule.available}
                       label={`${dayNames[rule.day_of_week]} end`}
                       required={rule.available}
                       slotProps={{ inputLabel: { shrink: true } }}
                       value={rule.end_time}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setDraftDirty(true);
                         setRules((current) =>
                           current.map((item, i) =>
                             i === index
                               ? { ...item, end_time: e.target.value }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     />
                   </Stack>
                 ))}
@@ -514,7 +660,7 @@ export function EmployeeRequestsPage() {
                   <Select
                     labelId={`${fieldId}-2-label`}
                     label="Published shift"
-                    disabled={busy}
+                    disabled={controlsLocked}
                     value={
                       publicationId && shiftId
                         ? `${publicationId}:${shiftId}`
@@ -524,8 +670,23 @@ export function EmployeeRequestsPage() {
                       const [publication, shift] = e.target.value.split(":");
                       setPublicationId(publication);
                       setShiftId(shift);
+                      setDraftDirty(true);
                     }}
                   >
+                    {publicationId &&
+                      shiftId &&
+                      !swapOptions?.shifts.some(
+                        (shift) =>
+                          shift.publication_id === publicationId &&
+                          shift.shift_id === shiftId,
+                      ) && (
+                        <MenuItem
+                          value={`${publicationId}:${shiftId}`}
+                          disabled
+                        >
+                          Selected shift is no longer offered
+                        </MenuItem>
+                      )}
                     {(swapOptions?.shifts ?? []).map((shift) => (
                       <MenuItem
                         key={shift.shift_id}
@@ -547,10 +708,21 @@ export function EmployeeRequestsPage() {
                   <Select
                     labelId={`${fieldId}-3-label`}
                     label="Target employee"
-                    disabled={busy}
+                    disabled={controlsLocked}
                     value={targetEmploymentId}
-                    onChange={(e) => setTargetEmploymentId(e.target.value)}
+                    onChange={(e) => {
+                      setTargetEmploymentId(e.target.value);
+                      setDraftDirty(true);
+                    }}
                   >
+                    {targetEmploymentId &&
+                      !swapOptions?.employees.some(
+                        (employee) => employee.id === targetEmploymentId,
+                      ) && (
+                        <MenuItem value={targetEmploymentId} disabled>
+                          Selected employee is no longer eligible
+                        </MenuItem>
+                      )}
                     {(swapOptions?.employees ?? []).map((employee) => (
                       <MenuItem key={employee.id} value={employee.id}>
                         {employee.name}
@@ -565,9 +737,12 @@ export function EmployeeRequestsPage() {
               multiline
               minRows={2}
               label="Reason"
-              disabled={busy}
+              disabled={controlsLocked}
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value);
+                setDraftDirty(true);
+              }}
               slotProps={{ htmlInput: { maxLength: 500 } }}
               helperText={`${reason.length}/500. Do not include patient information.`}
             />
@@ -576,7 +751,7 @@ export function EmployeeRequestsPage() {
               variant="contained"
               startIcon={<SendIcon />}
               disabled={
-                busy ||
+                controlsLocked ||
                 !canSubmitRequest ||
                 !reason.trim() ||
                 (tab === "time_off" && (!start || !end || end <= start)) ||
@@ -588,11 +763,28 @@ export function EmployeeRequestsPage() {
                         rule.available && (!rule.start_time || !rule.end_time),
                     ))) ||
                 (tab === "swap" &&
-                  (!publicationId || !shiftId || !targetEmploymentId))
+                  (!swapOptions?.shifts.some(
+                    (shift) =>
+                      shift.publication_id === publicationId &&
+                      shift.shift_id === shiftId,
+                  ) ||
+                    !swapOptions?.employees.some(
+                      (employee) => employee.id === targetEmploymentId,
+                    )))
               }
             >
               Submit request
             </Button>
+            {draftDirty && (
+              <Button
+                disabled={controlsLocked}
+                onClick={() => {
+                  if (confirmDiscard()) resetDraft();
+                }}
+              >
+                Discard request draft
+              </Button>
+            )}
           </Stack>
         </Paper>
       )}
