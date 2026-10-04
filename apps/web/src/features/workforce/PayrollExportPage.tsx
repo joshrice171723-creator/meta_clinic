@@ -91,6 +91,16 @@ function sameWorkweek(
   );
 }
 
+function confirmedRejection(reason: unknown) {
+  return (
+    reason instanceof ApiError &&
+    reason.status >= 400 &&
+    reason.status < 500 &&
+    ![408, 429].includes(reason.status) &&
+    !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "")
+  );
+}
+
 export function PayrollExportPage() {
   const clinic = useClinic();
   const { navigate, registerBlocker } = useClinicNavigation();
@@ -128,6 +138,8 @@ export function PayrollExportPage() {
   const [supersedes, setSupersedes] = useState("");
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [configurationUnconfirmed, setConfigurationUnconfirmed] =
+    useState(false);
   const [unconfirmedExport, setUnconfirmedExport] =
     useState<ExportAttempt | null>(null);
   const canConfigure = data?.permissions.configure === true;
@@ -164,14 +176,17 @@ export function PayrollExportPage() {
   const employeeName = (id: string) =>
     data?.employees.find((employee) => employee.id === id)?.name ||
     `Employee ${id}`;
-  const controlsLocked = busy || unconfirmedExport !== null;
+  const controlsLocked =
+    busy || unconfirmedExport !== null || configurationUnconfirmed;
   const leaveMessage = busy
     ? "A payroll action is still in progress."
     : unconfirmedExport
       ? "The export is unconfirmed. Leaving loses its saved retry. Check export history before creating another file."
-      : settingsDirty
-        ? "Discard unsaved payroll file settings?"
-        : null;
+      : configurationUnconfirmed
+        ? "The file-setting save is unconfirmed. Discard this draft and review saved configuration versions before saving again?"
+        : settingsDirty
+          ? "Discard unsaved payroll file settings?"
+          : null;
   useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
   useEffect(() => {
     if (!leaveMessage) return;
@@ -205,6 +220,7 @@ export function PayrollExportPage() {
     if (!confirmReload()) return;
     setSettingsDirty(false);
     setUnconfirmedExport(null);
+    setConfigurationUnconfirmed(false);
     setRequestKey(crypto.randomUUID());
     setData(null);
     setReload((value) => value + 1);
@@ -260,32 +276,42 @@ export function PayrollExportPage() {
     setError("");
     setNotice("");
     try {
-      await api("/api/clinic/workforce/payroll-exports/configuration", {
-        method: "POST",
-        body: {
-          site_id: siteId,
-          configuration: {
-            name,
-            effective_from: businessNow().toISOString(),
-            expected_revision: data.configurations[0]?.revision || 0,
-            columns,
-            employee_identifiers: Object.fromEntries(
-              Object.entries(identifiers)
-                .filter(([, value]) => value.trim())
-                .map(([key, value]) => [key, value.trim()]),
-            ),
+      const result = await api<{ configuration: Configuration }>(
+        "/api/clinic/workforce/payroll-exports/configuration",
+        {
+          method: "POST",
+          body: {
+            site_id: siteId,
+            configuration: {
+              name,
+              effective_from: businessNow().toISOString(),
+              expected_revision: data.configurations[0]?.revision || 0,
+              columns,
+              employee_identifiers: Object.fromEntries(
+                Object.entries(identifiers)
+                  .filter(([, value]) => value.trim())
+                  .map(([key, value]) => [key, value.trim()]),
+              ),
+            },
           },
         },
-      });
-      setNotice("Payroll settings saved as a new version.");
+      );
+      if (
+        !result.configuration?.id ||
+        !Number.isInteger(result.configuration.revision)
+      )
+        throw new Error("The saved configuration could not be confirmed.");
+      setNotice(
+        `Payroll settings saved as version ${result.configuration.revision}.`,
+      );
       setSettingsDirty(false);
       setData(null);
       setReload((value) => value + 1);
     } catch (reason) {
+      const unknown = !confirmedRejection(reason);
+      if (unknown) setConfigurationUnconfirmed(true);
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to save payroll settings.",
+        `${reason instanceof Error ? reason.message : "Unable to save payroll settings."}${unknown ? " The save may have completed. Refresh payroll records and review saved configuration versions before saving again." : ""}`,
       );
     } finally {
       setBusy(false);
@@ -293,7 +319,14 @@ export function PayrollExportPage() {
   }
 
   async function generate(isPreview: boolean) {
-    if (busy || settingsDirty || !configurationId || !selected.length) return;
+    if (
+      busy ||
+      configurationUnconfirmed ||
+      settingsDirty ||
+      !configurationId ||
+      !selected.length
+    )
+      return;
     if (!unconfirmedExport && selectionNotReady) return;
     setBusy(true);
     setError("");
@@ -326,18 +359,13 @@ export function PayrollExportPage() {
         setReload((value) => value + 1);
       }
     } catch (reason) {
-      const knownRejection =
-        reason instanceof ApiError &&
-        reason.status >= 400 &&
-        reason.status < 500 &&
-        ![408, 429].includes(reason.status);
-      const confirmedRejection = knownRejection && !unconfirmedExport;
-      if (!isPreview && confirmedRejection) {
+      const rejected = confirmedRejection(reason) && !unconfirmedExport;
+      if (!isPreview && rejected) {
         setUnconfirmedExport(null);
         setPreview(null);
       }
       setError(
-        `${reason instanceof Error ? reason.message : "The export could not be confirmed."} ${isPreview || confirmedRejection ? "Review the selection and preview again." : "The earlier export remains unconfirmed. Retry export to recover the same saved file, or refresh and check export history."}`,
+        `${reason instanceof Error ? reason.message : "The export could not be confirmed."} ${isPreview || rejected ? "Review the selection and preview again." : "The earlier export remains unconfirmed. Retry export to recover the same saved file, or refresh and check export history."}`,
       );
     } finally {
       setBusy(false);
@@ -451,6 +479,13 @@ export function PayrollExportPage() {
       )}
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {configurationUnconfirmed && (
+        <Alert severity="warning">
+          The file-setting save has not been confirmed. Your draft is preserved
+          and further changes are paused. Refresh payroll records to discard the
+          draft and review saved configuration versions before continuing.
+        </Alert>
+      )}
       {unconfirmedExport && (
         <Alert severity="warning">
           The export has not been confirmed. Retry export with the saved
@@ -663,6 +698,7 @@ export function PayrollExportPage() {
                   variant="contained"
                   disabled={
                     busy ||
+                    configurationUnconfirmed ||
                     settingsDirty ||
                     (!unconfirmedExport && (!preview || selectionNotReady))
                   }
