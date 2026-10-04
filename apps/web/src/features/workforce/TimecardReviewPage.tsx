@@ -63,6 +63,8 @@ export function TimecardReviewPage() {
     String(clinic.current_site?.id ?? clinic.sites[0]?.id ?? ""),
   );
   const [attention, setAttention] = useState<TimecardAttention>("all");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [reviewWeek, setReviewWeek] = useState("all");
   const [loading, setLoading] = useState(true);
   const [loadedSiteId, setLoadedSiteId] = useState("");
   const [cards, setCards] = useState<Timecard[]>([]);
@@ -199,6 +201,29 @@ export function TimecardReviewPage() {
   );
   const attentionAvailable = attention !== "corrections" || !reviewError;
   const latestCards = attentionData.groups[attention];
+  const employeeQuery = employeeSearch.trim().toLocaleLowerCase();
+  const matchesReview = (record: {
+    employee_name: string;
+    period_start: string;
+  }) =>
+    (!employeeQuery ||
+      record.employee_name.toLocaleLowerCase().includes(employeeQuery)) &&
+    (reviewWeek === "all" || record.period_start === reviewWeek);
+  const visibleCards = latestCards.filter(matchesReview);
+  const visiblePending = attentionData.pending.filter(matchesReview);
+  const reviewWeeks = [
+    ...new Set(
+      [...attentionData.groups.all, ...attentionData.pending].map(
+        (record) => record.period_start,
+      ),
+    ),
+  ]
+    .sort()
+    .reverse();
+  const hiddenDraftCount = attentionData.pending.filter(
+    (adjustment) =>
+      !matchesReview(adjustment) && decisionReasons[adjustment.id]?.text.trim(),
+  ).length;
   useEffect(() => {
     if (!canReview)
       setAttention((current) => (current === "corrections" ? "all" : current));
@@ -483,6 +508,8 @@ export function TimecardReviewPage() {
                 setSiteId(event.target.value);
                 setEmploymentId("");
                 setPeriodStart("");
+                setEmployeeSearch("");
+                setReviewWeek("all");
                 setNotice("");
               }}
               sx={{ minWidth: 220 }}
@@ -522,11 +549,57 @@ export function TimecardReviewPage() {
               </MenuItem>
             )}
           </TextField>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            sx={{ gap: 2, flexWrap: "wrap" }}
+          >
+            <TextField
+              label="Find employee in review"
+              value={employeeSearch}
+              onChange={(event) => setEmployeeSearch(event.target.value)}
+              slotProps={{ htmlInput: { maxLength: 120 } }}
+            />
+            <TextField
+              select
+              label="Review workweek"
+              value={reviewWeek}
+              onChange={(event) => setReviewWeek(event.target.value)}
+              sx={{ minWidth: 210 }}
+            >
+              <MenuItem value="all">All workweeks</MenuItem>
+              {reviewWeek !== "all" && !reviewWeeks.includes(reviewWeek) && (
+                <MenuItem value={reviewWeek}>
+                  Starting {formatDisplayDate(reviewWeek)}
+                </MenuItem>
+              )}
+              {reviewWeeks.map((week) => (
+                <MenuItem key={week} value={week}>
+                  Starting {formatDisplayDate(week)}
+                </MenuItem>
+              ))}
+            </TextField>
+            {(employeeSearch || reviewWeek !== "all") && (
+              <Button
+                onClick={() => {
+                  setEmployeeSearch("");
+                  setReviewWeek("all");
+                }}
+              >
+                Clear review filters
+              </Button>
+            )}
+          </Stack>
+          {currentSource && attentionAvailable && (
+            <Typography role="status" color="text.secondary">
+              Showing {visibleCards.length} of {latestCards.length} timecards in
+              this view.
+            </Typography>
+          )}
           {canReview && currentSource && (
             <Typography role="status">
               {reviewError
                 ? "Pending correction count is unknown."
-                : `${attentionData.pending.length} pending correction requests. Requests against earlier versions remain listed below.`}
+                : `${visiblePending.length} of ${attentionData.pending.length} pending correction requests match these filters. Requests against earlier versions remain listed below.`}
             </Typography>
           )}
           <Button
@@ -537,6 +610,13 @@ export function TimecardReviewPage() {
           </Button>
         </Stack>
       </Paper>
+      {hiddenDraftCount > 0 && (
+        <Alert severity="info">
+          {hiddenDraftCount} unsaved correction review reasons are hidden by
+          these filters. Clear review filters to return to them; their text is
+          preserved.
+        </Alert>
+      )}
       {currentSource &&
         !reviewError &&
         Object.entries(decisionReasons)
@@ -566,7 +646,7 @@ export function TimecardReviewPage() {
           ))}
       {canReview &&
         currentSource &&
-        attentionData.pending.map((adjustment) => (
+        visiblePending.map((adjustment) => (
           <Paper variant="outlined" sx={{ p: 2 }} key={adjustment.id}>
             <Stack spacing={1}>
               <Typography variant="h3">
@@ -653,7 +733,7 @@ export function TimecardReviewPage() {
       {currentSource &&
         !error &&
         attentionAvailable &&
-        latestCards.map((card) => (
+        visibleCards.map((card) => (
           <TimecardSummary
             key={card.id}
             card={card}
@@ -706,6 +786,15 @@ export function TimecardReviewPage() {
             : "No latest timecards match this attention view."}
         </Alert>
       )}
+      {currentSource &&
+        !error &&
+        attentionAvailable &&
+        latestCards.length > 0 &&
+        visibleCards.length === 0 && (
+          <Alert severity="info">
+            No timecards in this view match the employee and workweek filters.
+          </Alert>
+        )}
       {canReview && (
         <Accordion disableGutters variant="outlined">
           <AccordionSummary
