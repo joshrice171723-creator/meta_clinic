@@ -34,7 +34,8 @@ module Development
           run.lesson_key == DemoLessonCatalog::SANDBOX_KEY && run.visitor_id.present? &&
           run.operator_user.active?
 
-        raise ActiveRecord::RecordNotFound unless lesson.visitor_id == run.visitor_id &&
+        # A shared Sandbox restart retains the lesson but can change its run visitor.
+        raise ActiveRecord::RecordNotFound unless lesson.visitor_id.present? &&
           lesson.operator_user_id == run.operator_user_id
         membership = Clinic::Membership.active.lock.find_by!(practice:, user: run.operator_user)
         sites = practice.sites.where(id: requested_site_ids).order(:id).to_a
