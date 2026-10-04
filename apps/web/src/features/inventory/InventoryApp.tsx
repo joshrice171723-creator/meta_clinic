@@ -20,8 +20,6 @@ import {
   purchaseOrderGroupStatus,
   purchaseOrderGroupTotal,
   purchaseOrderStatusTone,
-  validDecimal,
-  type PurchaseCartDraft,
 } from "./inventoryPurchasing";
 export {
   inventoryMutationAttempt,
@@ -379,25 +377,6 @@ function Card({
       {title && <h2>{title}</h2>}
       {children}
     </section>
-  );
-}
-function Metric({
-  label,
-  value,
-  detail,
-  tone = "",
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  tone?: string;
-}) {
-  return (
-    <div className={`inventory-metric ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
   );
 }
 function Badge({
