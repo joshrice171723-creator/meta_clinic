@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "meta-clinic",
+  "version": "0.1.0",
+  "description": "Meta Clinic workspace and clinic workflow tools inside Codex, connected to an isolated local clinic.",
+  "author": { "name": "Joshua Rice" },
+  "extensions": { "com.openai": { "interface": {
+    "displayName": "Meta Clinic",
+    "shortDescription": "Your clinic, inside Codex",
+    "longDescription": "Explore clinic records, schedules, patients, billing, inventory, workforce and operations. Review exact changes before saving through Meta Clinic's existing permissions and validation. Includes a native panel and illustrated tutorial. Local development runtime only.",
+    "developerName": "Joshua Rice",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": ["Open Meta Clinic", "Show my clinic schedule and follow-up work", "Open the Meta Clinic tutorial"],
+    "logo": "./assets/icon.svg",
+    "composerIcon": "./assets/icon.svg",
+    "brandColor": "#1D6659"
+  } } }
+}

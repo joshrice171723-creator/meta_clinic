@@ -1,0 +1,17 @@
+{
+  "name": "meta-clinic",
+  "version": "0.1.0",
+  "description": "Meta Clinic workspace and workflow tools inside Codex, connected to an isolated local clinic.",
+  "author": { "name": "Joshua Rice" },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Meta Clinic",
+    "shortDescription": "Your clinic, inside Codex",
+    "longDescription": "Clinic records, schedules, patients, billing, inventory, workforce and operations with reviewed changes, existing permissions, a native panel and illustrated tutorial. Local development runtime only.",
+    "developerName": "Joshua Rice", "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": ["Open Meta Clinic", "Show my clinic schedule and follow-up work", "Open the Meta Clinic tutorial"],
+    "logo": "./assets/icon.svg", "composerIcon": "./assets/icon.svg", "brandColor": "#1D6659"
+  }
+}

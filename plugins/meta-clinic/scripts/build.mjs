@@ -1,0 +1,15 @@
+import { build } from 'esbuild';
+import { mkdir, readFile, writeFile, cp } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const dist = resolve(root, 'dist');
+await mkdir(dist, { recursive: true });
+const panel = await build({ absWorkingDir: root, entryPoints: ['ui/app.tsx'], bundle: true, format: 'iife', platform: 'browser', target: 'es2022', outfile: 'panel.js', write: false, minify: true, jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' } });
+const js = panel.outputFiles.find(file => file.path.endsWith('.js')).text.replaceAll('</script', '<\\/script');
+const css = panel.outputFiles.find(file => file.path.endsWith('.css'))?.text || '';
+const template = await readFile(resolve(root, 'ui/index.html'), 'utf8');
+await writeFile(resolve(dist, 'panel.html'), template.replace('<!--APP_SCRIPT-->', () => `<style>${css}</style><script>${js}</script>`));
+await build({ absWorkingDir: root, entryPoints: ['server/index.mjs'], bundle: true, platform: 'node', target: 'node24', format: 'esm', outfile: resolve(dist, 'server.mjs'), minify: true, banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" } });
+await cp(resolve(root, 'tutorial'), dist, { recursive: true });
+console.log('Built the Meta Clinic MCP server, native panel, and tutorial.');
