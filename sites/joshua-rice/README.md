@@ -22,7 +22,7 @@ Joshua authorized public publication on September 20, 2026. The chosen URL is ht
 
 ## Career positioning evidence (September 21, 2026)
 
-The homepage leads with Joshua's early-stage WeInfuse work. Third-engineer status, personal contributions, greenfield ownership, and more than $1 billion in product processed are owner-reported career facts, consistent with the supplied resume and his explicit description in this task. They are not independently verified employer metrics. Do not rewrite product processed as revenue or company valuation, or imply sole authorship of the entire platform.
+The homepage introduces Joshua with his original `joshua-rice.png` portrait, leads the projects with Meta Clinic, and places the detailed WeInfuse case study last before contact. The image was added in `ec71c0fa`; `60ed12de` removed its hero markup while leaving the asset intact. Third-engineer status, personal contributions, greenfield ownership, and more than $1 billion in product processed are owner-reported career facts, consistent with the supplied resume and his explicit description in this task. They are not independently verified employer metrics. Do not rewrite product processed as revenue or company valuation, or imply sole authorship of the entire platform.
 
 WeInfuse's [current product overview](https://weinfuse.com/infusion-center-software/) and [inventory page](https://weinfuse.com/infusion-center-software/inventory-management/) were checked on September 21, 2026. They support that inventory, billing, patient estimates, and treatment-margin capabilities are still marketed; they do not establish authorship or prove that historical code remains unchanged.
 
