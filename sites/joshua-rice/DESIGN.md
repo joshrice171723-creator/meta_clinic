@@ -36,7 +36,7 @@ components:
 
 ## Overview
 
-Portfolio-only direction: dark and bold, with healthcare work leading the story. The recovered homepage draft uses a name wordmark, a text-led hero, and an engineering-scope panel. The portrait asset remains available in source. Publication and browser evidence are recorded separately. See [README.md](README.md) for the deployment allowlist; this private design document is excluded from it. No dependency or build step was added.
+Portfolio-only direction: dark and bold, with healthcare work leading the story. The homepage uses a name wordmark, a personal introduction with the original Joshua portrait, and an engineering-scope panel. Meta Clinic is the first project after the introduction; WeInfuse closes the portfolio work before contact. Publication and browser evidence are recorded separately. See [README.md](README.md) for the deployment allowlist; this private design document is excluded from it. No dependency or build step was added.
 
 ## Colors
 
@@ -48,7 +48,7 @@ Manrope carries display headings; DM Sans carries body and controls. Display typ
 
 ## Layout
 
-Use a centered container up to 1320px. At 1100px, reduce columns and gaps; at 760px, stack major sections and stack the hero summary and engineering-scope panel; at 380px, tighten navigation spacing. Preserve clear WeInfuse and Meta Clinic sections.
+Use a centered container up to 1320px. At 1100px, reduce columns and gaps; at 760px, stack major sections and stack the introduction and portrait, and the engineering-scope panel; at 380px, tighten navigation spacing. Preserve clear WeInfuse and Meta Clinic sections.
 
 ## Elevation & Depth
 

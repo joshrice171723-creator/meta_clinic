@@ -241,8 +241,20 @@ h4 {
 .portfolio .dark:hover {
   background: #dcffa9;
 }
+.hero-summary {
+  max-width: 58ch;
+  margin-top: 28px;
+}
 .hero-summary .hero-description {
   margin-top: 0;
+}
+.section-label {
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
 }
 .hero-context {
   margin-top: 18px;
@@ -288,10 +300,14 @@ h4 {
 .hero-portrait {
   margin: 0;
   align-self: center;
-  padding-top: 30px;
+  padding-top: 0;
+  width: 100%;
+  max-width: 347px;
+  justify-self: end;
 }
 .portrait-frame {
   background: #1c2025;
+  border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
 }
@@ -301,7 +317,7 @@ h4 {
   display: block;
 }
 .hero-portrait figcaption {
-  margin-top: 22px;
+  margin-top: 18px;
   font-size: 15px;
   max-width: 28ch;
   color: var(--muted);
@@ -983,7 +999,9 @@ details p {
   }
   .hero-portrait {
     display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
+    grid-template-columns: 160px minmax(0, 1fr);
+    max-width: none;
+    justify-self: start;
     gap: 22px;
     align-items: center;
     padding-top: 0;
@@ -1138,7 +1156,7 @@ details p {
     font-size: 11px;
   }
   .hero-portrait {
-    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-columns: 140px minmax(0, 1fr);
     gap: 16px;
   }
 }
