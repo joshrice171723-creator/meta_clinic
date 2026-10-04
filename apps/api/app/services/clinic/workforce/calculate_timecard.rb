@@ -5,9 +5,9 @@ module Clinic
       CALCULATION_VERSION = "explicit-policy-and-schedule-v2".freeze
       MANUAL_CORRECTION_VERSION = "manual-source-correction-v3".freeze
 
-      def self.call(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil)
+      def self.call(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil, pending_reviewed_at: nil)
         new(employment: employment, period_start: period_start, actor_membership: actor_membership,
-          expected_source_digest: expected_source_digest, pending_adjustment: pending_adjustment).call
+          expected_source_digest: expected_source_digest, pending_adjustment: pending_adjustment, pending_reviewed_at: pending_reviewed_at).call
       end
 
       def self.current_source_digest(employment:, period_start:)
@@ -29,13 +29,14 @@ module Clinic
         period_start
       end
 
-      def initialize(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil)
+      def initialize(employment:, period_start:, actor_membership:, expected_source_digest: nil, pending_adjustment: nil, pending_reviewed_at: nil)
         @employment = employment
         @period_start = Date.iso8601(period_start.to_s)
         @period_end = @period_start + 7.days
         @actor_membership = actor_membership
         @expected_source_digest = expected_source_digest
         @pending_adjustment = pending_adjustment
+        @pending_reviewed_at = (pending_reviewed_at || pending_adjustment.reviewed_at || Current.business_time).floor(6) if pending_adjustment
       rescue Date::Error
         raise ArgumentError, "Period start must be an ISO date"
       end
@@ -94,7 +95,7 @@ module Clinic
 
       private
 
-      attr_reader :employment, :period_start, :period_end, :actor_membership, :pending_adjustment, :expected_source_digest
+      attr_reader :employment, :period_start, :period_end, :actor_membership, :pending_adjustment, :pending_reviewed_at, :expected_source_digest
 
       def versions
         TimecardVersion.where(practice_id: employment.practice_id, employment_id: employment.id,
@@ -113,7 +114,11 @@ module Clinic
             .joins(:timecard_version).where(clinic_workforce_timecard_versions: { period_start: period_start, period_end: period_end })
             .includes(timecard_version: :time_segments)
             .order(:reviewed_at, :id).to_a
-          records << pending_adjustment if pending_adjustment
+          if pending_adjustment
+            pending_order = [ pending_reviewed_at, pending_adjustment.id || Float::INFINITY ]
+            insertion = records.index { |record| ([ record.reviewed_at, record.id ] <=> pending_order).positive? }
+            records.insert(insertion || records.length, pending_adjustment)
+          end
           records
         end
       end
@@ -334,12 +339,18 @@ module Clinic
                   source_segment.ended_at_utc > row.fetch(:started_at_utc)
               end
               if candidates.many?
+                if adjustment.equal?(pending_adjustment)
+                  raise ArgumentError, "This correction matches multiple source intervals. Review the current timecard before correcting it."
+                end
                 exceptions << "adjustment_source_ambiguous"
                 next
               end
               candidate = candidates.first
               unless candidate && candidate.fetch(:started_at_utc) <= source_segment.started_at_utc &&
                   candidate.fetch(:ended_at_utc) >= source_segment.ended_at_utc
+                if adjustment.equal?(pending_adjustment)
+                  raise ArgumentError, "This correction's source interval is unavailable at the review time. Review the current timecard before correcting it."
+                end
                 exceptions << "adjustment_source_not_found"
                 next
               end
@@ -358,7 +369,12 @@ module Clinic
               matched = true
               subtract_interval(row, source_segment.started_at_utc, source_segment.ended_at_utc)
             end)
-            exceptions << "adjustment_source_not_found" unless matched
+            unless matched
+              if adjustment.equal?(pending_adjustment)
+                raise ArgumentError, "This correction's source interval is unavailable at the review time. Review the current timecard before correcting it."
+              end
+              exceptions << "adjustment_source_not_found"
+            end
             next unless matched
           end
           next if adjustment.correction_type == "remove_segment"

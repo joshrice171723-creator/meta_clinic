@@ -102,15 +102,25 @@ module Clinic
         site = current_practice.sites.find(requested_id!(params[:site_id], :site_id)) if params[:site_id].present? || !practice_reviewer
         if site
           workforce_access.authorize!("workforce.timecards.review", site: site)
-          segment_ids = base.joins(timecard_version: :time_segments)
-            .where(clinic_workforce_time_segments: { site_id: site.id }).select(:id)
-          base = base.where(id: segment_ids).or(base.where("proposed_changes ->> 'site_id' = ?", site.id.to_s))
+          if practice_reviewer
+            segment_ids = base.joins(timecard_version: :time_segments)
+              .where(clinic_workforce_time_segments: { site_id: site.id }).select(:id)
+            base = base.where(id: segment_ids).or(base.where("proposed_changes ->> 'site_id' = ?", site.id.to_s))
+          else
+            cards = TimecardSiteScope.call(scope: TimecardVersion.where(practice_id: current_practice.id), site: site)
+            other_intervals = TimeSegment.where(practice_id: current_practice.id).where.not(site_id: site.id).select(:timecard_version_id)
+            cards = cards.where.not(id: other_intervals)
+            base = base.where(timecard_version_id: cards.select(:id))
+              .where("proposed_changes ->> 'site_id' IS NULL OR proposed_changes ->> 'site_id' = ?", site.id.to_s)
+          end
         end
         base = base.where(employment_id: requested_id!(params[:employment_id], :employment_id)) if params[:employment_id].present?
         [ base, site&.id ]
       end
 
       def authorize_request!(card, site_id: nil)
+        return authorize_review!(card, fallback_site_id: site_id) if workforce_access.allow?("workforce.timecards.review")
+
         if workforce_access.own_employment&.id == card.employment_id
           authorize_self_service!(card.employment, card: card, fallback_site_id: site_id)
           return
@@ -125,12 +135,20 @@ module Clinic
         raise Clinic::Authorization::Denied if site_ids.empty?
         raise Clinic::Authorization::Denied if site_ids.uniq.many?
         site_ids.each do |site_id|
-          workforce_access.authorize!("workforce.timecards.review", site: current_practice.sites.find(site_id))
+          site = current_practice.sites.find(site_id)
+          workforce_access.authorize!("workforce.timecards.review", site: site)
+          unless TimecardSiteScope.call(scope: TimecardVersion.where(id: card.id), site: site).exists?
+            raise Clinic::Authorization::Denied
+          end
         end
       end
 
       def authorize_self_service!(employment, card: nil, fallback_site_id: nil)
         site_ids = card&.time_segments&.distinct&.pluck(:site_id) || []
+        if card && site_ids.empty?
+          site_ids = Punch.where(practice_id: current_practice.id, employment_id: employment.id,
+            id: Array(card.snapshot["source_punch_ids"])).distinct.pluck(:site_id)
+        end
         site_ids << requested_id!(fallback_site_id, :site_id) if fallback_site_id.present?
         if site_ids.empty?
           site_ids = employment.employment_sites.active.effective_at(Current.business_time).pluck(:site_id)

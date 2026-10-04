@@ -76,7 +76,8 @@ module Clinic
 
       def serialize_card(card, site_id: nil)
         prepare_workflow_context([ card ]) unless @workflow_settings
-        TimecardSerializer.call(card, site_id: site_id).merge(workflow: workflow_for(card))
+        TimecardSerializer.call(card, site_id: site_id,
+          include_global_exceptions: site_id.present? && card.time_segments.empty?).merge(workflow: workflow_for(card))
       end
 
       def prepare_workflow_context(cards)
@@ -98,6 +99,10 @@ module Clinic
       end
 
       def workflow_for(card)
+        if card.time_segments.empty?
+          return { approval_mode: nil, can_submit: false, can_approve: false,
+            note: "No completed intervals are available. Add or correct missing time before submission." }
+        end
         if @workflow_settings_error
           return { approval_mode: nil, can_submit: false, can_approve: false, note: @workflow_settings_error }
         end
@@ -149,14 +154,7 @@ module Clinic
         site = current_practice.sites.find(requested_id!(params[:site_id], :site_id)) if params[:site_id].present? || !practice_reader
         if site
           workforce_access.authorize!("workforce.timecards.read", site: site)
-          matching_ids = cards.joins(:time_segments).where(clinic_workforce_time_segments: { site_id: site.id }).select(:id)
-          if practice_reader
-            assigned = EmploymentSite.where(practice_id: current_practice.id, site_id: site.id, active: true).select(:employment_id)
-            empty_ids = cards.where(employment_id: assigned).where.missing(:time_segments).select(:id)
-            cards = cards.where(id: matching_ids).or(cards.where(id: empty_ids))
-          else
-            cards = cards.where(id: matching_ids)
-          end
+          cards = TimecardSiteScope.call(scope: cards, site: site)
         end
         cards = cards.where(employment_id: requested_id!(params[:employment_id], :employment_id)) if params[:employment_id].present?
         [ cards, practice_reader ? nil : site.id ]
@@ -176,7 +174,8 @@ module Clinic
         end
         site = current_practice.sites.find(requested_id!(params[:site_id], :site_id))
         workforce_access.authorize!("workforce.timecards.read", site: site)
-        raise Clinic::Authorization::Denied unless card.time_segments.exists?(site_id: site.id)
+        scoped = TimecardSiteScope.call(scope: TimecardVersion.where(id: card.id), site: site)
+        raise Clinic::Authorization::Denied unless scoped.exists?
         [ card, site.id ]
       end
 
@@ -247,7 +246,15 @@ module Clinic
 
       def authorize_self_service!(employment, card: nil)
         sites = if card
-          current_practice.sites.where(id: card.time_segments.distinct.select(:site_id)).to_a
+          site_ids = card.time_segments.distinct.pluck(:site_id)
+          if site_ids.empty?
+            site_ids = Punch.where(practice_id: current_practice.id, employment_id: employment.id,
+              id: Array(card.snapshot["source_punch_ids"])).distinct.pluck(:site_id)
+          end
+          if site_ids.empty?
+            site_ids = employment.employment_sites.active.effective_at(Current.business_time).pluck(:site_id)
+          end
+          current_practice.sites.where(id: site_ids).to_a
         else
           employment.sites.merge(EmploymentSite.active.effective_at(Current.business_time)).where(status: "active").to_a
         end

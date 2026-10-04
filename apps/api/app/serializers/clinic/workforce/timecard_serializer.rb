@@ -3,7 +3,7 @@ module Clinic
     module TimecardSerializer
       module_function
 
-      def call(timecard, site_id: nil)
+      def call(timecard, site_id: nil, include_global_exceptions: false)
         snapshot = timecard.snapshot.deep_dup
         if site_id
           segments = Array(snapshot["segments"]).select { |segment| segment["site_id"].to_s == site_id.to_s }
@@ -22,7 +22,7 @@ module Clinic
           version_number: timecard.version_number,
           status: timecard.status,
           source_digest: timecard.source_digest,
-          unresolved_exceptions: site_id ? site_exceptions(snapshot) : timecard.unresolved_exceptions,
+          unresolved_exceptions: site_id && !include_global_exceptions ? site_exceptions(snapshot) : timecard.unresolved_exceptions,
           settings_provenance: site_id ? timecard.settings_provenance.slice(site_id.to_s) : timecard.settings_provenance,
           snapshot: snapshot,
           lock_version: timecard.lock_version,
