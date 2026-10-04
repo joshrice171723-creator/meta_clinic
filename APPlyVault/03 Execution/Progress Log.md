@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Workforce session integration handoff prepared:** Twenty-seven implementation batches are saved through source `2831ad05`, covering employee setup, scheduling/requests, timecards/corrections, kiosk recovery, settings and payroll. Focused checks passed as recorded; final source integration review found no further concrete defect. Connected runtime/browser acceptance remains pending, with no deployment or tests run. The authorized window still ends at 15:39 UTC. [Session handoff](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Complete payroll row preview:** Source `2831ad05` adds pagination across every preview row, identifies the selected configuration version and keeps whole-file totals visible. TypeScript, both bundles, formatting and source review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-seventh checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Manager timecard review filters:** Source `c101642d` adds employee/workweek filters across cards and pending corrections, matching counts and reminders for hidden unsaved review reasons. Recovery actions and calculation inputs remain independent. TypeScript, both bundles, formatting and source review passed. No tests or connected browser verification ran; no deployment occurred. [Twenty-sixth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
