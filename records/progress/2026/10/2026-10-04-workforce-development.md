@@ -181,3 +181,15 @@ Source commit: `2cdb6aaa`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed, with the existing marketing import warning. Prettier, focused source review and `git diff --check` passed. No backend source changed; Ruby lint was not repeated. No tests were added/run. Connected browser, persisted correction outcomes and result-card walkthrough remain pending because no owned runtime is available. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. A next bounded scope can address manager correction-review draft/recovery behavior or explicit occurrence selection for newly entered correction timestamps; do not repeat completed checks without new changes.
+
+## Thirteenth implementation checkpoint
+
+Source commit: `be281f78`, pushed after synchronization with `origin/main` (already current).
+
+- Manager correction decisions now retain the original request, decision, reason and optimistic-lock version after an unknown response. A visible retry panel freezes competing writes and location changes, supports exact retry, and preserves uncertainty if a later recovery attempt is rejected. Stopping recovery explicitly warns that the decision may already be saved.
+- Review reasons survive refresh and location changes. A reason remains available for copying or explicit discard if its correction leaves the pending queue. Confirmed decisions clear only their own draft. Leaving the page warns about drafts or unconfirmed decisions; navigation is blocked during an active save.
+- The API previously checked the old lock version before replay, rejecting exact retries after a successful save. It now accepts an immutable terminal result only for the original reviewer, same decision and normalized reason, and the original pre-save version. Practice and requester-self-decision guards run before replay; mismatches remain conflicts. Submitted transitions retain exact current-version checks.
+
+Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. Frontend formatting, one-file Ruby lint, focused source review and `git diff --check` passed. No tests were added/run. Lost-response recovery, concurrent reviewer persistence and navigation behavior remain unverified in a connected runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Remaining concrete scope includes explicit repeated-clock occurrence selection for newly entered correction times and employee setup journeys, subject to bounded source inspection.
