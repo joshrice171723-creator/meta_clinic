@@ -24,6 +24,18 @@ import type { Adjustment, Timecard, TimecardEmployee } from "./clockTypes";
 import { AdjustmentDialog } from "./AdjustmentDialog";
 import { TimecardSummary } from "./TimecardSummary";
 import { timecardAttention, type TimecardAttention } from "./timecardAttention";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
+
+type ReviewDraft = { text: string; employee: string; siteId: string };
+type CorrectionDecision = {
+  adjustment: Adjustment;
+  siteId: string;
+  body: {
+    decision: "approved" | "denied";
+    decision_reason: string;
+    lock_version: number;
+  };
+};
 
 function workforceSettingsPath(reason: unknown, siteId: string) {
   if (!(reason instanceof ApiError)) return null;
@@ -38,7 +50,7 @@ function workforceSettingsPath(reason: unknown, siteId: string) {
 
 export function TimecardReviewPage() {
   const clinic = useClinic();
-  const { navigate } = useClinicNavigation();
+  const { navigate, registerBlocker } = useClinicNavigation();
   const canRead = clinic.capabilities.workforce_timecards_read === true;
   const canReview = clinic.capabilities.workforce_timecards_review === true;
   const canApprove = clinic.capabilities.workforce_timecards_approve === true;
@@ -61,8 +73,42 @@ export function TimecardReviewPage() {
   const [revision, setRevision] = useState(0);
   const [correctionCard, setCorrectionCard] = useState<Timecard | null>(null);
   const [decisionReasons, setDecisionReasons] = useState<
-    Record<number, string>
+    Record<number, ReviewDraft>
   >({});
+  const [pendingDecision, setPendingDecision] =
+    useState<CorrectionDecision | null>(null);
+  const controlsLocked = busy || pendingDecision !== null;
+  const leaveMessage = busy
+    ? "A timecard action is still saving."
+    : pendingDecision
+      ? "A correction decision is unconfirmed. Leaving loses its saved retry."
+      : Object.values(decisionReasons).some((draft) => draft.text.trim())
+        ? "Leave unsaved correction review reasons? They will be lost if this page closes."
+        : null;
+  useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
+  useEffect(() => {
+    if (!leaveMessage) return;
+    const unregister = registerBlocker(() => leaveMessage, {
+      preventNavigation: busy,
+    });
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = leaveMessage;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [leaveMessage, busy, registerBlocker]);
+
+  function discardReason(id: number) {
+    setDecisionReasons((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!siteId || !canRead) return;
@@ -149,7 +195,8 @@ export function TimecardReviewPage() {
   }, [canReview]);
 
   async function calculate() {
-    if (busy || !currentSource || !employmentId || !periodStart) return;
+    if (controlsLocked || !currentSource || !employmentId || !periodStart)
+      return;
     setBusy(true);
     setError("");
     setSettingsPath(null);
@@ -181,7 +228,7 @@ export function TimecardReviewPage() {
 
   async function transition(card: Timecard, action: "submit" | "approve") {
     if (
-      busy ||
+      controlsLocked ||
       !currentSource ||
       !card.workflow?.[action === "submit" ? "can_submit" : "can_approve"]
     )
@@ -213,35 +260,56 @@ export function TimecardReviewPage() {
     }
   }
 
-  async function decide(
-    adjustment: Adjustment,
-    decision: "approved" | "denied",
-  ) {
-    const decisionReason = decisionReasons[adjustment.id]?.trim();
-    if (busy || !currentSource || !decisionReason) return;
+  async function sendDecision(attempt: CorrectionDecision) {
+    if (busy || attempt.siteId !== siteId || !canReview) return;
+    const recovering = pendingDecision !== null;
+    setPendingDecision(attempt);
     setBusy(true);
     setError("");
+    setSettingsPath(null);
     setNotice("");
     try {
-      await api(`/api/clinic/workforce/adjustments/${adjustment.id}/decide`, {
-        method: "POST",
-        body: {
-          decision,
-          decision_reason: decisionReason,
-          lock_version: adjustment.lock_version,
+      await api(
+        `/api/clinic/workforce/adjustments/${attempt.adjustment.id}/decide`,
+        {
+          method: "POST",
+          body: attempt.body,
         },
-      });
-      setNotice(`Correction request ${decision}.`);
+      );
+      setPendingDecision(null);
+      discardReason(attempt.adjustment.id);
+      setNotice(`Correction request ${attempt.body.decision}.`);
       setRevision((value) => value + 1);
     } catch (reason) {
+      const rejected =
+        reason instanceof ApiError &&
+        reason.status >= 400 &&
+        reason.status < 500 &&
+        ![408, 429].includes(reason.status);
+      if (rejected && !recovering) setPendingDecision(null);
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to decide the correction request.",
+        `${reason instanceof Error ? reason.message : "Unable to confirm this correction decision."} ${rejected && !recovering ? "Refresh and review the correction before trying again." : "Retry the saved decision to confirm its original outcome."}`,
       );
     } finally {
       setBusy(false);
     }
+  }
+
+  async function decide(
+    adjustment: Adjustment,
+    decision: "approved" | "denied",
+  ) {
+    const decisionReason = decisionReasons[adjustment.id]?.text.trim();
+    if (controlsLocked || !currentSource || !decisionReason) return;
+    await sendDecision({
+      adjustment,
+      siteId,
+      body: {
+        decision,
+        decision_reason: decisionReason,
+        lock_version: adjustment.lock_version,
+      },
+    });
   }
 
   if (!canRead)
@@ -288,6 +356,49 @@ export function TimecardReviewPage() {
         </Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
+      {pendingDecision && (
+        <Alert severity="warning">
+          The correction decision for {pendingDecision.adjustment.employee_name}{" "}
+          is unconfirmed. Its original reason and version are retained.
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            <Typography>
+              Request #{pendingDecision.adjustment.id} · week starting{" "}
+              {formatDisplayDate(pendingDecision.adjustment.period_start)} ·{" "}
+              {pendingDecision.body.decision === "approved"
+                ? "Approve"
+                : "Deny"}
+            </Typography>
+            <Typography sx={{ whiteSpace: "pre-wrap" }}>
+              Review reason: {pendingDecision.body.decision_reason}
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                disabled={
+                  busy || pendingDecision.siteId !== siteId || !canReview
+                }
+                onClick={() => void sendDecision(pendingDecision)}
+              >
+                Retry saved decision
+              </Button>
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      "Stop retrying this correction decision? It may already be saved. Refresh and review its current state before deciding again.",
+                    )
+                  )
+                    return;
+                  setPendingDecision(null);
+                  setRevision((value) => value + 1);
+                }}
+              >
+                Stop retrying and refresh
+              </Button>
+            </Stack>
+          </Stack>
+        </Alert>
+      )}
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1}>
           <Typography variant="h3">Timecard attention</Typography>
@@ -303,13 +414,12 @@ export function TimecardReviewPage() {
               select
               label="Location"
               value={siteId}
-              disabled={busy}
+              disabled={controlsLocked}
               onChange={(event) => {
                 setSiteId(event.target.value);
                 setEmploymentId("");
                 setPeriodStart("");
                 setNotice("");
-                setDecisionReasons({});
               }}
               sx={{ minWidth: 220 }}
             >
@@ -363,6 +473,33 @@ export function TimecardReviewPage() {
           </Button>
         </Stack>
       </Paper>
+      {currentSource &&
+        !reviewError &&
+        Object.entries(decisionReasons)
+          .filter(
+            ([id, draft]) =>
+              draft.siteId === siteId &&
+              draft.text.trim() &&
+              !attentionData.pending.some(
+                (adjustment) => adjustment.id === Number(id),
+              ),
+          )
+          .map(([id, draft]) => (
+            <Alert severity="info" key={id}>
+              The correction for {draft.employee} (request #{id}) is no longer
+              in the pending queue. Your unsaved review reason is retained
+              below.
+              <Typography sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
+                {draft.text}
+              </Typography>
+              <Button
+                disabled={controlsLocked}
+                onClick={() => discardReason(Number(id))}
+              >
+                Discard saved draft
+              </Button>
+            </Alert>
+          ))}
       {canReview &&
         currentSource &&
         attentionData.pending.map((adjustment) => (
@@ -408,13 +545,17 @@ export function TimecardReviewPage() {
               </Typography>
               <TextField
                 label="Decision reason"
-                disabled={busy}
+                disabled={controlsLocked}
                 slotProps={{ htmlInput: { maxLength: 1000 } }}
-                value={decisionReasons[adjustment.id] ?? ""}
+                value={decisionReasons[adjustment.id]?.text ?? ""}
                 onChange={(event) =>
                   setDecisionReasons((current) => ({
                     ...current,
-                    [adjustment.id]: event.target.value,
+                    [adjustment.id]: {
+                      text: event.target.value,
+                      employee: adjustment.employee_name,
+                      siteId,
+                    },
                   }))
                 }
                 multiline
@@ -423,14 +564,20 @@ export function TimecardReviewPage() {
               <Stack direction="row" spacing={1}>
                 <Button
                   variant="contained"
-                  disabled={busy || !decisionReasons[adjustment.id]?.trim()}
+                  disabled={
+                    controlsLocked ||
+                    !decisionReasons[adjustment.id]?.text.trim()
+                  }
                   onClick={() => void decide(adjustment, "approved")}
                 >
                   Approve correction
                 </Button>
                 <Button
                   color="warning"
-                  disabled={busy || !decisionReasons[adjustment.id]?.trim()}
+                  disabled={
+                    controlsLocked ||
+                    !decisionReasons[adjustment.id]?.text.trim()
+                  }
                   onClick={() => void decide(adjustment, "denied")}
                 >
                   Deny
@@ -456,7 +603,9 @@ export function TimecardReviewPage() {
                   {canReview && card.status === "draft" && (
                     <Button
                       variant="contained"
-                      disabled={busy || card.workflow?.can_submit !== true}
+                      disabled={
+                        controlsLocked || card.workflow?.can_submit !== true
+                      }
                       onClick={() => void transition(card, "submit")}
                     >
                       Submit for approval
@@ -465,7 +614,9 @@ export function TimecardReviewPage() {
                   {canApprove && (
                     <Button
                       variant="contained"
-                      disabled={busy || card.workflow?.can_approve !== true}
+                      disabled={
+                        controlsLocked || card.workflow?.can_approve !== true
+                      }
                       onClick={() => void transition(card, "approve")}
                     >
                       Approve timecard
@@ -473,7 +624,7 @@ export function TimecardReviewPage() {
                   )}
                   {canReview && (
                     <Button
-                      disabled={busy || card.status === "superseded"}
+                      disabled={controlsLocked || card.status === "superseded"}
                       onClick={() => setCorrectionCard(card)}
                     >
                       Add manager correction
@@ -506,7 +657,7 @@ export function TimecardReviewPage() {
                 <TextField
                   select
                   label="Employee"
-                  disabled={busy || !currentSource}
+                  disabled={controlsLocked || !currentSource}
                   value={employmentId}
                   onChange={(event) => setEmploymentId(event.target.value)}
                   sx={{ minWidth: 240 }}
@@ -519,7 +670,7 @@ export function TimecardReviewPage() {
                 </TextField>
                 <TextField
                   label="Week starting"
-                  disabled={busy || !currentSource}
+                  disabled={controlsLocked || !currentSource}
                   type="date"
                   value={periodStart}
                   onChange={(event) => setPeriodStart(event.target.value)}
@@ -528,7 +679,10 @@ export function TimecardReviewPage() {
                 <Button
                   variant="contained"
                   disabled={
-                    busy || !currentSource || !employmentId || !periodStart
+                    controlsLocked ||
+                    !currentSource ||
+                    !employmentId ||
+                    !periodStart
                   }
                   onClick={() => void calculate()}
                 >
