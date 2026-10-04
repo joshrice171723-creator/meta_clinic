@@ -169,3 +169,15 @@ Source commit: `e4ce2793`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, changed frontend formatting and the timecards controller's scoped RuboCop check passed. The existing marketing import warning remains. Source/diff review and `git diff --check` passed. No tests were added/run; connected empty-card correction, response-loss, database and browser verification remain pending. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. A concrete next employee journey is viewing saved correction history and outcomes from My Hours; the current employee hours response/view does not yet render that separate correction queue.
+
+## Twelfth implementation checkpoint
+
+Source commit: `2cdb6aaa`, pushed after synchronization with `origin/main` (already current).
+
+- My Hours now loads the existing employee correction history independently of timecards. Employees can see pending, approved and denied requests, original/proposed intervals, their reason, review reasons and timestamps, including requests against earlier card versions.
+- An approved correction links to its resulting card when that card is present in the authorized self-view response. The result opens read-only; unavailable results are identified without inventing a card or exposing another employee's records.
+- Hours and correction failures have separate retry controls. Successful calculations, submissions and correction requests refresh both resources; confirmed outcomes remain visible if either reload fails.
+
+Verification: TypeScript and both Vite bundles passed, with the existing marketing import warning. Prettier, focused source review and `git diff --check` passed. No backend source changed; Ruby lint was not repeated. No tests were added/run. Connected browser, persisted correction outcomes and result-card walkthrough remain pending because no owned runtime is available. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. A next bounded scope can address manager correction-review draft/recovery behavior or explicit occurrence selection for newly entered correction timestamps; do not repeat completed checks without new changes.

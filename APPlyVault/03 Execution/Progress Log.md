@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Employee correction history connected:** Source `2cdb6aaa` shows saved correction outcomes, interval/reason/review context and authorized read-only resulting cards in My Hours. Hours and corrections load and retry independently, refreshing together after successful actions. TypeScript, both bundles, formatting and focused source/diff review passed. No tests or connected browser/database verification ran; no deployment occurred. [Twelfth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Workforce missing-time correction entry:** Source `e4ce2793` lets employee empty-card corrections choose an active assigned location, protects correction drafts and unconfirmed retries, preserves unchanged source timestamps exactly, and retains confirmed-save feedback through reload failure. TypeScript, both bundles, formatting and scoped Ruby lint passed; connected verification remains pending. Edited ambiguous local times still use existing browser interpretation. No tests or deployment ran. [Eleventh checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Workforce manager review recovery:** Source `f260dcb2` retains exact unconfirmed decisions for visible retry at the original location, preserves drafted review reasons when requests leave the queue, and keeps confirmed outcomes visible through reload failures. TypeScript, both bundles, formatting and source/diff review passed. Browser/concurrent-reviewer verification remains pending; no tests or deployment ran. [Tenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
