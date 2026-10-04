@@ -2,7 +2,6 @@ import { lateArrivalMessage } from "./arrivalTiming";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SearchIcon from "@mui/icons-material/Search";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
@@ -23,13 +22,14 @@ import {
   DialogTitle,
   FormControlLabel,
   InputAdornment,
+  Menu,
   MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, ApiError, currentLoginDestination } from "../../api/client";
 import { isDemoFrame } from "../demo/frame";
 import type {
@@ -1244,6 +1244,8 @@ function AppointmentRow({
   onStartVisit: (appointment: FrontDeskAppointment) => Promise<void>;
   onReschedule: (appointment: FrontDeskAppointment) => void;
 }) {
+  const [actionAnchor, setActionAnchor] = useState<HTMLElement | null>(null);
+  const actionMenuId = useId();
   const actions = appointmentActions(appointment);
   const setupMissing = appointmentSetupMissing(appointment);
   const needsSetup = setupMissing.length > 0;
@@ -1258,6 +1260,11 @@ function AppointmentRow({
     ? `${patientPath}/encounters/${appointment.encounter_id}`
     : "";
   const billingPath = `/clinic/billing/patients?patient_id=${appointment.patient_id}`;
+  const hasSecondaryAction =
+    (canReschedule && actions.canReschedule && !needsSetup) ||
+    (canTransition && (actions.canCancel || actions.canMarkNoShow)) ||
+    canBilling ||
+    canReviewReminders;
   const hasVisibleAction =
     (canTransition &&
       ((!needsSetup && actions.canConfirm) ||
@@ -1413,14 +1420,14 @@ function AppointmentRow({
             Open chart
           </Button>
         )}
-        {canReschedule && actions.canReschedule && (
+        {canReschedule && actions.canReschedule && needsSetup && (
           <Button
             size="small"
             color="inherit"
             disabled={anyActionBusy}
             onClick={() => onReschedule(appointment)}
           >
-            {needsSetup ? "Complete setup" : "Reschedule"}
+            Complete setup
           </Button>
         )}
         {canScheduleReplacement && actions.canScheduleReplacement && (
@@ -1435,45 +1442,88 @@ function AppointmentRow({
             Schedule replacement
           </Button>
         )}
-        {canTransition && actions.canCancel && (
+        {hasSecondaryAction && (
           <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            disabled={anyActionBusy}
-            onClick={() => void onTransition(appointment, "cancelled")}
-          >
-            {busyAction === `${appointment.id}:cancelled`
-              ? "Cancelling…"
-              : "Cancel"}
-          </Button>
-        )}
-        {canTransition && actions.canMarkNoShow && (
-          <Button
+            id={`${actionMenuId}-trigger`}
             size="small"
             color="inherit"
-            startIcon={<PersonOffOutlinedIcon />}
-            disabled={anyActionBusy}
-            onClick={() => void onTransition(appointment, "no_show")}
+            endIcon={<ExpandMoreIcon />}
+            aria-label={`More actions for ${patientName}`}
+            aria-haspopup="menu"
+            aria-controls={actionAnchor ? actionMenuId : undefined}
+            aria-expanded={actionAnchor ? true : undefined}
+            onClick={(event) => setActionAnchor(event.currentTarget)}
           >
-            {busyAction === `${appointment.id}:no_show` ? "Saving…" : "No show"}
+            More actions
           </Button>
         )}
-        {canBilling && (
-          <a className="front-desk-inline-link" href={billingPath}>
-            Billing
-          </a>
-        )}
-        {canReviewReminders && (
-          <Button
-            component="a"
-            href={`/clinic/reminders?patient_id=${appointment.patient_id}&appointment_id=${appointment.id}`}
-            size="small"
-            variant="text"
-          >
-            Review reminders
-          </Button>
-        )}
+        <Menu
+          id={actionMenuId}
+          anchorEl={actionAnchor}
+          open={Boolean(actionAnchor)}
+          onClose={() => setActionAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{
+            list: { "aria-labelledby": `${actionMenuId}-trigger` },
+            paper: { sx: { minWidth: 220 } },
+          }}
+        >
+          {canReschedule && actions.canReschedule && !needsSetup && (
+            <MenuItem
+              disabled={anyActionBusy}
+              onClick={() => {
+                setActionAnchor(null);
+                onReschedule(appointment);
+              }}
+            >
+              Reschedule
+            </MenuItem>
+          )}
+          {canBilling && (
+            <MenuItem
+              component="a"
+              href={billingPath}
+              onClick={() => setActionAnchor(null)}
+            >
+              Billing
+            </MenuItem>
+          )}
+          {canReviewReminders && (
+            <MenuItem
+              component="a"
+              href={`/clinic/reminders?patient_id=${appointment.patient_id}&appointment_id=${appointment.id}`}
+              onClick={() => setActionAnchor(null)}
+            >
+              Review reminders
+            </MenuItem>
+          )}
+          {canTransition && actions.canMarkNoShow && (
+            <MenuItem
+              disabled={anyActionBusy}
+              onClick={() => {
+                setActionAnchor(null);
+                void onTransition(appointment, "no_show");
+              }}
+            >
+              {busyAction === `${appointment.id}:no_show` ? "Saving…" : "No show"}
+            </MenuItem>
+          )}
+          {canTransition && actions.canCancel && (
+            <MenuItem
+              sx={{ color: "error.main" }}
+              disabled={anyActionBusy}
+              onClick={() => {
+                setActionAnchor(null);
+                void onTransition(appointment, "cancelled");
+              }}
+            >
+              {busyAction === `${appointment.id}:cancelled`
+                ? "Cancelling…"
+                : "Cancel appointment"}
+            </MenuItem>
+          )}
+        </Menu>
         {!hasVisibleAction && (
           <span className="front-desk-muted">
             No action available for this account and appointment status.
