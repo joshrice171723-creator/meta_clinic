@@ -5,9 +5,9 @@ module Clinic
 
       def index
         scope = KioskEnrollment.where(practice_id: current_practice.id).includes(:site)
-        unless workforce_access.allow?("workforce.settings")
+        if params[:site_id].present? || !workforce_access.allow?("workforce.settings")
           site = current_practice.sites.find(requested_id!(params[:site_id], :site_id))
-          workforce_access.authorize!("workforce.settings", site: site)
+          workforce_access.authorize!("workforce.settings", site: site) unless workforce_access.allow?("workforce.settings")
           scope = scope.where(site_id: site.id)
         end
         render json: { kiosks: scope.order(created_at: :desc).map { |enrollment| ClockSerializer.kiosk(enrollment) } }

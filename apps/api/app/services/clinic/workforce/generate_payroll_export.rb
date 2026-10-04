@@ -52,17 +52,18 @@ module Clinic
           existing = ExportBatch.find_by(practice_id: @practice.id, request_key: @request_key)
           if existing
             raise ArgumentError, "That retry key belongs to a different export" unless existing.payload_digest == payload_digest
-            return existing unless preview
+            return preview ? { rows: existing.rows, totals: existing.totals, source_versions: existing.source_versions,
+              source_digest: existing.source_digest } : existing
           end
-          unless @supersedes
-            already_exported = ExportBatch.where(practice_id: @practice.id, site_id: @configuration.site_id)
-              .pluck(:source_versions).flatten.any? { |source| @ids.include?(source.fetch("id").to_i) }
-            raise ArgumentError, "A selected timecard was already exported. Download its saved file or explicitly correct the previous export." if already_exported
+          previous = @supersedes && ExportBatch.find_by!(practice_id: @practice.id, site_id: @configuration.site_id, id: @supersedes)
+          if previous && ExportBatch.where(practice_id: @practice.id, supersedes_batch_id: previous.id).exists?
+            raise ArgumentError, "This export already has a correction. Correct its latest saved export instead."
           end
           selected = TimecardVersion.where(practice_id: @practice.id, id: @ids)
           Employment.where(practice_id: @practice.id, id: selected.select(:employment_id)).order(:id).lock.load
           cards = selected.order(:id).lock.to_a
           raise ArgumentError, "One or more timecards are unavailable" unless cards.length == @ids.length
+          validate_export_population!(cards, previous)
           rows = cards.flat_map { |card| rows_for(card) }
           raise ArgumentError, "These timecards contain no hours for this location" if rows.empty?
           sources = cards.map { |card| { id: card.id.to_s, employment_id: card.employment_id.to_s, source_digest: card.source_digest } }
@@ -73,7 +74,6 @@ module Clinic
           end
           data = { rows: rows, totals: totals, source_versions: sources, source_digest: Digest::SHA256.hexdigest(content) }
           return data if preview
-          previous = @supersedes && ExportBatch.find_by!(practice_id: @practice.id, site_id: @configuration.site_id, id: @supersedes)
           batch = ExportBatch.create!(**data, practice: @practice, site: @configuration.site, configuration_version: @configuration,
             created_by_membership: @practice.memberships.find_by!(user_id: @actor.id, active: true), request_key: @request_key,
             payload_digest: payload_digest, csv_content: content, supersedes_batch: previous)
@@ -83,6 +83,34 @@ module Clinic
       end
 
       private
+
+      def validate_export_population!(cards, previous)
+        population = cards.map { |card| [ card.employment_id, card.period_start, card.period_end ] }
+        raise ArgumentError, "Select one timecard revision per employee and workweek" unless population.uniq.length == cards.length
+
+        lineage_ids = []
+        if previous
+          original_ids = previous.source_versions.map { |source| source.fetch("id") }
+          original = TimecardVersion.where(practice_id: @practice.id, id: original_ids)
+            .pluck(:employment_id, :period_start, :period_end)
+          unless original.length == original_ids.length && original.sort == population.sort
+            raise ArgumentError, "A correction must cover the same employees and workweeks as the saved export"
+          end
+          ancestor = previous
+          while ancestor
+            lineage_ids << ancestor.id
+            ancestor = ancestor.supersedes_batch
+          end
+        end
+
+        exported_ids = ExportBatch.where(practice_id: @practice.id, site_id: @configuration.site_id)
+          .where.not(id: lineage_ids).pluck(:source_versions).flatten.map { |source| source.fetch("id") }.uniq
+        exported_population = TimecardVersion.where(practice_id: @practice.id, id: exported_ids)
+          .pluck(:employment_id, :period_start, :period_end)
+        if (population & exported_population).any?
+          raise ArgumentError, "A selected employee's workweek was already exported. Download its saved file or explicitly correct the previous export."
+        end
+      end
 
       def rows_for(card)
         raise ArgumentError, "Only approved, resolved timecards can be exported" unless card.status == "approved" && card.unresolved_exceptions.blank?
@@ -102,6 +130,8 @@ module Clinic
             "regular_hours" => hours(segment.fetch("regular_minutes")), "overtime_hours" => hours(segment.fetch("overtime_minutes")),
             "paid_hours" => hours(segment.fetch("paid_minutes"))
           }
+        end.tap do |rows|
+          raise ArgumentError, "A selected timecard contains no hours for this location" if rows.empty?
         end
       end
 

@@ -63,7 +63,9 @@ export function TimecardReviewPage() {
   useEffect(() => {
     if (!siteId || !canRead) return;
     setLoading(true);
+    setLoadedSiteId("");
     setCards([]);
+    setEmployees([]);
     setAdjustments([]);
     setCorrectionCard(null);
     const abort = new AbortController();
@@ -143,7 +145,7 @@ export function TimecardReviewPage() {
   }, [canReview]);
 
   async function calculate() {
-    if (!employmentId || !periodStart) return;
+    if (busy || !currentSource || !employmentId || !periodStart) return;
     setBusy(true);
     setError("");
     setSettingsPath(null);
@@ -285,12 +287,19 @@ export function TimecardReviewPage() {
           {loading && (
             <Typography role="status">Loading timecard attention…</Typography>
           )}
-          {canReview && (
+          {canRead && (
             <TextField
               select
               label="Location"
               value={siteId}
-              onChange={(event) => setSiteId(event.target.value)}
+              disabled={busy}
+              onChange={(event) => {
+                setSiteId(event.target.value);
+                setEmploymentId("");
+                setPeriodStart("");
+                setNotice("");
+                setDecisionReasons({});
+              }}
               sx={{ minWidth: 220 }}
             >
               {clinic.sites.map((site) => (
@@ -449,6 +458,7 @@ export function TimecardReviewPage() {
                 <TextField
                   select
                   label="Employee"
+                  disabled={busy || !currentSource}
                   value={employmentId}
                   onChange={(event) => setEmploymentId(event.target.value)}
                   sx={{ minWidth: 240 }}
@@ -461,6 +471,7 @@ export function TimecardReviewPage() {
                 </TextField>
                 <TextField
                   label="Week starting"
+                  disabled={busy || !currentSource}
                   type="date"
                   value={periodStart}
                   onChange={(event) => setPeriodStart(event.target.value)}
@@ -468,13 +479,15 @@ export function TimecardReviewPage() {
                 />
                 <Button
                   variant="contained"
-                  disabled={busy || !employmentId || !periodStart}
+                  disabled={
+                    busy || !currentSource || !employmentId || !periodStart
+                  }
                   onClick={() => void calculate()}
                 >
                   Calculate
                 </Button>
               </Stack>
-              {!employees.length && (
+              {currentSource && !employees.length && (
                 <Alert
                   severity="info"
                   action={

@@ -79,14 +79,22 @@ module Clinic
           authorize_self_service!(own)
           return [ TimecardVersion.where(practice_id: current_practice.id, employment_id: own.id), nil ]
         end
-        return [ TimecardVersion.where(practice_id: current_practice.id), nil ] if workforce_access.allow?("workforce.timecards.read")
-
-        site = current_practice.sites.find(requested_id!(params[:site_id], :site_id))
-        workforce_access.authorize!("workforce.timecards.read", site: site)
+        practice_reader = workforce_access.allow?("workforce.timecards.read")
         cards = TimecardVersion.where(practice_id: current_practice.id)
-          .joins(:time_segments).where(clinic_workforce_time_segments: { site_id: site.id }).distinct
+        site = current_practice.sites.find(requested_id!(params[:site_id], :site_id)) if params[:site_id].present? || !practice_reader
+        if site
+          workforce_access.authorize!("workforce.timecards.read", site: site)
+          matching_ids = cards.joins(:time_segments).where(clinic_workforce_time_segments: { site_id: site.id }).select(:id)
+          if practice_reader
+            assigned = EmploymentSite.where(practice_id: current_practice.id, site_id: site.id, active: true).select(:employment_id)
+            empty_ids = cards.where(employment_id: assigned).where.missing(:time_segments).select(:id)
+            cards = cards.where(id: matching_ids).or(cards.where(id: empty_ids))
+          else
+            cards = cards.where(id: matching_ids)
+          end
+        end
         cards = cards.where(employment_id: requested_id!(params[:employment_id], :employment_id)) if params[:employment_id].present?
-        [ cards, site.id ]
+        [ cards, practice_reader ? nil : site.id ]
       end
 
       def readable_card

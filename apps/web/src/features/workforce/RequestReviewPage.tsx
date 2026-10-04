@@ -1,47 +1,58 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { api } from "../../api/client";
-import { LoadState } from "../../shared/ui";
+import { LoadState, useResource } from "../../shared/ui";
 import { useClinic } from "../clinic/Workspace";
 import { requestKey, type WorkforceRequest } from "./scheduleTypes";
+import { WorkforceRequestDetails } from "./WorkforceRequestDetails";
 
 export function RequestReviewPage() {
   const { current_site: currentSite } = useClinic();
-  const [requests, setRequests] = useState<WorkforceRequest[]>();
+  const {
+    data,
+    error: loadError,
+    refresh,
+  } = useResource<{ requests: WorkforceRequest[] }>(
+    `/api/clinic/workforce/requests?review=true&site_id=${currentSite?.id ?? ""}`,
+    { enabled: !!currentSite },
+  );
+  const attempts = useRef(new Map<string, string>());
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [busyId, setBusyId] = useState<string>();
-  const load = async () => {
-    if (!currentSite) return;
-    try {
-      const data = await api<{ requests: WorkforceRequest[] }>(
-        `/api/clinic/workforce/requests?review=true&site_id=${currentSite.id}`,
-      );
-      setRequests(data.requests);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to load request review.",
-      );
-    }
-  };
-  useEffect(() => {
-    void load();
-  }, [currentSite?.id]);
   if (!currentSite)
     return (
       <Alert severity="info">
         Select a clinic location to review workforce requests.
       </Alert>
     );
-  if (!requests) return <LoadState error={error} />;
+  if (!data) return <LoadState error={loadError} onRetry={refresh} />;
+  const requests = data.requests;
   const decide = async (
     request: WorkforceRequest,
     decision: "manager_approve" | "manager_deny",
   ) => {
+    if (busyId || request.site_id !== String(currentSite.id)) return;
+    const reason = reasons[request.id]?.trim() || null;
+    const signature = JSON.stringify([
+      request.id,
+      request.revision,
+      decision,
+      reason,
+    ]);
+    const key = attempts.current.get(signature) ?? requestKey(decision);
+    attempts.current.set(signature, key);
     setBusyId(request.id);
     setError(undefined);
     setNotice(undefined);
@@ -52,16 +63,18 @@ export function RequestReviewPage() {
           decision: {
             decision,
             expected_revision: request.revision,
-            idempotency_key: requestKey(decision),
+            reason,
+            idempotency_key: key,
           },
         },
       });
+      attempts.current.delete(signature);
       setNotice(
         decision === "manager_approve"
           ? "Request approved and persisted."
           : "Request denied and persisted.",
       );
-      await load();
+      refresh();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -86,6 +99,9 @@ export function RequestReviewPage() {
       </div>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
+      <Button onClick={refresh} disabled={!!busyId} sx={{ alignSelf: "start" }}>
+        Refresh requests
+      </Button>
       {requests.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography variant="h2">Nothing awaiting review</Typography>
@@ -105,29 +121,39 @@ export function RequestReviewPage() {
                   alignItems: { md: "center" },
                 }}
               >
-                <div>
+                <Stack spacing={1} sx={{ flex: 1 }}>
                   <Stack
                     direction="row"
                     spacing={1}
                     sx={{ alignItems: "center" }}
                   >
-                    <Typography variant="h3">
-                      {request.type.replaceAll("_", " ")}
-                    </Typography>
                     <Chip size="small" label={request.status} />
                   </Stack>
-                  <Typography>{request.reason}</Typography>
-                  {request.type === "shift_swap_request" && (
-                    <Typography color="text.secondary">
-                      Target: {request.target_employee_name}
-                    </Typography>
-                  )}
-                </div>
+                  <WorkforceRequestDetails request={request} />
+                  <TextField
+                    label="Review reason (optional)"
+                    value={reasons[request.id] ?? ""}
+                    onChange={(event) =>
+                      setReasons((current) => ({
+                        ...current,
+                        [request.id]: event.target.value,
+                      }))
+                    }
+                    disabled={!!busyId}
+                    multiline
+                    minRows={2}
+                    slotProps={{ htmlInput: { maxLength: 500 } }}
+                  />
+                </Stack>
                 <Stack direction="row" spacing={1}>
                   <Button
                     color="inherit"
                     startIcon={<CloseIcon />}
-                    disabled={busyId === request.id}
+                    disabled={
+                      !!busyId ||
+                      (request.type === "shift_swap_request" &&
+                        request.status !== "accepted")
+                    }
                     onClick={() => decide(request, "manager_deny")}
                   >
                     Deny
@@ -135,7 +161,11 @@ export function RequestReviewPage() {
                   <Button
                     variant="contained"
                     startIcon={<CheckIcon />}
-                    disabled={busyId === request.id}
+                    disabled={
+                      !!busyId ||
+                      (request.type === "shift_swap_request" &&
+                        request.status !== "accepted")
+                    }
                     onClick={() => decide(request, "manager_approve")}
                   >
                     Approve

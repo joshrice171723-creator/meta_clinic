@@ -11,16 +11,17 @@ module Clinic
           workforce_access.authorize!("workforce.requests.review", site: site)
           requests = REQUEST_CLASSES.flat_map do |klass|
             scope = klass.where(practice_id: current_practice.id, site_id: site.id).where(status: review_states(klass))
-            scope = scope.includes(target_employment: :staff_member) if klass == ShiftSwapRequest
+            scope = request_details(scope, klass)
             scope.to_a
           end
           employment = nil
         else
           employment = workforce_access.own_employment
           raise Clinic::Authorization::Denied unless employment
-          requests = AvailabilityVersion.where(practice_id: current_practice.id, employment_id: employment.id).to_a +
-            TimeOffRequest.where(practice_id: current_practice.id, employment_id: employment.id).to_a +
-            ShiftSwapRequest.where(practice_id: current_practice.id).where("requester_employment_id = :id OR target_employment_id = :id", id: employment.id).includes(target_employment: :staff_member).to_a
+          requests = AvailabilityVersion.where(practice_id: current_practice.id, employment_id: employment.id).includes(:site, employment: :staff_member).to_a +
+            TimeOffRequest.where(practice_id: current_practice.id, employment_id: employment.id).includes(:site, employment: :staff_member).to_a +
+            request_details(ShiftSwapRequest.where(practice_id: current_practice.id)
+              .where("requester_employment_id = :id OR target_employment_id = :id", id: employment.id), ShiftSwapRequest).to_a
         end
         requests.sort_by!(&:created_at).reverse!
         sites = eligible_sites(employment)
@@ -40,6 +41,8 @@ module Clinic
           nested_arrays: { weekly_rules: %i[day_of_week start_time end_time available] })
         payload = input.to_h
         effective_from = date_param!(input[:effective_from], field: :effective_from)
+        effective_until = input[:effective_until].present? ? date_param!(input[:effective_until], field: :effective_until) : nil
+        raise ArgumentError, "Availability end date must be on or after its start date." if effective_until && effective_until < effective_from
         record, created = idempotent_create(AvailabilityVersion, input[:idempotency_key], payload) do |key, digest|
           status = values.fetch("availability_approval_required") == true ? "submitted" : "approved"
           AvailabilityVersion.transaction do
@@ -53,7 +56,7 @@ module Clinic
             AvailabilityVersion.create!(practice: current_practice, site: site, employment: employment,
               created_by_id: current_user.id, status: status, submitted_at: Current.business_time,
               effective_from: effective_from,
-              effective_until: input[:effective_until].present? ? date_param!(input[:effective_until], field: :effective_until) : nil,
+              effective_until: effective_until,
               timezone: required_string!(input[:timezone], field: :timezone, maximum: 80), weekly_rules: input[:weekly_rules].map(&:to_h),
               reason: reason!(input[:reason]), revision: 1, idempotency_key: key, request_digest: digest,
               decided_at: status == "approved" ? Current.business_time : nil)
@@ -182,7 +185,15 @@ module Clinic
       end
 
       def review_states(klass)
-        klass == ShiftSwapRequest ? %w[submitted accepted] : %w[submitted]
+        klass == ShiftSwapRequest ? %w[accepted] : %w[submitted]
+      end
+
+      def request_details(scope, klass)
+        if klass == ShiftSwapRequest
+          scope.includes(:site, :schedule_publication, requester_employment: :staff_member, target_employment: :staff_member)
+        else
+          scope.includes(:site, employment: :staff_member)
+        end
       end
 
       def swap_options(employment, sites)

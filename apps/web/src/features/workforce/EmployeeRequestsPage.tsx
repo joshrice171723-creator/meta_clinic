@@ -1,4 +1,11 @@
-import { useId, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useId,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
@@ -16,7 +23,8 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
-import { LoadState } from "../../shared/ui";
+import { LoadState, useResource } from "../../shared/ui";
+import { WorkforceRequestDetails } from "./WorkforceRequestDetails";
 import {
   displayInterval,
   mondayIso,
@@ -60,12 +68,19 @@ function enabledRequestTab(
 
 export function EmployeeRequestsPage() {
   const fieldId = useId();
-  const [data, setData] = useState<RequestData>();
+  const {
+    data,
+    error: loadError,
+    refresh,
+  } = useResource<RequestData>("/api/clinic/workforce/requests");
+  const attempts = useRef(new Map<string, string>());
   const [tab, setTab] = useState<RequestTab>("time_off");
   const [siteId, setSiteId] = useState("");
   const [reason, setReason] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState(() => mondayIso());
+  const [effectiveUntil, setEffectiveUntil] = useState("");
   const [targetEmploymentId, setTargetEmploymentId] = useState("");
   const [publicationId, setPublicationId] = useState("");
   const [shiftId, setShiftId] = useState("");
@@ -80,18 +95,14 @@ export function EmployeeRequestsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const load = () =>
-    api<RequestData>("/api/clinic/workforce/requests")
-      .then((next) => {
-        setData(next);
-        setSiteId((value) => value || next.sites[0]?.id || "");
-      })
-      .catch((e) =>
-        setError(e instanceof Error ? e.message : "Unable to load requests."),
-      );
   useEffect(() => {
-    void load();
-  }, []);
+    if (data)
+      setSiteId((value) =>
+        data.sites.some((item) => item.id === value)
+          ? value
+          : data.sites[0]?.id || "",
+      );
+  }, [data]);
   const site = useMemo(
     () => data?.sites.find((item) => item.id === siteId),
     [data, siteId],
@@ -112,69 +123,75 @@ export function EmployeeRequestsPage() {
     setTargetEmploymentId("");
     setError(undefined);
   };
-  if (!data) return <LoadState error={error} />;
+  if (!data) return <LoadState error={loadError} onRetry={refresh} />;
   const option = site?.request_options ?? {};
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!site || !canSubmitRequest) return;
+    if (!site || !canSubmitRequest || busy) return;
+    const kind =
+      tab === "time_off"
+        ? "time_off"
+        : tab === "availability"
+          ? "availability"
+          : "shift_swap";
+    const endpoint =
+      tab === "time_off"
+        ? "time-off-requests"
+        : tab === "availability"
+          ? "availability"
+          : "shift-swap-requests";
+    const values = {
+      site_id: site.id,
+      reason,
+      ...(tab === "time_off"
+        ? {
+            local_start: start,
+            local_end: end,
+            start_occurrence: "only",
+            end_occurrence: "only",
+            timezone: site.timezone,
+          }
+        : tab === "availability"
+          ? {
+              effective_from: effectiveFrom,
+              effective_until: effectiveUntil || null,
+              timezone: site.timezone,
+              weekly_rules: rules,
+            }
+          : {
+              schedule_publication_id: publicationId,
+              offered_shift_public_id: shiftId,
+              target_employment_id: targetEmploymentId,
+            }),
+    };
+    const signature = JSON.stringify([endpoint, values]);
+    const key = attempts.current.get(signature) ?? requestKey(tab);
+    attempts.current.set(signature, key);
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
     try {
-      if (tab === "time_off")
-        await api("/api/clinic/workforce/time-off-requests", {
-          method: "POST",
-          body: {
-            time_off: {
-              site_id: site.id,
-              local_start: start,
-              local_end: end,
-              start_occurrence: "only",
-              end_occurrence: "only",
-              timezone: site.timezone,
-              reason,
-              idempotency_key: requestKey("time-off"),
-            },
-          },
-        });
-      if (tab === "availability")
-        await api("/api/clinic/workforce/availability", {
-          method: "POST",
-          body: {
-            availability: {
-              site_id: site.id,
-              effective_from: mondayIso(),
-              timezone: site.timezone,
-              weekly_rules: rules,
-              reason,
-              idempotency_key: requestKey("availability"),
-            },
-          },
-        });
-      if (tab === "swap")
-        await api("/api/clinic/workforce/shift-swap-requests", {
-          method: "POST",
-          body: {
-            shift_swap: {
-              site_id: site.id,
-              schedule_publication_id: publicationId,
-              offered_shift_public_id: shiftId,
-              target_employment_id: targetEmploymentId,
-              reason,
-              idempotency_key: requestKey("swap"),
-            },
-          },
-        });
+      await api(`/api/clinic/workforce/${endpoint}`, {
+        method: "POST",
+        body: { [kind]: { ...values, idempotency_key: key } },
+      });
+      attempts.current.delete(signature);
       setNotice("Request saved.");
       setReason("");
-      await load();
+      refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to save this request.");
+      setError(
+        `${e instanceof Error ? e.message : "Unable to save this request."} Retry with the same details to confirm this request.`,
+      );
     } finally {
       setBusy(false);
     }
   };
   const cancel = async (request: WorkforceRequest) => {
+    if (busy) return;
+    const signature = JSON.stringify([request.id, request.revision, "cancel"]);
+    const key = attempts.current.get(signature) ?? requestKey("cancel");
+    attempts.current.set(signature, key);
     setBusy(true);
     setError(undefined);
     try {
@@ -184,11 +201,12 @@ export function EmployeeRequestsPage() {
           decision: {
             decision: "cancel",
             expected_revision: request.revision,
-            idempotency_key: requestKey("cancel"),
+            idempotency_key: key,
           },
         },
       });
-      await load();
+      attempts.current.delete(signature);
+      refresh();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Unable to cancel this request.",
@@ -201,6 +219,10 @@ export function EmployeeRequestsPage() {
     request: WorkforceRequest,
     decision: "target_accept" | "target_decline",
   ) => {
+    if (busy) return;
+    const signature = JSON.stringify([request.id, request.revision, decision]);
+    const key = attempts.current.get(signature) ?? requestKey(decision);
+    attempts.current.set(signature, key);
     setBusy(true);
     setError(undefined);
     try {
@@ -210,11 +232,12 @@ export function EmployeeRequestsPage() {
           decision: {
             decision,
             expected_revision: request.revision,
-            idempotency_key: requestKey(decision),
+            idempotency_key: key,
           },
         },
       });
-      await load();
+      attempts.current.delete(signature);
+      refresh();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Unable to answer this swap request.",
@@ -250,11 +273,9 @@ export function EmployeeRequestsPage() {
                 sx={{ justifyContent: "space-between" }}
               >
                 <div>
-                  <Typography sx={{ fontWeight: 700 }}>
-                    {request.type.replaceAll("_", " ")}
-                  </Typography>
+                  <WorkforceRequestDetails request={request} />
                   <Typography color="text.secondary">
-                    {request.reason} · {request.status}
+                    Status: {request.status}
                   </Typography>
                 </div>
                 <Stack direction="row" spacing={1}>
@@ -314,6 +335,7 @@ export function EmployeeRequestsPage() {
                 labelId={`${fieldId}-1-label`}
                 label="Location"
                 value={siteId}
+                disabled={busy}
                 onChange={(e) => changeSite(e.target.value)}
               >
                 {data.sites.map((item) => (
@@ -331,17 +353,17 @@ export function EmployeeRequestsPage() {
               <Tab
                 value="time_off"
                 label="Time off"
-                disabled={!option.time_off_enabled}
+                disabled={busy || !option.time_off_enabled}
               />
               <Tab
                 value="availability"
                 label="Availability"
-                disabled={!option.availability_editing_enabled}
+                disabled={busy || !option.availability_editing_enabled}
               />
               <Tab
                 value="swap"
                 label="Shift swap"
-                disabled={!option.shift_swaps_enabled}
+                disabled={busy || !option.shift_swaps_enabled}
               />
             </Tabs>
             {!canSubmitRequest && (
@@ -360,6 +382,7 @@ export function EmployeeRequestsPage() {
                 <TextField
                   required
                   label={`Starts (${site?.timezone})`}
+                  disabled={busy}
                   type="datetime-local"
                   value={start}
                   onChange={(e) => setStart(e.target.value)}
@@ -368,6 +391,7 @@ export function EmployeeRequestsPage() {
                 <TextField
                   required
                   label={`Ends (${site?.timezone})`}
+                  disabled={busy}
                   type="datetime-local"
                   value={end}
                   onChange={(e) => setEnd(e.target.value)}
@@ -377,6 +401,32 @@ export function EmployeeRequestsPage() {
             )}
             {tab === "availability" && (
               <Stack spacing={1}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <TextField
+                    required
+                    type="date"
+                    label="Effective from"
+                    value={effectiveFrom}
+                    onChange={(event) => setEffectiveFrom(event.target.value)}
+                    disabled={busy}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <TextField
+                    type="date"
+                    label="Effective through (optional)"
+                    value={effectiveUntil}
+                    onChange={(event) => setEffectiveUntil(event.target.value)}
+                    disabled={busy}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: { min: effectiveFrom },
+                    }}
+                  />
+                </Stack>
+                <Typography color="text.secondary">
+                  Weekly availability in {site?.timezone}. An end time at or
+                  before the start continues into the next day.
+                </Typography>
                 {rules.map((rule, index) => (
                   <Stack
                     key={rule.day_of_week}
@@ -390,6 +440,7 @@ export function EmployeeRequestsPage() {
                     <Button
                       variant={rule.available ? "contained" : "outlined"}
                       color="inherit"
+                      disabled={busy}
                       onClick={() =>
                         setRules((current) =>
                           current.map((item, i) =>
@@ -405,7 +456,10 @@ export function EmployeeRequestsPage() {
                     <TextField
                       size="small"
                       type="time"
-                      disabled={!rule.available}
+                      disabled={busy || !rule.available}
+                      label={`${dayNames[rule.day_of_week]} start`}
+                      required={rule.available}
+                      slotProps={{ inputLabel: { shrink: true } }}
                       value={rule.start_time}
                       onChange={(e) =>
                         setRules((current) =>
@@ -420,7 +474,10 @@ export function EmployeeRequestsPage() {
                     <TextField
                       size="small"
                       type="time"
-                      disabled={!rule.available}
+                      disabled={busy || !rule.available}
+                      label={`${dayNames[rule.day_of_week]} end`}
+                      required={rule.available}
+                      slotProps={{ inputLabel: { shrink: true } }}
                       value={rule.end_time}
                       onChange={(e) =>
                         setRules((current) =>
@@ -457,6 +514,7 @@ export function EmployeeRequestsPage() {
                   <Select
                     labelId={`${fieldId}-2-label`}
                     label="Published shift"
+                    disabled={busy}
                     value={
                       publicationId && shiftId
                         ? `${publicationId}:${shiftId}`
@@ -489,6 +547,7 @@ export function EmployeeRequestsPage() {
                   <Select
                     labelId={`${fieldId}-3-label`}
                     label="Target employee"
+                    disabled={busy}
                     value={targetEmploymentId}
                     onChange={(e) => setTargetEmploymentId(e.target.value)}
                   >
@@ -506,6 +565,7 @@ export function EmployeeRequestsPage() {
               multiline
               minRows={2}
               label="Reason"
+              disabled={busy}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               slotProps={{ htmlInput: { maxLength: 500 } }}
@@ -519,9 +579,10 @@ export function EmployeeRequestsPage() {
                 busy ||
                 !canSubmitRequest ||
                 !reason.trim() ||
-                (tab === "time_off" && (!start || !end)) ||
+                (tab === "time_off" && (!start || !end || end <= start)) ||
                 (tab === "availability" &&
-                  (rules.every((rule) => !rule.available) ||
+                  (!effectiveFrom ||
+                    (effectiveUntil !== "" && effectiveUntil < effectiveFrom) ||
                     rules.some(
                       (rule) =>
                         rule.available && (!rule.start_time || !rule.end_time),

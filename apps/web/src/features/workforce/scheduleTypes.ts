@@ -75,10 +75,17 @@ export type WorkforceRequest = {
   id: string;
   type: "availability_version" | "time_off_request" | "shift_swap_request";
   site_id: string;
+  site_name?: string;
+  employee_name?: string;
   status: string;
   reason: string;
   revision: number;
   created_at: string;
+  decided_at?: string | null;
+  decision_reason?: string | null;
+  target_reason?: string | null;
+  role_name?: string | null;
+  expires_at?: string | null;
   employment_id?: string;
   requester_employment_id?: string;
   target_employment_id?: string;
