@@ -32,8 +32,19 @@ HIPAA knowledge is owner-reported and presented as engineering judgment, not cer
 
 The existing Lightsail HTTPS nginx server includes `/etc/nginx/snippets/joshua-portfolio.conf`, sourced from `deploy-nginx.conf`. Only `/joshua` and `/joshua/` are added; application proxies, images, credentials, and databases are outside this deployment.
 
-Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, `joshua-rice.png`, and `Joshua_Rice_resume_2026.docx`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
+Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, `joshua-rice.png`, `Joshua_Rice_resume_2026.docx`, `assets/agent-office.png`, and `assets/workflow-coverage.png`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
 
 Before changing nginx, retain its existing site configuration and the previous static symlink target in a timestamped backup under `/var/backups/joshua-portfolio/`. Run `nginx -t` before reloading. On failure, restore the saved configuration/snippet and previous symlink before testing and reloading again. Keep old releases for recovery. Static-only publication does not run application migrations or restart containers.
 
 Verify HTTPS redirects, both HTML pages, styles/scripts/favicon, the Word download hash, missing-file 404 behavior, and `/demo` and `/up`. Confirm the public layout in a browser. Later app deployments must preserve this nginx include and static directory.
+
+
+## AI workflow evidence (2026-10-04)
+
+Joshua approved the AI development section and publication after reviewing the local preview. The copy explains the scoped implementation, QA finding, repair, and retest feedback loop, with Joshua retaining product, architecture, and publication decisions. It does not establish unattended release authority or full application acceptance.
+
+The two images are read-only public browser captures from `https://aimetaclinic.com/qa?view=office` on 2026-10-04. The Office image focuses on the shared floor. The coverage image retains the ledger's 95 passed, 8 failed, and 13 blocked results, historical import date, and unavailable release-impact mapping. Recorded QA is not relabeled as a fresh whole-app pass.
+
+The usage figures are transcribed from Joshua's supplied dashboard screenshot: 24.8B lifetime tokens, 2.3B peak tokens, 12h 35m longest task, and 53-day longest/current streak. The reporting tool, interval, and whether it covers other projects were not supplied. They are labeled an owner-supplied snapshot and are not attributed exclusively to Meta Clinic.
+
+Local preview verification at 1440, 390, and 320 pixels found loaded images, no horizontal overflow, and no page JavaScript errors. A separate visual review accepted the local preview. The mechanical design detector ran in degraded regex mode because optional parser modules were unavailable; this does not establish complete accessibility or contrast acceptance. No application tests or full CI pass were claimed.
