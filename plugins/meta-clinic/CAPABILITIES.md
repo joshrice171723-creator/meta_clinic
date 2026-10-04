@@ -1,6 +1,6 @@
 # Meta Clinic plugin operation coverage
 
-This is a curated catalog of 90 operations (61 reads and 29 deliberate writes) backed by the existing Rails API at integration base `74c5b15abbec`. It exposes practical clinic operations; it does not implement every application function or add backend business logic. Source presence is not runtime, browser, hosted, clinical, legal, or release acceptance.
+This is a curated catalog of 95 operations (66 reads and 29 deliberate writes) backed by the existing Rails API at integration base `74c5b15abbec`. It exposes practical clinic operations; it does not implement every application function or add backend business logic. Source presence is not runtime, browser, hosted, clinical, legal, or release acceptance.
 
 `server/catalog.mjs` exports `OPERATIONS`. Each operation carries its HTTP method, clinic API path, closed JSON Schema, query/body field allowlists, optional body wrapper, existing app link and controller source. IDs remain strings. Money and stock quantities remain exact decimal strings. Integer stock reorder points remain integers. API responses retain their backend ownership and pagination.
 
@@ -14,9 +14,9 @@ Every mutation has `requiresConfirmation: true`, `mutation: true`, `replay: 'nev
 
 ## Practical coverage
 
-- Schedule/front desk: calendar availability, appointment detail, ordinary clinician booking, rescheduling, status transitions, appointment request review, callbacks, room assignment and encounter start.
+- Schedule/front desk: a visual day/week calendar; slot availability and compatibility; clinician/service/policy reads; appointment detail, ordinary clinician booking, rescheduling, status transitions, appointment request review, callbacks, room assignment and encounter start.
 - Patients/chart: registry and identity matching, registration updates, chart and care summary, encounter completion review, observations, vital sign field dictionary, notes, allergies/medications/conditions, lab queue and document metadata.
-- Billing: invoice dashboards and detail, patient ledger, unposted invoice drafts, billing service catalog edits, agreements and subscription catalog.
+- Billing: invoice dashboards and detail, patient ledger, stored patient insurance coverage and preparation history, unposted invoice drafts, billing service catalog edits, agreements and subscription catalog.
 - Inventory: catalog, exceptions, locations, replenishment, purchase order detail, receiving, stock positions/history, recalls and count sessions, count observation and reorder settings.
 - Staff/tasks/messages: staff directory, employment/access projections, workforce schedules/timecards/settings, follow-up queue, conversations, internal messages, acknowledgments and request transitions.
 - Facilities/settings: facility/room/department/visit type lookup, room edits, visit type creation, workforce contract, telehealth configuration and booking policy reads.
@@ -24,17 +24,33 @@ Every mutation has `requiresConfirmation: true`, `mutation: true`, `replay: 'nev
 
 ## Backend conditions to review before writes
 
-Ordinary appointment booking requires patient, site, clinician, visit type and start/end timestamps. Rescheduling requires the current `expected_updated_at` and a request key. The calendar is a projection; booking rechecks availability under backend locks. Cancellation additionally requires `cancellation_message_acknowledged=true`. Registration requires a selected configured location, display name, immutable clinic reference and documented sex or unknown. Updating registration retains the original reference.
+Ordinary appointment booking requires patient, site, clinician, visit type and start/end timestamps. The day/week scheduler reads `booking_clinicians`, `booking_service_offerings`, `site_scheduling_policy`, and `booking_resource_availability` for the selected account and site. Selecting an appointment shows its record; selecting an available slot starts a booking proposal; rescheduling uses the same review/apply path. These reads inform the proposal but do not reserve a slot. The Rails backend rechecks the caller's current permissions, policy and capacity when the write is applied. Rescheduling requires the current `expected_updated_at` and a request key. Cancellation additionally requires `cancellation_message_acknowledged=true`. Registration requires a selected configured location, display name, immutable clinic reference and documented sex or unknown. Updating registration retains the original reference.
 
 Closing a callback as resolved or declined requires a review note with the actual contact outcome. Team/role conversations require a title; direct conversations require exactly two participants including the caller. Use membership IDs returned by the participant API. Staff request transitions obey their current state and resolution policy. Room kind cannot change when appointments are linked.
 
 Invoice lines use either a billing service ID plus its lock version and quantity, or a manual description/unit amount/quantity. Draft updates can retain an invoice line ID and quantity without overriding its catalog/amount fields. Invoice currency, service lock versions and expected record timestamps must come from the current backend record. Catalog edits require current lock versions. Count sessions require a stocked leaf location and eligible assignee; count observations do not approve variances or post stock changes automatically.
 
+## Local panel views and compatibility routes
+
+The UI-only `meta_clinic_panel` tool exposes three read views derived from existing Rails endpoints. Vitals display supported recorded measurement values, units, timestamps, and exact paired blood-pressure components where present; they do not interpret normality or provide a triage engine. Rooms combine room identity/kind with authorized recorded encounter states; no occupancy, cleaning, physical availability, spatial layout, or floor-plan write is inferred. The billing view displays invoices and stored coverage, eligibility, authorization, claim, and reconciliation preparation history. Those entries may be local, manual, or simulated and are not live payer verification, adjudication, remittance, or payment confirmation. Source fields and pagination remain authoritative; missing status remains unknown.
+
+The local broker also adapts these compatibility routes to the same MCP tools, session context, schemas, review tickets, and Rails authorization; they are not a second backend contract:
+
+| Local route | Use |
+| --- | --- |
+| `POST /api/v1/appointments/schedule` | `phase=search` reads the calendar; `phase=prepare` prepares a booking; `phase=commit` applies its reviewed one-use change identifier. |
+| `GET /api/v1/clinic/layout` | Returns the rooms/recorded-encounters panel view, not a physical floor plan. |
+| `GET /api/v1/patients/{id}/telemetry` | Returns the patient's recorded-vitals panel view; `id` is an existing positive numeric clinic ID. |
+| `POST /api/v1/billing/claims/status` | Returns invoice and stored insurance-history views; this does not contact a payer. |
+| `GET /openapi.json` | Generated local description of the supported compatibility routes. |
+
+The four `/api/v1` data routes are loopback-only and require the local signed-in panel or broker connection; the browser request marker is only a same-origin guard, not a user credential. `/openapi.json` publishes the local route contract but does not provide data access. These routes do not enable public hosting or remote customer authentication. Local synthetic data and the existing Rails implementation are the source of truth; the panel adapts those contracts without an independent triage engine, room-layout writer, or insurer integration.
+
 ## Deliberately omitted
 
 Destructive demo resets, merges/deletions, credential/access grants or revocations, clinical note signing/corrections, prescriptions and medication administration, clinical diagnosis/order authoring, complex chart and intake revisions, invoice posting/credits/write-offs/payments/refunds, cash drawer reconciliation, procurement checkout/provider submission, inventory stock movement/recall disposition/variance approval, external messages/reminder dispatch, upload/download transport, workforce publication/payroll exports, and telehealth provider room/join tokens are outside this catalog. Specialized workflows remain available in the full clinic application subject to its existing permission and authority checks. Some additional read filters are intentionally omitted rather than accepting arbitrary input.
 
-Session login, logout, development account selection, and practice switching are connection concerns outside the clinic operation catalog. Existing sources are `apps/api/app/controllers/identity/api/sessions_controller.rb`, `identity/api/development_access_controller.rb`, `clinic/context_controller.rb`, `apps/api/config/routes.rb`, and `apps/web/src/api/client.ts`. Development profiles come from `/api/csrf`'s `development_accounts`; do not invent profile IDs. `/api/development_session` accepts the chosen profile/portal and optional practice/site. `/api/development_access` is Omni only and requires `expected_user_id`. A context practice switch clears the selected site.
+Session login, logout, development account selection, and practice switching are connection concerns outside the clinic operation catalog. Sign in with an individual clinic account on the local browser `/sign-in` page; enter passwords there, never in chat. The plugin runtime and open panels/chats on the same local OS installation share one account session. Other local OS installations have separate sessions; this does not create shared hosted customer authentication. Remote customer authentication, public hosting and customer deployment readiness remain pending. Existing sources are `apps/api/app/controllers/identity/api/sessions_controller.rb`, `identity/api/development_access_controller.rb`, `clinic/context_controller.rb`, `apps/api/config/routes.rb`, and `apps/web/src/api/client.ts`. The development account picker is disabled by default and is exposed only when the plugin runtime has `META_CLINIC_ENABLE_DEVELOPMENT_ACCOUNTS=1`. Development profiles come from `/api/csrf`'s `development_accounts`; do not invent profile IDs. `/api/development_session` accepts the chosen profile/portal and optional practice/site. `/api/development_access` is Omni only and requires `expected_user_id`. A context practice switch clears the selected site.
 
 ## Source inventory
 
@@ -50,6 +66,10 @@ All paths below are declared in [`apps/api/config/routes.rb`](../../../apps/api/
 | `reschedule_appointment` | Schedule | `PATCH /api/clinic/appointments/:id` | [scheduling/appointments](../../../apps/api/app/controllers/clinic/scheduling/appointments_controller.rb) |
 | `transition_appointment` | Schedule | `POST /api/clinic/appointments/:id/transition` | [scheduling/appointments](../../../apps/api/app/controllers/clinic/scheduling/appointments_controller.rb) |
 | `schedule_calendar` | Schedule | `GET /api/clinic/schedule_calendar` | [scheduling/calendar](../../../apps/api/app/controllers/clinic/scheduling/calendar_controller.rb) |
+| `booking_clinicians` | Schedule | `GET /api/clinic/clinicians` | [clinicians](../../../apps/api/app/controllers/clinic/clinicians_controller.rb) |
+| `booking_service_offerings` | Schedule | `GET /api/clinic/service_offerings` | [service_offerings](../../../apps/api/app/controllers/clinic/service_offerings_controller.rb) |
+| `site_scheduling_policy` | Schedule | `GET /api/clinic/facilities/:site_id/scheduling_policy` | [scheduling/site_policies](../../../apps/api/app/controllers/clinic/scheduling/site_policies_controller.rb) |
+| `booking_resource_availability` | Schedule | `GET /api/clinic/facilities/:site_id/resource_compatibility/services/:offering_id/availability` | [scheduling/resource_compatibilities](../../../apps/api/app/controllers/clinic/scheduling/resource_compatibilities_controller.rb) |
 | `tracking_board` | Schedule | `GET /api/clinic/tracking_board` | [scheduling/tracking_board](../../../apps/api/app/controllers/clinic/scheduling/tracking_board_controller.rb) |
 | `appointment_requests` | Schedule | `GET /api/clinic/appointment_requests` | [operations/appointment_requests](../../../apps/api/app/controllers/clinic/operations/appointment_requests_controller.rb) |
 | `approve_appointment_request` | Schedule | `POST /api/clinic/appointment_requests/:id/approve` | [operations/appointment_requests](../../../apps/api/app/controllers/clinic/operations/appointment_requests_controller.rb) |
@@ -79,6 +99,7 @@ All paths below are declared in [`apps/api/config/routes.rb`](../../../apps/api/
 | `income_outlook` | Billing | `GET /api/clinic/billing/income_outlook` | [billing/dashboard](../../../apps/api/app/controllers/clinic/billing/dashboard_controller.rb) |
 | `patient_billing_ledger` | Billing | `GET /api/clinic/patients/:id/billing_ledger` | [billing/patient_ledgers](../../../apps/api/app/controllers/clinic/billing/patient_ledgers_controller.rb) |
 | `patient_invoices` | Billing | `GET /api/clinic/patients/:patient_id/invoices` | [billing/invoices](../../../apps/api/app/controllers/clinic/billing/invoices_controller.rb) |
+| `patient_insurance` | Billing | `GET /api/clinic/patients/:patient_id/insurance` | [billing/insurance_preparations](../../../apps/api/app/controllers/clinic/billing/insurance_preparations_controller.rb) |
 | `get_invoice` | Billing | `GET /api/clinic/invoices/:id` | [billing/invoices](../../../apps/api/app/controllers/clinic/billing/invoices_controller.rb) |
 | `draft_invoice` | Billing | `POST /api/clinic/patients/:patient_id/invoices` | [billing/invoices](../../../apps/api/app/controllers/clinic/billing/invoices_controller.rb) |
 | `update_draft_invoice` | Billing | `PATCH /api/clinic/invoices/:id/draft` | [billing/invoices](../../../apps/api/app/controllers/clinic/billing/invoices_controller.rb) |

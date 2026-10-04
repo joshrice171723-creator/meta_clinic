@@ -2,17 +2,26 @@ import { randomUUID } from 'node:crypto';
 import Ajv from 'ajv';
 import { ClinicClient } from './client.mjs';
 import { OPERATIONS } from './catalog.mjs';
+import { loadPanel, PANEL_SCHEMAS } from './panels.mjs';
 
 const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
 const validators = new Map(OPERATIONS.map(op => [op.id, ajv.compile(op.inputSchema)]));
+const panelValidators = new Map(Object.entries(PANEL_SCHEMAS).map(([view, schema]) => [view, ajv.compile(schema)]));
 const operations = new Map(OPERATIONS.map(op => [op.id, op]));
 const client = new ClinicClient();
 const pending = new Map();
 const receipts = [];
 let queue = Promise.resolve();
 const result = data => ({ content: [{ type: 'text', text: data.saved ? 'Meta Clinic confirmed the saved change.' : data.change_id ? 'Change prepared for review; no record has been saved.' : data.operation ? `Loaded ${data.operation} from Meta Clinic.` : 'Meta Clinic workspace information loaded.' }], structuredContent: data });
-const fail = error => ({ isError: true, content: [{ type: 'text', text: error.message || 'The action could not be completed.' }], structuredContent: { error: error.message, code: error.code, status: error.status } });
+const fail = error => ({ isError: true, content: [{ type: 'text', text: error.message || 'The action could not be completed.' }], structuredContent: { error: error.message, code: error.code, status: error.status, connection: client.snapshot(), context: client.context } });
 const summary = op => `${op.title} in ${client.context?.practice?.name || 'the selected clinic'}`;
+
+function assertContext(expected) {
+  if (!expected) return;
+  const actual = { actor_id: client.context?.user_id, practice_id: client.context?.practice?.id, site_id: client.context?.current_site?.id ?? null, authorization_generation: client.context?.authorization_generation ?? null };
+  if (Object.keys(actual).some(key => String(actual[key] ?? '') !== String(expected[key] ?? '')))
+    throw new Error('The signed-in account, clinic, location or permissions changed. Refresh the workspace before continuing.');
+}
 
 function getOperation(id, args, mutation) {
   const op = operations.get(id);
@@ -40,7 +49,7 @@ async function snapshot(port) {
   let error;
   try { await client.configure(); if (client.user) await client.refreshContext(); } catch (e) { error = e.message; }
   return {
-    connection: { ...client.snapshot(), ...(error ? { connected: false, error } : {}), tutorialUrl: `http://127.0.0.1:${port}/tutorial.html` },
+    connection: { ...client.snapshot(), ...(error ? { connected: false, error } : {}), loginUrl: `http://127.0.0.1:${port}/sign-in`, tutorialUrl: `http://127.0.0.1:${port}/tutorial.html` },
     profiles: client.profiles(), context: client.context,
     operations: OPERATIONS, recent_changes: receipts.slice(-15).reverse(),
   };
@@ -57,12 +66,33 @@ async function execute(name, args, port) {
     case 'meta_clinic_catalog': return result({ operations: OPERATIONS.filter(op => (!args.domain || op.domain === args.domain) && (!args.search || `${op.id} ${op.title} ${op.description} ${op.domain}`.toLowerCase().includes(args.search.toLowerCase()))) });
     case 'meta_clinic_connection':
       pending.clear();
+      receipts.length = 0;
       await client.connect(args);
       return result(await snapshot(port));
+    case 'meta_clinic_panel': {
+      if (!client.user) throw new Error('Sign in to Meta Clinic before opening clinical views.');
+      const validate = panelValidators.get(args.view);
+      if (!validate || !validate(args.arguments || {})) throw new Error('Choose a clinical view and valid patient/location and paging fields.');
+      await client.refreshContext();
+      assertContext(args.expected_context);
+      const data = await loadPanel(args.view, args.arguments || {}, async (id, input) => {
+        const op = getOperation(id, input, false);
+        const request = requestFor(op, input);
+        return client.request(request.path, request.options);
+      });
+      // Deliberate projection: measurements and patient details hydrate the panel,
+      // while the model receives only the panel's administrative summary.
+      return {
+        content: [{ type: 'text', text: 'Meta Clinic loaded the requested clinical view.' }],
+        structuredContent: { summary: data.summary },
+        _meta: { panel: data.panel, arguments: args.arguments || {}, connection: client.snapshot(), context: client.context },
+      };
+    }
     case 'meta_clinic_read': {
       const op = getOperation(args.operation, args.arguments || {}, false);
       if (!client.user) throw new Error('Open Meta Clinic and select a clinic account first.');
       await client.refreshContext();
+      assertContext(args.expected_context);
       const request = requestFor(op, args.arguments || {});
       const data = await client.request(request.path, request.options);
       return result({ operation: op.id, data, connection: client.snapshot(), context: client.context, refreshed_at: new Date().toISOString() });
@@ -71,6 +101,7 @@ async function execute(name, args, port) {
       const op = getOperation(args.operation, args.arguments || {}, true);
       if (!client.user) throw new Error('Open Meta Clinic and select a clinic account first.');
       await client.refreshContext();
+      assertContext(args.expected_context);
       requestFor(op, args.arguments || {});
       if (pending.size >= 30) throw new Error('Too many pending changes. Complete or discard an existing change.');
       const id = randomUUID(); const expires = Date.now() + 5 * 60 * 1000;
@@ -105,5 +136,16 @@ async function execute(name, args, port) {
 export function callTool(name, args = {}, port = 3320) {
   const run = queue.then(() => execute(name, args, port)).catch(fail);
   queue = run.then(() => undefined);
+  return run;
+}
+
+// Only the same-origin browser login route may supply credentials. Never an MCP tool.
+export function signIn(credentials) {
+  const run = queue.then(async () => {
+    pending.clear(); receipts.length = 0;
+    await client.signIn(credentials);
+    return { connection: client.snapshot() };
+  });
+  queue = run.catch(() => undefined);
   return run;
 }

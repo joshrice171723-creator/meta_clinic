@@ -1,0 +1,34 @@
+.clinical-view { min-width: 0; }
+.clinical-view-heading { justify-content: space-between; }
+.clinical-picker,
+.clinical-chart,
+.clinical-history,
+.clinical-room-card,
+.clinical-empty { background: var(--clinic-surface, #fff) !important; border-color: var(--clinic-border, #ccd8d1) !important; }
+.clinical-picker { padding: 18px; }
+.clinical-chart { min-width: 0; padding: 16px; }
+.clinical-chart-grid-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.clinical-chart-svg { display: block; min-width: 520px; width: 100%; height: auto; }
+.clinical-chart-grid { stroke: var(--clinic-border, #ccd8d1); stroke-width: 1; }
+.clinical-chart-axis { fill: var(--clinic-muted, #52655e); font-size: 11px; }
+.clinical-history { min-width: 0; overflow: hidden; }
+.clinical-history .MuiTableCell-root { white-space: nowrap; }
+.clinical-gap-list { margin: 0; padding-left: 20px; }
+.clinical-room-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.clinical-room-card { min-width: 0; padding: 16px; }
+.clinical-room-facts { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(0, 1fr); gap: 8px 12px; margin: 0; }
+.clinical-room-facts dt { color: var(--clinic-muted, #52655e); }
+.clinical-room-facts dd { margin: 0; overflow-wrap: anywhere; }
+.clinical-visit-row { padding: 10px 0 0; border-top: 1px solid var(--clinic-border, #ccd8d1); }
+.clinical-visit-row:first-of-type { border-top: 0; }
+.clinical-empty { padding: 28px 20px; }
+@media (max-width: 1050px) {
+  .clinical-chart-grid-layout { grid-template-columns: minmax(0, 1fr); }
+  .clinical-room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px) {
+  .clinical-picker { padding: 14px; }
+  .clinical-chart { padding: 12px; }
+  .clinical-room-grid { grid-template-columns: minmax(0, 1fr); }
+  .clinical-history .MuiTableCell-root { padding: 8px; }
+}

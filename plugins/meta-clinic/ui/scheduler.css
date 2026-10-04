@@ -1,0 +1,50 @@
+.scheduler { min-width: 0; }
+.scheduler-toolbar { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
+.scheduler-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.scheduler-filters { padding: 20px; border-bottom: 1px solid var(--clinic-border); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.scheduler-calendar { background: var(--clinic-surface); border: 1px solid var(--clinic-border); border-radius: 8px; overflow: hidden; }
+.scheduler-scroll { overflow: auto; max-height: 75vh; overscroll-behavior: contain; }
+.scheduler-grid { display: grid; grid-template-columns: 74px repeat(var(--lane-count), minmax(160px, 1fr)); min-width: calc(74px + var(--lane-count) * 160px); }
+.scheduler-column-title { position: sticky; top: 0; z-index: 5; background: var(--clinic-surface); padding: 16px 10px; border-bottom: 1px solid var(--clinic-border); border-right: 1px solid var(--clinic-border); min-height: 76px; }
+.scheduler-time-title { left: 0; z-index: 7; }
+.scheduler-time-axis { position: sticky; left: 0; background: var(--clinic-surface); z-index: 4; border-right: 1px solid var(--clinic-border); }
+.scheduler-time-label { position: absolute; left: 0; right: 0; padding: 0 10px; color: var(--clinic-muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; transform: translateY(-8px); }
+.scheduler-time-label:first-child { transform: translateY(2px); }
+.scheduler-lane { position: relative; min-width: 0; border-right: 1px solid var(--clinic-border); background: repeating-linear-gradient(to bottom, transparent 0, transparent 39px, var(--clinic-border) 40px, transparent 41px, transparent 79px, var(--clinic-border) 80px); }
+.scheduler-event.MuiButtonBase-root { position: absolute; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; text-align: left; min-height: 30px; overflow: hidden; border: 1px solid var(--clinic-border); border-left: 3px solid var(--clinic-accent); background: var(--clinic-soft); border-radius: 5px; padding: 6px 8px; gap: 2px; z-index: 2; color: var(--clinic-text); font-size: 14px; line-height: 1.35; }
+.scheduler-event.MuiButtonBase-root:hover { border-color: var(--clinic-accent); }
+.scheduler-event.Mui-focusVisible { outline: 2px solid var(--clinic-accent); outline-offset: 2px; z-index: 6; }
+.scheduler-event-title { font-weight: 650; overflow-wrap: anywhere; }
+.scheduler-event-time { font-variant-numeric: tabular-nums; }
+.scheduler-event-status { font-size: 14px; }
+.scheduler-event.cancelled { background: var(--clinic-surface); border-left-color: var(--clinic-muted); }
+.scheduler-event.conflict { border-left-color: #8a4b12; }
+.scheduler-slot.MuiButtonBase-root { position: absolute; display: block; text-align: left; min-height: 28px; padding: 3px 5px; overflow: hidden; border: 1px dashed var(--clinic-accent); border-radius: 4px; color: var(--clinic-accent); background: var(--clinic-surface); font-size: 14px; line-height: 1.3; z-index: 1; }
+.scheduler-slot.MuiButtonBase-root:hover, .scheduler-slot.Mui-focusVisible { background: var(--clinic-soft); outline: 2px solid var(--clinic-accent); outline-offset: 1px; z-index: 6; }
+.scheduler-hold { position: absolute; border: 1px dashed var(--clinic-muted); background: var(--clinic-surface); color: var(--clinic-muted); border-radius: 4px; padding: 5px 7px; font-size: 12px; overflow: hidden; line-height: 1.35; }
+.scheduler-day-unavailable { padding: 16px 12px; font-size: 14px; color: var(--clinic-muted); }
+.scheduler-calendar-footer { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 16px 20px; border-top: 1px solid var(--clinic-border); font-size: 14px; color: var(--clinic-muted); }
+.scheduler-drawer-content { padding: 24px; width: min(580px, 100vw); }
+.scheduler-details { display: grid; grid-template-columns: 130px minmax(0, 1fr); margin: 0; }
+.scheduler-details dt, .scheduler-details dd { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--clinic-border); overflow-wrap: anywhere; }
+.scheduler-details dt { color: var(--clinic-muted); font-size: 14px; padding-right: 16px; }
+.scheduler-details dd { white-space: pre-wrap; }
+.scheduler-slot-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.scheduler-slot-choice.MuiButtonBase-root { display: block; text-align: left; padding: 16px; border: 1px solid var(--clinic-border); border-radius: 6px; }
+.scheduler-slot-choice.MuiButtonBase-root:hover, .scheduler-slot-choice.Mui-focusVisible { background: var(--clinic-soft); border-color: var(--clinic-accent); }
+.scheduler-booking-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; }
+.scheduler-booking-wide { grid-column: 1 / -1; }
+.scheduler-agenda { padding: 20px; border-top: 1px solid var(--clinic-border); }
+.scheduler-agenda-row { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--clinic-border); }
+.scheduler-agenda-row:last-child { border-bottom: 0; }
+.scheduler-picker-intro { margin: 0 0 20px; }
+@media (max-width: 760px) {
+  .scheduler-filters { padding: 16px; }
+  .scheduler-slot-list, .scheduler-booking-fields { grid-template-columns: 1fr; }
+  .scheduler-drawer-content { padding: 20px; }
+  .scheduler-controls .MuiTextField-root { flex-grow: 1; }
+}
+
+/* Keep identity and time readable in short calendar intervals. Details stay in the drawer. */
+.scheduler-event.MuiButtonBase-root { padding: 3px 5px; gap: 0; font-size: 12px; line-height: 15px; }
+.scheduler-event-title, .scheduler-event-time { width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }

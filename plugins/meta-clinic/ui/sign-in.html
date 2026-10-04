@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <title>Sign in · Meta Clinic</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #163830; background: #f0f5f2; color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    main { width: min(100%, 420px); background: #fff; border: 1px solid #d4e1da; border-radius: 18px; padding: 32px; box-shadow: 0 12px 40px #1638300a; }
+    .brand { margin: 0 0 24px; font-size: 14px; font-weight: 750; letter-spacing: .06em; }
+    h1 { font-size: 28px; line-height: 1.2; margin: 0 0 12px; }
+    p { line-height: 1.5; }
+    .intro { color: #50655c; margin: 0 0 28px; }
+    label { display: block; font-size: 14px; font-weight: 650; margin: 18px 0 7px; }
+    input { width: 100%; padding: 12px; border: 1px solid #a8bbb0; border-radius: 8px; font: inherit; color: inherit; background: #fff; }
+    input:focus-visible, button:focus-visible { outline: 3px solid #86c9ab; outline-offset: 3px; }
+    button { width: 100%; margin-top: 24px; padding: 12px; border: 0; border-radius: 8px; color: #fff; background: #17664b; font: inherit; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    .status { margin: 18px 0 0; min-height: 24px; font-size: 14px; overflow-wrap: anywhere; }
+    .status[data-kind="error"] { color: #9b3029; }
+    .status[data-kind="success"] { color: #17664b; }
+    .footnote { color: #50655c; font-size: 12px; margin: 24px 0 0; }
+    @media (prefers-color-scheme: dark) {
+      :root { color: #e2ede7; background: #10251e; color-scheme: dark; }
+      main { background: #18352a; border-color: #385a4a; }
+      input { background: #102a20; border-color: #769386; }
+      .intro, .footnote { color: #b3c6bc; }
+      button { background: #b5e8cd; color: #17362b; }
+      .status[data-kind="error"] { color: #ffb5ac; }
+      .status[data-kind="success"] { color: #b5e8cd; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">META CLINIC</p>
+    <h1>Sign in to your clinic</h1>
+    <p class="intro">Use your individual clinic account to connect the Meta Clinic panel in Codex.</p>
+    <form id="sign-in">
+      <label for="email">Email address</label>
+      <input id="email" name="email_address" type="email" autocomplete="username" maxlength="254" autocapitalize="none" spellcheck="false" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button id="submit" type="submit">Sign in</button>
+    </form>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <p id="return" hidden><a href="/">Open clinic workspace</a></p>
+    <p class="footnote">This connects to the local Meta Clinic runtime. The form sends your credentials directly to the local connection service.</p>
+  </main>
+  <script>
+    const form = document.getElementById('sign-in');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const button = document.getElementById('submit');
+    const status = document.getElementById('status');
+    let submitting = false;
+    const showStatus = (message, kind) => {
+      status.textContent = message;
+      status.dataset.kind = kind;
+    };
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (submitting || !form.reportValidity()) return;
+      if (location.protocol !== 'http:' || location.hostname !== '127.0.0.1') {
+        passwordInput.value = '';
+        showStatus('Open this sign-in page from the local Meta Clinic panel.', 'error');
+        return;
+      }
+      submitting = true;
+      button.disabled = true;
+      button.textContent = 'Signing in…';
+      emailInput.disabled = true;
+      passwordInput.disabled = true;
+      showStatus('Connecting your clinic account…', 'progress');
+      let credentials = { email_address: emailInput.value, password: passwordInput.value };
+      try {
+        const response = await fetch('/auth/sign-in', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+          headers: { 'Content-Type': 'application/json', 'X-Meta-Clinic-UI': '1' },
+          body: JSON.stringify(credentials),
+        });
+        credentials = undefined;
+        passwordInput.value = '';
+        const data = await response.json().catch(() => null);
+        if (!response.ok || data?.isError || data?.error || data?.structuredContent?.error) {
+          const message = data?.error || data?.structuredContent?.error;
+          throw new Error(typeof message === 'string' ? message : `Sign-in failed (HTTP ${response.status}). Check the local runtime and try again.`);
+        }
+        if (data?.connected !== true && data?.connection?.connected !== true && data?.structuredContent?.connection?.connected !== true)
+          throw new Error('The clinic connection could not be confirmed. Return to the panel to check its status.');
+        form.hidden = true;
+        document.getElementById('return').hidden = false;
+        showStatus('Connected. Return to Meta Clinic in Codex, or open the clinic workspace here.', 'success');
+      } catch (error) {
+        showStatus(error instanceof Error ? error.message : 'Sign-in could not be confirmed. Check the local runtime and try again.', 'error');
+      } finally {
+        credentials = undefined;
+        passwordInput.value = '';
+        submitting = false;
+        emailInput.disabled = false;
+        passwordInput.disabled = false;
+        button.disabled = false;
+        button.textContent = 'Sign in';
+        if (!form.hidden) passwordInput.focus();
+      }
+    });
+    window.addEventListener('pagehide', () => { passwordInput.value = ''; });
+  </script>
+</body>
+</html>
