@@ -93,6 +93,7 @@ export type WorkforceSettingsData = {
   scope: { kind: "practice" | "site"; site_id: number | null };
   current_version: WorkforceSettingsVersion | null;
   latest_revision: number;
+  scheduled_versions?: WorkforceSettingsVersion[];
   effective_settings: EffectiveWorkforceSettings | null;
   sites: WorkforceSite[];
   setting_contract: {
