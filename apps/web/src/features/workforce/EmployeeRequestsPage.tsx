@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { ApiError, api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
+import { formatDisplayDateTime } from "../../shared/dateTime";
 import { WorkforceRequestDetails } from "./WorkforceRequestDetails";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
 import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
@@ -76,6 +77,8 @@ export function EmployeeRequestsPage() {
     refresh,
   } = useResource<RequestData>("/api/clinic/workforce/requests");
   const [tab, setTab] = useState<RequestTab>("time_off");
+  const [historyType, setHistoryType] = useState("all");
+  const [historyStatus, setHistoryStatus] = useState("all");
   const [siteId, setSiteId] = useState("");
   const [reason, setReason] = useState("");
   const [start, setStart] = useState("");
@@ -174,7 +177,8 @@ export function EmployeeRequestsPage() {
         reason instanceof ApiError &&
         reason.status >= 400 &&
         reason.status < 500 &&
-        ![408, 429].includes(reason.status);
+        ![408, 429].includes(reason.status) &&
+        !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
       if (rejected && !recovering) setPendingAttempt(null);
       setError(
         `${reason instanceof Error ? reason.message : "Unable to confirm this request action."} ${rejected && !recovering ? "Review the request details before trying again." : "Use Retry saved action to confirm the original request."}`,
@@ -251,6 +255,19 @@ export function EmployeeRequestsPage() {
       </Stack>
     );
   const option = site?.request_options ?? {};
+  const visibleRequests = data.requests.filter(
+    (request) =>
+      (historyType === "all" || request.type === historyType) &&
+      (historyStatus === "all" ||
+        (historyStatus === "needs_response"
+          ? request.can_target_decide
+          : request.status === historyStatus)),
+  );
+  const historyStatuses = [
+    ...new Set(data.requests.map((request) => request.status)),
+  ];
+  if (!["all", "needs_response", ...historyStatuses].includes(historyStatus))
+    historyStatuses.push(historyStatus);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!site || !canSubmitRequest || controlsLocked) return;
@@ -355,8 +372,57 @@ export function EmployeeRequestsPage() {
         <Typography variant="h2" sx={{ mb: 2 }}>
           Request history
         </Typography>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          sx={{ mb: 2, gap: 2, flexWrap: "wrap" }}
+        >
+          <TextField
+            select
+            label="Request type"
+            value={historyType}
+            onChange={(event) => setHistoryType(event.target.value)}
+            sx={{ minWidth: 190 }}
+          >
+            <MenuItem value="all">All request types</MenuItem>
+            <MenuItem value="time_off_request">Time off</MenuItem>
+            <MenuItem value="availability_version">
+              Availability change
+            </MenuItem>
+            <MenuItem value="shift_swap_request">Shift swap</MenuItem>
+          </TextField>
+          <TextField
+            select
+            label="Request status"
+            value={historyStatus}
+            onChange={(event) => setHistoryStatus(event.target.value)}
+            sx={{ minWidth: 210 }}
+          >
+            <MenuItem value="all">All statuses</MenuItem>
+            <MenuItem value="needs_response">Needs your response</MenuItem>
+            {historyStatuses.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status.replaceAll("_", " ")}
+              </MenuItem>
+            ))}
+          </TextField>
+          {(historyType !== "all" || historyStatus !== "all") && (
+            <Button
+              onClick={() => {
+                setHistoryType("all");
+                setHistoryStatus("all");
+              }}
+            >
+              Clear history filters
+            </Button>
+          )}
+        </Stack>
+        <Typography role="status" color="text.secondary" sx={{ mb: 2 }}>
+          Showing {visibleRequests.length} of {data.requests.length} requests ·{" "}
+          {data.requests.filter((request) => request.can_target_decide).length}{" "}
+          need your response.
+        </Typography>
         <Stack spacing={1}>
-          {data.requests.map((request) => (
+          {visibleRequests.map((request) => (
             <Paper variant="outlined" sx={{ p: 1.5 }} key={request.id}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
@@ -366,7 +432,31 @@ export function EmployeeRequestsPage() {
                 <div>
                   <WorkforceRequestDetails request={request} />
                   <Typography color="text.secondary">
-                    Status: {request.status}
+                    Status: {request.status.replaceAll("_", " ")}
+                  </Typography>
+                  {request.type === "shift_swap_request" && (
+                    <Typography variant="body2">
+                      {request.status === "submitted"
+                        ? "Awaiting the replacement employee's response."
+                        : request.status === "accepted"
+                          ? "The replacement employee accepted. Manager approval is still required; this swap has not changed the schedule."
+                          : request.status === "approved"
+                            ? "The updated schedule has been published."
+                            : request.status === "declined"
+                              ? "The replacement employee declined."
+                              : request.status === "denied"
+                                ? "The manager denied this swap."
+                                : ""}
+                    </Typography>
+                  )}
+                  <Typography variant="body2" color="text.secondary">
+                    Created{" "}
+                    {formatDisplayDateTime(request.created_at, {
+                      timeZone: request.timezone,
+                    })}
+                    {request.decided_at
+                      ? ` · Decided ${formatDisplayDateTime(request.decided_at, { timeZone: request.timezone })}`
+                      : ""}
                   </Typography>
                 </div>
                 <Stack direction="row" spacing={1}>
@@ -404,6 +494,11 @@ export function EmployeeRequestsPage() {
           {data.requests.length === 0 && (
             <Typography color="text.secondary">
               No requests have been submitted.
+            </Typography>
+          )}
+          {data.requests.length > 0 && visibleRequests.length === 0 && (
+            <Typography color="text.secondary">
+              No requests match these history filters.
             </Typography>
           )}
         </Stack>
