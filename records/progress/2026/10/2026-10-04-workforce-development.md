@@ -144,3 +144,15 @@ Source commit: `bf952238`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed; the existing marketing import warning remains. All four changed Ruby files passed scoped RuboCop, both changed frontend files passed Prettier, and source/diff review plus `git diff --check` passed. No tests or executable timezone examples were added/run. Daylight-saving persistence, browser input behavior and template reuse remain unverified in a connected runtime. No deployment or shared runtime changes occurred.
 
 The eighth checkpoint's concrete repeated-hour source limitation is addressed, with runtime acceptance still pending. Continuation remains active until 15:39 UTC; proceed to another bounded workforce journey rather than repeating this verification.
+
+## Tenth implementation checkpoint
+
+Source commit: `f260dcb2`, pushed after synchronization with `origin/main` (already current).
+
+- Manager request decisions retain their original request, revision, reason and retry key after an unknown response. An explicit retry panel shows the decision and request context, blocks conflicting edits/actions, requires the original selected location and preserves uncertainty if recovery is rejected. Explicitly stopping recovery warns that the decision may already have saved.
+- Review reasons remain in memory through refresh and location changes, with navigation warnings before page closure. If another reviewer removes a request from the queue, its unsaved reason stays visible for copying or explicit discard at that location. Successful decisions clear only their own reason.
+- Confirmed success and recovery messages remain visible during failed or pending queue reloads, including when no location is selected.
+
+Verification: TypeScript and both Vite bundles passed; the existing marketing import warning remains. Prettier, scoped source review and `git diff --check` passed. No backend source changed, so Ruby checks were not repeated. No tests were added/run. Browser navigation, response-loss recovery and concurrent reviewer behavior remain unverified without an owned connected runtime. No deployment or runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue a concrete remaining timecard/correction or employee journey; preserve the accumulated verification boundaries.
