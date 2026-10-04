@@ -255,3 +255,15 @@ Source commit: `4845dceb`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript, both Vite bundles, frontend formatting, one-file Ruby lint, focused source/contract review and `git diff --check` passed. The existing marketing import warning remains. No tests were added/run. Lost-response/concurrent-transition persistence and browser recovery remain unverified without an owned connected runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue concrete bounded workforce implementation; preserve these connected-verification limits.
+
+## Nineteenth implementation checkpoint
+
+Source commit: `8cf41667`, pushed after synchronization with `origin/main` (already current).
+
+- Settings drafts warn before scope changes, refresh or navigation. Saving freezes the form; successful confirmation reports the returned saved revision and effective time and remains visible through reload failures.
+- Unknown settings saves keep the draft and freeze resubmission until the operator explicitly discards it and reviews saved revisions. Existing revision conflicts are not presented as proof of an earlier save. No replay receipt or new settings policy was added.
+- The settings response exposes future-dated versions from the same authorized scope, ordered by effective time and revision. Current, scheduled and effective settings share one captured business time. A read-only list shows future version values and dates while the editor continues to start from currently effective values. Copy explains that later revisions win when effective times are equal.
+
+Verification: An initial TypeScript failure identified an invalid Typography prop; it was repaired, then TypeScript and both Vite bundles passed. The existing marketing import warning remains. Final wording/value-display refinements passed TypeScript and formatting; one-file Ruby lint, focused source/contract review and `git diff --check` passed. No tests were added/run. Connected future-revision activation, unknown-save recovery and browser draft guards remain unverified without an owned runtime. Settings effective-time entry still uses the existing device Date interpretation. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue bounded existing workforce workflows from this checkpoint.

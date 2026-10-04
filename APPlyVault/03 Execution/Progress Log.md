@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-04 — Settings drafts and future revisions:** Source `8cf41667` protects settings drafts, retains precise save confirmations, and shows authorized future-dated revisions separately from current settings. Unknown saves require explicit draft discard and saved-version review before another submission. A TypeScript prop error was repaired; the build, final TypeScript/formatting, scoped Ruby lint and source review passed. No tests or connected browser verification ran; no deployment occurred. [Nineteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
+
 **2026-10-04 — Timecard submission and approval recovery:** Source `4845dceb` preserves exact unconfirmed employee/manager actions and adds actor/version-bound replay for immediately completed transitions. Competing writes stay blocked while recovery is unresolved. TypeScript, both bundles, formatting, scoped Ruby lint and source review passed. No tests or connected concurrency/browser verification ran; no deployment occurred. [Eighteenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
 **2026-10-04 — Employee schedule week browsing:** Source `1db28cb3` adds explicit week navigation, date selection, location filtering and a requests shortcut using the existing self-schedule API. Loading/error and empty-week states preserve useful controls. TypeScript, both bundles, formatting and source/API review passed. No tests or connected browser verification ran; no deployment occurred. [Seventeenth checkpoint](../../records/progress/2026/10/2026-10-04-workforce-development.md).
