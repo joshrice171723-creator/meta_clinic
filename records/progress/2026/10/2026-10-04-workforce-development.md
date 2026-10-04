@@ -231,3 +231,15 @@ Source commit: `983712e3`, pushed after synchronization with `origin/main` (alre
 Verification: TypeScript and both Vite bundles passed with the existing marketing import warning. After final camera/receipt refinements, TypeScript and formatting passed again. Focused source/API contract review and `git diff --check` passed. No backend source changed and Ruby lint was not repeated. No tests were added/run. Kiosk hardware, camera permission lifecycle, interrupted-network persistence and connected browser behavior remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
 
 Continuation remains active through 15:39 UTC. Continue another concrete workforce slice rather than broadening this into hardware or release acceptance.
+
+## Seventeenth implementation checkpoint
+
+Source commit: `1db28cb3`, pushed after synchronization with `origin/main` (already current).
+
+- My Schedule now browses an explicit Monday–Sunday week using the existing `from`/`to` endpoint contract. Previous, next, current-week and date controls stay available during loading or errors. Calendar-day arithmetic avoids shifting the week across daylight-saving changes.
+- Employees can filter the returned publications by location. Filters reset on a new week or if that location disappears on refresh. Shift timestamps continue to use each published shift's timezone.
+- Empty-week wording describes the absence of assigned published shifts without asserting that no clinic schedule exists. A shortcut opens the existing time-off and shift-request page. Historical browsing still follows the backend's current employment/site/self-service eligibility; no new access or historical-authorization semantics were introduced.
+
+Verification: TypeScript, both Vite bundles, frontend formatting, focused source/API contract review and `git diff --check` passed. The existing marketing import warning remains. No backend source changed; Ruby lint was not repeated. No tests were added/run. Connected weekly browsing, publication replacement and browser layout remain unverified without an owned runtime. No deployment or shared runtime changes occurred.
+
+Continuation remains active through 15:39 UTC. Continue a bounded existing workflow from this clean checkpoint.
