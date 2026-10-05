@@ -76,6 +76,8 @@ module Clinic
           "local_start" => shift.local_start,
           "local_end" => shift.local_end,
           "timezone" => shift.timezone,
+          "start_occurrence" => shift.start_occurrence,
+          "end_occurrence" => shift.end_occurrence,
           "role_name" => shift.role_name,
           "break_minutes" => shift.break_minutes
         }

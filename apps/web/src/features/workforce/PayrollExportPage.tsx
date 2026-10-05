@@ -58,6 +58,7 @@ type PayrollData = {
   permissions: { configure: boolean; export: boolean };
   configurations: Configuration[];
   batches: Batch[];
+  next_batch_before_id: string | null;
   fields: string[];
   default_columns: Column[];
   employees: { id: string; name: string }[];
@@ -112,9 +113,15 @@ export function PayrollExportPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const historyRequest = useRef<AbortController | null>(null);
   const downloadRequest = useRef<AbortController | null>(null);
   useEffect(() => {
     const cancelDownload = () => {
+      historyRequest.current?.abort();
+      historyRequest.current = null;
+      setHistoryLoading(false);
       if (!downloadRequest.current) return;
       downloadRequest.current.abort();
       downloadRequest.current = null;
@@ -125,6 +132,8 @@ export function PayrollExportPage() {
     return () => {
       downloadRequest.current?.abort();
       downloadRequest.current = null;
+      historyRequest.current?.abort();
+      historyRequest.current = null;
       window.removeEventListener(SESSION_CHANGED_EVENT, cancelDownload);
       window.removeEventListener(CLINIC_LOCATION_CHANGED_EVENT, cancelDownload);
     };
@@ -242,6 +251,8 @@ export function PayrollExportPage() {
     const controller = new AbortController();
     setData(null);
     setError("");
+    setHistoryError("");
+    setHistoryLoading(false);
     setPreview(null);
     setSelected([]);
     setSupersedes("");
@@ -267,8 +278,47 @@ export function PayrollExportPage() {
               : "Unable to load payroll exports.",
           );
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      historyRequest.current?.abort();
+      historyRequest.current = null;
+    };
   }, [siteId, reload]);
+
+  async function loadOlderExports() {
+    if (!data?.next_batch_before_id || historyRequest.current || busy) return;
+    const controller = new AbortController();
+    historyRequest.current = controller;
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const result = await api<PayrollData>(
+        `/api/clinic/workforce/payroll-exports?site_id=${encodeURIComponent(siteId)}&before_batch_id=${encodeURIComponent(data.next_batch_before_id)}`,
+        { signal: controller.signal },
+      );
+      if (controller.signal.aborted) return;
+      setData(
+        (current) =>
+          current && {
+            ...current,
+            batches: [...current.batches, ...result.batches],
+            next_batch_before_id: result.next_batch_before_id,
+          },
+      );
+    } catch (reason) {
+      if (!controller.signal.aborted)
+        setHistoryError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load older exports.",
+        );
+    } finally {
+      if (historyRequest.current === controller) {
+        historyRequest.current = null;
+        setHistoryLoading(false);
+      }
+    }
+  }
 
   function invalidatePreview() {
     setPreview(null);
@@ -563,6 +613,11 @@ export function PayrollExportPage() {
                   }}
                   disabled={controlsLocked}
                   sx={{ minWidth: 240 }}
+                  helperText={
+                    data.next_batch_before_id
+                      ? "Load older files in Export history to find earlier exports."
+                      : undefined
+                  }
                 >
                   <MenuItem value="">New export</MenuItem>
                   {data.batches
@@ -778,6 +833,12 @@ export function PayrollExportPage() {
           {canExport && (
             <Stack component="section" spacing={1} aria-label="Export history">
               <Typography variant="h6">Export history</Typography>
+              <Typography color="text.secondary" role="status">
+                {data.batches.length} saved exports loaded
+                {data.next_batch_before_id
+                  ? "; older files are available."
+                  : "."}
+              </Typography>
               {data.batches.map((batch) => (
                 <Box
                   key={batch.id}
@@ -803,6 +864,20 @@ export function PayrollExportPage() {
                 <Typography>
                   No payroll files have been created for this location.
                 </Typography>
+              )}
+              {historyError && <Alert severity="error">{historyError}</Alert>}
+              {data.next_batch_before_id && (
+                <Button
+                  onClick={() => void loadOlderExports()}
+                  disabled={busy || historyLoading}
+                  sx={{ alignSelf: "start" }}
+                >
+                  {historyLoading
+                    ? "Loading older exports…"
+                    : historyError
+                      ? "Retry loading older exports"
+                      : "Load older exports"}
+                </Button>
               )}
             </Stack>
           )}

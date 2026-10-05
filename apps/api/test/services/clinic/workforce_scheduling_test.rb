@@ -46,6 +46,18 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     assert_equal 1.hour, second[:starts_at] - first[:starts_at]
   end
 
+  test "swap copies recover repeated-hour occurrences from legacy publication instants" do
+    operation = Clinic::Workforce::DecideWorkforceRequest.allocate
+    row = { "timezone" => "America/Chicago", "local_start" => "2026-11-01T01:30",
+      "starts_at" => "2026-11-01T07:30:00Z", "local_end" => "2026-11-01T03:00", "ends_at" => "2026-11-01T09:00:00Z" }
+    assert_equal "second", operation.send(:snapshot_occurrence, row, "start")
+    assert_equal "only", operation.send(:snapshot_occurrence, row, "end")
+    assert_equal "first", operation.send(:snapshot_occurrence, row.merge("starts_at" => "2026-11-01T06:30:00Z"), "start")
+    assert_raises(ArgumentError) do
+      operation.send(:snapshot_occurrence, row.merge("starts_at" => "2026-11-01T08:30:00Z"), "start")
+    end
+  end
+
   test "effective workforce settings batch site versions" do
     site_values = settings.except("timezone", "workweek_start_day", "workweek_start_time")
       .merge("schedule_enabled" => false)

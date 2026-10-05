@@ -157,11 +157,31 @@ module Clinic
           employment_id = row["id"] == request.offered_shift_public_id ? request.target_employment_id : row["employment_id"]
           draft.shifts.create!(practice_id: request.practice_id, employment_id: employment_id,
             public_id: SecureRandom.uuid, timezone: row["timezone"], local_start: row["local_start"], local_end: row["local_end"],
-            starts_at: row["starts_at"], ends_at: row["ends_at"], start_occurrence: "only", end_occurrence: "only",
+            starts_at: row["starts_at"], ends_at: row["ends_at"],
+            start_occurrence: snapshot_occurrence(row, "start"), end_occurrence: snapshot_occurrence(row, "end"),
             role_name: row["role_name"], break_minutes: row["break_minutes"])
         end
         PublishSchedule.call(draft: draft, actor: actor, expected_revision: 1,
           idempotency_key: "swap:#{request.public_id}:#{request.revision}")
+      end
+
+      def snapshot_occurrence(row, endpoint)
+        stored = row["#{endpoint}_occurrence"]
+        return stored if %w[only first second].include?(stored)
+
+        instant = Time.iso8601(row.fetch("#{endpoint}s_at"))
+        local_time = row.fetch("local_#{endpoint}")
+        timezone = row.fetch("timezone")
+        %w[only first second].each do |occurrence|
+          candidate = begin
+            ResolveLocalInterval.resolve_instant(timezone: timezone, local_time: local_time,
+              occurrence: occurrence, label: endpoint)
+          rescue ResolveLocalInterval::InvalidLocalTime
+            next
+          end
+          return occurrence if candidate == instant
+        end
+        raise ArgumentError, "The published shift's #{endpoint} time cannot be resolved."
       end
 
       def ensure_target_eligible!

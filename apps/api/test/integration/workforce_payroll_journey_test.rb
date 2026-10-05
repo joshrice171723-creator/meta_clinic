@@ -102,6 +102,33 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "saved payroll history reaches older exports without repeating the boundary" do
+    login(@manager)
+    configuration = configure_payroll
+    ids = 51.times.map do
+      Clinic::Workforce::ExportBatch.create!(practice: @practice, site: @site,
+        configuration_version_id: configuration.fetch("id"), created_by_membership: @manager_membership,
+        request_key: SecureRandom.uuid, payload_digest: "a" * 64, source_digest: "b" * 64,
+        source_versions: [], rows: [], totals: {}, csv_content: "employee_id\r\n").id.to_s
+    end.reverse
+
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id }, headers: @headers
+    assert_response :success
+    first_page = response.parsed_body
+    assert_equal ids.first(50), first_page.fetch("batches").map { |batch| batch.fetch("id") }
+    assert_equal ids[49], first_page.fetch("next_batch_before_id")
+
+    get "/api/clinic/workforce/payroll-exports",
+      params: { site_id: @site.id, before_batch_id: first_page.fetch("next_batch_before_id") }, headers: @headers
+    assert_response :success
+    assert_equal ids.last(1), response.parsed_body.fetch("batches").map { |batch| batch.fetch("id") }
+    assert_nil response.parsed_body.fetch("next_batch_before_id")
+
+    revoke_all_permissions!(@manager_membership)
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id, before_batch_id: ids[49] }, headers: @headers
+    assert_response :forbidden
+  end
+
   private
 
   def create_user(label)

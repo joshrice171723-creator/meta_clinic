@@ -11,8 +11,14 @@ module Clinic
         configurator = workforce_access.allow?("workforce.payroll.configure", site: site)
         workforce_access.authorize!("workforce.payroll.configure", site: site) unless exporter
         configurations = PayrollConfigurationVersion.where(practice: current_practice, site: site).order(revision: :desc).limit(25)
-        batches = ExportBatch.where(practice: current_practice, site: site).order(id: :desc).limit(50)
+        batches = ExportBatch.where(practice: current_practice, site: site).order(id: :desc)
+        if params[:before_batch_id].present?
+          batches = batches.where("id < ?", requested_id!(params[:before_batch_id], :before_batch_id))
+        end
+        batches = batches.limit(51)
         batches = exporter ? batches.to_a : []
+        more_batches = batches.length > 50
+        batches = batches.first(50)
         context = batch_context(batches)
         employee_ids = EmploymentSite.where(practice: current_practice, site: site).select(:employment_id)
         employees = Employment.where(practice: current_practice, id: employee_ids).includes(:staff_member).order(:id)
@@ -30,7 +36,8 @@ module Clinic
           .order(period_start: :desc, id: :desc).limit(250)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "workforce.payroll.export", outcome: :released)
         render json: { configurations: configurations.map { |configuration| configuration_json(configuration) },
-          batches: batches.map { |batch| batch_json(batch, context: context) }, fields: GeneratePayrollExport::FIELDS,
+          batches: batches.map { |batch| batch_json(batch, context: context) },
+          next_batch_before_id: more_batches ? batches.last.id.to_s : nil, fields: GeneratePayrollExport::FIELDS,
           permissions: { configure: configurator, export: exporter },
           default_columns: GeneratePayrollExport::DEFAULT_COLUMNS,
           employees: employees.map { |employee| { id: employee.id.to_s, name: employee.staff_member.display_name } },
