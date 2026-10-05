@@ -173,6 +173,33 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "site-scoped calculation rolls back a timecard outside the granted site" do
+    period_start = Date.current.beginning_of_week(:monday) - 1.week
+    @employment.update!(effective_from: period_start.beginning_of_day - 1.day)
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 1,
+      effective_from: period_start.beginning_of_day - 1.hour, created_by_membership: @manager_membership,
+      values: workforce_settings("rounding_mode" => "none", "break_mode" => "manual", "break_paid" => false,
+        "approval_mode" => "manager_required"))
+    Clinic::Workforce::Punch.create!(practice: @practice, site: @other_site, employment: @employment,
+      event_type: "clock_in", occurred_at_utc: period_start.beginning_of_day + 9.hours, time_zone: "UTC",
+      utc_offset_seconds: 0, local_date: period_start, source: "manager_correction", request_key: SecureRandom.uuid,
+      payload_digest: SecureRandom.hex(32), correlation_id: SecureRandom.uuid, received_at: period_start.beginning_of_day + 9.hours,
+      result_snapshot: {})
+    reviewer = create_user("site-timecard-reviewer")
+    reviewer_membership = @practice.memberships.create!(user: reviewer)
+    grant_permissions!(reviewer_membership, "workforce.timecards.read", "workforce.timecards.review",
+      scope_kind: "site", site: @assigned_site)
+    login(reviewer)
+
+    assert_no_difference("Clinic::Workforce::TimecardVersion.count") do
+      post "/api/clinic/workforce/timecards/calculate", params: {
+        employment_id: @employment.id, site_id: @assigned_site.id, period_start: period_start.iso8601
+      }, headers: csrf_headers, as: :json
+    end
+
+    assert_response :forbidden
+  end
+
   test "HEAD workforce reads use the same protected audit classification as GET" do
     login(@manager)
     before = Clinic::AuditEvent.maximum(:id) || 0

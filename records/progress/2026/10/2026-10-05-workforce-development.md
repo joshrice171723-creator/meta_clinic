@@ -274,3 +274,18 @@ No implementation change was needed for these journeys. A bounded independent so
 At 14:44 UTC, the administrator previewed approved card 308 and saved export 55 through the browser. The preview and stored CSV both contain one WF-002 / WFPAY row for October 5 with 2.25 regular and paid hours, and zero overtime. Database read-back ties the file to card 308 and confirms the SHA-256 digest matches all 140 stored bytes.
 
 Download export 55 produced the application's explicit Download requested message. A supported browser download waiter timed out after ten seconds, and the exact expected filename was absent from the default Downloads directory. On-disk/browser-completed delivery remains unverified; no browser download policy or security setting was changed. No payments or external payroll transmission occurred.
+
+## Denied calculation leaves no out-of-scope records
+
+Timecard calculation and its final read-scope check now share a database transaction. A location-limited reviewer whose employee has historical work elsewhere still receives the existing permission denial, but a newly calculated card and its segments roll back instead of remaining saved. Successful authorized calculations keep their ordinary response.
+
+### Local evidence at 15:07 UTC
+
+- A guarded fixture created Drew Example (employment 6) with current eligibility at Main clinic and Payroll journey, plus September 28 clock punches only at Payroll journey. The reviewer received one temporary Main-only Workforce Location Manager grant (13). Read-back confirmed no practice-wide timecard read, Main read allowed, and Payroll journey read denied.
+- The development sign-in picker initially selected Drew's same-named Front Desk Coordinator role rather than Morgan's combined-role entry. A context read limited to actor IDs and workforce booleans identified that fixture account. Its unnecessary fixture role grant 14 was revoked, and the explicit Front Desk Coordinator / Workforce Location Manager entry selected the intended reviewer. This was a fixture selection issue; no capability-projection change was made.
+- The browser selected Drew and September 28, then Calculate returned the permission-denied message. Read-back confirmed zero Drew timecards and zero segments.
+- A second guarded fixture added one Main clinic interval on October 5. The same browser reviewer calculated that week successfully into card 310, version 1, with one segment. September 28 still had no saved card. Ordinary Main clinic policy/variance exceptions remained visible.
+- Cleanup through the existing access services revoked temporary reviewer grant 13 and Drew's work/login access. Drew has zero active grants; the allowed calculation and source punches remain as synthetic evidence. Existing reviewer grants were preserved.
+- Ruby syntax, scoped RuboCop, and diff checks passed. One integration regression was added but not run. Its employment predates the historical punch while its current Main assignment remains unchanged.
+
+Taylor's employee-facing My hours also showed approved current-week version 3, 2h 15m, and both correction review outcomes before the scoped reviewer walkthrough.

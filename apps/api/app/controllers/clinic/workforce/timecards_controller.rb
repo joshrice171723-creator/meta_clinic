@@ -39,13 +39,16 @@ module Clinic
       def calculate
         employment = selected_employment_for_read
         period_start = params[:period_start].presence || CalculateTimecard.current_period_start(practice: current_practice)
-        card = CalculateTimecard.call(
-          employment: employment,
-          period_start: period_start,
-          actor_membership: clinic_membership,
-          expected_source_digest: params[:expected_source_digest]
-        )
-        _, site_id = read_scope_for(card)
+        card, site_id = TimecardVersion.transaction do
+          card = CalculateTimecard.call(
+            employment: employment,
+            period_start: period_start,
+            actor_membership: clinic_membership,
+            expected_source_digest: params[:expected_source_digest]
+          )
+          _, site_id = read_scope_for(card)
+          [ card, site_id ]
+        end
         render json: { timecard: serialize_card(card, site_id: site_id) }, status: :created
       end
 
