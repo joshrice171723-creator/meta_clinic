@@ -195,11 +195,33 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "employee timecard history pages immutable versions without losing the latest period version" do
+    login(@manager)
+    save_settings(payroll_export_enabled: false, expected_revision: 0,
+      effective_from: @period_start.beginning_of_day - 1.day)
+    create_approved_timecard(@period_start)
+    latest = create_approved_timecard(@period_start, version_number: 2)
+    oldest = 49.times.map { |index| create_approved_timecard(@period_start - (index + 1).weeks) }.last
+
+    login(@employee)
+    get "/api/clinic/workforce/timecards", params: { view: "self" }, headers: @headers
+    assert_response :success
+    first_page = response.parsed_body
+    assert_equal 50, first_page.fetch("timecards").length
+    assert_equal latest.id, first_page.fetch("timecards").first.fetch("id")
+    assert_equal first_page.fetch("timecards").last.fetch("id").to_s, first_page.fetch("next_timecard_before_id")
+
+    get "/api/clinic/workforce/timecards", params: { view: "self", before_timecard_id: first_page.fetch("next_timecard_before_id") }, headers: @headers
+    assert_response :success
+    assert_equal [ oldest.id ], response.parsed_body.fetch("timecards").map { |card| card.fetch("id") }
+    assert_nil response.parsed_body.fetch("next_timecard_before_id")
+  end
+
   private
 
-  def create_approved_timecard(period_start)
+  def create_approved_timecard(period_start, version_number: 1)
     card = Clinic::Workforce::TimecardVersion.create!(practice: @practice, employment: @employment,
-      period_start: period_start, period_end: period_start + 7.days, version_number: 1, status: "approved",
+      period_start: period_start, period_end: period_start + 7.days, version_number: version_number, status: "approved",
       source_digest: SecureRandom.hex(32), settings_provenance: {}, snapshot: {}, unresolved_exceptions: [],
       raw_total_minutes: 480, rounded_total_minutes: 480, regular_minutes: 480, overtime_minutes: 0,
       submitted_at: Time.current, submitted_by_membership: @manager_membership,

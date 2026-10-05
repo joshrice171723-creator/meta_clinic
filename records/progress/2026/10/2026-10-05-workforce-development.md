@@ -129,3 +129,14 @@ Kiosk configuration now includes the existing effective `kiosk_enabled` setting.
 - An immutable local settings revision disabled the kiosk. Reload showed the unavailable message with no badge input. After a settings revision re-enabled it, Check availability restored the scan field without re-enrollment.
 - The fixture returned the kiosk to disabled, and the temporary enrollment was revoked through the UI. The administrative row displayed revoked with the clarified enrollment-code expiry label. No badge was issued and no punch was created in this walkthrough.
 - TypeScript and Ruby syntax checks passed. A small API regression for disabled configuration projection and challenge rejection was added but not run. Active-camera cleanup and uncertain-punch recovery were source-reviewed, not exercised in this browser walkthrough. No automated tests were run.
+
+## Employee timecard history pagination
+
+Employee My hours loads fifty immutable versions at a time using a cursor constrained to the authorized employee history. Appending older versions retains the newest card for each workweek and existing filters/correction draft state. Refresh, location/session changes, and unmount cancel pending history requests. Correction history can fetch its exact resulting card through the existing authorized detail endpoint when that version is outside the loaded pages.
+
+### Local evidence at 12:46 UTC
+
+- Morgan's 252 history-only cards loaded in browser pages of 50, 100, 150, 200, 250, then 252; the final page removed Load older timecards. Refresh returned the initial page.
+- A guarded ignored fixture added fifty snapshot-only historical versions after Taylor's actual calculated version 2, without modifying the original cards, correction, or exports. These copies are pagination fixtures, not calculation or approval evidence; they have no relational time segments and correctly cannot be submitted.
+- Before loading older versions, View resulting timecard fetched the actual approved version 2 and displayed nine paid hours, eight regular hours, one overtime hour, and its corrected interval. Loading the final two versions retained version 52 as the workweek's newest displayed card and changed the correction link to View resulting timecard · version 2.
+- TypeScript, Ruby syntax, and scoped diff checks passed. Cursor regression coverage was added but not executed. Correction-draft retention and cancellation paths were source-reviewed; no automated tests were run.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import {
   Alert,
@@ -15,7 +15,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { ApiError, api } from "../../api/client";
+import {
+  ApiError,
+  api,
+  CLINIC_LOCATION_CHANGED_EVENT,
+  SESSION_CHANGED_EVENT,
+} from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type { Adjustment, Timecard } from "./clockTypes";
 import {
@@ -31,16 +36,19 @@ function workweekKey(period: { period_start: string; period_end: string }) {
   return `${period.period_start}|${period.period_end}`;
 }
 
+type HoursData = {
+  timecards: Timecard[];
+  correction_sites: CorrectionSite[];
+  next_timecard_before_id: string | null;
+};
+
 export function EmployeeHoursPage() {
   const { registerBlocker } = useClinicNavigation();
   const {
     data,
     error: loadError,
     refresh,
-  } = useResource<{
-    timecards: Timecard[];
-    correction_sites: CorrectionSite[];
-  }>("/api/clinic/workforce/timecards?view=self");
+  } = useResource<HoursData>("/api/clinic/workforce/timecards?view=self");
   const corrections = useResource<{ adjustments: Adjustment[] }>(
     "/api/clinic/workforce/adjustments?view=self",
   );
@@ -75,20 +83,68 @@ export function EmployeeHoursPage() {
     };
   }, [leaveMessage, busy, registerBlocker]);
   const [correctionCard, setCorrectionCard] = useState<Timecard | null>(null);
-  const [historyCardId, setHistoryCardId] = useState<number | null>(null);
-  const historyCard = data?.timecards.find((card) => card.id === historyCardId);
+  const [historyCard, setHistoryCard] = useState<Timecard | null>(null);
+  const [historyCardLoading, setHistoryCardLoading] = useState(false);
+  const [olderTimecards, setOlderTimecards] = useState<Timecard[]>([]);
+  const [nextTimecardBeforeId, setNextTimecardBeforeId] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const historyRequest = useRef<AbortController | null>(null);
+  const detailRequest = useRef<AbortController | null>(null);
+  const allTimecards = useMemo(
+    () => (data ? [...data.timecards, ...olderTimecards] : []),
+    [data, olderTimecards],
+  );
+  useEffect(() => {
+    historyRequest.current?.abort();
+    historyRequest.current = null;
+    setOlderTimecards([]);
+    setNextTimecardBeforeId(data?.next_timecard_before_id ?? null);
+    setHistoryLoading(false);
+    setHistoryError("");
+  }, [data]);
+  useEffect(() => {
+    const cancelHistory = () => {
+      historyRequest.current?.abort();
+      historyRequest.current = null;
+      detailRequest.current?.abort();
+      detailRequest.current = null;
+      setHistoryLoading(false);
+      setHistoryCardLoading(false);
+      setHistoryCard(null);
+      setOlderTimecards([]);
+      setNextTimecardBeforeId(null);
+      setHistoryError("");
+    };
+    window.addEventListener(SESSION_CHANGED_EVENT, cancelHistory);
+    window.addEventListener(CLINIC_LOCATION_CHANGED_EVENT, cancelHistory);
+    return () => {
+      cancelHistory();
+      window.removeEventListener(SESSION_CHANGED_EVENT, cancelHistory);
+      window.removeEventListener(CLINIC_LOCATION_CHANGED_EVENT, cancelHistory);
+    };
+  }, []);
   function refreshRecords() {
+    historyRequest.current?.abort();
+    historyRequest.current = null;
+    detailRequest.current?.abort();
+    detailRequest.current = null;
+    setHistoryCardLoading(false);
+    setOlderTimecards([]);
+    setNextTimecardBeforeId(null);
+    setHistoryLoading(false);
+    setHistoryError("");
     refresh();
     corrections.refresh();
   }
 
   const latestCards = useMemo(() => {
     const found = new Map<string, Timecard>();
-    data?.timecards.forEach((card) => {
+    allTimecards.forEach((card) => {
       if (!found.has(card.period_start)) found.set(card.period_start, card);
     });
     return [...found.values()];
-  }, [data]);
+  }, [allTimecards]);
   const workweeks = [
     ...new Map(
       [...latestCards, ...(corrections.data?.adjustments ?? [])].map(
@@ -165,6 +221,66 @@ export function EmployeeHoursPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadOlderTimecards() {
+    if (!nextTimecardBeforeId || historyRequest.current) return;
+    const controller = new AbortController();
+    historyRequest.current = controller;
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const result = await api<HoursData>(
+        `/api/clinic/workforce/timecards?view=self&before_timecard_id=${encodeURIComponent(nextTimecardBeforeId)}`,
+        { signal: controller.signal },
+      );
+      if (controller.signal.aborted) return;
+      setOlderTimecards((current) => [...current, ...result.timecards]);
+      setNextTimecardBeforeId(result.next_timecard_before_id);
+    } catch (reason) {
+      if (!controller.signal.aborted)
+        setHistoryError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load older timecards.",
+        );
+    } finally {
+      if (historyRequest.current === controller) {
+        historyRequest.current = null;
+        setHistoryLoading(false);
+      }
+    }
+  }
+
+  async function openHistoryCard(id: number) {
+    const loaded = allTimecards.find((card) => card.id === id);
+    if (loaded) {
+      setHistoryCard(loaded);
+      return;
+    }
+    const controller = new AbortController();
+    detailRequest.current?.abort();
+    detailRequest.current = controller;
+    setHistoryCardLoading(true);
+    try {
+      const result = await api<{ timecard: Timecard }>(
+        `/api/clinic/workforce/timecards/${id}?view=self`,
+        { signal: controller.signal },
+      );
+      if (!controller.signal.aborted) setHistoryCard(result.timecard);
+    } catch (reason) {
+      if (!controller.signal.aborted)
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load the resulting timecard.",
+        );
+    } finally {
+      if (detailRequest.current === controller) {
+        detailRequest.current = null;
+        setHistoryCardLoading(false);
+      }
     }
   }
 
@@ -276,7 +392,7 @@ export function EmployeeHoursPage() {
       {!data && <LoadState error={loadError} onRetry={refresh} />}
       {data && latestCards.length > 0 && (
         <Typography role="status" color="text.secondary">
-          Showing {visibleCards.length} of {latestCards.length} latest
+          Showing {visibleCards.length} of {latestCards.length} loaded
           timecards.
         </Typography>
       )}
@@ -311,6 +427,20 @@ export function EmployeeHoursPage() {
           }
         />
       ))}
+      {historyError && <Alert severity="error">{historyError}</Alert>}
+      {nextTimecardBeforeId && (
+        <Button
+          disabled={historyLoading}
+          onClick={() => void loadOlderTimecards()}
+          sx={{ alignSelf: "start" }}
+        >
+          {historyLoading
+            ? "Loading older timecards…"
+            : historyError
+              ? "Retry loading older timecards"
+              : "Load older timecards"}
+        </Button>
+      )}
       {data && !latestCards.length && (
         <Alert severity="info">
           No calculated timecards yet. Recalculate the current week after your
@@ -359,7 +489,7 @@ export function EmployeeHoursPage() {
           </Typography>
         ) : (
           visibleCorrections.map((adjustment) => {
-            const result = data?.timecards.find(
+            const result = allTimecards.find(
               (card) => card.id === adjustment.resulting_timecard_version_id,
             );
             const proposed = adjustment.proposed_changes;
@@ -438,18 +568,22 @@ export function EmployeeHoursPage() {
                   {result ? (
                     <Button
                       sx={{ alignSelf: "start" }}
-                      onClick={() => setHistoryCardId(result.id)}
+                      onClick={() => void openHistoryCard(result.id)}
                     >
                       View resulting timecard · version {result.version_number}
                     </Button>
-                  ) : (
-                    adjustment.resulting_timecard_version_id && (
-                      <Typography color="text.secondary">
-                        The resulting timecard is not available in this view.
-                        Refresh hours to check its current availability.
-                      </Typography>
-                    )
-                  )}
+                  ) : adjustment.resulting_timecard_version_id ? (
+                    <Button
+                      sx={{ alignSelf: "start" }}
+                      onClick={() =>
+                        void openHistoryCard(
+                          adjustment.resulting_timecard_version_id!,
+                        )
+                      }
+                    >
+                      View resulting timecard
+                    </Button>
+                  ) : null}
                 </Stack>
               </Paper>
             );
@@ -457,17 +591,35 @@ export function EmployeeHoursPage() {
         )}
       </Stack>
       <Dialog
-        open={Boolean(historyCard)}
-        onClose={() => setHistoryCardId(null)}
+        open={Boolean(historyCard) || historyCardLoading}
+        onClose={() => {
+          detailRequest.current?.abort();
+          detailRequest.current = null;
+          setHistoryCardLoading(false);
+          setHistoryCard(null);
+        }}
         fullWidth
         maxWidth="md"
       >
         <DialogTitle>Timecard created by the correction</DialogTitle>
         <DialogContent>
-          {historyCard && <TimecardSummary card={historyCard} />}
+          {historyCardLoading ? (
+            <Typography role="status">Loading resulting timecard…</Typography>
+          ) : (
+            historyCard && <TimecardSummary card={historyCard} />
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHistoryCardId(null)}>Close</Button>
+          <Button
+            onClick={() => {
+              detailRequest.current?.abort();
+              detailRequest.current = null;
+              setHistoryCardLoading(false);
+              setHistoryCard(null);
+            }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
       {correctionCard && data && (

@@ -4,7 +4,14 @@ module Clinic
       def index
         cards, site_id = readable_cards
         cards = cards.includes({ employment: :staff_member }, { time_segments: :site }, :adjustment_requests)
-          .order(period_start: :desc, version_number: :desc).to_a
+        next_timecard_before_id = nil
+        if params[:view] == "self"
+          cards, next_timecard_before_id = paginated_self_cards(cards)
+        elsif params[:before_timecard_id].present?
+          raise ArgumentError, "before_timecard_id is only available for your timecard history"
+        else
+          cards = cards.order(period_start: :desc, version_number: :desc, id: :desc).to_a
+        end
         prepare_workflow_context(cards, site_id: site_id)
         employees = calculable_employments
         correction_sites = if params[:view] == "self"
@@ -19,6 +26,7 @@ module Clinic
           timecards: cards.map { |card| serialize_card(card, site_id: site_id) },
           employees: employees.map { |employment| { id: employment.id, name: employment.staff_member.display_name } },
           correction_sites: correction_sites,
+          next_timecard_before_id: next_timecard_before_id,
           default_period_start: CalculateTimecard.current_period_start(practice: current_practice).iso8601
         }
       end
@@ -185,6 +193,28 @@ module Clinic
         end
         cards = cards.where(employment_id: requested_id!(params[:employment_id], :employment_id)) if params[:employment_id].present?
         [ cards, practice_reader ? nil : site.id ]
+      end
+
+      def paginated_self_cards(cards)
+        cards = cards.order(period_start: :desc, version_number: :desc, id: :desc)
+        if params[:before_timecard_id].present?
+          cursor = cards.where(id: requested_id!(params[:before_timecard_id], :before_timecard_id))
+            .pick(:period_start, :version_number, :id)
+          raise ActiveRecord::RecordNotFound unless cursor
+
+          period_start, version_number, id = cursor
+          cards = cards.where(<<~SQL.squish, period_start:, version_number:, id:)
+            clinic_workforce_timecard_versions.period_start < :period_start OR
+            (clinic_workforce_timecard_versions.period_start = :period_start AND
+              (clinic_workforce_timecard_versions.version_number < :version_number OR
+                (clinic_workforce_timecard_versions.version_number = :version_number AND
+                  clinic_workforce_timecard_versions.id < :id)))
+          SQL
+        end
+        cards = cards.limit(51).to_a
+        more = cards.length > 50
+        cards = cards.first(50)
+        [ cards, more ? cards.last.id.to_s : nil ]
       end
 
       def readable_card
