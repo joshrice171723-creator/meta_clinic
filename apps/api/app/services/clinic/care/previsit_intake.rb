@@ -106,6 +106,18 @@ module Clinic
           choices: %w[no_plan_recorded within_1_week within_1_month later unknown] },
         { id: "follow_up_questions", label: "Patient questions for follow-up", reusable: false }
       ].map(&:freeze).freeze
+      # Presentation boundaries for the generic patient form, in its existing field order.
+      # Specialty forms retain their own sections; staff forms and stored answers are unchanged.
+      PATIENT_SECTION_STARTS = {
+        "visit_reason" => "general_health_visit",
+        "prior_approaches" => "past_care_measurements",
+        "treatment_product_class" => "reproductive_product_safety",
+        "nutrition_pattern" => "nutrition_support",
+        "activity_capacity" => "activity_sleep_barriers",
+        "outside_records_state" => "records_consent_admin",
+        "patient_confirmation_state" => "confirmation_clinician_review",
+        "follow_up_context" => "follow_up_change"
+      }.freeze
       PREFIX = "MC_INTAKE_V1\n".freeze
       MAX_ANSWER_LENGTH = 600
       MAX_NARRATIVE_LENGTH = 5_000
@@ -181,8 +193,14 @@ module Clinic
         # for an instrument whose items, scorer and review pathway do not exist.
         available = fields(form_id).reject { |field| field[:id] == "instrument_status" }
         return available if recorder == "staff"
+        generic_form = !SPECIALTY_FORMS.key?(form_id)
+        section_id = nil
         available.map do |field|
           copy = field.deep_dup
+          if generic_form
+            section_id = PATIENT_SECTION_STARTS.fetch(field[:id], section_id)
+            copy[:chunk_id] = section_id
+          end
           if copy[:units]
             copy[:source_choices] = (copy[:source_choices] || %w[patient_reported clinic_measured]) - %w[clinic_measured imported]
             copy[:verification_choices] = copy[:verification_choices] - %w[staff_verified] if copy[:verification_choices]

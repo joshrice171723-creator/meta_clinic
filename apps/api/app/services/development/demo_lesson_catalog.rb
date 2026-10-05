@@ -328,7 +328,7 @@ module Development
 
         actor = run.operator_user
         family = Clinic::Care::SubscriptionCatalog.save(practice: run.practice, actor:, kind: "family", id: nil,
-          attributes: { "name" => "#{DemoSpecialtyLessons::TYPES.fetch(run.template_key)} care program", "lock_version" => 0 })
+          attributes: { "name" => "#{DemoSpecialtyLessons::TYPES.fetch(run.template_key)} program", "lock_version" => 0 })
         Clinic::Care::SubscriptionCatalog.save(practice: run.practice, actor:, kind: "family", id: family.id,
           attributes: { "lock_version" => family.reload.lock_version, "publish" => true })
         service = Clinic::Care::SubscriptionCatalog.save(practice: run.practice, actor:, kind: "service", id: nil,

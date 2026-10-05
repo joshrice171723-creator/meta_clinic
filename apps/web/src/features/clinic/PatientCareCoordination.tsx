@@ -258,22 +258,20 @@ function CoordinationPanel({
       ) : (
         <>
           <Stack
-            spacing={2}
+            spacing={compactOverview ? 0 : 2}
             sx={
               compactOverview
                 ? {
                     display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      md: "repeat(3, minmax(0, 1fr))",
-                    },
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(min(100%, 12rem), 1fr))",
                     gap: 1.5,
                   }
                 : undefined
             }
           >
             {groups.map((group) => (
-              <Box key={group}>
+              <Box key={group} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
                 <Typography component="h3" variant="subtitle1">
                   {groupLabels[group]}
                 </Typography>

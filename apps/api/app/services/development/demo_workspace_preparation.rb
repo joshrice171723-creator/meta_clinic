@@ -33,6 +33,8 @@ module Development
           user.active = true
         end
         participant = run.practice.memberships.find_or_create_by!(user: colleague)
+        prepare_staff_identity!(run, participant, display_name: "Taylor Example", job_title: "Front desk coordinator")
+        workforce!(run)
         %w[staff_messaging.read staff_messaging.send staff_messaging.create_conversation].each do |action|
           role = RoleVersion.find_by!(role_code: "test-#{action.tr('.', '-')}", version: 1)
           participant.role_grants.find_or_create_by!(practice: run.practice, role_version: role, scope_kind: "practice") do |grant|
@@ -49,11 +51,22 @@ module Development
       end
 
       def workforce!(run)
-        staff = run.practice.staff_members.create!(display_name: "Jordan Example", job_title: "Clinic coordinator", active: true)
-        employment = Clinic::Workforce::Employment.create!(practice: run.practice, staff_member: staff,
-          membership: membership(run), status: "active", effective_from: 1.day.ago)
-        employment.employment_sites.create!(practice: run.practice, site: run.practice.sites.first!,
-          active: true, effective_from: 1.day.ago)
+        prepare_staff_identity!(run, membership(run), display_name: "Jordan Example", job_title: "Clinic coordinator")
+      end
+
+      def prepare_staff_identity!(run, member, display_name:, job_title:)
+        existing = Clinic::Workforce::Employment.where(practice: run.practice, membership: member, status: "active")
+          .effective_at(Current.business_time).order(:id).first
+        return existing if existing
+
+        Clinic::Workforce::Employment.transaction do
+          staff = run.practice.staff_members.create!(display_name:, job_title:, active: true)
+          employment = Clinic::Workforce::Employment.create!(practice: run.practice, staff_member: staff,
+            membership: member, status: "active", effective_from: Current.business_time - 1.day)
+          employment.employment_sites.create!(practice: run.practice, site: run.practice.sites.first!,
+            active: true, effective_from: Current.business_time - 1.day)
+          employment
+        end
       end
 
       def reminders!(run)

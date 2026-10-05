@@ -1,5 +1,6 @@
 import {
   Accordion,
+  AccordionActions,
   AccordionDetails,
   AccordionSummary,
   Alert,
@@ -102,6 +103,8 @@ type Attempt = {
 };
 
 const INTAKE_SECTION_TITLES: Record<string, string> = {
+  general_health_visit: "Your health and visit",
+  past_care_measurements: "Past care, height and weight",
   today_visit: "Today’s concerns and functioning",
   patient_coordination: "Support and care needs",
   safety_history: "Relevant history",
@@ -223,6 +226,7 @@ export function PatientPrevisitNote({
   const [latestRefreshFailed, setLatestRefreshFailed] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [expandedPart, setExpandedPart] = useState<number | false>(0);
+  const pendingPartFocus = useRef<number | null>(null);
   const attempt = useRef<Attempt | null>(null);
   const inFlight = useRef<Attempt | null>(null);
   const appointmentIdRef = useRef(appointmentId);
@@ -337,6 +341,7 @@ export function PatientPrevisitNote({
     if (inFlight.current || attempt.current?.uncertain) return;
     setOpen(true);
     setExpandedPart(0);
+    pendingPartFocus.current = null;
     setNotice("");
     setError("");
     setConflict(false);
@@ -692,26 +697,6 @@ export function PatientPrevisitNote({
             )}
             {data?.can_edit && (
               <Stack spacing={2}>
-                {data.intake_form && (
-                  <Box component="section" aria-labelledby={`previsit-note-${appointmentId}-questions`}>
-                    <Typography
-                      id={`previsit-note-${appointmentId}-questions`}
-                      component="h2"
-                      variant="h6"
-                      sx={{ mb: 1.5 }}
-                    >
-                      Health questions
-                    </Typography>
-                    <Typography
-                      color="text.secondary"
-                      variant="body2"
-                      sx={{ mb: 2 }}
-                    >
-                      Sections follow your visit topics. Answer what applies;
-                      progress updates as you respond.
-                    </Typography>
-                  </Box>
-                )}
                 {data.reusable_answers && (
                   <Box>
                     <Typography variant="body2" color="text.secondary">
@@ -745,7 +730,7 @@ export function PatientPrevisitNote({
                   </Box>
                 )}
                 {data.intake_form &&
-                  questionParts.map((part) => {
+                  questionParts.map((part, position) => {
                     const form = data.intake_form!;
                     const shown = part.fields.filter((field) =>
                       intakeFieldVisible(field, answers, form.fields),
@@ -755,13 +740,29 @@ export function PatientPrevisitNote({
                         answerState(answers[field.id]) !== "unanswered",
                     ).length;
                     const title = intakeSectionTitle(part.chunkId, part.fields);
+                    const nextPart = questionParts[position + 1];
                     return (
                       <Accordion
                         key={part.index}
                         expanded={expandedPart === part.index}
-                        onChange={(_, expanded) =>
-                          setExpandedPart(expanded ? part.index : false)
-                        }
+                        onChange={(_, expanded) => {
+                          pendingPartFocus.current = null;
+                          setExpandedPart(expanded ? part.index : false);
+                        }}
+                        slotProps={{
+                          transition: {
+                            onEntered: () => {
+                              if (pendingPartFocus.current !== part.index)
+                                return;
+                              pendingPartFocus.current = null;
+                              const heading = document.getElementById(
+                                `previsit-note-${appointmentId}-part-${part.index}`,
+                              );
+                              heading?.focus({ preventScroll: true });
+                              heading?.scrollIntoView({ block: "start" });
+                            },
+                          },
+                        }}
                         disableGutters
                         variant="outlined"
                         sx={{ "&:before": { display: "none" } }}
@@ -783,8 +784,9 @@ export function PatientPrevisitNote({
                               variant="body2"
                               color="text.secondary"
                             >
-                              {responded} of {shown.length} shown questions
-                              responded to
+                              Section {position + 1} of {questionParts.length}
+                              {" · "}
+                              {responded} of {shown.length} responded to
                             </Typography>
                           </Stack>
                         </AccordionSummary>
@@ -804,6 +806,33 @@ export function PatientPrevisitNote({
                             }}
                           />
                         </AccordionDetails>
+                        <AccordionActions sx={{ px: 2, pb: 2 }}>
+                          {nextPart ? (
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                pendingPartFocus.current = nextPart.index;
+                                setExpandedPart(nextPart.index);
+                              }}
+                              aria-label={`Next section: ${intakeSectionTitle(nextPart.chunkId, nextPart.fields)}`}
+                            >
+                              Next section
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                const heading = document.getElementById(
+                                  `previsit-note-${appointmentId}-additional`,
+                                );
+                                heading?.focus({ preventScroll: true });
+                                heading?.scrollIntoView({ block: "start" });
+                              }}
+                            >
+                              Review additional note
+                            </Button>
+                          )}
+                        </AccordionActions>
                       </Accordion>
                     );
                   })}
@@ -813,7 +842,8 @@ export function PatientPrevisitNote({
                 >
                   <Typography
                     id={`previsit-note-${appointmentId}-additional`}
-                    component="h2"
+                    tabIndex={-1}
+                    component="h3"
                     variant="h6"
                     sx={{ mb: 1.5 }}
                   >
@@ -921,7 +951,7 @@ export function PatientPrevisitNote({
                   ? "Retry same request"
                   : !text.trim() && !hasAnswers(answers) && data.note
                     ? "Save cleared intake"
-                    : "Save intake and note"}
+                    : "Submit intake and note"}
             </Button>
           )}
         </DialogActions>
