@@ -37,7 +37,7 @@ module Clinic
 
         transitions = RecordPunch.allowed_transitions(employment: employment, at: now)
         break_tracking_enabled = values.fetch("break_tracking_enabled", false)
-        transitions -= %w[break_start break_end] unless break_tracking_enabled
+        transitions -= [ "break_start" ] unless break_tracking_enabled
         break_target_minutes = positive_minutes(values["break_duration_minutes"]) if break_tracking_enabled
         reminder_minutes = positive_minutes(values["break_reminder_minutes"]) if break_tracking_enabled
         last_work_start = if transitions.include?("break_start")

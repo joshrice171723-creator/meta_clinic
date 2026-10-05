@@ -440,11 +440,14 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
           </Typography>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <FormControl fullWidth>
-              <InputLabel id={`${fieldId}-3-label`}>Settings scope</InputLabel>
+              <InputLabel id={`${fieldId}-3-label`} shrink>
+                Settings scope
+              </InputLabel>
               <Select
                 labelId={`${fieldId}-3-label`}
                 label="Settings scope"
                 value={selectedSiteId}
+                displayEmpty
                 onChange={(event) => {
                   if (
                     dirty &&

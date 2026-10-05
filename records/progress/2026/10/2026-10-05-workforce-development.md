@@ -178,3 +178,17 @@ Facility warnings now use the site's timezone, date-specific hour exceptions, co
 - Taylor submitted a replacement effective on the same November 24 date, with Tuesday 00:00-06:00. Administrator approval left availability 3 superseded at revision 3 and availability 4 approved at revision 2. Database validation and browser review correctly used the newly approved rules and allowed both shifts. Drafts 9 and 10 remain unpublished.
 - A read-only Rails diagnostic used a 01:45 CDT-01:15 CST interval: Sunday availability 01:30-02:00 rejected the interval, while 01:00-02:00 accepted it. This is runtime calculation evidence; that repeated-hour availability case was not submitted through the browser.
 - Ruby syntax, scoped RuboCop (three files), TypeScript, and diff checks passed. Small regression cases were added for prior-day coverage, allowed/blocked handoffs, same-date replacement ordering, daylight-saving rollback, fractional endpoints, and facility warnings; none were executed. No automated tests were run.
+
+## Ending an active break after tracking is disabled
+
+The challenge and punch-commit checks now disable only new break starts when break tracking is turned off. An employee already on a recorded break can still end it, subject to the existing current-state and challenge checks. They then see Clock out only. New or unexpected break-end events remain disallowed by the existing transition guard.
+
+The settings scope selector also explicitly shows Practice defaults instead of a blank selected value.
+
+### Local evidence at 13:24 UTC
+
+- Main clinic settings revision 9 enabled the temporary kiosk and break tracking through the UI, with manual unpaid breaks explicitly selected. Browser clock-in saved punch 5 at 13:18:58.075Z; Start break saved punch 6 at 13:19:46.642Z.
+- A UI-saved revision 10 disabled break tracking effective 13:20:00Z. Before repair, a fresh scan after that time showed Hello, Morgan Example and only Cancel: neither End break nor Clock out was available.
+- After the two-service repair, Cancel and a fresh scan offered End break. Saving created punch 7 at 13:22:15.129Z. A subsequent scan offered only Clock out, which created punch 8 at 13:23:00.171Z. Database read-back confirmed all four events at Main clinic and kiosk session 3, in order; none were seeded.
+- The temporary badge and kiosk were revoked through administration; the employee account remained active, kiosk reload required enrollment, and the tab was closed. Credential variables were cleared and Main clinic kiosk access returned to disabled. No badge/PIN value was logged or persisted in evidence.
+- Browser verification confirmed Practice defaults is visible before choosing Main clinic. TypeScript, scoped Ruby syntax/RuboCop, and diff checks passed. One state-transition regression was added but not executed. No automated tests were run.

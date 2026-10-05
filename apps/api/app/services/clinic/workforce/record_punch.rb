@@ -46,7 +46,7 @@ module Clinic
           raise Conflict, "Clock kiosk is unavailable." unless settings.fetch("kiosk_enabled", false)
 
           allowed = allowed_transitions(employment: employment, at: now)
-          allowed -= %w[break_start break_end] unless settings.fetch("break_tracking_enabled", false)
+          allowed -= [ "break_start" ] unless settings.fetch("break_tracking_enabled", false)
           allowed &= challenge.transitions
           raise Conflict.new("That action is not valid for the employee's current clock state.", allowed_transitions: allowed) unless allowed.include?(event_type)
           last = latest_effective_punch(employment, at: now)

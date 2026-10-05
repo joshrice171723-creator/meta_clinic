@@ -75,6 +75,37 @@ class WorkforceClockTest < ActiveSupport::TestCase
     assert_equal 1, Clinic::Workforce::Punch.where(employment: @employment).count
   end
 
+  test "an active break can end after break tracking is disabled without allowing another break" do
+    now = Time.current.change(usec: 0)
+    travel_to now do
+      badge = Clinic::Workforce::IssueBadge.call(employment: @employment, actor_membership: @manager_membership)
+      clock_in = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk, badge_token: badge.token, input_method: "manual", now: now)
+      Clinic::Workforce::RecordPunch.call(kiosk_session: @kiosk, challenge_token: clock_in.token,
+        event_type: "clock_in", request_key: SecureRandom.uuid, now: now)
+      break_start = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk,
+        badge_token: badge.token, input_method: "manual", now: now + 10.seconds)
+      Clinic::Workforce::RecordPunch.call(kiosk_session: @kiosk, challenge_token: break_start.token,
+        event_type: "break_start", request_key: SecureRandom.uuid, now: now + 10.seconds)
+      Clinic::Workforce::SettingsVersion.create!(practice: @practice, site: @site, scope_kind: "site", revision: 1,
+        effective_from: now + 1.minute, created_by_membership: @manager_membership, values: { "break_tracking_enabled" => false })
+
+      break_end = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk,
+        badge_token: badge.token, input_method: "manual", now: now + 2.minutes)
+      assert_equal [ "break_end" ], break_end.permitted_transitions
+      result = Clinic::Workforce::RecordPunch.call(kiosk_session: @kiosk, challenge_token: break_end.token,
+        event_type: "break_end", request_key: SecureRandom.uuid, now: now + 2.minutes)
+      assert_equal "break_end", result.punch.event_type
+
+      after_break = Clinic::Workforce::ResolveBadgeChallenge.call(kiosk_session: @kiosk,
+        badge_token: badge.token, input_method: "manual", now: now + 3.minutes)
+      assert_equal [ "clock_out" ], after_break.permitted_transitions
+      assert_raises(Clinic::Workforce::RecordPunch::Conflict) do
+        Clinic::Workforce::RecordPunch.call(kiosk_session: @kiosk, challenge_token: after_break.token,
+          event_type: "break_end", request_key: SecureRandom.uuid, now: now + 3.minutes)
+      end
+    end
+  end
+
   test "an approved missing clock-out correction permits the next clock-in" do
     started_at = 2.hours.ago
     local = started_at.in_time_zone(@site.timezone_override)
