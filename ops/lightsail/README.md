@@ -248,3 +248,44 @@ Do not advertise either friendly hostname as working or bypass TLS warnings.
 Use `guided-demo.compose.yml` with `compose.yml` and the same immutable release image. Run `prepare-guided-demo.py` once as root on the existing host; it creates a dedicated database/login and independent credentials, refuses an orphaned role, and verifies the demo role cannot connect to the normal database. Preserve this file and database on subsequent updates. Migrate the demo with its own service credentials before starting it. Do not apply the ordinary database runtime role to this disposable lesson database: lesson preparation/reset requires ownership inside this isolated database only.
 
 Route `/api/demo-workspace/` to loopback port 3002, retaining the prefix for the session middleware. Existing `/api/` traffic stays on 3001. `/demo` and the iframe shells are served by the matched web image. No development-login flag or provider credentials are enabled for the public lesson process. Back up and restore-test the ordinary database before its migrations and retain prior release images/nginx configuration for rollback.
+
+### Scheduled shared-sandbox refresh
+
+The existing automation entry is documented in
+[Sandbox account selection](../../docs/development/clinic-workflow-plans/sandbox-account-selection.md).
+It uses the authorized Windows executor's existing SSH access to
+`ubuntu@aimetaclinic.com`, under its existing release mutex/heavy queue, to invoke:
+
+```sh
+sudo bash /opt/meta-clinic/deploy/reset-sandbox.sh --run
+```
+
+Use the already configured SSH identity explicitly if the executor's default
+identity selection is insufficient. Resolve its existing local path through the
+configured access; do not copy key material, create credentials, persist new
+access, alter permissions, or create a duplicate schedule/timer. If the executor
+or access is unavailable, or any guard fails, skip and report without an automatic
+retry. Retain the command receipt and the recovery directory printed by the guard.
+
+The installed host script remains the required entry: it holds the release lock
+and pool transaction through a retained backup, complete scratch restore and row
+checks. The UI reset and direct Rails invocation do not provide those host checks.
+`--check` performs the same backup/restore preflight without resetting the pool.
+Neither mode should be invoked as part of source-only repair work.
+
+A preservation restart captures the grants removed by the staff reset and rebuilds
+their exact role versions, scopes, dates, revocation state and employment links,
+resolving sites by code within their original practice. Missing identities or
+mappings fail closed. New sandbox provisioning continues to use the current role
+catalog. The unchanged final identity, credential and effective-authority checks
+must pass before the reset transaction commits.
+
+Before enabling this source repair in hosted refreshes, review and merge the
+candidate, satisfy the existing release workflow, and obtain authorization for
+that exact hosted release. Build the matched API/web images from one reviewed
+commit, follow the existing backup/restore and rollback gates, and deploy the
+updated guided-demo API image through the normal release path. No migration,
+credential rotation, security-setting change or runtime permission edit is
+required. A source test pass does not establish hosted reset acceptance; a future
+run by the already approved schedule needs a retained guard receipt. This repair
+does not authorize an immediate manual reset.
