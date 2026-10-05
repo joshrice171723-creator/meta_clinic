@@ -307,3 +307,17 @@ A visual check found the singular export-row label rendered as "1 rows". The lab
 The application again confirmed the export 55 download request. A focused attempt to inspect Chrome's downloads page was blocked by browser URL policy and stopped without a workaround. Completed browser/on-disk delivery therefore remains unverified.
 
 An independent final read-only review found no additional actionable defect in payroll candidate/history scoping, cursor pagination, stale response handling, employee history authorization, or schedule preflight permissions. This review adds no broader release or security acceptance.
+
+## Owned runtime and final checkpoint
+
+At 15:25 UTC, the profile-aware runtime check passed for the owned PostgreSQL container, database access, current migrations, API on 3241, web on 3240, and managed worker. The initial status invocation omitted the preview profile and inspected the default 3000/3001 ports instead; that failed result is not evidence about this isolated runtime. Loading tmp/dev/preview-profile.json and rerunning status produced the passing result.
+
+Source 3ae85a83 is committed and pushed on codex/workforce-five-hour-20261005. The final browser handoff is the Payroll exports screen at http://127.0.0.1:3240/clinic/workforce/payroll, with Payroll journey selected, three saved exports, no selected timecard, no unsaved settings draft, and no active response interception. No deployment occurred. The separate primary checkout still contains its unrelated work, which was not incorporated.
+
+The final attempt to pause the session's continuation heartbeat returned Automation does not exist in the app and could not be updated. No replacement automation was created, and no successful pause is claimed.
+
+## Session close
+
+The five-hour window closed at 15:34 UTC (10:34 America/Chicago), after final synchronization and handoff review. Nineteen source commits were delivered in the isolated branch, plus the evidence/index commits. The final TypeScript and both Vite builds passed; focused Ruby syntax/lint and local browser/database outcomes are recorded above. Automated tests were not executed. The last fetch/merge found origin/main fully included; origin has no master branch. No release or hosted change occurred.
+
+Remaining verification: completed CSV file delivery, the stalled native draft-discard dialog, and post-repair invitation replay in the browser. The invitation inspection remains paused after the already-revoked synthetic activation link appeared in tool output; this record does not close incident assessment. Wider device, hardware, regression, and launch acceptance are outside this development pass. The owned runtime is retained for review.
