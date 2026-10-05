@@ -21,3 +21,4 @@ headings and update this index if the period/count changes.
 - [2026-10-03 all-work reconciliation and publication](2026/10/2026-10-03-all-work-reconciliation-release.md)
 - [2026-10-03 clinical, statement-print and provider follow-up](2026/10/2026-10-03-clinical-print-provider-repair.md)
 - [2026-10-05 sandbox marketing buttons release](2026/10/2026-10-05-sandbox-buttons-release.md)
+- [2026-10-05 all-work reconciliation and publication](2026/10/2026-10-05-all-work-reconciliation.md)
