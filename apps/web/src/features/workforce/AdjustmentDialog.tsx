@@ -9,6 +9,7 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from "@mui/material";
 import { ApiError, api } from "../../api/client";
 import type { Timecard } from "./clockTypes";
@@ -236,7 +237,10 @@ export function AdjustmentDialog({
             creates a new timecard version.
           </Alert>
           {error && <Alert severity="error">{error}</Alert>}
-          {pendingAttempt && (
+          {pendingAttempt && busy && (
+            <Typography role="status">Saving correction request…</Typography>
+          )}
+          {pendingAttempt && !busy && (
             <Alert severity="warning">
               This correction is unconfirmed. The original details and retry key
               are retained; retry before changing them.

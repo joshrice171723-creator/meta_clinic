@@ -67,3 +67,26 @@ Payroll correction selection now loads the latest eligible approved cards for th
 - These historical candidate fixtures do not establish time calculation, approval, or export generation correctness. The missing payroll-ID warning correctly remained visible.
 - TypeScript and both Vite bundles passed; a final loading-copy adjustment passed TypeScript. Scoped RuboCop passed for the four changed Ruby files. The existing marketing import warning remains.
 - Small regression checks for empty successor retention/idempotency and old correction candidates/site isolation were added but not executed. No automated tests were run.
+
+## Payroll workweek search and correction review guidance
+
+Payroll preparation now accepts an exact workweek before the existing candidate cap, with Apply/Clear controls and an explicit applied-date label. Correction mode clears that filter and the server rejects incompatible correction/workweek parameters. Draft settings and export history survive candidate refreshes. A single workweek exceeding 250 candidates remains a documented ceiling; files themselves still accept at most 250 cards.
+
+Correction review now receives a server-projected `can_decide` capability. Reviewer-scoped pending corrections requested by another membership can be decided; requester and employee self views cannot. The UI omits unavailable decision controls and explains independent review, while the existing backend prohibition remains authoritative. Create/decision responses default the projection to false without exposing requester identifiers.
+
+Timecard submission, approval, correction requests/decisions, and payroll creation show neutral progress during saving. Unconfirmed-outcome recovery remains available after an uncertain completed request. No retry, authorization, immutable-history, or lost-work protection was removed.
+
+### Local journey evidence at 11:46 UTC
+
+- A separate synthetic employee (Taylor Example), location (Payroll journey), explicit development calculation settings, and two September 28 raw punches were prepared in the owned database. No calculated card or export was seeded. Location setup used the repository's existing development profile helper. The first fixture attempt failed request-key validation and rolled back; corrected UUIDs succeeded.
+- In Chrome as Payroll Operator, calculation produced timecard 253/version 1 with eight paid and regular hours and no exceptions. The operator submitted it; a Clinic Administrator approved it. Payroll settings and employee ID WF-002 were saved through the UI. Preview showed one row, eight paid hours, zero overtime. Creation saved export 53.
+- The administrator requested changing the interval end from 17:00 to 18:00. Self-decision was correctly rejected by the server, exposing the UI guidance defect fixed in this batch. A different Payroll Operator approved the request. Calculation produced card 254/version 2 with nine paid hours, eight regular hours, and one overtime hour under the explicit fixture policy. The operator submitted it and the administrator approved it.
+- Selecting export 53 for correction loaded the latest approved original-population card (version 2). Preview and creation saved export 54 with nine paid hours and one overtime hour. History displayed both files and their replacement relationship.
+- Database read-back confirmed both cards remain approved, correction 1 links to card 254, raw punches remain at 09:00 and 17:00 America/Chicago, export 54 supersedes 53, and both stored CSV SHA-256 digests match their contents. This is local synthetic workflow evidence, not employment-policy/legal acceptance or hosted acceptance.
+- On the final workweek-filter code, Main clinic's default list showed 250 cards. Applying December 20, 2021 returned the one older unexported card and retained an unsaved configuration draft. Clear restored 250 candidates with the draft still intact; the draft was discarded through the UI.
+- On the final correction-capability code, an administrator-created second correction displayed independent-review guidance and no approval/decision-reason controls to its requester. Payroll Operator saw enabled approval/denial controls and denied the request; the pending count returned to zero without changing approved hours.
+- TypeScript and both Vite bundles passed before the final capability projection. Final TypeScript initially identified an existing typed test fixture missing the new boolean; the fixture was updated and TypeScript then passed. Scoped RuboCop passed. No automated tests were executed; regression checks remain unrun.
+
+### Download evidence boundary
+
+The high-level browser download wait timed out. Tab-scoped Chrome diagnostics separately observed `Page.downloadWillBegin` for workforce-hours-54.csv and all 138 bytes received. No completed download event or persisted file path was observed. The app's content/digest verification and browser receipt are established, but on-disk delivery remains unverified. No download-policy or browser preference was changed.

@@ -137,6 +137,7 @@ export type Adjustment = {
   decision_reason: string | null;
   resulting_timecard_version_id: number | null;
   lock_version: number;
+  can_decide: boolean;
 };
 
 export type BarcodeDetectorLike = {

@@ -160,6 +160,8 @@ export function PayrollExportPage() {
     setPreviewPage(0);
   }, [preview]);
   const [supersedes, setSupersedes] = useState("");
+  const [workweekStart, setWorkweekStart] = useState("");
+  const [appliedWorkweekStart, setAppliedWorkweekStart] = useState("");
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [configurationUnconfirmed, setConfigurationUnconfirmed] =
@@ -274,6 +276,8 @@ export function PayrollExportPage() {
     setPreview(null);
     setSelected([]);
     setSupersedes("");
+    setWorkweekStart("");
+    setAppliedWorkweekStart("");
     api<PayrollData>(
       `/api/clinic/workforce/payroll-exports?site_id=${encodeURIComponent(siteId)}`,
       { signal: controller.signal },
@@ -346,7 +350,10 @@ export function PayrollExportPage() {
     setRequestKey(crypto.randomUUID());
   }
 
-  async function loadCandidateCards(batchId: string) {
+  async function loadCandidateCards(
+    batchId: string,
+    periodStart = appliedWorkweekStart,
+  ) {
     if (!data || candidateRequest.current || busy) return;
     const original = batchId
       ? data.batches.find((batch) => batch.id === batchId)
@@ -368,6 +375,7 @@ export function PayrollExportPage() {
     try {
       const query = new URLSearchParams({ site_id: expectedSiteId });
       if (batchId) query.set("correction_batch_id", batchId);
+      if (periodStart) query.set("period_start", periodStart);
       const result = await api<PayrollData>(
         `/api/clinic/workforce/payroll-exports?${query.toString()}`,
         { signal: controller.signal },
@@ -627,7 +635,10 @@ export function PayrollExportPage() {
           draft and review saved configuration versions before continuing.
         </Alert>
       )}
-      {unconfirmedExport && (
+      {unconfirmedExport && busy && (
+        <Typography role="status">Saving payroll export…</Typography>
+      )}
+      {unconfirmedExport && !busy && (
         <Alert severity="warning">
           The export has not been confirmed. Retry export with the saved
           selection before changing it. Refreshing discards this retry; check
@@ -681,7 +692,9 @@ export function PayrollExportPage() {
                   onChange={(event) => {
                     const batchId = event.target.value;
                     setSupersedes(batchId);
-                    void loadCandidateCards(batchId);
+                    setWorkweekStart("");
+                    setAppliedWorkweekStart("");
+                    void loadCandidateCards(batchId, "");
                   }}
                   disabled={controlsLocked}
                   sx={{ minWidth: 240 }}
@@ -702,8 +715,51 @@ export function PayrollExportPage() {
                     ))}
                 </TextField>
               </Stack>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <TextField
+                  label="Workweek starting"
+                  type="date"
+                  value={workweekStart}
+                  onChange={(event) => setWorkweekStart(event.target.value)}
+                  disabled={controlsLocked || Boolean(supersedes)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText="Load approved cards from one workweek."
+                  sx={{ maxWidth: 260 }}
+                />
+                <Button
+                  variant="outlined"
+                  disabled={
+                    controlsLocked ||
+                    Boolean(supersedes) ||
+                    !workweekStart ||
+                    workweekStart === appliedWorkweekStart
+                  }
+                  onClick={() => {
+                    setAppliedWorkweekStart(workweekStart);
+                    void loadCandidateCards("", workweekStart);
+                  }}
+                  sx={{ alignSelf: { sm: "start" } }}
+                >
+                  Apply workweek
+                </Button>
+                <Button
+                  disabled={
+                    controlsLocked || (!workweekStart && !appliedWorkweekStart)
+                  }
+                  onClick={() => {
+                    setWorkweekStart("");
+                    setAppliedWorkweekStart("");
+                    void loadCandidateCards("", "");
+                  }}
+                  sx={{ alignSelf: { sm: "start" } }}
+                >
+                  Clear workweek
+                </Button>
+              </Stack>
               <Button
-                onClick={() => void loadCandidateCards(supersedes)}
+                onClick={() =>
+                  void loadCandidateCards(supersedes, appliedWorkweekStart)
+                }
                 disabled={controlsLocked}
                 sx={{ alignSelf: "start" }}
               >
@@ -721,7 +777,12 @@ export function PayrollExportPage() {
                     <Button
                       color="inherit"
                       size="small"
-                      onClick={() => void loadCandidateCards(supersedes)}
+                      onClick={() =>
+                        void loadCandidateCards(
+                          supersedes,
+                          appliedWorkweekStart,
+                        )
+                      }
                       disabled={candidateLoading}
                     >
                       Retry
@@ -731,13 +792,32 @@ export function PayrollExportPage() {
                   {candidateError}
                 </Alert>
               )}
-              {!supersedes && data.timecards_truncated && (
-                <Alert severity="info">
-                  Showing the 250 most recent approved timecards for this
-                  location. Select a previous export to load its exact original
-                  workweeks.
-                </Alert>
-              )}
+              {!supersedes &&
+                appliedWorkweekStart &&
+                !candidateLoading &&
+                !candidateError && (
+                  <Typography role="status">
+                    Showing approved timecards for the workweek starting{" "}
+                    {appliedWorkweekStart}.
+                  </Typography>
+                )}
+              {!supersedes &&
+                data.timecards_truncated &&
+                appliedWorkweekStart && (
+                  <Alert severity="warning">
+                    This workweek still exceeds the 250-timecard payroll file
+                    ceiling.
+                  </Alert>
+                )}
+              {!supersedes &&
+                data.timecards_truncated &&
+                !appliedWorkweekStart && (
+                  <Alert severity="info">
+                    Showing the 250 most recent approved timecards for this
+                    location. Apply a workweek to find older cards, or select a
+                    previous export to load its original workweeks.
+                  </Alert>
+                )}
               {supersedes && (
                 <Alert severity="info">
                   A correction must include the same employees and workweeks as
@@ -879,7 +959,11 @@ export function PayrollExportPage() {
                   }
                   onClick={() => void generate(false)}
                 >
-                  {unconfirmedExport ? "Retry export" : "Create export"}
+                  {unconfirmedExport
+                    ? busy
+                      ? "Saving export…"
+                      : "Retry export"
+                    : "Create export"}
                 </Button>
               </Stack>
               {preview && (

@@ -236,7 +236,10 @@ export function EmployeeHoursPage() {
           </Button>
         )}
       </Stack>
-      {pendingSubmission && (
+      {pendingSubmission && busy && (
+        <Typography role="status">Submitting timecard…</Typography>
+      )}
+      {pendingSubmission && !busy && (
         <Alert severity="warning">
           Submission for the week starting{" "}
           {formatDisplayDate(pendingSubmission.period_start)}, version{" "}

@@ -55,6 +55,7 @@ const correction = (
   decision_reason: null,
   resulting_timecard_version_id: null,
   lock_version: 0,
+  can_decide: false,
 });
 describe("timecard attention over authorized source records", () => {
   it("selects the highest version independent of input ordering and separates periods/employees", () => {

@@ -5,7 +5,9 @@ module Clinic
         scope, site_id = readable_adjustments
         render json: {
           adjustments: scope.includes(:timecard_version, employment: :staff_member).order(requested_at: :desc)
-            .map { |adjustment| TimecardSerializer.adjustment(adjustment) },
+            .map { |adjustment| TimecardSerializer.adjustment(adjustment,
+              can_decide: params[:view] != "self" && adjustment.status == "submitted" &&
+                adjustment.requested_by_membership_id != clinic_membership.id) },
           site_id: site_id
         }
       end

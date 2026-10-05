@@ -16,8 +16,8 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
       "workforce.timecards.review", "workforce.timecards.approve",
       "workforce.payroll.configure", "workforce.payroll.export")
 
-    employee = create_user("payroll-employee")
-    employee_membership = @practice.memberships.create!(user: employee)
+    @employee = create_user("payroll-employee")
+    employee_membership = @practice.memberships.create!(user: @employee)
     directory_entry = @practice.staff_members.create!(display_name: "Jordan Payroll",
       job_title: "Clinic coordinator", active: true)
     @period_start = Date.current.beginning_of_week(:monday) - 1.week
@@ -117,6 +117,17 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
     assert response.parsed_body.fetch("timecards_truncated")
     refute_includes response.parsed_body.fetch("timecards").map { |card| card.fetch("id") }, oldest.id.to_s
 
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id, period_start: oldest.period_start.iso8601 }, headers: @headers
+    assert_response :success
+    assert_equal [oldest.id.to_s], response.parsed_body.fetch("timecards").map { |card| card.fetch("id") }
+    refute response.parsed_body.fetch("timecards_truncated")
+
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id, correction_batch_id: batch.id, period_start: oldest.period_start.iso8601 }, headers: @headers
+    assert_response :unprocessable_entity
+
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id, period_start: "2026-1-1" }, headers: @headers
+    assert_response :unprocessable_entity
+
     get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id, correction_batch_id: batch.id }, headers: @headers
     assert_response :success
     assert_equal [oldest.id.to_s], response.parsed_body.fetch("timecards").map { |card| card.fetch("id") }
@@ -125,6 +136,36 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
     other_site = @practice.sites.create!(code: "OTHER", name: "Other payroll clinic", status: "active", timezone_override: "UTC")
     get "/api/clinic/workforce/payroll-exports", params: { site_id: other_site.id, correction_batch_id: batch.id }, headers: @headers
     assert_response :not_found
+  end
+
+  test "correction decision capability excludes requester but permits another reviewer" do
+    login(@manager)
+    save_settings(payroll_export_enabled: false, expected_revision: 0,
+      effective_from: @period_start.beginning_of_day - 1.day)
+    card = create_approved_timecard(@period_start)
+    segment = card.time_segments.first
+    Clinic::Workforce::AdjustmentRequest.create!(practice: @practice, employment: @employment,
+      timecard_version: card, requested_by_membership: @manager_membership, correction_type: "remove_segment",
+      proposed_changes: { "source_segment_id" => segment.id.to_s }, reason: "Remove duplicate time",
+      requested_at: Time.current, request_key: SecureRandom.uuid, payload_digest: SecureRandom.hex(32),
+      source_lock_version: card.lock_version)
+
+    get "/api/clinic/workforce/adjustments", params: { site_id: @site.id }, headers: @headers
+    assert_response :success
+    refute response.parsed_body.fetch("adjustments").first.fetch("can_decide")
+
+    reviewer = create_user("payroll-reviewer")
+    reviewer_membership = @practice.memberships.create!(user: reviewer)
+    grant_permissions!(reviewer_membership, "workforce.timecards.review")
+    login(reviewer)
+    get "/api/clinic/workforce/adjustments", params: { site_id: @site.id }, headers: @headers
+    assert_response :success
+    assert response.parsed_body.fetch("adjustments").first.fetch("can_decide")
+
+    login(@employee)
+    get "/api/clinic/workforce/adjustments", params: { view: "self" }, headers: @headers
+    assert_response :success
+    refute response.parsed_body.fetch("adjustments").first.fetch("can_decide")
   end
 
   test "saved payroll history reaches older exports without repeating the boundary" do

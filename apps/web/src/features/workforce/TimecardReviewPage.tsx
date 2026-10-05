@@ -313,7 +313,13 @@ export function TimecardReviewPage() {
   }
 
   async function sendDecision(attempt: CorrectionDecision) {
-    if (busy || attempt.siteId !== siteId || !canReview) return;
+    if (
+      busy ||
+      attempt.siteId !== siteId ||
+      !canReview ||
+      attempt.adjustment.can_decide !== true
+    )
+      return;
     const recovering = pendingDecision !== null;
     setPendingDecision(attempt);
     setBusy(true);
@@ -353,7 +359,13 @@ export function TimecardReviewPage() {
     decision: "approved" | "denied",
   ) {
     const decisionReason = decisionReasons[adjustment.id]?.text.trim();
-    if (controlsLocked || !currentSource || !decisionReason) return;
+    if (
+      controlsLocked ||
+      !currentSource ||
+      adjustment.can_decide !== true ||
+      !decisionReason
+    )
+      return;
     await sendDecision({
       adjustment,
       siteId,
@@ -409,7 +421,10 @@ export function TimecardReviewPage() {
         </Alert>
       )}
       {notice && <Alert severity="success">{notice}</Alert>}
-      {pendingTransition && (
+      {busy && (pendingTransition || pendingDecision) && (
+        <Typography role="status">Saving timecard action…</Typography>
+      )}
+      {pendingTransition && !busy && (
         <Alert severity="warning">
           The{" "}
           {pendingTransition.action === "submit" ? "submission" : "approval"}{" "}
@@ -445,7 +460,7 @@ export function TimecardReviewPage() {
           </Stack>
         </Alert>
       )}
-      {pendingDecision && (
+      {pendingDecision && !busy && (
         <Alert severity="warning">
           The correction decision for {pendingDecision.adjustment.employee_name}{" "}
           is unconfirmed. Its original reason and version are retained.
@@ -463,7 +478,10 @@ export function TimecardReviewPage() {
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Button
                 disabled={
-                  busy || pendingDecision.siteId !== siteId || !canReview
+                  busy ||
+                  pendingDecision.siteId !== siteId ||
+                  !canReview ||
+                  pendingDecision.adjustment.can_decide !== true
                 }
                 onClick={() => void sendDecision(pendingDecision)}
               >
@@ -687,46 +705,54 @@ export function TimecardReviewPage() {
                 {adjustment.correction_type.replaceAll("_", " ")} · submitted{" "}
                 {new Date(adjustment.requested_at).toLocaleString()}
               </Typography>
-              <TextField
-                label="Decision reason"
-                disabled={controlsLocked}
-                slotProps={{ htmlInput: { maxLength: 1000 } }}
-                value={decisionReasons[adjustment.id]?.text ?? ""}
-                onChange={(event) =>
-                  setDecisionReasons((current) => ({
-                    ...current,
-                    [adjustment.id]: {
-                      text: event.target.value,
-                      employee: adjustment.employee_name,
-                      siteId,
-                    },
-                  }))
-                }
-                multiline
-                minRows={2}
-              />
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained"
-                  disabled={
-                    controlsLocked ||
-                    !decisionReasons[adjustment.id]?.text.trim()
-                  }
-                  onClick={() => void decide(adjustment, "approved")}
-                >
-                  Approve correction
-                </Button>
-                <Button
-                  color="warning"
-                  disabled={
-                    controlsLocked ||
-                    !decisionReasons[adjustment.id]?.text.trim()
-                  }
-                  onClick={() => void decide(adjustment, "denied")}
-                >
-                  Deny
-                </Button>
-              </Stack>
+              {adjustment.can_decide === true ? (
+                <>
+                  <TextField
+                    label="Decision reason"
+                    disabled={controlsLocked}
+                    slotProps={{ htmlInput: { maxLength: 1000 } }}
+                    value={decisionReasons[adjustment.id]?.text ?? ""}
+                    onChange={(event) =>
+                      setDecisionReasons((current) => ({
+                        ...current,
+                        [adjustment.id]: {
+                          text: event.target.value,
+                          employee: adjustment.employee_name,
+                          siteId,
+                        },
+                      }))
+                    }
+                    multiline
+                    minRows={2}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="contained"
+                      disabled={
+                        controlsLocked ||
+                        !decisionReasons[adjustment.id]?.text.trim()
+                      }
+                      onClick={() => void decide(adjustment, "approved")}
+                    >
+                      Approve correction
+                    </Button>
+                    <Button
+                      color="warning"
+                      disabled={
+                        controlsLocked ||
+                        !decisionReasons[adjustment.id]?.text.trim()
+                      }
+                      onClick={() => void decide(adjustment, "denied")}
+                    >
+                      Deny
+                    </Button>
+                  </Stack>
+                </>
+              ) : (
+                <Alert severity="info">
+                  Another reviewer must decide this correction.
+                </Alert>
+              )}
             </Stack>
           </Paper>
         ))}

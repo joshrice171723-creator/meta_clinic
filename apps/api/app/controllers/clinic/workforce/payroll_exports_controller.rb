@@ -16,6 +16,14 @@ module Clinic
           correction_batch = ExportBatch.find_by!(practice: current_practice, site: site,
             id: requested_id!(params[:correction_batch_id], :correction_batch_id))
         end
+        period_start = if params[:period_start].present?
+          value = params[:period_start].to_s
+          parsed = Date.iso8601(value)
+          raise ArgumentError, "period_start must be an ISO date" unless parsed.iso8601 == value
+
+          parsed
+        end
+        raise ArgumentError, "Choose either a correction export or a workweek" if correction_batch && period_start
         configurations = PayrollConfigurationVersion.where(practice: current_practice, site: site).order(revision: :desc).limit(25)
         batches = ExportBatch.where(practice: current_practice, site: site).order(id: :desc)
         if params[:before_batch_id].present?
@@ -40,6 +48,7 @@ module Clinic
             )
           SQL
           .order(period_start: :desc, id: :desc)
+        cards = cards.where(period_start: period_start) if period_start
         if correction_batch
           source_periods = TimecardVersion.where(practice: current_practice,
             id: correction_batch.source_versions.map { |source| source.fetch("id") })
@@ -53,6 +62,7 @@ module Clinic
             cards.where(conditions.join(" OR "), *source_periods.flatten)
           end
         end
+        # ponytail: one candidate page is capped at 250; add paging when a workweek exceeds this file limit.
         cards = exporter ? cards.limit(correction_batch ? 250 : 251).to_a : []
         timecards_truncated = correction_batch.nil? && cards.length > 250
         cards = cards.first(250)

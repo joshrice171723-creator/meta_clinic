@@ -31,7 +31,7 @@ module Clinic
         }
       end
 
-      def adjustment(adjustment)
+      def adjustment(adjustment, can_decide: false)
         source_id = adjustment.proposed_changes["source_segment_id"]
         source_interval = Array(adjustment.timecard_version.snapshot["segments"])
           .find { |segment| source_id.present? && segment["id"].to_s == source_id.to_s }
@@ -51,7 +51,8 @@ module Clinic
           reviewed_at: adjustment.reviewed_at&.utc&.iso8601(6),
           decision_reason: adjustment.decision_reason,
           resulting_timecard_version_id: adjustment.resulting_timecard_version_id,
-          lock_version: adjustment.lock_version
+          lock_version: adjustment.lock_version,
+          can_decide: can_decide
         }
       end
 
