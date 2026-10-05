@@ -38,7 +38,7 @@ class SettingsTest < ActionDispatch::IntegrationTest
       get "/api/settings"
       assert_response :success
     end
-    assert_equal({ "palette" => "cobalt", "mode" => "light", "version" => 0 }, response.parsed_body["appearance"])
+    assert_equal({ "palette" => "astra", "mode" => "dark", "version" => 0 }, response.parsed_body["appearance"])
     assert_equal @user.id, response.parsed_body["user_id"]
     save_appearance
     assert_response :success

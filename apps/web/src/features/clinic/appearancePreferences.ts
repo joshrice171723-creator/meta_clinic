@@ -49,8 +49,8 @@ export const CLINIC_TYPOGRAPHY_STYLE = {
 } as const;
 
 export const DEFAULT_APPEARANCE: ClinicAppearance = {
-  palette: "cobalt",
-  mode: "light",
+  palette: "astra",
+  mode: "dark",
 };
 
 export function normalizeAppearance(value: unknown): ClinicAppearance {
@@ -60,8 +60,11 @@ export function normalizeAppearance(value: unknown): ClinicAppearance {
       : {};
   return {
     palette:
-      CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ?? "cobalt",
-    mode: CLINIC_MODES.find((m) => m.id === candidate.mode)?.id ?? "light",
+      CLINIC_PALETTES.find((p) => p.id === candidate.palette)?.id ??
+      DEFAULT_APPEARANCE.palette,
+    mode:
+      CLINIC_MODES.find((m) => m.id === candidate.mode)?.id ??
+      DEFAULT_APPEARANCE.mode,
   };
 }
 

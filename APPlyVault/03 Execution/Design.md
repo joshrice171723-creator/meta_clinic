@@ -1,7 +1,7 @@
 ---
 type: design-system
 status: active
-updated: 2026-09-13
+updated: 2026-10-05
 ---
 # Clinic Software Design
 
@@ -53,7 +53,11 @@ No hero panel, decorative illustration, oversized metric cards or promotional co
 
 ## Color system
 
-### Canonical light appearance
+### Default appearance
+
+On 2026-10-05, Joshua requested Graphite and blue in dark mode as the default for everyone. Accounts without a saved personal appearance use this default; explicit saved choices remain available. The demo frame, toolbar, account menu and clinic/location selector share the active workspace theme. This supersedes the earlier sage/light default direction below; semantic colors, contrast and workflow hierarchy still apply across palettes.
+
+### Light appearance reference
 
 | Role | Token | Direction |
 | --- | --- | --- |
@@ -69,7 +73,7 @@ No hero panel, decorative illustration, oversized metric cards or promotional co
 | System or validation error | `--clinic-error` / background | `#9E313D` / `#FCEBED` |
 | Confirmed success | `--clinic-success` / background | `#275D35` / `#E8F2E9` |
 
-Sage/light is the canonical design reference because it is calm, readable and compatible with sustained work. Mineral blue, Warm graphite and dark appearances remain implemented compatibility options under D-036/D-039, but they no longer define separate design worlds. Do not add palette-specific component behavior. A later decision may consolidate theme choices after verifying user value and semantic parity.
+Sage/light remains a supported reference. Existing palette choices under D-036/D-039 share the same component behavior and semantic rules. Do not add palette-specific component behavior.
 
 ### Semantic rules
 
@@ -168,7 +172,7 @@ Clinic phone use is not a primary design target. Preserve a safe, operable fallb
 ### Tags and statuses
 
 - Use sentence-case adjectives or short state phrases.
-- Light background, dark text and a quiet boundary are the default.
+- Use theme surfaces, readable foreground text and a quiet boundary.
 - Do not style a status tag like a button.
 - Pair timing with an explicit qualifier: `8 min late · not checked in`, not a floating red `8`.
 

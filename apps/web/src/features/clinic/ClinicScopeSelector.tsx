@@ -1,37 +1,14 @@
 import { Alert, Button, MenuItem, Stack, TextField } from "@mui/material";
 import type { ClinicWorkspaceContext } from "../../api/contracts";
 
-const neutralSelectSx = {
-  "& .MuiInputLabel-root": { color: "#374151" },
-  "& .MuiInputLabel-root.Mui-disabled": { color: "rgb(0 0 0 / 95%)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#111827" },
+const scopeSelectSx = {
+  "& .MuiInputLabel-root.Mui-disabled": { color: "text.secondary" },
   "& .MuiOutlinedInput-root": {
-    backgroundColor: "#f3f4f6",
-    color: "#111827",
-    "& fieldset": { borderColor: "#9ca3af" },
-    "&:hover fieldset": { borderColor: "#6b7280" },
-    "&.Mui-focused fieldset": { borderColor: "#2563eb" },
-  },
-  "& .MuiSelect-icon": { color: "#111827" },
-  "& .MuiInputBase-root.Mui-disabled": {
-    backgroundColor: "#e5e7eb",
-    color: "#111827",
-  },
-  "& .MuiInputBase-input.Mui-disabled": { WebkitTextFillColor: "#111827" },
-};
-
-const neutralMenuProps = {
-  slotProps: {
-    paper: {
-      sx: {
-        backgroundColor: "#f3f4f6",
-        color: "#111827",
-        "& .MuiMenuItem-root": { color: "#111827" },
-        "& .MuiMenuItem-root.Mui-selected": { backgroundColor: "#d1d5db" },
-        "& .MuiMenuItem-root.Mui-selected:hover": {
-          backgroundColor: "#cbd5e1",
-        },
-      },
+    bgcolor: "background.paper",
+    "& fieldset": { borderColor: "divider" },
+    "&.Mui-disabled .MuiSelect-select": {
+      WebkitTextFillColor: "inherit",
+      color: "text.secondary",
     },
   },
 };
@@ -77,9 +54,10 @@ export function ClinicScopeSelector({
         mt: 0.5,
         p: 0.75,
         borderRadius: 1,
-        bgcolor: "#ffffff",
-        color: "#111827",
-        border: "1px solid #000000",
+        bgcolor: "background.default",
+        color: "text.primary",
+        border: 1,
+        borderColor: "divider",
       }}
     >
       <TextField
@@ -90,10 +68,9 @@ export function ClinicScopeSelector({
         fullWidth
         value={organizationKey}
         disabled={disabled || organizations.length < 2}
-        sx={neutralSelectSx}
+        sx={scopeSelectSx}
         slotProps={{
           select: {
-            MenuProps: neutralMenuProps,
             title: current?.organization?.name ?? "Independent clinics",
           },
         }}
@@ -120,9 +97,9 @@ export function ClinicScopeSelector({
         fullWidth
         value={context.practice.id}
         disabled={disabled || clinics.length < 2}
-        sx={neutralSelectSx}
+        sx={scopeSelectSx}
         slotProps={{
-          select: { MenuProps: neutralMenuProps, title: context.practice.name },
+          select: { title: context.practice.name },
         }}
         onChange={(event) => onPracticeChange(Number(event.target.value))}
       >
@@ -142,12 +119,11 @@ export function ClinicScopeSelector({
             fullWidth
             value={context.current_site?.id ?? ""}
             disabled={disabled || context.sites.length < 2}
-            sx={neutralSelectSx}
+            sx={scopeSelectSx}
             slotProps={{
               inputLabel: { shrink: true },
               select: {
                 displayEmpty: true,
-                MenuProps: neutralMenuProps,
                 title:
                   context.current_site?.name ||
                   context.current_site?.code ||

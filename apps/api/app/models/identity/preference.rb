@@ -9,7 +9,7 @@ module Identity
     validates :revision, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
     def self.for_user(user)
-      find_by(user: user) || new(user: user)
+      find_by(user: user) || new(user: user, palette: "astra", mode: "dark")
     end
 
     def self.save_for!(user, palette:, mode:, version:)

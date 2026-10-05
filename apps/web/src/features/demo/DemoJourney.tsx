@@ -34,6 +34,13 @@ import type { DemoLesson, DemoRun, DemoRunResponse } from "./contracts";
 import { lessonGuide } from "./lessonGuidance";
 import { roleContext, roleLabel } from "./roles";
 import { DemoEntry, DemoEntryLoading } from "./DemoEntry";
+import { ClinicAppearanceScope } from "../clinic/Appearance";
+import {
+  CLINIC_PALETTES,
+  DEFAULT_APPEARANCE,
+  normalizeAppearance,
+  type ClinicAppearance,
+} from "../clinic/appearancePreferences";
 import {
   canEnterCareModel,
   enterSandboxCareModel,
@@ -170,6 +177,10 @@ function frameUrl(run: DemoRun) {
 
 export function DemoJourney() {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const [frameAppearance, setFrameAppearance] = useState<{
+    userId: number | string;
+    appearance: ClinicAppearance;
+  } | null>(null);
   const entryHeadingRef = useRef<HTMLHeadingElement>(null);
   const registrationSubmitted = useRef(false);
   const visitorProvisionStarted = useRef(false);
@@ -297,10 +308,29 @@ export function DemoJourney() {
         return;
       const type = (event.data as { type?: unknown }).type;
       if (type === "demo:changed" || type === "demo:loaded") void refresh();
+      const data = event.data as {
+        userId?: unknown;
+        appearance?: { palette?: unknown; mode?: unknown };
+      };
+      if (
+        type === "demo:appearance" &&
+        run?.account &&
+        (typeof data.userId === "number" || typeof data.userId === "string") &&
+        String(data.userId) === String(run.account.user_id) &&
+        CLINIC_PALETTES.some(
+          (palette) => palette.id === data.appearance?.palette,
+        ) &&
+        (data.appearance?.mode === "light" || data.appearance?.mode === "dark")
+      ) {
+        setFrameAppearance({
+          userId: run.account.user_id,
+          appearance: normalizeAppearance(data.appearance),
+        });
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [refresh]);
+  }, [refresh, run?.account?.user_id]);
   useEffect(() => {
     setFrameLoading(Boolean(run?.lesson_key && !run.account_pending));
     setFrameFailed(false);
@@ -917,7 +947,7 @@ export function DemoJourney() {
       </Stack>
     </Alert>
   );
-  return (
+  const content = (
     <Stack
       component="main"
       className={sandbox ? "demo-journey--sandbox" : undefined}
@@ -1507,6 +1537,18 @@ export function DemoJourney() {
         </DialogActions>
       </Dialog>
     </Stack>
+  );
+  return (
+    <ClinicAppearanceScope
+      preferences={
+        frameAppearance && frameAppearance.userId === run.account?.user_id
+          ? frameAppearance.appearance
+          : DEFAULT_APPEARANCE
+      }
+      systemDark={false}
+    >
+      {content}
+    </ClinicAppearanceScope>
   );
 }
 

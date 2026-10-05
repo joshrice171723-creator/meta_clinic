@@ -9,6 +9,7 @@ import {
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { api } from "../../api/client";
 import type { UserSettings } from "../../api/contracts";
+import { isDemoFrame } from "../demo/frame";
 import "./appearance.css";
 import "./clinicFrame.css";
 import "./trackingBoard.css";
@@ -96,6 +97,20 @@ export function useClinicAppearance(userId: number) {
     return () => abort.abort();
   }, [userId]);
   const current = settings?.user_id === userId ? settings : undefined;
+  useEffect(() => {
+    if (!current || !isDemoFrame()) return;
+    window.parent.postMessage(
+      {
+        type: "demo:appearance",
+        userId,
+        appearance: {
+          palette: current.appearance.palette,
+          mode: resolveColorScheme(current.appearance.mode, systemDark),
+        },
+      },
+      window.location.origin,
+    );
+  }, [current, userId, systemDark]);
   return {
     settings: current,
     error,
