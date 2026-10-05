@@ -39,6 +39,7 @@ import {
   ClinicAppearanceScope,
   useClinicAppearance,
 } from "./features/clinic/Appearance";
+import { DEFAULT_APPEARANCE } from "./features/clinic/appearancePreferences";
 import {
   ClinicNavigationProvider,
   clinicRoute,
@@ -1029,12 +1030,23 @@ function Application() {
         "/login?next=" + encodeURIComponent(currentLoginDestination()),
       );
   }, [session.user, path, publicPage]);
-  if (!publicPage && (!session.user || session.error))
-    return (
+  if (!publicPage && (!session.user || session.error)) {
+    const pending = (
       <main id="main" className="wrap inner-page">
         <LoadState error={session.error} />
       </main>
     );
+    return isDemoFrame() ? (
+      <ClinicAppearanceScope
+        preferences={DEFAULT_APPEARANCE}
+        systemDark={false}
+      >
+        {pending}
+      </ClinicAppearanceScope>
+    ) : (
+      pending
+    );
+  }
   const user = session.user || null;
   if (path === "/i2e")
     return (
