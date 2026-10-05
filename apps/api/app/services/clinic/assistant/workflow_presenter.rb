@@ -69,7 +69,11 @@ module Clinic
           row = entry.deep_stringify_keys
           label = safe_text(row["label"], maximum: 160)
           display = safe_text(row["value"], maximum: MAX_TEXT)
-          { label:, value: display } if label.present? && display.present?
+          next unless label.present? && display.present?
+
+          { label:, value: display }.tap do |item|
+            item[:before] = safe_text(row["before"], maximum: MAX_TEXT) if row.key?("before")
+          end
         end
       end
 

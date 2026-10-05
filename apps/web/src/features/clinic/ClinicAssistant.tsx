@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { FormEvent } from "react";
 import {
   Alert,
@@ -6,7 +13,13 @@ import {
   Box,
   Button,
   CircularProgress,
+  Chip,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Drawer,
   FormControl,
   IconButton,
@@ -27,6 +40,11 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import OpenInFullRoundedIcon from "@mui/icons-material/OpenInFullRounded";
+import CloseFullscreenRoundedIcon from "@mui/icons-material/CloseFullscreenRounded";
 import { ApiError, api } from "../../api/client";
 import type { Patient } from "../../api/contracts";
 import { WorkflowCatalog } from "./assistant/WorkflowCatalog";
@@ -119,6 +137,17 @@ type MessageResult =
 type LookupResult = { patients: PatientSelection[] };
 type OpeningsResult = { openings: AssistantOpening[]; timezone?: string };
 type WorkflowCatalogResult = { operations: WorkflowOperation[] };
+type PausedWorkflowDraft = {
+  id: number;
+  operationKey: string;
+  title: string;
+  inputs: WorkflowInputs;
+  options: Record<string, WorkflowOption[]>;
+  messages: AssistantMessage[];
+  message: string;
+  suggestedFields: string[];
+  source: "assistant" | "catalog" | null;
+};
 type WorkflowOptionsResult = { options: WorkflowOption[] };
 type WorkflowProposalReadback = WorkflowProposal | WorkflowResult;
 
@@ -197,6 +226,12 @@ function suggestedInputs(
         field.type === "date" ||
         field.type === "datetime") &&
       typeof value === "string"
+    ) {
+      result[field.key] = value;
+    } else if (
+      field.type === "decimal" &&
+      typeof value === "string" &&
+      /^[+-]?\d{1,18}(?:\.\d{1,12})?$/.test(value)
     ) {
       result[field.key] = value;
     } else if (
@@ -401,6 +436,7 @@ export function ClinicAssistant({
 }) {
   const initialRoute = routeContext(path, search);
   const [open, setOpen] = useState(false);
+  const [expandedPanel, setExpandedPanel] = useState(false);
   const [mode, setMode] = useState<WorkflowMode>("workflows");
   const [context, setContext] = useState<AssistantContext | null>(null);
   const [contextBusy, setContextBusy] = useState(false);
@@ -451,6 +487,19 @@ export function ClinicAssistant({
     [],
   );
   const [workflowDraft, setWorkflowDraft] = useState("");
+  const [suggestedFields, setSuggestedFields] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [pausedDrafts, setPausedDrafts] = useState<PausedWorkflowDraft[]>([]);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [workflowSelectionSource, setWorkflowSelectionSource] = useState<
+    "assistant" | "catalog" | null
+  >(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const readingPositions = useRef<Record<WorkflowMode, number>>({
+    booking: 0,
+    workflows: 0,
+  });
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(
     null,
   );
@@ -476,6 +525,8 @@ export function ClinicAssistant({
   const workflowContextRef = useRef<WorkflowContext | null>(null);
   const workflowFormRef = useRef<HTMLDivElement | null>(null);
   const workflowResultRef = useRef<HTMLDivElement | null>(null);
+  const workflowReviewRef = useRef<HTMLDivElement | null>(null);
+  const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const workflowInvalidationRequest = useRef<Promise<void> | null>(null);
   const workflowLifecycleQueue = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -494,13 +545,30 @@ export function ClinicAssistant({
     Date.parse(workflowProposal.expires_at) <= now,
   );
   useEffect(() => {
-    const target = workflowResult
-      ? workflowResultRef.current
-      : workflowOperation
-        ? workflowFormRef.current
-        : null;
-    target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [workflowOperation, workflowResult]);
+    setDiscardDialogOpen(false);
+    setWorkflowSelectionSource(null);
+    setSuggestedFields([]);
+    setPausedDrafts([]);
+  }, [workflowBindingKey, workflowContext?.context_id]);
+  useEffect(() => {
+    setFavorites([]);
+  }, [scopeKey]);
+  useLayoutEffect(() => {
+    if (!open) return;
+    if (bodyRef.current)
+      bodyRef.current.scrollTop = readingPositions.current[mode];
+  }, [open, mode]);
+  useEffect(() => {
+    const target = workflowProposal
+      ? workflowReviewRef.current
+      : workflowResult
+        ? workflowResultRef.current
+        : workflowOperation
+          ? workflowFormRef.current
+          : conversationEndRef.current;
+    if (open && mode === "workflows")
+      target?.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }, [workflowOperation, workflowProposal, workflowResult]);
   const currentBinding =
     context?.context_id && attemptedBinding.current === bindingKey;
   const confirmedProposal = Boolean(
@@ -822,6 +890,7 @@ export function ClinicAssistant({
 
   useEffect(() => {
     if (!open || mode !== "workflows" || workflowContextBusy) return;
+    if (workflowProposalStatus === "unknown") return;
     if (
       workflowBindingRef.current === workflowBindingKey &&
       workflowContext?.context_id &&
@@ -842,6 +911,7 @@ export function ClinicAssistant({
     workflowContextBusy,
     workflowContext?.context_id,
     workflowContextError,
+    workflowProposalStatus,
     workflowBindingKey,
     bindWorkflowContext,
   ]);
@@ -890,8 +960,13 @@ export function ClinicAssistant({
   );
 
   const selectWorkflowOperation = useCallback(
-    (operation: WorkflowOperation) => {
+    (
+      operation: WorkflowOperation,
+      source: "assistant" | "catalog" = "catalog",
+    ) => {
       setWorkflowOperation(operation);
+      setSuggestedFields([]);
+      setWorkflowSelectionSource(source);
       setWorkflowInputs({});
       setWorkflowOptions({});
       setWorkflowOptionsBusy({});
@@ -908,6 +983,9 @@ export function ClinicAssistant({
     workflowActionSequence.current += 1;
     workflowOptionSequence.current = {};
     setWorkflowOperation(null);
+    setWorkflowSelectionSource(null);
+    setSuggestedFields([]);
+    setDiscardDialogOpen(false);
     setWorkflowInputs({});
     setWorkflowOptions({});
     setWorkflowOptionsBusy({});
@@ -915,8 +993,77 @@ export function ClinicAssistant({
     setWorkflowProposal(null);
     setWorkflowProposalStatus(null);
     setWorkflowError("");
+    setWorkflowMessages([]);
+    setWorkflowDraft("");
     setBusy("");
+    composerRef.current?.focus();
   }, []);
+
+  const requestNewWorkflowTask = () => {
+    if (busy || workflowProposalStatus === "unknown") return;
+    const hasDraft =
+      workflowDraft.trim() ||
+      (!workflowResult &&
+        (workflowProposal ||
+          Object.values(workflowInputs).some(
+            (value) =>
+              value !== null &&
+              value !== "" &&
+              (!Array.isArray(value) || value.length > 0),
+          ) ||
+          workflowMessages.some((message) => message.role === "user")));
+    if (hasDraft) setDiscardDialogOpen(true);
+    else startNewWorkflowTask();
+  };
+
+  const pauseWorkflowDraft = () => {
+    if (
+      !workflowOperation ||
+      workflowProposal ||
+      workflowResult ||
+      busy ||
+      pausedDrafts.length >= 3
+    )
+      return;
+    setPausedDrafts((drafts) => [
+      ...drafts,
+      {
+        id: Date.now(),
+        operationKey: workflowOperation.key,
+        title: workflowOperation.title,
+        inputs: workflowInputs,
+        options: workflowOptions,
+        messages: workflowMessages,
+        message: workflowDraft,
+        suggestedFields,
+        source: workflowSelectionSource,
+      },
+    ]);
+    startNewWorkflowTask();
+  };
+
+  const resumeWorkflowDraft = (saved: PausedWorkflowDraft) => {
+    const operation = workflowOperations.find(
+      (item) =>
+        item.key === saved.operationKey && item.availability === "available",
+    );
+    if (
+      !operation ||
+      !workflowContextReady ||
+      busy ||
+      workflowOperation ||
+      workflowDraft.trim() ||
+      workflowMessages.length
+    )
+      return;
+    selectWorkflowOperation(operation, saved.source ?? "catalog");
+    setWorkflowInputs(saved.inputs);
+    setWorkflowOptions(saved.options);
+    setWorkflowMessages(saved.messages);
+    setWorkflowDraft(saved.message);
+    setSuggestedFields(saved.suggestedFields);
+    setPausedDrafts((drafts) => drafts.filter((item) => item.id !== saved.id));
+  };
 
   const searchSelectedWorkflowOption = useCallback(
     (field: string, query: string) => {
@@ -1070,6 +1217,10 @@ export function ClinicAssistant({
     const current = workflowContextRef.current;
     const text = workflowDraft.trim();
     if (!current || !text || busy) return;
+    const continuingOperation =
+      workflowOperation && !workflowResult && !workflowProposal
+        ? workflowOperation
+        : null;
     const contextId = current.context_id;
     const sequence = ++workflowActionSequence.current;
     setWorkflowDraft("");
@@ -1084,8 +1235,8 @@ export function ClinicAssistant({
           body: {
             context_id: contextId,
             message: text,
-            ...(workflowOperation && !workflowResult && !workflowProposal
-              ? { operation: workflowOperation.key }
+            ...(continuingOperation
+              ? { operation: continuingOperation.key }
               : {}),
           },
           timeoutMs: 45_000,
@@ -1111,6 +1262,24 @@ export function ClinicAssistant({
         response.missing_context?.includes("patient") === true;
       const missingEncounterContext =
         response.missing_context?.includes("encounter") === true;
+      const continuingTask =
+        Boolean(operation) && continuingOperation?.key === operation?.key;
+      const inputs = operation
+        ? {
+            ...(continuingTask ? workflowInputs : {}),
+            ...suggestedInputs(operation, response.inputs),
+          }
+        : {};
+      const missingFields = operation?.fields.filter((field) => {
+        const value = inputs[field.key];
+        return (
+          field.required &&
+          (value === null ||
+            value === undefined ||
+            value === "" ||
+            (Array.isArray(value) && value.length === 0))
+        );
+      });
       const assistantText = operation
         ? missingPatientContext ||
           (operation.patient_required && !current.patient)
@@ -1118,10 +1287,10 @@ export function ClinicAssistant({
           : missingEncounterContext ||
               (operation.encounter_required && !current.encounter)
             ? `Select an encounter above to continue with ${operation.title}.`
-            : response.missing_fields?.length
-              ? `Complete the requested details below to continue with ${operation.title}.`
+            : missingFields?.length
+              ? `I’ve filled in what I can. Add ${missingFields.map((field) => field.label.toLowerCase()).join(", ")} below.`
               : operation.kind === "read"
-                ? `Showing ${operation.title} below.`
+                ? `Looking up ${operation.title.toLowerCase()}…`
                 : "I’ll prepare " +
                   operation.title +
                   " for review. Nothing is saved until you confirm."
@@ -1156,9 +1325,15 @@ export function ClinicAssistant({
         return;
       }
       if (operation) {
-        const inputs = suggestedInputs(operation, response.inputs);
-        selectWorkflowOperation(operation);
+        // Preserve named selections and their labels while completing this draft.
+        if (!continuingTask) selectWorkflowOperation(operation, "assistant");
         setWorkflowInputs(inputs);
+        const filledKeys = Object.keys(
+          suggestedInputs(operation, response.inputs),
+        );
+        setSuggestedFields((previous) => [
+          ...new Set([...(continuingTask ? previous : []), ...filledKeys]),
+        ]);
         if (
           missingPatientContext ||
           missingEncounterContext ||
@@ -1176,6 +1351,7 @@ export function ClinicAssistant({
         return;
       const failure = errorState(error, "workflows");
       setWorkflowError(failure.message);
+      setWorkflowDraft((currentDraft) => currentDraft || text);
       setWorkflowMessages((existing) => [
         ...existing,
         { role: "assistant", text: failure.message },
@@ -1432,10 +1608,11 @@ export function ClinicAssistant({
   }, [open, patientQuery]);
 
   useEffect(() => {
-    if (!proposal) return;
+    if (!proposal && !workflowProposal) return;
+    setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [proposal]);
+  }, [proposal, workflowProposal]);
 
   const bindSelectedPatient = (patient: PatientSelection | null) => {
     setSelectedPatient(patient);
@@ -1805,6 +1982,35 @@ export function ClinicAssistant({
     setOpen(false);
   };
 
+  const suggestedWorkflows = workflowOperations
+    .filter(
+      (operation) =>
+        operation.availability === "available" &&
+        operation.kind !== "gated" &&
+        (!operation.patient_required || workflowContext?.patient) &&
+        (!operation.encounter_required || workflowContext?.encounter),
+    )
+    .sort((a, b) => {
+      const score = (operation: WorkflowOperation) =>
+        (favorites.includes(operation.key) ? 8 : 0) +
+        (workflowContext?.encounter && operation.encounter_required ? 4 : 0) +
+        (workflowContext?.patient && operation.patient_required ? 2 : 0) +
+        (operation.kind === "read" ? 1 : 0);
+      return score(b) - score(a) || a.title.localeCompare(b.title);
+    })
+    .slice(0, 3);
+  const workflowReviewLocked = Boolean(workflowProposal);
+  const workflowProgress = (
+    {
+      "workflow-message":
+        "Interpreting your request and matching a clinic task…",
+      "workflow-read": "Fetching current information from the clinic…",
+      "workflow-proposal": "Preparing the exact change for your review…",
+      "workflow-confirm": "Saving your confirmed change…",
+      "workflow-readback": "Checking the saved result and receipt…",
+    } as Record<string, string>
+  )[busy];
+
   return (
     <>
       <Tooltip describeChild title="Open assistant" placement="right">
@@ -1813,7 +2019,7 @@ export function ClinicAssistant({
           aria-label="Open assistant"
           aria-haspopup="dialog"
           aria-expanded={open}
-          startIcon={<EventAvailableOutlinedIcon aria-hidden="true" />}
+          startIcon={<ChatBubbleOutlineRoundedIcon aria-hidden="true" />}
           onClick={() => setOpen(true)}
           fullWidth
         >
@@ -1824,10 +2030,19 @@ export function ClinicAssistant({
         anchor="right"
         open={open}
         onClose={closeAssistant}
-        slotProps={{ paper: { "aria-labelledby": "clinic-assistant-title" } }}
+        ModalProps={{ keepMounted: true }}
+        slotProps={{
+          paper: {
+            role: "dialog",
+            "aria-modal": true,
+            "aria-labelledby": "clinic-assistant-title",
+          },
+        }}
         sx={{
           "& .MuiDrawer-paper": {
-            width: { xs: "100%", sm: 460, md: 520 },
+            width: expandedPanel
+              ? { xs: "100%", sm: "min(880px, 100vw)" }
+              : { xs: "100%", sm: 480, md: 560 },
             maxWidth: "100vw",
           },
         }}
@@ -1845,10 +2060,49 @@ export function ClinicAssistant({
                 component="h2"
                 variant="h6"
               >
-                Assistant
+                Clinic assistant
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {mode === "booking"
+                  ? "Find a time. Review the booking."
+                  : "Find information. Get work ready."}
               </Typography>
             </Box>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+              <Tooltip
+                title={expandedPanel ? "Use compact panel" : "Expand panel"}
+              >
+                <IconButton
+                  aria-label={
+                    expandedPanel ? "Use compact panel" : "Expand panel"
+                  }
+                  aria-pressed={expandedPanel}
+                  onClick={() => setExpandedPanel((value) => !value)}
+                  sx={{ display: { xs: "none", sm: "inline-flex" } }}
+                >
+                  {expandedPanel ? (
+                    <CloseFullscreenRoundedIcon />
+                  ) : (
+                    <OpenInFullRoundedIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+              {mode === "workflows" &&
+                (workflowOperation ||
+                  workflowMessages.length > 0 ||
+                  workflowDraft.trim()) && (
+                  <Tooltip title="Start a new task">
+                    <IconButton
+                      aria-label="Start a new task"
+                      disabled={
+                        busy !== "" || workflowProposalStatus === "unknown"
+                      }
+                      onClick={requestNewWorkflowTask}
+                    >
+                      <AddRoundedIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
               <Button
                 size="small"
                 data-demo-tour-control="true"
@@ -1883,16 +2137,18 @@ export function ClinicAssistant({
               value="workflows"
               label="Ask assistant"
               id="assistant-tab-workflows"
+              aria-controls="assistant-panel-workflows"
             />
             <Tab
               value="booking"
               label="Book an appointment"
               id="assistant-tab-booking"
+              aria-controls="assistant-panel-booking"
             />
           </Tabs>
           <Divider />
           <Box className="clinic-assistant__context">
-            <Typography variant="body2" noWrap>
+            <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
               {mode === "workflows"
                 ? workflowContext?.practice.name || practiceName
                 : practiceName}
@@ -1909,9 +2165,44 @@ export function ClinicAssistant({
                 {context?.encounter ? " · Current encounter" : ""}
               </Typography>
             )}
+            {mode === "workflows" && (
+              <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+                {workflowContextReady
+                  ? workflowContext?.patient
+                    ? `Patient: ${workflowContext.patient.name}`
+                    : "No patient selected"
+                  : "Updating clinic context…"}
+                {workflowContextReady && workflowContext?.encounter && (
+                  <>
+                    {" "}
+                    · Visit:{" "}
+                    {workflowContext.encounter.label || "Selected visit"}
+                  </>
+                )}
+              </Typography>
+            )}
           </Box>
+          {mode === "workflows" && workflowProgress && (
+            <Box
+              className="clinic-assistant__progress"
+              role="status"
+              aria-live="polite"
+            >
+              <Typography variant="body2">{workflowProgress}</Typography>
+              <LinearProgress aria-label={workflowProgress} />
+            </Box>
+          )}
           <Divider />
-          <Box className="clinic-assistant__body">
+          <Box
+            className="clinic-assistant__body"
+            ref={bodyRef}
+            onScroll={(event) => {
+              readingPositions.current[mode] = event.currentTarget.scrollTop;
+            }}
+            role="tabpanel"
+            id={`assistant-panel-${mode}`}
+            aria-labelledby={`assistant-tab-${mode}`}
+          >
             {mode === "workflows" ? (
               <>
                 {workflowContextBusy && (
@@ -1925,43 +2216,102 @@ export function ClinicAssistant({
                   </Box>
                 )}
                 {workflowMessages.length === 0 && !workflowOperation && (
-                  <Stack spacing={2} className="clinic-assistant__welcome">
+                  <Stack spacing={2.5} className="clinic-assistant__welcome">
                     <Box>
                       <Typography
                         component="h3"
                         variant="h5"
                         sx={{ fontWeight: 600 }}
                       >
-                        What can I help with?
+                        What would you like to get done?
                       </Typography>
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ mt: 1 }}
                       >
-                        Look up clinic information or prepare a change. You
-                        review changes before they’re saved.
+                        Describe a task in your own words, or choose a starting
+                        point.
                       </Typography>
                     </Box>
-                    <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+                    <Stack spacing={1} className="clinic-assistant__starters">
                       <Button
                         variant="outlined"
-                        size="small"
+                        size="large"
                         onClick={() => setMode("booking")}
                         startIcon={<EventAvailableOutlinedIcon />}
                       >
                         Find an appointment
                       </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() =>
-                          setWorkflowDraft("Show the current stock report.")
-                        }
-                      >
-                        Check current stock
-                      </Button>
+                      {suggestedWorkflows.map((operation) => (
+                        <Button
+                          key={operation.key}
+                          variant="outlined"
+                          disabled={busy !== "" || !workflowContextReady}
+                          onClick={() => selectWorkflowOperation(operation)}
+                        >
+                          {operation.title}
+                        </Button>
+                      ))}
                     </Stack>
+                  </Stack>
+                )}
+                {!workflowOperation && pausedDrafts.length > 0 && (
+                  <Stack spacing={1}>
+                    <Typography component="h3" variant="subtitle1">
+                      Saved drafts for this context
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Resume while this clinic context is active. Drafts clear
+                      when the patient, visit, or account changes.
+                    </Typography>
+                    {pausedDrafts.map((saved) => (
+                      <Stack
+                        key={saved.id}
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: "center" }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            flex: 1,
+                            minWidth: 0,
+                            overflowWrap: "anywhere",
+                          }}
+                        >
+                          {saved.title}
+                        </Typography>
+                        <Button
+                          disabled={
+                            !workflowContextReady ||
+                            Boolean(
+                              busy ||
+                              workflowDraft.trim() ||
+                              workflowMessages.length,
+                            ) ||
+                            !workflowOperations.some(
+                              (item) =>
+                                item.key === saved.operationKey &&
+                                item.availability === "available",
+                            )
+                          }
+                          onClick={() => resumeWorkflowDraft(saved)}
+                        >
+                          Resume
+                        </Button>
+                        <Button
+                          aria-label={`Discard saved draft: ${saved.title}`}
+                          onClick={() =>
+                            setPausedDrafts((drafts) =>
+                              drafts.filter((item) => item.id !== saved.id),
+                            )
+                          }
+                        >
+                          Discard
+                        </Button>
+                      </Stack>
+                    ))}
                   </Stack>
                 )}
                 {workflowContextError && (
@@ -1990,7 +2340,9 @@ export function ClinicAssistant({
                     encounterOptions={
                       workflowOptions["context:encounter"] ?? []
                     }
-                    disabled={busy !== "" || workflowContextBusy}
+                    disabled={
+                      busy !== "" || workflowContextBusy || workflowReviewLocked
+                    }
                     needsPatient={Boolean(workflowOperation?.patient_required)}
                     needsEncounter={Boolean(
                       workflowOperation?.encounter_required,
@@ -2037,12 +2389,90 @@ export function ClinicAssistant({
                         )}
                       </Paper>
                     ))}
+                    <Box ref={conversationEndRef} />
                   </Box>
                 )}
-                {workflowError && (
-                  <Alert severity="warning">{workflowError}</Alert>
+                {workflowError && !workflowProposal && (
+                  <Alert
+                    severity="warning"
+                    action={
+                      <Button
+                        color="inherit"
+                        disabled={busy !== ""}
+                        onClick={() => {
+                          setWorkflowError("");
+                          const control =
+                            workflowFormRef.current?.querySelector<HTMLElement>(
+                              'input:not([aria-hidden="true"]), textarea, [role="combobox"]',
+                            );
+                          (control ?? composerRef.current)?.focus();
+                        }}
+                      >
+                        Return to details
+                      </Button>
+                    }
+                  >
+                    {workflowError} Your entered details are kept.
+                  </Alert>
                 )}
                 {workflowOperation && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    className="clinic-assistant__task-status"
+                    sx={{ alignItems: "center", flexWrap: "wrap" }}
+                  >
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={
+                        workflowProposal
+                          ? "Review change"
+                          : workflowResult
+                            ? workflowResult.status === "receipt"
+                              ? "Saved"
+                              : "Results"
+                            : "Complete details"
+                      }
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{ flex: 1, fontWeight: 600 }}
+                    >
+                      {workflowOperation.title}
+                    </Typography>
+                    {(workflowProposal || workflowResult) && (
+                      <Button
+                        size="small"
+                        disabled={
+                          busy !== "" ||
+                          workflowProposalStatus === "unknown" ||
+                          workflowProposalStatus === "denied" ||
+                          workflowResult?.status === "receipt"
+                        }
+                        startIcon={<EditOutlinedIcon />}
+                        onClick={() => {
+                          setWorkflowProposal(null);
+                          setWorkflowProposalStatus(null);
+                          setWorkflowResult(null);
+                          setWorkflowError("");
+                        }}
+                      >
+                        Edit details
+                      </Button>
+                    )}
+                    {!workflowProposal && !workflowResult && (
+                      <Button
+                        size="small"
+                        disabled={busy !== "" || pausedDrafts.length >= 3}
+                        onClick={pauseWorkflowDraft}
+                      >
+                        Save for later
+                      </Button>
+                    )}
+                  </Stack>
+                )}
+                {workflowOperation && !workflowProposal && !workflowResult && (
                   <Paper
                     ref={workflowFormRef}
                     variant="outlined"
@@ -2057,19 +2487,32 @@ export function ClinicAssistant({
                       }}
                     >
                       <Typography component="h3" variant="subtitle1">
-                        {workflowOperation.title}
+                        Task details
                       </Typography>
-                      <Button
-                        size="small"
-                        disabled={busy !== ""}
-                        onClick={startNewWorkflowTask}
-                      >
-                        New task
-                      </Button>
                     </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {workflowOperation.description}
-                    </Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {workflowSelectionSource === "assistant"
+                          ? "Suggested for your request"
+                          : "Selected clinic task"}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        {workflowOperation.description}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        {workflowOperation.kind === "read"
+                          ? "This task reads clinic information."
+                          : "This task prepares a change for you to review before saving."}
+                      </Typography>
+                    </Box>
                     {workflowOperation.patient_required &&
                       !workflowContext?.patient && (
                         <Alert severity="info">
@@ -2083,6 +2526,7 @@ export function ClinicAssistant({
                         </Alert>
                       )}
                     <WorkflowForm
+                      suggestedFields={suggestedFields}
                       operation={workflowOperation}
                       values={workflowInputs}
                       optionsByField={Object.fromEntries(
@@ -2102,12 +2546,15 @@ export function ClinicAssistant({
                         ]),
                       )}
                       disabled={!workflowContextReady || busy !== ""}
-                      onChange={(key, value) =>
+                      onChange={(key, value) => {
+                        setSuggestedFields((fields) =>
+                          fields.filter((field) => field !== key),
+                        );
                         setWorkflowInputs((values) => ({
                           ...values,
                           [key]: value,
-                        }))
-                      }
+                        }));
+                      }}
                       onSearchOption={searchSelectedWorkflowOption}
                       onSubmit={() =>
                         void runWorkflowOperation(
@@ -2119,30 +2566,48 @@ export function ClinicAssistant({
                   </Paper>
                 )}
                 {workflowProposal && (
-                  <WorkflowProposalReview
-                    proposal={workflowProposal}
-                    expired={
-                      workflowProposalExpired ||
-                      workflowProposalStatus === "expired"
-                    }
-                    busy={busy !== ""}
-                    error={
-                      workflowError ||
-                      (workflowProposalStatus === "denied"
-                        ? "Your current role cannot confirm this change."
-                        : workflowProposalStatus === "stale"
-                          ? "This proposal is stale."
-                          : workflowProposalStatus === "unknown"
-                            ? "The confirmation outcome is unknown."
-                            : "")
-                    }
-                    onConfirm={() => void confirmWorkflowProposal()}
-                    onReadback={() => void loadWorkflowProposal()}
-                  />
+                  <Box ref={workflowReviewRef}>
+                    <WorkflowProposalReview
+                      now={now}
+                      suggestedLabels={
+                        workflowOperation?.fields
+                          .filter((field) =>
+                            suggestedFields.includes(field.key),
+                          )
+                          .map((field) => field.label) ?? []
+                      }
+                      proposal={workflowProposal}
+                      expired={
+                        workflowProposalExpired ||
+                        workflowProposalStatus === "expired"
+                      }
+                      busy={busy !== ""}
+                      error={
+                        workflowError ||
+                        (workflowProposalStatus === "denied"
+                          ? "Your current role cannot confirm this change."
+                          : workflowProposalStatus === "stale"
+                            ? "This proposal is stale."
+                            : workflowProposalStatus === "unknown"
+                              ? "The confirmation outcome is unknown."
+                              : "")
+                      }
+                      onConfirm={() => void confirmWorkflowProposal()}
+                      onReadback={() => void loadWorkflowProposal()}
+                    />
+                  </Box>
                 )}
                 {workflowResult && (
                   <Box ref={workflowResultRef}>
                     <WorkflowResultView result={workflowResult} />
+                    <Button
+                      sx={{ mt: 2 }}
+                      startIcon={<AddRoundedIcon />}
+                      onClick={requestNewWorkflowTask}
+                      disabled={busy !== ""}
+                    >
+                      Start another task
+                    </Button>
                   </Box>
                 )}
                 {workflowContextReady && workflowCatalogError && (
@@ -2164,10 +2629,18 @@ export function ClinicAssistant({
                     Couldn’t load available tasks. {workflowCatalogError}
                   </Alert>
                 )}
-                {workflowContextReady && (
+                {workflowContextReady && !workflowOperation && (
                   <WorkflowCatalog
+                    favorites={favorites}
+                    onToggleFavorite={(key) =>
+                      setFavorites((keys) =>
+                        keys.includes(key)
+                          ? keys.filter((item) => item !== key)
+                          : [...keys, key],
+                      )
+                    }
                     operations={workflowOperations}
-                    selectedKey={workflowOperation?.key ?? ""}
+                    selectedKey=""
                     disabled={busy !== ""}
                     loading={workflowCatalogBusy}
                     hasPatient={Boolean(workflowContext?.patient)}
@@ -2618,6 +3091,7 @@ export function ClinicAssistant({
           >
             <TextField
               label="Message the assistant"
+              inputRef={composerRef}
               autoFocus
               placeholder={
                 mode === "workflows"
@@ -2631,21 +3105,39 @@ export function ClinicAssistant({
                   : setDraft(event.target.value)
               }
               multiline
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  const form = event.currentTarget.closest("form");
+                  const submit = form?.querySelector<HTMLButtonElement>(
+                    'button[type="submit"]',
+                  );
+                  if (submit && !submit.disabled) form?.requestSubmit();
+                }
+              }}
               minRows={2}
               maxRows={5}
               fullWidth
               disabled={
                 mode === "workflows"
-                  ? busy !== ""
+                  ? busy !== "" || workflowReviewLocked
                   : !contextReady || !visitTypeId || !clinicianId || busy !== ""
               }
               helperText={
                 mode === "workflows"
-                  ? workflowContextBusy
-                    ? "You can write while the clinic connects."
-                    : workflowCatalogBusy
-                      ? "Loading available tasks…"
-                      : "Review and confirm before anything is saved."
+                  ? workflowReviewLocked
+                    ? "Confirm this review, or choose Edit details to revise it."
+                    : workflowContextBusy
+                      ? "You can write while the clinic connects."
+                      : workflowCatalogBusy
+                        ? "Loading available tasks…"
+                        : workflowOperation && !workflowResult
+                          ? "Add or change a detail here. Enter to send; Shift + Enter for a new line."
+                          : "Enter to send · Shift + Enter for a new line"
                   : !displayPatient
                     ? "Choose a patient to start."
                     : !visitTypeId
@@ -2668,6 +3160,7 @@ export function ClinicAssistant({
                   ? !workflowContextReady ||
                     workflowCatalogBusy ||
                     Boolean(workflowCatalogError) ||
+                    workflowReviewLocked ||
                     !workflowDraft.trim() ||
                     busy !== ""
                   : !contextReady ||
@@ -2689,6 +3182,36 @@ export function ClinicAssistant({
             </Button>
           </Box>
         </Box>
+        <Dialog
+          open={discardDialogOpen && open && mode === "workflows"}
+          onClose={() => setDiscardDialogOpen(false)}
+          aria-labelledby="assistant-discard-title"
+          aria-describedby="assistant-discard-description"
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle id="assistant-discard-title">
+            Start a new task?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="assistant-discard-description">
+              Your current message and unfinished task details will be cleared.
+              Saved clinic records will stay as they are.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button autoFocus onClick={() => setDiscardDialogOpen(false)}>
+              Keep working
+            </Button>
+            <Button
+              color="warning"
+              onClick={startNewWorkflowTask}
+              disabled={busy !== "" || workflowProposalStatus === "unknown"}
+            >
+              Discard draft and start new
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Drawer>
     </>
   );

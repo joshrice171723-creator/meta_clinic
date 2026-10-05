@@ -1,7 +1,9 @@
+import { useState } from "react";
 import {
   Alert,
   Box,
   Button,
+  Chip,
   Link,
   Paper,
   Stack,
@@ -29,11 +31,39 @@ function isIdentifierLabel(label: string) {
 }
 
 export function WorkflowResultView({ result }: { result: WorkflowResult }) {
+  const [copyStatus, setCopyStatus] = useState("");
+  const rowCount = result.sections.reduce(
+    (count, section) => count + (section.rows?.length ?? 0),
+    0,
+  );
+  const summary = [
+    result.title,
+    ...result.sections.flatMap((section) =>
+      (section.fields ?? [])
+        .filter((field) => !isIdentifierLabel(field.label))
+        .map((field) => `${field.label}: ${readable(field.value)}`),
+    ),
+    ...(rowCount
+      ? [`${rowCount} displayed ${rowCount === 1 ? "row" : "rows"}.`]
+      : []),
+  ].join("\n");
   return (
     <Stack spacing={2}>
       <Typography component="h3" variant="subtitle1">
         {result.title}
       </Typography>
+      <Alert
+        severity={result.status === "receipt" ? "success" : "info"}
+        role="status"
+      >
+        {result.status === "receipt"
+          ? "Confirmed and saved by the clinic."
+          : "Clinic information retrieved."}
+        {rowCount > 0 &&
+          ` ${rowCount} ${rowCount === 1 ? "row" : "rows"} displayed below.`}
+        {result.confirmed_at &&
+          ` Saved ${new Date(result.confirmed_at).toLocaleString()}.`}
+      </Alert>
       {result.sections.map((section, index) => (
         <Paper
           variant="outlined"
@@ -122,12 +152,25 @@ export function WorkflowResultView({ result }: { result: WorkflowResult }) {
           )}
         </Paper>
       ))}
-      {(result.status === "receipt" || result.receipt_id) && (
-        <Alert severity="success">
-          {result.status === "receipt"
-            ? "Change confirmed and saved. The clinic returned its receipt."
-            : "Read receipt recorded by the clinic."}
-        </Alert>
+      <Button
+        sx={{ alignSelf: "flex-start" }}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(summary);
+            setCopyStatus("Summary copied.");
+          } catch {
+            setCopyStatus(
+              "Couldn’t copy the summary. Select the result text to copy it manually.",
+            );
+          }
+        }}
+      >
+        Copy summary
+      </Button>
+      {copyStatus && (
+        <Typography variant="body2" role="status">
+          {copyStatus}
+        </Typography>
       )}
       {result.source_path?.startsWith("/") &&
         !result.source_path.startsWith("//") && (
@@ -146,31 +189,82 @@ export function WorkflowResultView({ result }: { result: WorkflowResult }) {
 export function WorkflowProposalReview({
   proposal,
   expired,
+  now,
   busy,
   error,
   onConfirm,
   onReadback,
+  suggestedLabels = [],
 }: {
   proposal: WorkflowProposal;
   expired: boolean;
+  now: number;
   busy: boolean;
   error: string;
   onConfirm: () => void;
   onReadback: () => void;
+  suggestedLabels?: string[];
 }) {
+  const secondsLeft = Math.max(
+    0,
+    Math.ceil((Date.parse(proposal.expires_at) - now) / 1000),
+  );
+  const expiringSoon = !expired && secondsLeft <= 60;
+  const comparisons = proposal.preview.filter(
+    (item) =>
+      Object.prototype.hasOwnProperty.call(item, "before") &&
+      !isIdentifierLabel(item.label),
+  );
   return (
     <Paper variant="outlined" className="clinic-assistant__workflow-review">
       <Typography component="h3" variant="subtitle1">
         {proposal.title || "Review change"}
       </Typography>
-      <Alert severity={expired ? "warning" : "info"}>
+      <Alert
+        severity={expired || expiringSoon ? "warning" : "info"}
+        role="status"
+      >
         {expired
           ? "This review expired. Prepare the change again."
-          : "Review these exact values. Nothing is saved until you confirm."}
+          : expiringSoon
+            ? "This review expires in less than a minute. Check the values before confirming, or prepare a fresh review."
+            : "Review these exact values. Nothing is saved until you confirm."}
       </Alert>
+      {comparisons.length > 0 && (
+        <Box sx={{ overflowX: "auto" }}>
+          <Table
+            size="small"
+            aria-label="Changes before and after confirmation"
+          >
+            <TableHead>
+              <TableRow>
+                <TableCell>Change</TableCell>
+                <TableCell>Current</TableCell>
+                <TableCell>After confirmation</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {comparisons.map((item, index) => (
+                <TableRow key={`${item.label}-${index}`}>
+                  <TableCell component="th" scope="row">
+                    {item.label}
+                  </TableCell>
+                  <TableCell>{readable(item.before)}</TableCell>
+                  <TableCell>{readable(item.value)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
       <Box component="dl" className="clinic-assistant__workflow-fields">
         {proposal.preview
-          .filter((item) => !isIdentifierLabel(item.label))
+          .filter(
+            (item) =>
+              !isIdentifierLabel(item.label) &&
+              !Object.prototype.hasOwnProperty.call(item, "before") &&
+              !comparisons.some((change) => change.label === item.label),
+          )
           .map((item, index) => (
             <Box component="div" key={`${item.label}-${index}`}>
               <Typography
@@ -183,6 +277,13 @@ export function WorkflowProposalReview({
               <Typography component="dd" variant="body2">
                 {readable(item.value)}
               </Typography>
+              {suggestedLabels.includes(item.label) && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label="Filled by assistant"
+                />
+              )}
             </Box>
           ))}
       </Box>

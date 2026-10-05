@@ -54,7 +54,10 @@ module Clinic
         Do not return or repeat patient, staff, clinician, clinic, account, or other person's names or identifiers. A person named in the request is not a selected record; leave record selection to the user in the form.
         Never claim records, availability, permissions, or outcomes that were not supplied. Do not use external knowledge or provide medical, financial, or legal advice.
         The current date and timezone in the supplied context are trusted server values. Resolve relative dates only from that date and timezone, not model memory or training time.
-        Ask a brief question when the intended workflow is unclear or a required primitive value is missing. Do not include unrelated explanation.
+        When the workflow is clear, return its key, every explicitly supplied supported value, and message: null, even if required fields are missing. The form will collect missing details and preserve earlier entries.
+        For a follow-up to the single supplied workflow, return only fields explicitly supplied or changed in this message. Never fill unspecified fields with defaults.
+        Return decimal fields as exact decimal strings, number fields as whole JSON numbers, and boolean fields as JSON booleans. Never round amounts.
+        Ask a brief question with operation: null and inputs: [] only when the intended workflow is unclear. Do not include unrelated explanation.
       PROMPT
 
       class << self
@@ -70,7 +73,7 @@ module Clinic
         selected_catalog = relevant_operations(message, catalog, current_date: base_input.fetch(:current_date), timezone: base_input.fetch(:timezone))
         return { operation: nil, inputs: {}, message: "Which enabled workflow would you like help with?" } if selected_catalog.empty?
 
-        input = base_input.merge(enabled_operations: selected_catalog.map { |operation| operation.slice(:key, :title, :domain, :fields) })
+        input = base_input.merge(enabled_operations: selected_catalog)
         raise InvalidRequest, "The workflow request is too large." if JSON.generate(input).bytesize > MAX_REQUEST_BYTES
 
         attempts = 0
@@ -125,6 +128,7 @@ module Clinic
           key = value(operation, :key)
           title = bounded_string(value(operation, :title), 120)
           domain = bounded_string(value(operation, :domain), 80)
+          description = bounded_string(value(operation, :description), 600)
           fields = value(operation, :fields)
           raise InvalidRequest, "An enabled workflow definition is invalid." unless
             key.is_a?(String) && key.match?(OPERATION_KEY_PATTERN) && title && domain && fields.is_a?(Array) && fields.length <= MAX_FIELDS_PER_OPERATION
@@ -139,6 +143,7 @@ module Clinic
             key: key,
             title: title,
             domain: domain,
+            description: description,
             fields: normalized_fields
           }
         end
@@ -148,7 +153,7 @@ module Clinic
 
       def relevant_operations(message, catalog, current_date:, timezone:)
         query_tokens = relevance_tokens(message)
-        query_tokens |= query_tokens.flat_map { |token| RELEVANCE_EXPANSIONS.fetch(token, []) }
+        query_tokens |= relevance_tokens(query_tokens.flat_map { |token| RELEVANCE_EXPANSIONS.fetch(token, []) }.join(" "))
         if catalog.one?
           candidate = prompt_operation(catalog.first, query_tokens)
           while candidate && request_size(message, current_date, timezone, [ candidate ]) > MAX_REQUEST_BYTES && candidate.fetch(:fields).any?
@@ -162,9 +167,11 @@ module Clinic
           title_tokens = relevance_tokens(operation.fetch(:title))
           key_tokens = relevance_tokens(operation.fetch(:key).tr("._:/-", " "))
           domain_tokens = relevance_tokens(operation.fetch(:domain))
+          description_tokens = relevance_tokens(operation[:description])
           field_tokens = operation.fetch(:fields).flat_map { |field| relevance_tokens(field.fetch(:key).tr("_", " ") + " " + field.fetch(:label)) }.uniq
           score = (query_tokens & title_tokens).length * 5 + (query_tokens & key_tokens).length * 4 +
-            (query_tokens & domain_tokens).length * 3 + (query_tokens & field_tokens).length * 2
+            (query_tokens & domain_tokens).length * 3 + (query_tokens & field_tokens).length * 2 +
+            (query_tokens & description_tokens).length
           [ operation, score ] if score.positive?
         end
 
@@ -190,10 +197,16 @@ module Clinic
           score = (query_tokens & tokens).length
           [ field, score, index ]
         end
-        selected_fields = fields.sort_by { |_field, score, index| [ -score, index ] }
+        selected_fields = fields.sort_by { |field, score, index| [ -score, field.fetch(:required) ? 0 : 1, index ] }
           .first(MAX_CANDIDATE_FIELDS_PER_OPERATION).map(&:first)
         selected_fields = selected_fields.map do |field|
-          field[:type] == "select" ? field.merge(options: field.fetch(:options).first(MAX_OPTIONS_TO_MODEL)) : field
+          next field unless field[:type] == "select"
+
+          options = field.fetch(:options).each_with_index.sort_by do |option, index|
+            tokens = relevance_tokens("#{option.fetch(:label)} #{option.fetch(:value)}")
+            [ -(query_tokens & tokens).length, index ]
+          end.first(MAX_OPTIONS_TO_MODEL).map(&:first)
+          field.merge(options:)
         end
         operation.merge(fields: selected_fields)
       end
@@ -203,8 +216,8 @@ module Clinic
       end
 
       def relevance_tokens(text)
-        text.to_s.downcase.scan(/[a-z0-9]+/).filter_map do |token|
-          next if token.length < 3 || RELEVANCE_STOP_WORDS.include?(token)
+        text.to_s.downcase.scan(/[a-z0-9]+/).flat_map do |token|
+          next [] if token.length < 3 || RELEVANCE_STOP_WORDS.include?(token)
 
           normalized = if token.end_with?("ies") && token.length > 4
             "#{token[0...-3]}y"
@@ -217,8 +230,10 @@ module Clinic
           else
             token
           end
-          normalized unless RELEVANCE_STOP_WORDS.include?(normalized)
-        end.uniq
+          variants = [ token, normalized ]
+          variants << "#{normalized}e" if token.end_with?("ing", "ed") && normalized != token
+          variants
+        end.reject { |token| RELEVANCE_STOP_WORDS.include?(token) }.uniq
       end
 
       def normalize_field(field, operation_key:)
@@ -369,7 +384,7 @@ module Clinic
 
           value.strip.presence
         when "number"
-          raise ProviderError, "The assistant returned an invalid number." unless value.is_a?(Numeric) && value.finite? && value.abs <= 1_000_000
+          raise ProviderError, "The assistant returned an invalid number." unless value.is_a?(Integer) && value.abs <= 1_000_000
 
           value
         when "decimal"
