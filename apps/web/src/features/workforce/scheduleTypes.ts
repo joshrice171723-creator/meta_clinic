@@ -135,6 +135,7 @@ export function mondayIso(date = businessNow()) {
 export function displayInterval(start: string, end: string, timezone: string) {
   const format = new Intl.DateTimeFormat(undefined, {
     timeZone: timezone,
+    timeZoneName: "short",
     weekday: "short",
     month: "short",
     day: "numeric",

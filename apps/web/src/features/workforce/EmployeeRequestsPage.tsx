@@ -188,35 +188,43 @@ export function EmployeeRequestsPage() {
     }
   }
 
-  const pendingNotice = pendingAttempt && (
-    <Alert severity="warning">
-      The last request action is unconfirmed. Its original details are held for
-      retry. Refreshing history preserves this retry.
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1 }}>
-        <Button
-          disabled={busy}
-          onClick={() => void sendAttempt(pendingAttempt)}
+  const pendingNotice =
+    pendingAttempt &&
+    (busy ? (
+      <Typography role="status">Saving request action…</Typography>
+    ) : (
+      <Alert severity="warning">
+        The last request action is unconfirmed. Its original details are held
+        for retry. Refreshing history preserves this retry.
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{ mt: 1 }}
         >
-          Retry saved action
-        </Button>
-        <Button
-          disabled={busy}
-          onClick={() => {
-            if (
-              !window.confirm(
-                "Stop retrying this action? It may already be saved. Review request history before submitting again.",
+          <Button
+            disabled={busy}
+            onClick={() => void sendAttempt(pendingAttempt)}
+          >
+            Retry saved action
+          </Button>
+          <Button
+            disabled={busy}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Stop retrying this action? It may already be saved. Review request history before submitting again.",
+                )
               )
-            )
-              return;
-            setPendingAttempt(null);
-            refresh();
-          }}
-        >
-          Stop retrying and review history
-        </Button>
-      </Stack>
-    </Alert>
-  );
+                return;
+              setPendingAttempt(null);
+              refresh();
+            }}
+          >
+            Stop retrying and review history
+          </Button>
+        </Stack>
+      </Alert>
+    ));
   useEffect(() => {
     if (data && !draftDirty && !pendingAttempt)
       setSiteId((value) =>

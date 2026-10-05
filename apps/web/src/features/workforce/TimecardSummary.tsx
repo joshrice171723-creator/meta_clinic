@@ -29,7 +29,24 @@ export function TimecardSummary({
   corrections?: Adjustment[];
   actions?: React.ReactNode;
 }) {
-  const totals = card.snapshot.totals;
+  const totals = card.snapshot?.totals;
+  if (!totals || !Array.isArray(card.snapshot?.segments))
+    return (
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Stack spacing={1}>
+          <Typography variant="h2">{card.employee_name}</Typography>
+          <Typography color="text.secondary">
+            Week starting {formatDisplayDate(card.period_start)} · version{" "}
+            {card.version_number}
+          </Typography>
+          <Alert severity="warning">
+            Calculated details are unavailable for this timecard. Refresh hours;
+            if this persists, ask a workforce administrator to review the saved
+            record.
+          </Alert>
+        </Stack>
+      </Paper>
+    );
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
       <Stack spacing={2}>

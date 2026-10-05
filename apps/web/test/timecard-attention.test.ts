@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { TimecardSummary } from "../src/features/workforce/TimecardSummary";
 import { timecardAttention } from "../src/features/workforce/timecardAttention";
 import type {
   Adjustment,
@@ -58,6 +61,17 @@ const correction = (
   can_decide: false,
 });
 describe("timecard attention over authorized source records", () => {
+  it("keeps an incomplete timecard visible without exposing review actions", () => {
+    const html = renderToStaticMarkup(
+      createElement(TimecardSummary, {
+        card: card(1, { snapshot: {} as Timecard["snapshot"] }),
+        actions: createElement("button", null, "Approve timecard"),
+      }),
+    );
+    expect(html).toContain("Calculated details are unavailable");
+    expect(html).toContain("Synthetic 1");
+    expect(html).not.toContain("Approve timecard");
+  });
   it("selects the highest version independent of input ordering and separates periods/employees", () => {
     const result = timecardAttention(
       [

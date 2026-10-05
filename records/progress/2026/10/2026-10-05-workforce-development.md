@@ -90,3 +90,17 @@ Timecard submission, approval, correction requests/decisions, and payroll creati
 ### Download evidence boundary
 
 The high-level browser download wait timed out. Tab-scoped Chrome diagnostics separately observed `Page.downloadWillBegin` for workforce-hours-54.csv and all 138 bytes received. No completed download event or persisted file path was observed. The app's content/digest verification and browser receipt are established, but on-disk delivery remains unverified. No download-policy or browser preference was changed.
+
+## Shift swap walkthrough and incomplete-card display
+
+The shared schedule interval formatter now includes short timezone names. This removes the ambiguity between 01:15 CDT and 01:45 CST in shift choices, employee schedules, drafts, and published schedule details. The same existing formatter and timestamps remain in use. Employee request submission/acceptance also uses neutral saving feedback while preserving uncertain-outcome recovery.
+
+The earlier history-only payroll candidate fixtures deliberately lacked calculated snapshot totals. Opening their employee's My hours exposed a whole-route render failure in TimecardSummary. The shared component now displays the employee/workweek and an unavailable-details warning, without totals or review actions, when required snapshot totals/segments are absent. It does not invent hours or repair the underlying record. Valid calculated cards keep their existing display.
+
+### Evidence at 12:00 UTC
+
+- TypeScript passed for the display changes. A small static-render regression was added for incomplete-card containment but not run. In Chrome the incomplete history showed unavailable-card messages, no route error, and working My hours/My schedule/My requests navigation. This malformed-snapshot reproduction came from the bounded history fixtures, not an observed normal calculation output.
+- A guarded ignored fixture published two November 1 shifts at Main clinic using existing scheduling services: Morgan's 01:15 first occurrence to 01:45 second occurrence (90 actual minutes) and Taylor's 03:00–04:00 shift. It enabled only the required site request settings and current Taylor site assignment; no request/decision was seeded.
+- Front Desk Coordinator (Morgan) submitted the swap, Clinical Staff (Taylor) accepted, and database read-back showed accepted/revision 2 with only the original publication still present. Clinic Administrator then approved through Request review.
+- Database read-back showed request approved/revision 3 and publication 4/version 2 superseding publication 3/version 1. The transferred shift retained 06:15Z–07:45Z, first/second occurrence, and 90-minute duration, while employment changed from Morgan to Taylor. The unrelated Taylor shift retained its instants and 60-minute duration. The original publication remained unchanged.
+- The published team schedule and Taylor's My schedule for October 26–November 1 displayed both version-2 assignments with explicit CDT/CST labels. This verifies the modern repeated-hour publication path locally. Recovery from older snapshots without occurrence fields remains pending its own walkthrough.
