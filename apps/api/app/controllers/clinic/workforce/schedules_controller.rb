@@ -9,14 +9,22 @@ module Clinic
         site = site!
         workforce_access.authorize!("workforce.schedule.read", site: site)
         ensure_schedule_enabled!(site)
+        permissions = {
+          manage: workforce_access.allow?("workforce.schedule.manage", site: site),
+          publish: workforce_access.allow?("workforce.schedule.publish", site: site)
+        }
         templates = ScheduleTemplate.where(practice_id: current_practice.id, site_id: site.id, active: true).order(:name)
-        drafts = ScheduleDraft.where(practice_id: current_practice.id, site_id: site.id).where(status: "draft").order(week_start_on: :desc)
+        drafts = if permissions.values.any?
+          ScheduleDraft.where(practice_id: current_practice.id, site_id: site.id).where(status: "draft").order(week_start_on: :desc)
+        else
+          []
+        end
         publications = latest_publications.where(site_id: site.id).includes(:site).order(week_start_on: :desc).limit(12)
         render json: ScheduleSerializer.response(
           site: site_payload(site), templates: templates.map { |item| ScheduleSerializer.template(item) },
           drafts: drafts.map { |item| ScheduleSerializer.draft(item, include_shifts: false) },
           publications: publications.map { |item| ScheduleSerializer.publication(item) },
-          employments: eligible_employments(site), settings: effective_settings(site).fetch(:values)
+          employments: eligible_employments(site), settings: effective_settings(site).fetch(:values), permissions: permissions
         )
       end
 
@@ -38,7 +46,11 @@ module Clinic
 
       def show_draft
         draft = draft!
-        workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        if workforce_access.allow?("workforce.schedule.manage", site: draft.site)
+          workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        else
+          workforce_access.authorize!("workforce.schedule.publish", site: draft.site)
+        end
         render json: ScheduleSerializer.response(draft: ScheduleSerializer.draft(draft))
       end
 

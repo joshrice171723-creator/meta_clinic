@@ -495,8 +495,13 @@ export function EmploymentAdminPage() {
       ),
     [],
   );
-  const [activationToken, setActivationToken] = useState<string | null>(null);
-  const [activationPath, setActivationPath] = useState<string | null>(null);
+  const [issuedInvitation, setIssuedInvitation] = useState<{
+    id: number;
+    token: string;
+    path: string;
+    employee: string;
+    expiresAt: string;
+  } | null>(null);
   const [setupRoleCode, setSetupRoleCode] = useState<string | null>(null);
   const [unconfirmed, setUnconfirmed] = useState<{
     mode: "existing" | "new";
@@ -523,22 +528,34 @@ export function EmploymentAdminPage() {
   );
   useDemoNavigationBlocker(() => ({
     blocked: saving || unconfirmed !== null,
-    message: null,
+    message: issuedInvitation
+      ? "Leave the one-time activation link? It cannot be shown again after this page closes."
+      : null,
   }));
+  const setupLeaveMessage = saving
+    ? "Employee setup is still saving."
+    : unconfirmed
+      ? "Employee setup is unconfirmed. Check its saved outcome before leaving."
+      : issuedInvitation
+        ? "Leave the one-time activation link? It cannot be shown again after this page closes."
+        : dirty
+          ? "Discard your unsaved employee setup?"
+          : null;
   useEffect(() => {
-    if (!dirty) return;
-    const warning = "Discard your unsaved employee setup?";
-    const unregister = registerBlocker(() => warning);
+    if (!setupLeaveMessage) return;
+    const unregister = registerBlocker(() => setupLeaveMessage, {
+      preventNavigation: saving || unconfirmed !== null,
+    });
     const unload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = warning;
+      event.returnValue = setupLeaveMessage;
     };
     window.addEventListener("beforeunload", unload);
     return () => {
       unregister();
       window.removeEventListener("beforeunload", unload);
     };
-  }, [dirty, registerBlocker]);
+  }, [setupLeaveMessage, saving, unconfirmed, registerBlocker]);
 
   useEffect(() => {
     if (roleVersionId || !data) return;
@@ -630,11 +647,9 @@ export function EmploymentAdminPage() {
     );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (saving || unconfirmed) return;
+    if (saving || unconfirmed || issuedInvitation) return;
     setSaving(true);
     setFeedback(null);
-    setActivationToken(null);
-    setActivationPath(null);
     setSetupRoleCode(null);
     const attempt = {
       mode: accountMode,
@@ -679,6 +694,7 @@ export function EmploymentAdminPage() {
       } else {
         const result = await api<{
           invitation: {
+            id: number;
             activation_token_once: string;
             activation_path: string;
             expires_at: string;
@@ -700,8 +716,13 @@ export function EmploymentAdminPage() {
           data.role_options.find((role) => String(role.id) === roleVersionId)
             ?.role_code ?? null,
         );
-        setActivationToken(result.invitation.activation_token_once);
-        setActivationPath(result.invitation.activation_path);
+        setIssuedInvitation({
+          id: result.invitation.id,
+          token: result.invitation.activation_token_once,
+          path: result.invitation.activation_path,
+          employee: displayName,
+          expiresAt: result.invitation.expires_at,
+        });
         setFeedback({
           severity: "success",
           text: `Invitation created. The token expires ${new Date(result.invitation.expires_at).toLocaleString()}.`,
@@ -731,15 +752,23 @@ export function EmploymentAdminPage() {
     }
   };
   const revokeInvitation = async (id: number) => {
+    if (saving || unconfirmed) return;
     setSaving(true);
     setFeedback(null);
-    setActivationToken(null);
-    setActivationPath(null);
     try {
-      await api(`/api/clinic/workforce/onboarding/${id}`, {
-        method: "PATCH",
-        body: { employee_invitation: { action: "revoke" } },
-      });
+      const result = await api<{ invitation: { id: number; status: string } }>(
+        `/api/clinic/workforce/onboarding/${id}`,
+        {
+          method: "PATCH",
+          body: { employee_invitation: { action: "revoke" } },
+        },
+      );
+      setIssuedInvitation((current) =>
+        current?.id === result.invitation.id &&
+        result.invitation.status === "revoked"
+          ? null
+          : current,
+      );
       setFeedback({
         severity: "success",
         text: "The employee invitation was revoked.",
@@ -748,10 +777,7 @@ export function EmploymentAdminPage() {
     } catch (reason) {
       setFeedback({
         severity: "error",
-        text:
-          reason instanceof Error
-            ? reason.message
-            : "Unable to revoke the invitation.",
+        text: `${reason instanceof Error ? reason.message : "Unable to confirm invitation revocation."} Refresh pending invitations to check its current status before trying again. An unconfirmed revoke may already have invalidated the activation link.`,
       });
     } finally {
       setSaving(false);
@@ -837,6 +863,19 @@ export function EmploymentAdminPage() {
         </Typography>
       </Stack>
       {feedback && <Alert severity={feedback.severity}>{feedback.text}</Alert>}
+      {error && (
+        <Alert severity="error">
+          {error} Previously loaded employees remain visible. Refresh to check
+          current records.
+        </Alert>
+      )}
+      <Button
+        sx={{ alignSelf: "flex-start" }}
+        disabled={selectionActionsBlocked}
+        onClick={refresh}
+      >
+        Refresh employees and invitations
+      </Button>
       {unconfirmed && (
         <Alert
           severity="warning"
@@ -850,10 +889,14 @@ export function EmploymentAdminPage() {
           another submission stay blocked until saved records confirm it.
         </Alert>
       )}
-      {activationToken && (
+      {issuedInvitation && (
         <Alert severity="warning">
           <Typography sx={{ fontWeight: 700 }}>
-            Share this activation link securely now.
+            Activation link for {issuedInvitation.employee}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Expires {new Date(issuedInvitation.expiresAt).toLocaleString()}.
+            Finish with this link before adding another employee.
           </Typography>
           <Typography
             variant="body2"
@@ -865,7 +908,7 @@ export function EmploymentAdminPage() {
           </Typography>
           <Button
             component="a"
-            href={activationPath ?? undefined}
+            href={issuedInvitation.path}
             target="_blank"
             rel="noreferrer"
             sx={{ mb: 1 }}
@@ -874,7 +917,7 @@ export function EmploymentAdminPage() {
           </Button>
           <TextField
             fullWidth
-            value={activationToken}
+            value={issuedInvitation.token}
             label="One-time activation token"
             slotProps={{ htmlInput: { readOnly: true } }}
           />
@@ -882,13 +925,24 @@ export function EmploymentAdminPage() {
             fullWidth
             multiline
             minRows={2}
-            value={
-              activationPath ? `${window.location.origin}${activationPath}` : ""
-            }
+            value={`${window.location.origin}${issuedInvitation.path}`}
             label="One-time activation link"
             sx={{ "& textarea": { overflowWrap: "anywhere" } }}
             slotProps={{ htmlInput: { readOnly: true } }}
           />
+          <Button
+            disabled={saving}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Finish with this activation link? It cannot be shown again after you dismiss it.",
+                )
+              )
+                setIssuedInvitation(null);
+            }}
+          >
+            Done with activation link
+          </Button>
         </Alert>
       )}
       {clinicianSetupNeeded && (
@@ -1221,7 +1275,12 @@ export function EmploymentAdminPage() {
             component="form"
             spacing={2.5}
             onSubmit={submit}
-            inert={unconfirmed !== null || bulkAccessBlocked}
+            inert={
+              saving ||
+              unconfirmed !== null ||
+              issuedInvitation !== null ||
+              bulkAccessBlocked
+            }
           >
             <Stack spacing={0.5}>
               <Typography variant="body2" color="text.secondary">
@@ -1426,7 +1485,7 @@ export function EmploymentAdminPage() {
                 </Stack>
                 <Button
                   color="warning"
-                  disabled={saving || bulkAccessBlocked}
+                  disabled={saving || unconfirmed !== null || bulkAccessBlocked}
                   onClick={() => {
                     setInvitationRevokeAcknowledged(false);
                     setInvitationToRevoke(invitation);
@@ -1476,7 +1535,10 @@ export function EmploymentAdminPage() {
           <Button
             color="warning"
             disabled={
-              saving || bulkAccessBlocked || !invitationRevokeAcknowledged
+              saving ||
+              unconfirmed !== null ||
+              bulkAccessBlocked ||
+              !invitationRevokeAcknowledged
             }
             onClick={() => {
               if (!invitationToRevoke) return;

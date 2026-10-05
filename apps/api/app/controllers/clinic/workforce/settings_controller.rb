@@ -48,10 +48,12 @@ module Clinic
       end
 
       def settings_payload(site)
+        at = Current.business_time
         relation = SettingsVersion.where(practice_id: current_practice.id, site_id: site&.id)
-        current_version = relation.effective_at(Current.business_time).order(effective_from: :desc, revision: :desc).first
+        current_version = relation.effective_at(at).order(effective_from: :desc, revision: :desc).first
+        scheduled_versions = relation.where("effective_from > ?", at).order(:effective_from, :revision)
         effective = begin
-          EffectiveSettings.call(practice: current_practice, site: site)
+          EffectiveSettings.call(practice: current_practice, site: site, at: at)
         rescue EffectiveSettings::Unconfigured
           nil
         end
@@ -59,6 +61,7 @@ module Clinic
           schema_version: 1,
           scope: { kind: site ? "site" : "practice", site_id: site&.id },
           current_version: current_version && serialize_version(current_version),
+          scheduled_versions: scheduled_versions.map { |version| serialize_version(version) },
           latest_revision: relation.maximum(:revision) || 0,
           effective_settings: effective,
           sites: current_practice.sites.where(status: "active").order(:name, :id).map { |record|

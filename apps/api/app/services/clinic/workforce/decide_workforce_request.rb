@@ -24,6 +24,7 @@ module Clinic
       def call
         request.class.transaction do
           request.lock!
+          authorize_decision!
           digest = Digest::SHA256.hexdigest(JSON.generate([ request.public_id, decision, expected_revision, reason ]))
           receipt = request.decision_receipts[idempotency_key]
           if receipt
@@ -45,6 +46,24 @@ module Clinic
       private
 
       attr_reader :request, :decision, :actor, :access, :expected_revision, :idempotency_key, :reason
+
+      def authorize_decision!
+        raise Clinic::Authorization::Denied unless access.practice.id == request.practice_id
+
+        case decision
+        when "manager_approve", "manager_deny"
+          access.authorize!("workforce.requests.review", site: request.site)
+        when "cancel"
+          owner_id = request.is_a?(ShiftSwapRequest) ? request.requester_employment_id : request.employment_id
+          raise Clinic::Authorization::Denied unless access.own_employment&.id == owner_id
+        when "target_accept", "target_decline"
+          unless request.is_a?(ShiftSwapRequest) && access.own_employment&.id == request.target_employment_id
+            raise Clinic::Authorization::Denied
+          end
+        else
+          raise ArgumentError, "Decision is not valid for this request."
+        end
+      end
 
       def transition!
         return cancel! if decision == "cancel"
@@ -122,6 +141,8 @@ module Clinic
       end
 
       def publish_swap_revision!
+        # Hold the publication lock while choosing and copying the source revision.
+        request.site.lock!
         offered = request.offered_shift
         raise ArgumentError, "The offered published shift is unavailable." unless offered
         raise ArgumentError, "The offered shift is not assigned to the requester." unless offered["employment_id"].to_i == request.requester_employment_id

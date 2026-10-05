@@ -8,15 +8,30 @@ module Clinic
       def index
         site = payroll_site
         exporter = workforce_access.allow?("workforce.payroll.export", site: site)
+        configurator = workforce_access.allow?("workforce.payroll.configure", site: site)
         workforce_access.authorize!("workforce.payroll.configure", site: site) unless exporter
         configurations = PayrollConfigurationVersion.where(practice: current_practice, site: site).order(revision: :desc).limit(25)
         batches = ExportBatch.where(practice: current_practice, site: site).order(id: :desc).limit(50)
+        batches = exporter ? batches.to_a : []
+        context = batch_context(batches)
         employee_ids = EmploymentSite.where(practice: current_practice, site: site).select(:employment_id)
         employees = Employment.where(practice: current_practice, id: employee_ids).includes(:staff_member).order(:id)
-        cards = TimecardVersion.where(practice: current_practice, employment_id: employees.select(:id), status: "approved").order(period_start: :desc, id: :desc).limit(250)
+        cards = TimecardVersion.where(practice: current_practice, employment_id: employees.select(:id), status: "approved")
+          .joins(:time_segments).where(clinic_workforce_time_segments: { site_id: site.id }).distinct
+          .where(<<~SQL)
+            NOT EXISTS (
+              SELECT 1 FROM clinic_workforce_timecard_versions newer
+              WHERE newer.practice_id = clinic_workforce_timecard_versions.practice_id
+                AND newer.employment_id = clinic_workforce_timecard_versions.employment_id
+                AND newer.period_start = clinic_workforce_timecard_versions.period_start
+                AND newer.version_number > clinic_workforce_timecard_versions.version_number
+            )
+          SQL
+          .order(period_start: :desc, id: :desc).limit(250)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "workforce.payroll.export", outcome: :released)
         render json: { configurations: configurations.map { |configuration| configuration_json(configuration) },
-          batches: exporter ? batches.map { |batch| batch_json(batch) } : [], fields: GeneratePayrollExport::FIELDS,
+          batches: batches.map { |batch| batch_json(batch, context: context) }, fields: GeneratePayrollExport::FIELDS,
+          permissions: { configure: configurator, export: exporter },
           default_columns: GeneratePayrollExport::DEFAULT_COLUMNS,
           employees: employees.map { |employee| { id: employee.id.to_s, name: employee.staff_member.display_name } },
           timecards: exporter ? cards.map { |card| { id: card.id.to_s, employment_id: card.employment_id.to_s, period_start: card.period_start, period_end: card.period_end, version: card.version_number } } : [] }
@@ -54,7 +69,11 @@ module Clinic
         batch = ExportBatch.find_by!(practice: current_practice, id: requested_id!(params[:id], :id))
         workforce_access.authorize!("workforce.payroll.export", site: batch.site)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "workforce.payroll.export", outcome: :released, resource_version_ref: "workforce_export:#{batch.id}")
-        send_data batch.csv_content, type: "text/csv; charset=utf-8", filename: "workforce-hours-#{batch.id}.csv", disposition: "attachment"
+        if params[:response_format] == "json"
+          render json: { filename: "workforce-hours-#{batch.id}.csv", content_type: "text/csv; charset=utf-8", content: batch.csv_content }
+        else
+          send_data batch.csv_content, type: "text/csv; charset=utf-8", filename: "workforce-hours-#{batch.id}.csv", disposition: "attachment"
+        end
       end
 
       private
@@ -74,10 +93,24 @@ module Clinic
           effective_from: configuration.effective_from, provider: configuration.provider, columns: configuration.columns, employee_identifiers: configuration.employee_identifiers }
       end
 
-      def batch_json(batch)
+      def batch_context(batches)
+        successors = ExportBatch.where(practice: current_practice, site_id: batches.map(&:site_id), supersedes_batch_id: batches.map(&:id))
+          .pluck(:supersedes_batch_id, :id).to_h
+        source_ids = batches.flat_map { |batch| batch.source_versions.map { |source| source.fetch("id") } }.uniq
+        periods = TimecardVersion.where(practice: current_practice, id: source_ids)
+          .pluck(:id, :employment_id, :period_start, :period_end).to_h do |id, employment_id, period_start, period_end|
+            [ id.to_s, { employment_id: employment_id.to_s, period_start: period_start.iso8601, period_end: period_end.iso8601 } ]
+          end
+        { successors: successors, periods: periods }
+      end
+
+      def batch_json(batch, context: nil)
+        context ||= batch_context([ batch ])
+        source_periods = batch.source_versions.filter_map { |source| context.fetch(:periods)[source.fetch("id").to_s] }.uniq
         { id: batch.id.to_s, site_id: batch.site_id.to_s, created_at: batch.created_at, configuration_version_id: batch.configuration_version_id.to_s,
           source_digest: batch.source_digest, source_versions: batch.source_versions, totals: batch.totals, row_count: batch.rows.length,
-          supersedes_batch_id: batch.supersedes_batch_id&.to_s, download_url: "/api/clinic/workforce/payroll-exports/#{batch.id}/download" }
+          supersedes_batch_id: batch.supersedes_batch_id&.to_s, superseded_by_batch_id: context.fetch(:successors)[batch.id]&.to_s,
+          source_periods: source_periods, download_url: "/api/clinic/workforce/payroll-exports/#{batch.id}/download" }
       end
     end
   end

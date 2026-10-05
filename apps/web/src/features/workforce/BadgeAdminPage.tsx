@@ -17,12 +17,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import {
   formatDisplayDate,
   formatDisplayDateTime,
 } from "../../shared/dateTime";
 import { useClinic } from "../clinic/Workspace";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 import { isDemoFrame } from "../demo/frame";
 import type { BadgeRecord, KioskEnrollment } from "./clockTypes";
 
@@ -31,13 +33,20 @@ type PrintableBadge = {
   barcode_svg: string;
   reprintable: false;
 };
+type BadgePrint = PrintableBadge & { badge_id: number; employee_name: string };
+type EnrollmentCode = { token: string; kiosk: KioskEnrollment };
 
 export function BadgeAdminPage() {
   const clinic = useClinic();
+  const { registerBlocker } = useClinicNavigation();
   const canManageBadges = clinic.capabilities.workforce_badges === true;
   const canManageKiosks = clinic.capabilities.workforce_settings === true;
   const [badgeError, setBadgeError] = useState("");
   const [kioskError, setKioskError] = useState("");
+  const [badgeLoading, setBadgeLoading] = useState(true);
+  const [kioskLoading, setKioskLoading] = useState(true);
+  const [pinRequired, setPinRequired] = useState<boolean | null>(null);
+  const [settingsError, setSettingsError] = useState("");
   const [siteId, setSiteId] = useState(
     String(clinic.current_site?.id ?? clinic.sites[0]?.id ?? ""),
   );
@@ -48,25 +57,75 @@ export function BadgeAdminPage() {
   const [kiosks, setKiosks] = useState<KioskEnrollment[]>([]);
   const [employmentId, setEmploymentId] = useState("");
   const [pin, setPin] = useState("");
-  const [printable, setPrintable] = useState<PrintableBadge | null>(null);
-  const [enrollmentToken, setEnrollmentToken] = useState("");
+  const [printable, setPrintable] = useState<BadgePrint | null>(null);
+  const [enrollment, setEnrollment] = useState<EnrollmentCode | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
   const [revision, setRevision] = useState(0);
+  const leaveMessage = busy
+    ? "A badge or kiosk action is still saving."
+    : printable || enrollment
+      ? "A one-time badge or kiosk code is still displayed. Leaving loses it; it cannot be retrieved later."
+      : pin
+        ? "Discard the entered badge PIN?"
+        : null;
+  useDemoNavigationBlocker(() => ({ blocked: busy, message: leaveMessage }));
+  useEffect(() => {
+    if (!leaveMessage) return;
+    const unregister = registerBlocker(() => leaveMessage, {
+      preventNavigation: busy,
+    });
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = leaveMessage;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [leaveMessage, busy, registerBlocker]);
+
+  function refreshRecords() {
+    if (
+      busy ||
+      (pin && !window.confirm("Discard the entered badge PIN and refresh?"))
+    )
+      return;
+    setPin("");
+    setRevision((value) => value + 1);
+  }
+
+  function failureMessage(reason: unknown, action: string) {
+    const rejected =
+      reason instanceof ApiError &&
+      reason.status >= 400 &&
+      reason.status < 500 &&
+      ![408, 429].includes(reason.status) &&
+      !["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
+    const message =
+      reason instanceof Error ? reason.message : `Unable to confirm ${action}.`;
+    return rejected
+      ? message
+      : `${message} The action may have completed. Refresh and review saved records before issuing a replacement or another code.`;
+  }
 
   useEffect(() => {
     const abort = new AbortController();
     setEmployees([]);
     setBadges([]);
-    setEmploymentId("");
-    setPin("");
     setBadgeError("");
+    setBadgeLoading(canManageBadges && !!siteId);
+    setPinRequired(null);
+    setSettingsError("");
     if (canManageBadges && siteId) {
       api<{
         badges: BadgeRecord[];
+        pin_required: boolean | null;
+        settings_error?: string;
         employees: Array<{
           id: number;
           employee_name: string;
@@ -78,7 +137,26 @@ export function BadgeAdminPage() {
         .then((data) => {
           if (abort.signal.aborted) return;
           setEmployees(data.employees);
+          setEmploymentId((current) =>
+            data.employees.some(
+              (employee) =>
+                String(employee.id) === current && employee.active_for_work,
+            )
+              ? current
+              : "",
+          );
           setBadges(data.badges);
+          setPinRequired(data.pin_required);
+          setSettingsError(data.settings_error || "");
+          setPrintable((current) =>
+            current &&
+            data.badges.some(
+              (badge) =>
+                badge.id === current.badge_id && badge.status === "issued",
+            )
+              ? current
+              : null,
+          );
         })
         .catch((reason: unknown) => {
           if (!abort.signal.aborted)
@@ -87,6 +165,9 @@ export function BadgeAdminPage() {
                 ? reason.message
                 : "Unable to load employee badges.",
             );
+        })
+        .finally(() => {
+          if (!abort.signal.aborted) setBadgeLoading(false);
         });
     }
     return () => abort.abort();
@@ -96,13 +177,24 @@ export function BadgeAdminPage() {
     const abort = new AbortController();
     setKiosks([]);
     setKioskError("");
+    setKioskLoading(canManageKiosks && !!siteId);
     if (canManageKiosks && siteId) {
       api<{ kiosks: KioskEnrollment[] }>(
         `/api/clinic/workforce/kiosks?site_id=${encodeURIComponent(siteId)}`,
         { signal: abort.signal },
       )
         .then((data) => {
-          if (!abort.signal.aborted) setKiosks(data.kiosks);
+          if (abort.signal.aborted) return;
+          setKiosks(data.kiosks);
+          setEnrollment((current) =>
+            current &&
+            data.kiosks.some(
+              (kiosk) =>
+                kiosk.id === current.kiosk.id && kiosk.status === "issued",
+            )
+              ? current
+              : null,
+          );
         })
         .catch((reason: unknown) => {
           if (!abort.signal.aborted)
@@ -111,14 +203,19 @@ export function BadgeAdminPage() {
                 ? reason.message
                 : "Unable to load kiosk enrollment.",
             );
+        })
+        .finally(() => {
+          if (!abort.signal.aborted) setKioskLoading(false);
         });
     }
     return () => abort.abort();
   }, [siteId, revision, canManageKiosks]);
 
   useEffect(() => {
+    setEmploymentId("");
+    setPin("");
     setPrintable(null);
-    setEnrollmentToken("");
+    setEnrollment(null);
     setFeedback(null);
   }, [siteId, canManageBadges, canManageKiosks]);
 
@@ -128,12 +225,17 @@ export function BadgeAdminPage() {
   );
 
   async function issueBadge() {
-    if (!canManageBadges || busy) return;
+    if (!canManageBadges || busy || badgeLoading || badgeError || settingsError)
+      return;
     if (!employmentId || !siteId) {
       setFeedback({
         type: "error",
         text: "Choose an active employee and location before issuing a badge.",
       });
+      return;
+    }
+    if ((pinRequired && !pin) || (pin && !/^\d{4,12}$/.test(pin))) {
+      setFeedback({ type: "error", text: "Enter a PIN with 4–12 digits." });
       return;
     }
     setBusy(true);
@@ -150,7 +252,11 @@ export function BadgeAdminPage() {
           pin: pin || null,
         },
       });
-      setPrintable(result.printable);
+      setPrintable({
+        ...result.printable,
+        badge_id: result.badge.id,
+        employee_name: result.badge.employee_name,
+      });
       setBadges((current) => [
         {
           ...result.badge,
@@ -170,10 +276,7 @@ export function BadgeAdminPage() {
       setPin("");
       setFeedback({
         type: "error",
-        text:
-          reason instanceof Error
-            ? reason.message
-            : "Unable to issue the badge.",
+        text: failureMessage(reason, "badge issuance"),
       });
     } finally {
       setBusy(false);
@@ -189,6 +292,7 @@ export function BadgeAdminPage() {
         method: "POST",
         body: { site_id: siteId },
       });
+      setPrintable((current) => (current?.badge_id === id ? null : current));
       setFeedback({
         type: "success",
         text: "Badge revoked. The employee account remains active.",
@@ -208,19 +312,26 @@ export function BadgeAdminPage() {
   }
 
   async function createEnrollment() {
-    if (!canManageKiosks || busy || !siteId) return;
+    if (
+      !canManageKiosks ||
+      busy ||
+      kioskLoading ||
+      kioskError ||
+      !siteId ||
+      enrollment
+    )
+      return;
     setBusy(true);
     setFeedback(null);
-    setEnrollmentToken("");
     try {
-      const result = await api<{ enrollment_token: string }>(
-        "/api/clinic/workforce/kiosks",
-        {
-          method: "POST",
-          body: { site_id: siteId },
-        },
-      );
-      setEnrollmentToken(result.enrollment_token);
+      const result = await api<{
+        enrollment_token: string;
+        kiosk: KioskEnrollment;
+      }>("/api/clinic/workforce/kiosks", {
+        method: "POST",
+        body: { site_id: siteId },
+      });
+      setEnrollment({ token: result.enrollment_token, kiosk: result.kiosk });
       setFeedback({
         type: "success",
         text: "Kiosk enrollment created. Enter the one-time code on the kiosk within 24 hours.",
@@ -229,10 +340,7 @@ export function BadgeAdminPage() {
     } catch (reason) {
       setFeedback({
         type: "error",
-        text:
-          reason instanceof Error
-            ? reason.message
-            : "Unable to create kiosk enrollment.",
+        text: failureMessage(reason, "kiosk enrollment"),
       });
     } finally {
       setBusy(false);
@@ -248,6 +356,7 @@ export function BadgeAdminPage() {
         method: "POST",
         body: {},
       });
+      setEnrollment((current) => (current?.kiosk.id === id ? null : current));
       setFeedback({ type: "success", text: "Kiosk access revoked." });
       setRevision((value) => value + 1);
     } catch (reason) {
@@ -279,6 +388,7 @@ export function BadgeAdminPage() {
         disabled={busy}
         value={siteId}
         onChange={(event) => {
+          if (leaveMessage && !window.confirm(leaveMessage)) return;
           setPin("");
           setSiteId(event.target.value);
         }}
@@ -290,12 +400,23 @@ export function BadgeAdminPage() {
           </MenuItem>
         ))}
       </TextField>
+      <Button
+        disabled={busy || !siteId}
+        onClick={refreshRecords}
+        sx={{ alignSelf: "start" }}
+      >
+        Refresh badges and kiosks
+      </Button>
 
       {canManageBadges && (
         <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
           <Stack spacing={2}>
             <Typography variant="h2">Employee badges</Typography>
             {badgeError && <Alert severity="error">{badgeError}</Alert>}
+            {settingsError && <Alert severity="warning">{settingsError}</Alert>}
+            {badgeLoading && (
+              <Typography role="status">Loading employee badges…</Typography>
+            )}
             {badges.map((badge) => (
               <Stack
                 key={badge.id}
@@ -328,7 +449,7 @@ export function BadgeAdminPage() {
                 {badge.status === "issued" && (
                   <Button
                     color="warning"
-                    disabled={busy}
+                    disabled={busy || badgeLoading}
                     onClick={() => void revokeBadge(badge.id)}
                   >
                     Revoke lost badge
@@ -336,7 +457,7 @@ export function BadgeAdminPage() {
                 )}
               </Stack>
             ))}
-            {!badgeError && !badges.length && (
+            {!badgeLoading && !badgeError && !badges.length && (
               <Typography color="text.secondary">
                 No badges have been issued for this location.
               </Typography>
@@ -351,6 +472,7 @@ export function BadgeAdminPage() {
                 select
                 fullWidth
                 label="Employee"
+                disabled={busy || badgeLoading || !!badgeError}
                 value={employmentId}
                 onChange={(event) => {
                   setPin("");
@@ -364,11 +486,19 @@ export function BadgeAdminPage() {
                 ))}
               </TextField>
               <TextField
-                label="Optional PIN"
+                label={pinRequired ? "Badge PIN" : "Optional PIN"}
+                required={pinRequired === true}
+                disabled={
+                  busy || badgeLoading || !!badgeError || !!settingsError
+                }
                 type="password"
                 value={pin}
                 onChange={(event) => setPin(event.target.value)}
-                helperText="4–12 digits. Meta Clinic stores only a slow hash."
+                helperText={
+                  pinRequired
+                    ? "Required at this location. Use 4–12 digits."
+                    : "Use 4–12 digits if a PIN is needed."
+                }
                 slotProps={{
                   htmlInput: {
                     inputMode: "numeric",
@@ -382,7 +512,15 @@ export function BadgeAdminPage() {
                 variant="contained"
                 startIcon={<BadgeOutlinedIcon />}
                 disabled={
-                  busy || !employmentId || (!!pin && !/^\d{4,12}$/.test(pin))
+                  busy ||
+                  badgeLoading ||
+                  !!badgeError ||
+                  !!settingsError ||
+                  !eligible.some(
+                    (employee) => String(employee.id) === employmentId,
+                  ) ||
+                  (pinRequired === true && !pin) ||
+                  (!!pin && !/^\d{4,12}$/.test(pin))
                 }
                 onClick={() => void issueBadge()}
                 sx={{ whiteSpace: "nowrap" }}
@@ -390,6 +528,13 @@ export function BadgeAdminPage() {
                 Issue or replace badge
               </Button>
             </Stack>
+            {!badgeLoading && !badgeError && !eligible.length && (
+              <Typography color="text.secondary">
+                No employees are currently eligible to work at this location.
+                Review employee status and assignment dates before issuing a
+                badge.
+              </Typography>
+            )}
           </Stack>
         </Paper>
       )}
@@ -399,6 +544,9 @@ export function BadgeAdminPage() {
           <Stack spacing={2}>
             <Typography variant="h2">Clock kiosk enrollment</Typography>
             {kioskError && <Alert severity="error">{kioskError}</Alert>}
+            {kioskLoading && (
+              <Typography role="status">Loading kiosk enrollments…</Typography>
+            )}
             <Typography color="text.secondary">
               The one-time enrollment code creates a secure, clock-only session.
               It does not sign the device into the clinic workspace. Open the
@@ -440,7 +588,7 @@ export function BadgeAdminPage() {
                 {!["revoked", "expired"].includes(kiosk.status) && (
                   <Button
                     color="warning"
-                    disabled={busy}
+                    disabled={busy || kioskLoading}
                     onClick={() => void revokeKiosk(kiosk.id)}
                   >
                     Revoke kiosk
@@ -450,24 +598,39 @@ export function BadgeAdminPage() {
             ))}
             <Button
               variant="outlined"
-              disabled={busy || !siteId}
+              disabled={
+                busy || kioskLoading || !!kioskError || !siteId || !!enrollment
+              }
               onClick={() => void createEnrollment()}
               sx={{ alignSelf: "start" }}
             >
               Create enrollment code
             </Button>
-            {enrollmentToken && (
+            {enrollment && (
               <Alert severity="warning">
                 <Typography sx={{ fontWeight: 700 }}>
                   Enter this code on the kiosk now
                 </Typography>
+                <Typography variant="body2">
+                  {enrollment.kiosk.site_name} · expires{" "}
+                  {formatDisplayDateTime(enrollment.kiosk.expires_at, {
+                    timeZone: clinic.practice.timezone,
+                  })}
+                </Typography>
                 <TextField
                   fullWidth
                   label="One-time enrollment code"
-                  value={enrollmentToken}
+                  value={enrollment.token}
                   slotProps={{ htmlInput: { readOnly: true } }}
                   sx={{ mt: 1 }}
                 />
+                <Button
+                  disabled={busy}
+                  onClick={() => setEnrollment(null)}
+                  sx={{ mt: 1 }}
+                >
+                  Done with code
+                </Button>
               </Alert>
             )}
           </Stack>
@@ -476,7 +639,14 @@ export function BadgeAdminPage() {
 
       <Dialog
         open={canManageBadges && !!printable}
-        onClose={() => setPrintable(null)}
+        onClose={() => {
+          if (
+            window.confirm(
+              "Close the one-time badge? If it has not been printed, you will need to issue a replacement.",
+            )
+          )
+            setPrintable(null);
+        }}
         fullWidth
         maxWidth="sm"
       >
@@ -496,6 +666,9 @@ export function BadgeAdminPage() {
                 textAlign: "center",
               }}
             >
+              <Typography sx={{ fontWeight: 700, mb: 1 }}>
+                {printable.employee_name}
+              </Typography>
               <Box
                 component="img"
                 alt="Employee clock badge barcode"
@@ -511,7 +684,7 @@ export function BadgeAdminPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPrintable(null)}>Close</Button>
+          <Button onClick={() => setPrintable(null)}>Done with badge</Button>
           <Button
             variant="contained"
             startIcon={<PrintOutlinedIcon />}

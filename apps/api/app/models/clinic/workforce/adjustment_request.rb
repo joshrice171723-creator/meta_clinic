@@ -39,8 +39,16 @@ module Clinic
 
       def proposed_change_shape
         changes = proposed_changes.to_h.stringify_keys
+        if timecard_version && (timecard_version.practice_id != practice_id || timecard_version.employment_id != employment_id)
+          errors.add(:timecard_version, "must belong to this employee and practice")
+        end
         if %w[replace_segment remove_segment].include?(correction_type) && changes["source_segment_id"].blank?
           errors.add(:proposed_changes, "must identify the source interval")
+        end
+        if changes["source_segment_id"].present?
+          segment_id = Integer(changes["source_segment_id"].to_s, 10, exception: false)
+          segment = timecard_version&.time_segments&.find_by(id: segment_id, practice_id: practice_id) if segment_id&.positive?
+          errors.add(:proposed_changes, "source interval must belong to this timecard") unless segment
         end
         return if correction_type == "remove_segment"
 
@@ -57,10 +65,6 @@ module Clinic
         errors.add(:proposed_changes, "end must be after start") unless ended > started
         site = Clinic::Site.find_by(id: changes["site_id"], practice_id: practice_id)
         errors.add(:proposed_changes, "site must belong to this practice") unless site
-        if changes["source_segment_id"].present?
-          segment = timecard_version&.time_segments&.find_by(id: changes["source_segment_id"])
-          errors.add(:proposed_changes, "source interval must belong to this timecard") unless segment
-        end
       rescue ArgumentError
         errors.add(:proposed_changes, "times must be valid ISO timestamps")
       end

@@ -1,5 +1,8 @@
 import { useId, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
   FormControl,
@@ -12,14 +15,19 @@ import {
   Typography,
 } from "@mui/material";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { api } from "../../api/client";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { ApiError, api } from "../../api/client";
 import { LoadState, useResource } from "../../shared/ui";
 import type {
   WorkforceSettingValue,
   WorkforceSettingValues,
   WorkforceSettingsData,
+  WorkforceSettingsVersion,
 } from "./foundationTypes";
 import { businessNow } from "../../shared/businessDate";
+import { formatDisplayDateTime } from "../../shared/dateTime";
+import { useClinicNavigation } from "../clinic/clinicNavigation";
+import { useDemoNavigationBlocker } from "../demo/navigationBlockers";
 
 const labels: Record<string, string> = {
   timezone: "Practice timezone",
@@ -115,6 +123,7 @@ function emptyValues(data: WorkforceSettingsData): WorkforceSettingValues {
 
 export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
   const fieldId = useId();
+  const { registerBlocker } = useClinicNavigation();
   const search = new URLSearchParams(window.location.search);
   const focusTarget = search.get("focus");
   const [selectedSiteId, setSelectedSiteId] = useState(
@@ -128,17 +137,55 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
   const [values, setValues] = useState<WorkforceSettingValues>({});
   const [effectiveFrom, setEffectiveFrom] = useState(localDateTime);
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const [feedback, setFeedback] = useState<{
     severity: "success" | "error";
     text: string;
   } | null>(null);
+  const leaveMessage = saving
+    ? "Workforce settings are still saving."
+    : unconfirmed
+      ? "The settings save is unconfirmed. Review saved revisions before creating another version."
+      : dirty
+        ? "Discard unsaved workforce settings?"
+        : null;
+  useDemoNavigationBlocker(() => ({ blocked: saving, message: leaveMessage }));
+  useEffect(() => {
+    if (!leaveMessage) return;
+    const unregister = registerBlocker(() => leaveMessage, {
+      preventNavigation: saving,
+    });
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = leaveMessage;
+    };
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      unregister();
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [leaveMessage, saving, registerBlocker]);
+
+  function refreshSettings() {
+    if (saving) return;
+    const message = unconfirmed
+      ? "The settings version may already be saved. Discard this draft and load saved revisions to review its current outcome?"
+      : dirty
+        ? "Discard unsaved workforce settings and load the latest saved version?"
+        : null;
+    if (message && !window.confirm(message)) return;
+    setDirty(false);
+    setUnconfirmed(false);
+    refresh();
+  }
 
   useEffect(() => {
     if (!data) return;
     const next = data.current_version?.values ?? emptyValues(data);
     setValues(next);
     setEffectiveFrom(localDateTime());
-    setFeedback(null);
+    setDirty(false);
   }, [data]);
 
   useEffect(() => {
@@ -161,36 +208,54 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
     return (
       <Stack spacing={3}>
         <Typography variant="h1">Workforce settings</Typography>
+        {feedback && (
+          <Alert severity={feedback.severity}>{feedback.text}</Alert>
+        )}
         <LoadState error={error} onRetry={refresh} />
       </Stack>
     );
 
   const siteScope = data.scope.kind === "site";
-  const setValue = (key: string, value: WorkforceSettingValue) =>
+  const setValue = (key: string, value: WorkforceSettingValue) => {
+    setDirty(true);
     setValues((current) => ({ ...current, [key]: value }));
+  };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving || unconfirmed) return;
     setSaving(true);
     setFeedback(null);
+    let submitted = false;
     try {
-      await api("/api/clinic/workforce/settings", {
+      const effectiveAt = new Date(effectiveFrom).toISOString();
+      submitted = true;
+      const saved = await api<
+        WorkforceSettingsData & { settings_version: WorkforceSettingsVersion }
+      >("/api/clinic/workforce/settings", {
         method: "PUT",
         body: {
           workforce_settings: {
             scope_kind: data.scope.kind,
             site_id: data.scope.site_id,
-            effective_from: new Date(effectiveFrom).toISOString(),
+            effective_from: effectiveAt,
             expected_revision: data.latest_revision,
             values,
           },
         },
       });
+      setDirty(false);
       setFeedback({
         severity: "success",
-        text: "A new workforce settings version was saved.",
+        text: `Settings revision ${saved.settings_version.revision} was saved, effective ${formatDisplayDateTime(saved.settings_version.effective_from)} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`,
       });
       refresh();
     } catch (reason) {
+      const uncertain =
+        !(reason instanceof ApiError) ||
+        reason.status >= 500 ||
+        [408, 429].includes(reason.status) ||
+        ["outcome_unconfirmed", "session_changed"].includes(reason.code ?? "");
+      if (submitted && uncertain) setUnconfirmed(true);
       setFeedback({
         severity: "error",
         text:
@@ -278,14 +343,91 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
         </Typography>
       </Stack>
       {feedback && <Alert severity={feedback.severity}>{feedback.text}</Alert>}
+      {unconfirmed && (
+        <Alert severity="warning">
+          This save is unconfirmed. Review saved revisions before creating
+          another version; refreshing will ask before discarding this draft.
+        </Alert>
+      )}
+      <Button
+        disabled={saving}
+        onClick={refreshSettings}
+        sx={{ alignSelf: "flex-start" }}
+      >
+        {unconfirmed
+          ? "Review saved revisions"
+          : dirty
+            ? "Discard changes and refresh"
+            : "Refresh saved settings"}
+      </Button>
       {!data.effective_settings && !siteScope && (
         <Alert severity="warning">
           Workforce actions remain unavailable until a complete practice
           settings version is saved.
         </Alert>
       )}
+      {(data.scheduled_versions?.length ?? 0) > 0 && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={1}>
+            <Typography variant="h2">Scheduled settings revisions</Typography>
+            <Typography color="text.secondary">
+              These versions have future effective times. When versions share a
+              start time, the later revision takes precedence. The editor below
+              starts from the currently effective version.
+            </Typography>
+            {data.scheduled_versions?.map((version) => (
+              <Accordion key={version.id} disableGutters variant="outlined">
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography>
+                    Revision {version.revision} · effective{" "}
+                    {formatDisplayDateTime(version.effective_from)} (
+                    {Intl.DateTimeFormat().resolvedOptions().timeZone})
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Stack component="dl" spacing={1} sx={{ m: 0 }}>
+                    {Object.entries(version.values).map(([key, value]) => (
+                      <Stack key={key}>
+                        <Typography component="dt" sx={{ fontWeight: 600 }}>
+                          {labels[key] || title(key)}
+                        </Typography>
+                        <Typography
+                          component="dd"
+                          sx={{ m: 0, overflowWrap: "anywhere" }}
+                        >
+                          {value === null
+                            ? version.scope_kind === "site"
+                              ? "Inherit practice setting"
+                              : "Unconfigured"
+                            : typeof value === "boolean"
+                              ? value
+                                ? "Enabled"
+                                : "Disabled"
+                              : typeof value === "object"
+                                ? JSON.stringify(value)
+                                : key === "workweek_start_day" &&
+                                    typeof value === "number"
+                                  ? (dayOptions[value] ?? String(value))
+                                  : data.setting_contract.enum_values[key]
+                                    ? title(String(value))
+                                    : String(value)}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Stack>
+        </Paper>
+      )}
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
-        <Stack component="form" spacing={3} onSubmit={submit}>
+        <Stack
+          component="form"
+          spacing={3}
+          onSubmit={submit}
+          inert={saving || unconfirmed}
+        >
           <Typography variant="h2">
             {siteScope
               ? "New location settings version"
@@ -303,8 +445,19 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
                 labelId={`${fieldId}-3-label`}
                 label="Settings scope"
                 value={selectedSiteId}
-                onChange={(event) => setSelectedSiteId(event.target.value)}
-                disabled={Boolean(siteId)}
+                onChange={(event) => {
+                  if (
+                    dirty &&
+                    !window.confirm(
+                      "Discard unsaved settings before changing scope?",
+                    )
+                  )
+                    return;
+                  setDirty(false);
+                  setFeedback(null);
+                  setSelectedSiteId(event.target.value);
+                }}
+                disabled={Boolean(siteId) || saving}
               >
                 <MenuItem value="">Practice defaults</MenuItem>
                 {data.sites.map((site) => (
@@ -318,10 +471,14 @@ export function WorkforceSettingsPage({ siteId }: { siteId?: string } = {}) {
               label="Effective from"
               type="datetime-local"
               value={effectiveFrom}
-              onChange={(event) => setEffectiveFrom(event.target.value)}
+              onChange={(event) => {
+                setEffectiveFrom(event.target.value);
+                setDirty(true);
+              }}
               required
               fullWidth
               slotProps={{ inputLabel: { shrink: true } }}
+              helperText={`Your device timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`}
             />
           </Stack>
 
