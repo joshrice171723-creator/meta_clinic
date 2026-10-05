@@ -1,23 +1,31 @@
 import { Alert, Button, MenuItem, Stack, TextField } from "@mui/material";
 import type { ClinicWorkspaceContext } from "../../api/contracts";
 
-const neutralSelectSx = {
-  "& .MuiInputLabel-root": { color: "#374151" },
-  "& .MuiInputLabel-root.Mui-disabled": { color: "rgb(0 0 0 / 95%)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#111827" },
+const sidebarSelectSx = {
+  "& .MuiInputLabel-root": { color: "var(--clinic-sidebar-muted)" },
+  "& .MuiInputLabel-root.Mui-disabled": {
+    color: "var(--clinic-sidebar-muted)",
+  },
+  "& .MuiInputLabel-root.Mui-focused": { color: "var(--clinic-sidebar-on)" },
   "& .MuiOutlinedInput-root": {
-    backgroundColor: "#f3f4f6",
-    color: "#111827",
-    "& fieldset": { borderColor: "#9ca3af" },
-    "&:hover fieldset": { borderColor: "#6b7280" },
-    "&.Mui-focused fieldset": { borderColor: "#2563eb" },
+    backgroundColor: "transparent",
+    color: "var(--clinic-sidebar-on)",
+    "& fieldset": { borderColor: "var(--clinic-sidebar-muted)" },
+    "&:hover fieldset": { borderColor: "var(--clinic-sidebar-on)" },
+    "&.Mui-focused fieldset": { borderColor: "var(--clinic-sidebar-on)" },
+    "&.Mui-disabled fieldset": {
+      borderColor: "color-mix(in srgb, var(--clinic-sidebar-muted) 40%, transparent)",
+    },
   },
-  "& .MuiSelect-icon": { color: "#111827" },
+  "& .MuiSelect-icon": { color: "var(--clinic-sidebar-on)" },
+  "& .MuiSelect-icon.Mui-disabled": { color: "var(--clinic-sidebar-muted)" },
   "& .MuiInputBase-root.Mui-disabled": {
-    backgroundColor: "#e5e7eb",
-    color: "#111827",
+    backgroundColor: "transparent",
+    color: "var(--clinic-sidebar-muted)",
   },
-  "& .MuiInputBase-input.Mui-disabled": { WebkitTextFillColor: "#111827" },
+  "& .MuiInputBase-input.Mui-disabled": {
+    WebkitTextFillColor: "var(--clinic-sidebar-muted)",
+  },
 };
 
 const neutralMenuProps = {
@@ -76,10 +84,7 @@ export function ClinicScopeSelector({
         width: "100%",
         mt: 0.5,
         p: 0.75,
-        borderRadius: 1,
-        bgcolor: "#ffffff",
-        color: "#111827",
-        border: "1px solid #000000",
+        color: "var(--clinic-sidebar-on)",
       }}
     >
       <TextField
@@ -90,7 +95,7 @@ export function ClinicScopeSelector({
         fullWidth
         value={organizationKey}
         disabled={disabled || organizations.length < 2}
-        sx={neutralSelectSx}
+        sx={sidebarSelectSx}
         slotProps={{
           select: {
             MenuProps: neutralMenuProps,
@@ -120,7 +125,7 @@ export function ClinicScopeSelector({
         fullWidth
         value={context.practice.id}
         disabled={disabled || clinics.length < 2}
-        sx={neutralSelectSx}
+        sx={sidebarSelectSx}
         slotProps={{
           select: { MenuProps: neutralMenuProps, title: context.practice.name },
         }}
@@ -142,7 +147,7 @@ export function ClinicScopeSelector({
             fullWidth
             value={context.current_site?.id ?? ""}
             disabled={disabled || context.sites.length < 2}
-            sx={neutralSelectSx}
+            sx={sidebarSelectSx}
             slotProps={{
               inputLabel: { shrink: true },
               select: {
