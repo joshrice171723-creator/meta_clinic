@@ -76,11 +76,17 @@ module Development
         end
       end
       BEHAVIORAL_VISIT_TYPES.each { |code| primary.practice.visit_types.find_or_create_by!(code:) }
-      Clinic::Authorization::PilotRoleCatalog.install!
-      STAFF_ROLE_CODES.values.uniq.each { |role_code| prepare_practice_role!(role_code) }
+      preserve_authority = run.baseline.key?("sandbox_preserved_role_grants")
+      unless preserve_authority
+        Clinic::Authorization::PilotRoleCatalog.install!
+        STAFF_ROLE_CODES.values.uniq.each { |role_code| prepare_practice_role!(role_code) }
+      end
       cohorts.each do |cohort|
-        prepare_staff!(**cohort, as_of:)
+        prepare_staff!(**cohort, as_of:, preserve_authority:)
         prepare_patients!(**cohort, as_of:)
+      end
+      if preserve_authority
+        SandboxRoleGrants.restore!(run.baseline.fetch("sandbox_preserved_role_grants"))
       end
       cohorts.each do |cohort|
         prepare_visit_history!(run:, **cohort, as_of:, weeks: 8)
@@ -88,7 +94,7 @@ module Development
       end
     end
 
-    def self.prepare_staff!(practice:, site:, site_index:, as_of:)
+    def self.prepare_staff!(practice:, site:, site_index:, as_of:, preserve_authority: false)
       department = practice.departments.first!
       3.times do |index|
         site.rooms.find_or_create_by!(practice:, code: "EXAM-#{index + 1}")
@@ -99,6 +105,8 @@ module Development
         name = "#{FIRST_NAMES.fetch(person_index % FIRST_NAMES.length)} " \
           "#{LAST_NAMES.fetch(person_index / FIRST_NAMES.length)}"
         email = "sandbox-staff-#{practice.id}-#{site_index}-#{index + 1}@example.test"
+        raise "Preserved sandbox staff identity missing" if preserve_authority &&
+          !practice.memberships.joins(:user).exists?(users: { email_address: email })
         user = User.find_or_create_by!(email_address: email) do |record|
           record.password = SecureRandom.urlsafe_base64(32)
           record.active = true
@@ -109,13 +117,15 @@ module Development
           membership:, status: "active", effective_from: as_of - 65.days)
         employment.employment_sites.create!(practice:, site:, active: true,
           effective_from: as_of - 65.days)
-        role = RoleVersion.find_by!(role_code: STAFF_ROLE_CODES.fetch(title),
-          version: Clinic::Authorization::PilotRoleCatalog::VERSION)
-        membership.role_grants.create!(practice:, role_version: role, scope_kind: "site",
-          site:, source_employment: employment, effective_from: Time.current, revision: 1)
-        practice_role = practice_role_for(STAFF_ROLE_CODES.fetch(title))
-        membership.role_grants.create!(practice:, role_version: practice_role, scope_kind: "practice",
-          source_employment: employment, effective_from: Time.current, revision: 1) if practice_role
+        unless preserve_authority
+          role = RoleVersion.find_by!(role_code: STAFF_ROLE_CODES.fetch(title),
+            version: Clinic::Authorization::PilotRoleCatalog::VERSION)
+          membership.role_grants.create!(practice:, role_version: role, scope_kind: "site",
+            site:, source_employment: employment, effective_from: Time.current, revision: 1)
+          practice_role = practice_role_for(STAFF_ROLE_CODES.fetch(title))
+          membership.role_grants.create!(practice:, role_version: practice_role, scope_kind: "practice",
+            source_employment: employment, effective_from: Time.current, revision: 1) if practice_role
+        end
         next unless index < 3
 
         clinician = practice.clinician_profiles.create!(membership:, display_name: name,

@@ -81,6 +81,7 @@ module Development
         old_runs = old_runs.where(practice_id: lesson.practice_id) if sandbox
         old_runs = old_runs.lock.to_a
         preserved_accounts = preserved_accounts_for!(previous_run) if preserve_credentials
+        preserved_grants = SandboxRoleGrants.capture!(lesson.practice.organization.practice_ids) if preserve_credentials
         patient_users = old_runs.filter_map(&:patient_user).uniq(&:id)
         old_runs.each do |run|
           [ run.operator_user, run.patient_user ].compact.each { |user| user.member_sessions.destroy_all }
@@ -99,7 +100,8 @@ module Development
         run = DemoRun.create!(template_key:, lesson_key:, practice: lesson.practice,
           operator_user: lesson.operator_user, visitor:,
           patient_user_id: preserved_accounts&.dig("enrollment", "user_id"),
-          baseline: preserved_accounts ? { "sandbox_preserved_accounts" => preserved_accounts } : {})
+          baseline: preserved_accounts ? { "sandbox_preserved_accounts" => preserved_accounts,
+            "sandbox_preserved_role_grants" => preserved_grants } : {})
         DemoLessonCatalog.prepare!(run)
         if sandbox
           run.update!(baseline: run.baseline.to_h.merge("sandbox_preparation_step" => 0))
