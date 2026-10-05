@@ -50,7 +50,7 @@ export function TutorialLibrary() {
             disableElevation
             endIcon={<ArrowForwardRoundedIcon />}
           >
-            Try the demo
+            Try Our Sandbox
           </Button>
           <nav
             className="tutorial-library__jump"
@@ -137,7 +137,7 @@ export function TutorialLibrary() {
             </p>
           </div>
           <Button href="/demo" variant="contained" disableElevation>
-            Try the demo
+            Try Our Sandbox
           </Button>
         </section>
       </div>

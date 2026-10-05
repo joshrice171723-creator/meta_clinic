@@ -184,14 +184,7 @@ export function MetaClinicMarketing({
                   variant="contained"
                   endIcon={<ArrowForwardRoundedIcon />}
                 >
-                  Try the demo
-                </Button>
-                <Button
-                  className="meta-marketing__button-secondary"
-                  href="/meta-clinic/book-demo"
-                  variant="outlined"
-                >
-                  Request a walkthrough
+                  Try Our Sandbox
                 </Button>
               </div>
               <p className="meta-marketing__hero-note">
@@ -331,14 +324,7 @@ export function MetaClinicMarketing({
                 href="/demo"
                 variant="contained"
               >
-                Try the demo
-              </Button>
-              <Button
-                className="meta-marketing__button-secondary"
-                href="/meta-clinic/book-demo"
-                variant="outlined"
-              >
-                Request a walkthrough
+                Try Our Sandbox
               </Button>
             </div>
           </section>

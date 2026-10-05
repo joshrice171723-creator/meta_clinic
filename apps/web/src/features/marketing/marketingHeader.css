@@ -90,7 +90,8 @@
 .marketing-header.marketing-header .marketing-header__link:hover,
 .marketing-header.marketing-header .marketing-header__signin:hover,
 .marketing-header__group[data-active],
-.marketing-header.marketing-header .marketing-header__link[aria-current="page"] {
+.marketing-header.marketing-header
+  .marketing-header__link[aria-current="page"] {
   background: #e8efe4;
   border-radius: 6px;
 }
@@ -222,6 +223,35 @@
   outline-offset: 2px;
 }
 
+/* Shared sandbox action across marketing pages and the mobile drawer. */
+:is(.meta-marketing, .growth-page, .marketing-header__drawer)
+  .MuiButton-root.MuiButton-root[href="/demo"] {
+  min-height: 48px;
+  padding: 12px 22px;
+  border: 1px solid #a83e1d;
+  border-radius: 8px;
+  background: #a83e1d;
+  color: #fff;
+  box-shadow:
+    0 4px 0 #742c17,
+    0 8px 18px #742c1726;
+  font-weight: 750;
+  text-transform: none;
+}
+
+:is(.meta-marketing, .growth-page, .marketing-header__drawer)
+  .MuiButton-root.MuiButton-root[href="/demo"]:hover {
+  border-color: #873016;
+  background: #873016;
+  color: #fff;
+}
+
+:is(.meta-marketing, .growth-page, .marketing-header__drawer)
+  .MuiButton-root.MuiButton-root[href="/demo"]:focus-visible {
+  outline: 3px solid #19392f;
+  outline-offset: 5px;
+}
+
 @media (min-width: 1400px) {
   .marketing-header__nav {
     gap: 10px;
@@ -250,7 +280,7 @@
     gap: 4px;
   }
 
-  .marketing-header.marketing-header .marketing-header__demo {
+  .marketing-header.marketing-header .marketing-header__demo[href="/demo"] {
     padding-inline: 10px;
     font-size: 12px;
   }

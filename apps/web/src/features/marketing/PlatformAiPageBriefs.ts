@@ -467,7 +467,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         "Review any generated draft",
       ],
       note: "The captures show preparation and transcript controls. No generated draft is shown. Generation depends on the configured provider and current consent.",
-      primaryCta: { label: "Try the demo", path: "/demo" },
+      primaryCta: { label: "Try Our Sandbox", path: "/demo" },
       secondaryCta: {
         label: "Explore the steps",
         path: "#product-walkthrough",
@@ -502,7 +502,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
       links: [
         { label: "Clinical notes tutorial", path: "/features/clinical-notes" },
         { label: "Intake tutorial", path: "/features/intake-forms" },
-        { label: "Request a walkthrough", path: "/book-demo" },
+        { label: "Try Our Sandbox", path: "/demo" },
       ],
     };
   }
@@ -518,7 +518,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         "Publish the clinic policy",
         "Check video readiness",
       ],
-      primaryCta: { label: "Try the demo", path: "/demo" },
+      primaryCta: { label: "Try Our Sandbox", path: "/demo" },
       secondaryCta: {
         label: "Explore the steps",
         path: "#product-walkthrough",
@@ -552,7 +552,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
       ],
       links: [
         { label: "Scheduling tutorial", path: "/features/scheduling" },
-        { label: "Request a walkthrough", path: "/book-demo" },
+        { label: "Try Our Sandbox", path: "/demo" },
       ],
     };
   }
@@ -573,8 +573,8 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
       { label: "Behavioral health practices", path: "/behavioral-health" },
       { label: "Cash-pay primary care", path: "/primary-care/cash-pay" },
       { label: "Browse clinic resources", path: "/resources/guides" },
-      { label: "Explore the demo", path: "/demo" },
-      { label: "Request a demo", path: "/book-demo" },
+      { label: "Try Our Sandbox", path: "/demo" },
+      { label: "Try Our Sandbox", path: "/demo" },
     ]
     : path === "/ai"
       ? [
@@ -584,16 +584,16 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
         { label: "Weight loss intake example", path: "/weight-loss/ai-intake" },
         { label: "Behavioral health documentation example", path: "/behavioral-health/ai-scribe" },
         { label: "Browse clinic resources", path: "/resources/guides" },
-        { label: "Explore the demo", path: "/demo" },
-        { label: "Request a demo", path: "/book-demo" },
+        { label: "Try Our Sandbox", path: "/demo" },
+        { label: "Try Our Sandbox", path: "/demo" },
       ]
       : [
         { label: `${isAi ? "AI" : "Platform"} overview`, path: parent },
         { label: "Home", path: "/" },
         { label: "Related specialty example", path: specialtyExampleFor(path) },
         { label: "Browse clinic resources", path: "/resources/guides" },
-        { label: "Explore the demo", path: "/demo" },
-        { label: "Request a demo", path: "/book-demo" },
+        { label: "Try Our Sandbox", path: "/demo" },
+        { label: "Try Our Sandbox", path: "/demo" },
       ];
 
   return {
@@ -614,7 +614,7 @@ export function getPlatformAiPageBrief(path: string): Partial<GrowthPage> | null
     searchIntent: isAi ? `${brief.title.toLowerCase()} evaluation for clinics` : `${brief.title.toLowerCase()} for independent clinics`,
     funnel: "Evaluate workflow → confirm product scope → book a demo",
     visualBrief: brief.visual,
-    primaryCta: { label: "Request a demo", path: "/book-demo" },
+    primaryCta: { label: "Try Our Sandbox", path: "/demo" },
     secondaryCta: { label: "Explore the sandbox", path: "/sandbox" },
     sections: root
       ? [

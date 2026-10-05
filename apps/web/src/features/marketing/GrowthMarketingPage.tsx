@@ -314,7 +314,7 @@ function PageBody({ page }: { page: GrowthPage }) {
   const evidenceAction =
     legalOrProof || integration || company
       ? { label: "Ask for details", path: "/contact" }
-      : { label: "Open the guided demo", path: "/demo" };
+      : { label: "Try Our Sandbox", path: "/demo" };
   const detailsTitle = legal
     ? "Details to review with the responsible owner."
     : proofOrComparison
@@ -343,8 +343,8 @@ function PageBody({ page }: { page: GrowthPage }) {
   let close = {
     title: "See how this could work for your clinic.",
     body: "Explore the synthetic demo, then talk through your real requirements with the team.",
-    primary: { label: "Explore the demo", path: "/demo" },
-    secondary: { label: "Request a demo", path: "/book-demo" },
+    primary: { label: "Try Our Sandbox", path: "/demo" },
+    secondary: { label: "Explore the platform", path: "/platform" },
   };
   if (legal) {
     close = {
@@ -364,7 +364,7 @@ function PageBody({ page }: { page: GrowthPage }) {
     close = {
       title: "Evaluate fit with current evidence.",
       body: "Use your clinic's workflow and dated sources to compare options, then inspect the current product in the synthetic demo.",
-      primary: { label: "Explore the demo", path: "/demo" },
+      primary: { label: "Try Our Sandbox", path: "/demo" },
       secondary: { label: "Ask a question", path: "/contact" },
     };
   } else if (
@@ -404,7 +404,7 @@ function PageBody({ page }: { page: GrowthPage }) {
       title: "Talk about your clinic's workflow.",
       body: "Share the operating question you want to explore and ask for current product and company details.",
       primary: { label: "Contact Meta Clinic", path: "/contact" },
-      secondary: { label: "Explore the demo", path: "/demo" },
+      secondary: { label: "Try Our Sandbox", path: "/demo" },
     };
   }
   const heroScreen = tour ? productTours[tour].steps[0] : undefined;
