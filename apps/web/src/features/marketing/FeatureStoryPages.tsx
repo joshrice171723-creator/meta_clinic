@@ -491,7 +491,7 @@ export function FeatureStoryPage({ slug }: { slug: string }) {
               variant="contained"
               disableElevation
             >
-              Try the demo
+              Try Our Sandbox
             </Button>
             <Button
               href={

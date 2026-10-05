@@ -93,7 +93,7 @@ function InventoryPage() {
                 disableElevation
                 endIcon={<ArrowForwardRoundedIcon />}
               >
-                Try the demo
+                Try Our Sandbox
               </Button>
               <Button href="#inventory-workflow" variant="outlined">
                 Explore the steps
@@ -153,7 +153,7 @@ function SchedulingPage() {
                 disableElevation
                 endIcon={<ArrowForwardRoundedIcon />}
               >
-                Try the demo
+                Try Our Sandbox
               </Button>
               <Button href="#schedule-workflow" variant="outlined">
                 Explore the steps
@@ -227,7 +227,7 @@ function ClinicalNotesPage() {
                 disableElevation
                 endIcon={<ArrowForwardRoundedIcon />}
               >
-                Try the demo
+                Try Our Sandbox
               </Button>
               <Button href="#notes-workflow" variant="outlined">
                 Explore the steps

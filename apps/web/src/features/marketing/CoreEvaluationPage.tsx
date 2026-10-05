@@ -200,22 +200,20 @@ export function CoreEvaluationPage({
                 variant="contained"
                 disableElevation
                 className="buyer-page__primary"
-                href={isRequest ? "#request" : "/demo"}
+                href={path === "/contact" ? "#request" : "/demo"}
                 endIcon={<ArrowForwardRoundedIcon />}
               >
-                {isRequest
-                  ? path === "/book-demo"
-                    ? "Send a walkthrough request"
-                    : "Send your question"
-                  : "Open the interactive demo"}
+                {path === "/contact" ? "Send your question" : "Try Our Sandbox"}
               </Button>
               <Button
                 component="a"
                 variant="text"
                 className="buyer-page__secondary"
-                href={isRequest ? "/demo" : marketingUrl("/book-demo")}
+                href={path === "/contact" ? "/demo" : marketingUrl("/platform")}
               >
-                {isRequest ? "Explore the demo" : "Request a walkthrough"}
+                {path === "/contact"
+                  ? "Try Our Sandbox"
+                  : "Explore the platform"}
               </Button>
             </div>
             {!isRequest && (
@@ -321,15 +319,15 @@ export function CoreEvaluationPage({
                 href="/demo"
                 endIcon={<ArrowForwardRoundedIcon />}
               >
-                Open the interactive demo
+                Try Our Sandbox
               </Button>
               <Button
                 component="a"
                 variant="text"
                 className="buyer-page__secondary"
-                href={marketingUrl("/book-demo")}
+                href={marketingUrl("/platform")}
               >
-                Request a walkthrough
+                Explore the platform
               </Button>
             </div>
           </div>
