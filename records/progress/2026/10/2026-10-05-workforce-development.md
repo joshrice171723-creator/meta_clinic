@@ -254,3 +254,23 @@ At 14:22 UTC, a synthetic Blair Example invitation (2) was created through the U
 One browser alert read inadvertently included the already-revoked synthetic activation link. The affected panel inspection stopped, the user was notified without repeating the value, and existing logs were preserved. No value was copied into files or Git; no independent credential rotation or evidence deletion occurred. Follow-up checks are confined to source and non-sensitive status. This is not a completed incident assessment.
 
 Ruby syntax and scoped RuboCop passed. The existing onboarding regression now checks repeated revoke success and unchanged revocation time; it was not run. The initial lint invocation used the wrong relative resource-runner path, then the corrected invocation passed.
+
+## Current-week calculation, correction chain, and approval recovery
+
+At 14:39 UTC, the local browser calculated Morgan's six actual kiosk punches from this session into card 305, version 2. Its five segments split the recorded break exactly at the 13:20 UTC settings boundary. Both break segments remain unpaid. Unconfigured rounding and off-schedule work remain explicit blockers; no approval or export of that card was attempted.
+
+A guarded local fixture added Taylor's single open clock-in punch 9 at Payroll journey on October 5 at 12:00 UTC. This punch is setup data, not a claimed kiosk event. All subsequent calculation and correction actions used the browser:
+
+- Calculation created card 306, version 1, with missing clock out and no completed intervals. Submission and approval were unavailable.
+- The administrator requested 12:00-14:00 UTC as correction 3. The UI required another reviewer. Payroll Operator approved it, producing card 307, version 2, with 120 paid/regular minutes and no exceptions.
+- Payroll Operator requested correction 4 against saved manual segment 260, extending the end to 14:15 UTC while preserving the original start precision. The administrator independently approved it, producing card 308, version 3, with 135 paid/regular minutes and zero overtime/exceptions.
+- The administrator submitted version 3. Its approval response was intercepted only after HTTP 200 and then dropped. The UI retained Retry saved timecard action and hid competing card actions. Retrying completed the original approval; navigation to Payroll exports succeeded and the approved version 3 was available for selection. Interception was cleared immediately after the dropped response.
+- Database read-back confirmed corrections 3 and 4 approved by different reviewers from their requesters, result chain 306 to 307 to 308, card 308 approved, and the original punch 9 unchanged as clock_in at 12:00 UTC. No extra timecard version appeared from the approval retry.
+
+No implementation change was needed for these journeys. A bounded independent source review found no further defect in the simple open-punch correction flow or the invitation replay authorization/locking change. At source 304af35a, the consolidated web build passed TypeScript and both Vite bundles; the existing marketing static/dynamic-import warning remains. No automated tests were run.
+
+## Current-week payroll export
+
+At 14:44 UTC, the administrator previewed approved card 308 and saved export 55 through the browser. The preview and stored CSV both contain one WF-002 / WFPAY row for October 5 with 2.25 regular and paid hours, and zero overtime. Database read-back ties the file to card 308 and confirms the SHA-256 digest matches all 140 stored bytes.
+
+Download export 55 produced the application's explicit Download requested message. A supported browser download waiter timed out after ten seconds, and the exact expected filename was absent from the default Downloads directory. On-disk/browser-completed delivery remains unverified; no browser download policy or security setting was changed. No payments or external payroll transmission occurred.
