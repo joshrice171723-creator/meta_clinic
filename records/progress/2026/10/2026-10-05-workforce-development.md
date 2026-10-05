@@ -200,3 +200,17 @@ At 13:34 UTC, the shared availability model now rejects duplicate weekdays, incl
 Taylor submitted availability 5 for December 1 in the browser, began a separate draft, refreshed history, and canceled the saved request. The UI reported Request canceled and retained the new draft text. Database read-back confirmed availability 5 cancelled at revision 2; availability 4 remained approved at revision 2. No change was needed for this journey.
 
 The subsequent discard-draft confirmation stalled the browser control channel. The supported dialog API, one direct dialog recovery attempt, and closing the owned tab could not clear the focus-emulation timeout. The canceled request is persisted; final draft-discard completion and later browser journeys remain unverified until browser access recovers. No browser policy or security setting was changed.
+
+## Disabled request entry and recovery after schedule revision
+
+The request index now projects all three request types as disabled when employee self-service is disabled at that site, while retaining eligible location and saved-history data. Swap creation checks an existing request's authorized idempotency key and matching payload before validating a new publication/target; fresh requests retain every existing eligibility and latest-publication guard.
+
+### Local browser and database evidence at 13:50 UTC
+
+- A new Chrome tab recovered normal browser operation; the older discard-confirmation tab remains stalled, so its draft-discard result is still unverified.
+- The administrator saved Main clinic settings revision 12 with employee self-service disabled. Taylor's My requests showed all six saved requests, the existing unavailable message, and disabled Time off, Availability, Shift swap, and Submit request controls.
+- A guarded local fixture restored the original enabled value as revision 13. Refreshing My requests re-enabled all three tabs. Other settings were preserved.
+- Taylor submitted a November 1 03:00-04:00 CST swap to Morgan. Browser developer control intercepted only that API's Fetch response after the server returned 201, then dropped the response. The page displayed the unconfirmed outcome and retained Retry saved action. Interception was cleared immediately afterward; normal networking was restored.
+- A guarded call through the ordinary schedule services copied the current October 26 week into publication 9, version 5, superseding publication 6 without changing either assignment or clock interval.
+- Refreshing request history preserved the original saved retry. Retry then reported Request saved, cleared the pending action and draft, and left seven history entries. Database read-back confirmed exactly one new submitted swap at revision 1, still referencing source publication 6, alongside the two earlier approved swaps. It did not create a duplicate request or another publication.
+- Queued Ruby syntax and scoped RuboCop passed for the controller and its two added regression cases. Those tests were not run. The new regression fixture schedules next week's shift so its employment effective dates precede the offered work.

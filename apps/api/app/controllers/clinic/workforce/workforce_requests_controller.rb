@@ -86,21 +86,21 @@ module Clinic
       def create_swap
         employment, site, values = own_request_context!("shift_swaps_enabled")
         input = parameter_hash!(:shift_swap, %i[site_id schedule_publication_id offered_shift_public_id target_employment_id reason expires_at idempotency_key])
-        publication = SchedulePublication.find_by!(practice_id: current_practice.id, site_id: site.id,
-          id: requested_id!(input[:schedule_publication_id], :schedule_publication_id))
-        latest = SchedulePublication.where(practice_id: current_practice.id, site_id: site.id,
-          week_start_on: publication.week_start_on).latest_first.first
-        raise ActiveRecord::StaleObjectError.new(publication, "request swap") unless latest.id == publication.id
-        offered = publication.shift_snapshot.find { |row| row["id"] == input[:offered_shift_public_id] }
-        raise ArgumentError, "The offered published shift is unavailable." unless offered && offered["employment_id"].to_i == employment.id
-        target = Employment.find_by!(practice_id: current_practice.id, id: requested_id!(input[:target_employment_id], :target_employment_id))
-        starts_at = Time.iso8601(offered.fetch("starts_at"))
-        shift_end = Time.iso8601(offered.fetch("ends_at")) - Rational(1, 1_000_000)
-        unless target.active_for_work?(at: starts_at) && target.active_for_work?(at: shift_end) &&
-            target.eligible_site?(site, at: starts_at) && target.eligible_site?(site, at: shift_end)
-          raise ArgumentError, "Target employee is not active or eligible for the full shift."
-        end
         record, created = idempotent_create(ShiftSwapRequest, input[:idempotency_key], input.to_h, employment: employment) do |key, digest|
+          publication = SchedulePublication.find_by!(practice_id: current_practice.id, site_id: site.id,
+            id: requested_id!(input[:schedule_publication_id], :schedule_publication_id))
+          latest = SchedulePublication.where(practice_id: current_practice.id, site_id: site.id,
+            week_start_on: publication.week_start_on).latest_first.first
+          raise ActiveRecord::StaleObjectError.new(publication, "request swap") unless latest.id == publication.id
+          offered = publication.shift_snapshot.find { |row| row["id"] == input[:offered_shift_public_id] }
+          raise ArgumentError, "The offered published shift is unavailable." unless offered && offered["employment_id"].to_i == employment.id
+          target = Employment.find_by!(practice_id: current_practice.id, id: requested_id!(input[:target_employment_id], :target_employment_id))
+          starts_at = Time.iso8601(offered.fetch("starts_at"))
+          shift_end = Time.iso8601(offered.fetch("ends_at")) - Rational(1, 1_000_000)
+          unless target.active_for_work?(at: starts_at) && target.active_for_work?(at: shift_end) &&
+              target.eligible_site?(site, at: starts_at) && target.eligible_site?(site, at: shift_end)
+            raise ArgumentError, "Target employee is not active or eligible for the full shift."
+          end
           ShiftSwapRequest.create!(practice: current_practice, site: site, requester_employment: employment,
             target_employment: target, requested_by_id: current_user.id, schedule_publication: publication,
             offered_shift_public_id: required_string!(input[:offered_shift_public_id], field: :offered_shift_public_id, maximum: 80),
@@ -153,8 +153,10 @@ module Clinic
 
         sites.select { |site| employment.eligible_site?(site, at: Current.business_time) }.map do |site|
           values = settings_by_site.fetch(site.id).fetch(:values)
+          self_service_enabled = values.fetch("employee_self_service_enabled") == true
           { id: site.id.to_s, name: site.name, timezone: site.timezone_override || current_practice.timezone,
-            request_options: %w[availability_editing_enabled time_off_enabled shift_swaps_enabled availability_approval_required time_off_approval_required shift_swap_approval_required].to_h { |key| [ key, values.fetch(key) ] } }
+            request_options: %w[availability_editing_enabled time_off_enabled shift_swaps_enabled].to_h { |key| [ key, self_service_enabled && values.fetch(key) ] }
+              .merge(%w[availability_approval_required time_off_approval_required shift_swap_approval_required].to_h { |key| [ key, values.fetch(key) ] }) }
         end
       rescue EffectiveSettings::Unconfigured
         []

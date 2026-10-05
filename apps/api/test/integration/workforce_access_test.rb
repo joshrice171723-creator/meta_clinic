@@ -110,6 +110,51 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal false, capabilities.fetch("billing_read")
   end
 
+  test "employee request index disables request types when self-service is disabled" do
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 1,
+      effective_from: 1.hour.ago, created_by_membership: @manager_membership,
+      values: workforce_settings("employee_self_service_enabled" => false, "availability_editing_enabled" => true,
+        "time_off_enabled" => true, "shift_swaps_enabled" => true))
+    login(@employee)
+
+    get "/api/clinic/workforce/requests", headers: @headers
+
+    assert_response :success
+    options = response.parsed_body.fetch("sites").sole.fetch("request_options")
+    %w[availability_editing_enabled time_off_enabled shift_swaps_enabled].each do |key|
+      assert_equal false, options.fetch(key)
+    end
+  end
+
+  test "saved swap request replays after its publication is superseded" do
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, scope_kind: "practice", revision: 1,
+      effective_from: 1.hour.ago, created_by_membership: @manager_membership,
+      values: workforce_settings("shift_swaps_enabled" => true))
+    target_user = create_user("workforce-swap-target")
+    target_membership = @practice.memberships.create!(user: target_user)
+    target_staff = @practice.staff_members.create!(display_name: "Jordan Swap", job_title: "Coordinator", active: true)
+    target = Clinic::Workforce::Employment.create!(practice: @practice, staff_member: target_staff,
+      membership: target_membership, status: "active", effective_from: 1.hour.ago)
+    target.employment_sites.create!(practice: @practice, site: @assigned_site, active: true, effective_from: 1.hour.ago)
+    publication = publication_for_swap
+    request_key = SecureRandom.uuid
+    payload = { shift_swap: { site_id: @assigned_site.id, schedule_publication_id: publication.id,
+      offered_shift_public_id: publication.shift_snapshot.first.fetch("id"), target_employment_id: target.id,
+      reason: "Synthetic coverage request", idempotency_key: request_key } }
+    login(@employee)
+
+    post "/api/clinic/workforce/shift-swap-requests", params: payload, headers: csrf_headers, as: :json
+    assert_response :created
+    saved_id = response.parsed_body.dig("request", "id")
+    successor = publication_for_swap(version: 2, supersedes: publication)
+    assert_equal publication.id, successor.supersedes_id
+
+    post "/api/clinic/workforce/shift-swap-requests", params: payload, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal true, response.parsed_body.fetch("replayed")
+    assert_equal saved_id, response.parsed_body.dig("request", "id")
+  end
+
   test "publisher-only schedule validation is limited to its granted site" do
     publisher = create_user("schedule-publisher")
     publisher_membership = @practice.memberships.create!(user: publisher)
@@ -469,6 +514,35 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     { employee_invitation: { display_name: "Synthetic Muse Invite", job_title: "Synthetic coordinator",
       email_address: "muse-invite-#{SecureRandom.hex(6)}@example.invalid",
       site_ids: [ @assigned_site.id ], effective_from: Time.current.iso8601 } }
+  end
+
+  def publication_for_swap(version: 1, supersedes: nil)
+    week_start = Date.current.beginning_of_week(:monday) + 1.week
+    draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: @assigned_site,
+      created_by_id: @manager.id, week_start_on: week_start, timezone: "UTC", status: "published", revision: version)
+    starts_at = Time.utc(week_start.year, week_start.month, week_start.day, 9)
+    snapshot = [{ "id" => SecureRandom.uuid, "employment_id" => @employment.id, "employee_name" => @employee_directory.display_name,
+      "starts_at" => starts_at.iso8601(6), "ends_at" => (starts_at + 1.hour).iso8601(6), "local_start" => starts_at.strftime("%Y-%m-%dT%H:%M"),
+      "local_end" => (starts_at + 1.hour).strftime("%Y-%m-%dT%H:%M"), "timezone" => "UTC", "start_occurrence" => "only",
+      "end_occurrence" => "only", "role_name" => "Coordinator", "break_minutes" => 0 }]
+    Clinic::Workforce::SchedulePublication.create!(practice: @practice, site: @assigned_site, schedule_draft: draft,
+      published_by_id: @manager.id, supersedes: supersedes, week_start_on: week_start, timezone: "UTC", version: version,
+      shift_snapshot: snapshot, snapshot_digest: Digest::SHA256.hexdigest(JSON.generate(snapshot)), published_at: Time.current,
+      idempotency_key: SecureRandom.uuid, request_digest: SecureRandom.hex(32))
+  end
+
+  def workforce_settings(overrides = {})
+    {
+      "timezone" => "UTC", "workweek_start_day" => 1, "workweek_start_time" => "00:00",
+      "kiosk_enabled" => false, "scanner_enabled" => false, "camera_enabled" => false, "manual_badge_entry_enabled" => false,
+      "pin_required" => false, "break_tracking_enabled" => false, "break_mode" => "unconfigured", "break_duration_minutes" => nil,
+      "break_paid" => nil, "break_reminder_minutes" => nil, "rounding_mode" => "unconfigured", "rounding_increment_minutes" => nil,
+      "daily_overtime_threshold_minutes" => nil, "weekly_overtime_threshold_minutes" => nil, "overtime_precedence" => "unconfigured",
+      "approval_mode" => "unconfigured", "schedule_enabled" => true, "employee_self_service_enabled" => true,
+      "availability_editing_enabled" => false, "time_off_enabled" => false, "shift_swaps_enabled" => false,
+      "availability_approval_required" => true, "time_off_approval_required" => true, "shift_swap_approval_required" => true,
+      "payroll_export_enabled" => false, "pay_cadence" => "unconfigured", "payroll_provider" => "unconfigured", "provider_mapping" => {}
+    }.merge(overrides)
   end
 
   def create_user(label)
