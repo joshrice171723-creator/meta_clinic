@@ -110,6 +110,24 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_equal false, capabilities.fetch("billing_read")
   end
 
+  test "publisher-only schedule validation is limited to its granted site" do
+    publisher = create_user("schedule-publisher")
+    publisher_membership = @practice.memberships.create!(user: publisher)
+    grant_permissions!(publisher_membership, "workforce.schedule.publish", scope_kind: "site", site: @assigned_site)
+    assigned_draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: @assigned_site,
+      created_by_id: @manager.id, week_start_on: Date.current.beginning_of_week, timezone: "UTC", status: "draft", revision: 1)
+    other_draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: @other_site,
+      created_by_id: @manager.id, week_start_on: Date.current.beginning_of_week, timezone: "UTC", status: "draft", revision: 1)
+    login(publisher)
+
+    post "/api/clinic/workforce/schedule-drafts/#{assigned_draft.id}/validate", headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal assigned_draft.id.to_s, response.parsed_body.dig("draft", "id")
+
+    post "/api/clinic/workforce/schedule-drafts/#{other_draft.id}/validate", headers: csrf_headers, as: :json
+    assert_response :forbidden
+  end
+
   test "HEAD workforce reads use the same protected audit classification as GET" do
     login(@manager)
     before = Clinic::AuditEvent.maximum(:id) || 0

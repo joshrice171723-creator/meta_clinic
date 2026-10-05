@@ -120,7 +120,11 @@ module Clinic
 
       def validate_draft
         draft = draft!
-        workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        if workforce_access.allow?("workforce.schedule.manage", site: draft.site)
+          workforce_access.authorize!("workforce.schedule.manage", site: draft.site)
+        else
+          workforce_access.authorize!("workforce.schedule.publish", site: draft.site)
+        end
         result = ValidateSchedule.call(draft: draft)
         render json: ScheduleSerializer.response(valid: result.valid?, errors: result.errors, warnings: result.warnings,
           draft: ScheduleSerializer.draft(draft, include_shifts: false))

@@ -140,3 +140,17 @@ Employee My hours loads fifty immutable versions at a time using a cursor constr
 - A guarded ignored fixture added fifty snapshot-only historical versions after Taylor's actual calculated version 2, without modifying the original cards, correction, or exports. These copies are pagination fixtures, not calculation or approval evidence; they have no relational time segments and correctly cannot be submitted.
 - Before loading older versions, View resulting timecard fetched the actual approved version 2 and displayed nine paid hours, eight regular hours, one overtime hour, and its corrected interval. Loading the final two versions retained version 52 as the workweek's newest displayed card and changed the correction link to View resulting timecard · version 2.
 - TypeScript, Ruby syntax, and scoped diff checks passed. Cursor regression coverage was added but not executed. Correction-draft retention and cancellation paths were source-reviewed; no automated tests were run.
+
+## Schedule review before publication
+
+Review and publish now uses the existing validation endpoint before enabling publication. It displays blocking conflicts and advisory facility-hours warnings, and binds a successful preview to the current draft, site, revision, and status. A changed saved revision has an explicit Refresh saved draft recovery path. Read requests cancel on closing, reload, location change, or unmount. Saved uncertain-publication retries retain their original request keys and do not depend on a new preview. The server still rechecks publication authorization, revision, and conflicts.
+
+The validation endpoint now accepts same-site publish permission when manage permission is absent, matching existing draft-read access. A small publisher-only/site-isolation regression was added but not run.
+
+### Local evidence at 12:54 UTC
+
+- Draft 8's Monday shift passed preview with Publish enabled. Saving the same shift on Tuesday showed the recorded-availability conflict before publication and disabled Publish. No November 9 publication existed after this blocked review.
+- Restoring Monday passed preview. A guarded local fixture added Monday facility hours of 10:00-16:00; review displayed the outside-hours warning for the 09:00-17:00 shift while leaving Publish enabled.
+- While the browser held revision 3, a guarded call through UpsertScheduleShift changed the saved role and produced revision 4. Preview displayed the stale-draft message, disabled Recheck and Publish, and offered Refresh saved draft. That action loaded revision 4 and the changed role.
+- A fresh review passed with its advisory hours warning, and browser publication succeeded. The page showed November 9 version 1 with one shift; database read-back confirmed exactly one publication for that week.
+- TypeScript and scoped Ruby syntax/diff checks passed. No automated tests were run. Publisher-only access and uncertain-publication retry preservation were source-reviewed; the administrator browser journey does not establish those separate acceptance cases.

@@ -50,6 +50,13 @@ type PublicationAttempt = {
   key: string;
 };
 
+type ScheduleValidation = {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  draft: Pick<ScheduleDraft, "id" | "site_id" | "revision" | "status">;
+};
+
 export function ScheduleBuilderPage() {
   const fieldId = useId();
   const { current_site: currentSite, capabilities } = useClinic();
@@ -58,6 +65,9 @@ export function ScheduleBuilderPage() {
   const currentSiteIdRef = useRef(currentSiteId);
   const loadRevision = useRef(0);
   const draftLoadRevision = useRef(0);
+  const validationRevision = useRef(0);
+  const validationRequest = useRef<AbortController | null>(null);
+  const draftRef = useRef<ScheduleDraft | undefined>(undefined);
   const publicationAttempts = useRef(new Map<string, PublicationAttempt>());
   const [unconfirmedPublications, setUnconfirmedPublications] = useState(0);
   const [data, setData] = useState<ScheduleBootstrap>();
@@ -70,6 +80,10 @@ export function ScheduleBuilderPage() {
   const [loading, setLoading] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishError, setPublishError] = useState<string>();
+  const [validation, setValidation] = useState<ScheduleValidation>();
+  const [validationError, setValidationError] = useState<string>();
+  const [validationLoading, setValidationLoading] = useState(false);
+  const [validationStale, setValidationStale] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [localStart, setLocalStart] = useState("");
   const [localEnd, setLocalEnd] = useState("");
@@ -136,6 +150,22 @@ export function ScheduleBuilderPage() {
   }, [editorDirty, busy, unconfirmedPublications, registerBlocker]);
 
   currentSiteIdRef.current = currentSiteId;
+  draftRef.current = draft;
+
+  const clearPublishValidation = () => {
+    validationRequest.current?.abort();
+    validationRequest.current = null;
+    validationRevision.current += 1;
+    setValidation(undefined);
+    setValidationError(undefined);
+    setValidationLoading(false);
+    setValidationStale(false);
+  };
+
+  const closePublishDialog = () => {
+    clearPublishValidation();
+    setPublishOpen(false);
+  };
 
   const loadDraft = async (id: string, expectedSiteId: string) => {
     const revision = ++draftLoadRevision.current;
@@ -158,6 +188,7 @@ export function ScheduleBuilderPage() {
     const revision = ++loadRevision.current;
     const expectedSiteId = currentSiteId;
     draftLoadRevision.current += 1;
+    clearPublishValidation();
     setLoading(true);
     setError(undefined);
     setWorkforceSettingsUnconfigured(false);
@@ -221,6 +252,9 @@ export function ScheduleBuilderPage() {
     return () => {
       loadRevision.current += 1;
       draftLoadRevision.current += 1;
+      validationRequest.current?.abort();
+      validationRequest.current = null;
+      validationRevision.current += 1;
     };
   }, [currentSiteId]);
 
@@ -247,6 +281,77 @@ export function ScheduleBuilderPage() {
     );
   const canManage = data.permissions.manage;
   const canPublish = data.permissions.publish;
+  const validationMatchesDraft = Boolean(
+    validation?.valid &&
+      draft &&
+      data.site.id === currentSiteId &&
+      validation.draft.id === draft.id &&
+      validation.draft.site_id === draft.site_id &&
+      validation.draft.site_id === currentSiteId &&
+      validation.draft.revision === draft.revision &&
+      validation.draft.status === draft.status,
+  );
+  const validateDraft = async () => {
+    const expectedDraft = draftRef.current;
+    if (
+      busy ||
+      loading ||
+      !canPublish ||
+      !expectedDraft ||
+      expectedDraft.site_id !== currentSiteId ||
+      data.site.id !== currentSiteId
+    )
+      return;
+    const revision = ++validationRevision.current;
+    validationRequest.current?.abort();
+    const controller = new AbortController();
+    validationRequest.current = controller;
+    setValidation(undefined);
+    setValidationError(undefined);
+    setValidationLoading(true);
+    setValidationStale(false);
+    try {
+      const result = await api<ScheduleValidation>(
+        `/api/clinic/workforce/schedule-drafts/${expectedDraft.id}/validate`,
+        { method: "POST", signal: controller.signal },
+      );
+      const currentDraft = draftRef.current;
+      if (
+        controller.signal.aborted ||
+        revision !== validationRevision.current ||
+        currentSiteIdRef.current !== expectedDraft.site_id ||
+        !currentDraft ||
+        currentDraft.id !== expectedDraft.id ||
+        currentDraft.site_id !== expectedDraft.site_id ||
+        currentDraft.revision !== expectedDraft.revision ||
+        currentDraft.status !== expectedDraft.status
+      )
+        return;
+      if (
+        result.draft.id !== expectedDraft.id ||
+        result.draft.site_id !== expectedDraft.site_id ||
+        result.draft.revision !== expectedDraft.revision ||
+        result.draft.status !== expectedDraft.status
+      ) {
+        setValidationStale(true);
+        setValidationError(
+          "This draft changed while it was checked. Refresh saved schedules before publishing.",
+        );
+        return;
+      }
+      setValidation(result);
+    } catch (reason) {
+      if (!controller.signal.aborted && revision === validationRevision.current)
+        setValidationError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to validate the schedule.",
+        );
+    } finally {
+      if (!controller.signal.aborted && revision === validationRevision.current)
+        setValidationLoading(false);
+    }
+  };
   const hasRepeatedHourOnlyShift = (draft?.shifts ?? []).some(
     (shift) =>
       shift.local_start.slice(0, 10) === shift.local_end.slice(0, 10) &&
@@ -255,6 +360,12 @@ export function ScheduleBuilderPage() {
   const validWeek =
     /^\d{4}-\d{2}-\d{2}$/.test(weekStart) &&
     new Date(`${weekStart}T00:00:00Z`).getUTCDay() === 1;
+  const refreshSavedDraft = () => {
+    if (!draft || !confirmDiscard()) return;
+    const draftId = draft.id;
+    closePublishDialog();
+    void load(draftId);
+  };
   const createDraft = async () => {
     if (
       busy ||
@@ -415,6 +526,7 @@ export function ScheduleBuilderPage() {
         },
       );
       if (currentSiteIdRef.current !== result.draft.site_id) return;
+      clearPublishValidation();
       setDraft(result.draft);
       setData(
         (current) =>
@@ -442,7 +554,7 @@ export function ScheduleBuilderPage() {
       !canPublish ||
       (savedAttempt
         ? savedAttempt.siteId !== currentSiteId
-        : !draft || draft.site_id !== currentSiteId) ||
+        : !draft || draft.site_id !== currentSiteId || !validationMatchesDraft) ||
       editorDirty
     )
       return;
@@ -481,7 +593,7 @@ export function ScheduleBuilderPage() {
       publicationAttempts.current.delete(signature);
       setUnconfirmedPublications(publicationAttempts.current.size);
       if (currentSiteIdRef.current !== attempt.siteId) return;
-      setPublishOpen(false);
+      closePublishDialog();
       setDraft(undefined);
       const publishedSiteId = attempt.siteId;
       const publishedWeek = attempt.weekStart;
@@ -550,6 +662,7 @@ export function ScheduleBuilderPage() {
         { method: "DELETE" },
       );
       if (currentSiteIdRef.current !== result.draft.site_id) return;
+      clearPublishValidation();
       setDraft(result.draft);
       setData(
         (current) =>
@@ -671,6 +784,7 @@ export function ScheduleBuilderPage() {
                 if (!confirmDiscard()) return;
                 const expectedSiteId = currentSiteId;
                 const revision = draftLoadRevision.current + 1;
+                clearPublishValidation();
                 setLoading(true);
                 setError(undefined);
                 setNotice(undefined);
@@ -758,6 +872,7 @@ export function ScheduleBuilderPage() {
               onClick={() => {
                 setPublishError(undefined);
                 setPublishOpen(true);
+                void validateDraft();
               }}
             >
               Review and publish
@@ -1086,7 +1201,7 @@ export function ScheduleBuilderPage() {
       </Stack>
       <Dialog
         open={publishOpen}
-        onClose={() => !busy && setPublishOpen(false)}
+        onClose={() => !busy && closePublishDialog()}
         fullWidth
         maxWidth="sm"
       >
@@ -1106,17 +1221,74 @@ export function ScheduleBuilderPage() {
                 employee schedules. Earlier publications are retained.
               </Alert>
             )}
+            {validationLoading && (
+              <Alert severity="info">Checking saved schedule conflicts…</Alert>
+            )}
+            {validationError && <Alert severity="error">{validationError}</Alert>}
+            {validation && !validation.valid && (
+              <Alert severity="error">
+                <Typography sx={{ fontWeight: 600 }}>
+                  Resolve these conflicts before publishing.
+                </Typography>
+                {validation.errors.map((message) => (
+                  <Typography key={message} variant="body2">
+                    {message}
+                  </Typography>
+                ))}
+              </Alert>
+            )}
+            {validation?.valid && (
+              <Alert severity="success">No blocking schedule conflicts found.</Alert>
+            )}
+            {validation?.warnings?.length ? (
+              <Alert severity="warning">
+                <Typography sx={{ fontWeight: 600 }}>
+                  Review these warnings before publishing.
+                </Typography>
+                {validation.warnings.map((message) => (
+                  <Typography key={message} variant="body2">
+                    {message}
+                  </Typography>
+                ))}
+              </Alert>
+            ) : null}
             {publishError && <Alert severity="error">{publishError}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy} onClick={() => setPublishOpen(false)}>
+          <Button disabled={busy} onClick={closePublishDialog}>
             Keep editing
+          </Button>
+          {validationStale && (
+            <Button disabled={busy || loading} onClick={refreshSavedDraft}>
+              Refresh saved draft
+            </Button>
+          )}
+          <Button
+            disabled={
+              busy ||
+              loading ||
+              validationLoading ||
+              validationStale ||
+              !draft ||
+              editorDirty
+            }
+            onClick={() => void validateDraft()}
+          >
+            {validationLoading ? "Checking…" : "Recheck"}
           </Button>
           <Button
             variant="contained"
             onClick={() => void publish()}
-            disabled={busy || loading || !draft || editorDirty || !canPublish}
+            disabled={
+              busy ||
+              loading ||
+              validationLoading ||
+              !draft ||
+              editorDirty ||
+              !canPublish ||
+              !validationMatchesDraft
+            }
           >
             {busy ? "Publishing…" : "Publish schedule"}
           </Button>
