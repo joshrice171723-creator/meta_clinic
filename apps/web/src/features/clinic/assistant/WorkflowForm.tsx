@@ -6,6 +6,7 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from "@mui/material";
 import type {
   WorkflowField,
@@ -88,7 +89,7 @@ function RecordField({
           {...params}
           label={field.label}
           required={field.required}
-          slotProps={{ inputLabel: { shrink: Boolean(selected) } }}
+          slotProps={{ inputLabel: { shrink: selected ? true : undefined } }}
           helperText="Choose a named record from the clinic."
         />
       )}
@@ -143,6 +144,10 @@ export function WorkflowForm({
       ].includes(field.type),
   );
 
+  const missingFields = operation.fields.filter(
+    (field) => field.required && isMissingRequiredValue(values[field.key]),
+  );
+
   return (
     <Stack
       spacing={2}
@@ -195,10 +200,7 @@ export function WorkflowForm({
               fullWidth
               slotProps={{
                 inputLabel: {
-                  shrink:
-                    typeof value === "string" || typeof value === "number"
-                      ? String(value) !== ""
-                      : false,
+                  shrink: value !== null && value !== "" ? true : undefined,
                 },
               }}
             >
@@ -236,7 +238,7 @@ export function WorkflowForm({
               fullWidth
               slotProps={{
                 inputLabel: {
-                  shrink: typeof value === "boolean",
+                  shrink: typeof value === "boolean" ? true : undefined,
                 },
               }}
             >
@@ -385,10 +387,12 @@ export function WorkflowForm({
                 shrink:
                   field.type === "date" ||
                   field.type === "datetime" ||
-                  (value !== null && value !== ""),
+                  (value !== null && value !== "")
+                    ? true
+                    : undefined,
               },
               htmlInput: {
-                step: field.type === "number" ? "any" : undefined,
+                step: field.type === "number" ? 1 : undefined,
                 inputMode: field.type === "decimal" ? "decimal" : undefined,
               },
             }}
@@ -408,16 +412,16 @@ export function WorkflowForm({
           provided. This request cannot be submitted safely.
         </Alert>
       )}
+      {missingFields.length > 0 && (
+        <Typography variant="body2" color="text.secondary" role="status">
+          Still needed: {missingFields.map((field) => field.label).join(", ")}.
+        </Typography>
+      )}
       <Button
         type="submit"
         variant="contained"
         disabled={
-          disabled ||
-          unsupported.length > 0 ||
-          operation.fields.some(
-            (field) =>
-              field.required && isMissingRequiredValue(values[field.key]),
-          )
+          disabled || unsupported.length > 0 || missingFields.length > 0
         }
       >
         {operation.kind === "read" ? "Show results" : "Prepare for review"}

@@ -13,6 +13,8 @@ import {
   Stack,
   TextField,
   Typography,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import type { WorkflowOperation } from "./workflowTypes";
@@ -40,16 +42,20 @@ export function WorkflowCatalog({
 }) {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [availableOnly, setAvailableOnly] = useState(true);
   useEffect(() => {
     if (selectedKey) setExpanded(false);
   }, [selectedKey]);
   const groups = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const filtered = operations.filter((operation) =>
-      `${operation.title} ${operation.domain} ${operation.description}`
-        .toLowerCase()
-        .includes(needle),
-    );
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const filtered = operations.filter((operation) => {
+      const text =
+        `${operation.title} ${operation.domain} ${operation.description}`.toLowerCase();
+      return (
+        (!availableOnly || operation.availability === "available") &&
+        words.every((word) => text.includes(word))
+      );
+    });
     const grouped = new Map<string, WorkflowOperation[]>();
     for (const operation of filtered) {
       const entries = grouped.get(operation.domain) ?? [];
@@ -57,7 +63,7 @@ export function WorkflowCatalog({
       grouped.set(operation.domain, entries);
     }
     return [...grouped.entries()];
-  }, [operations, query]);
+  }, [operations, query, availableOnly]);
 
   return (
     <Accordion
@@ -69,22 +75,32 @@ export function WorkflowCatalog({
     >
       <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
         <Typography variant="subtitle1" component="h3">
-          Browse workflows
+          Browse clinic tasks
         </Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Stack spacing={1.5}>
           <Typography variant="body2" color="text.secondary">
-            Choose a task or ask the assistant to find one. Changes are prepared
-            for review before anything is saved.
+            Find a task by name or area of the clinic.
           </Typography>
           <TextField
-            label="Find a workflow"
+            label="Search tasks"
+            placeholder="For example, appointments or stock"
             size="small"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             disabled={disabled}
             fullWidth
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={availableOnly}
+                onChange={(_, checked) => setAvailableOnly(checked)}
+              />
+            }
+            label="Available here"
           />
           {loading && operations.length === 0 && (
             <Alert severity="info">Loading the workflows available here…</Alert>
@@ -95,7 +111,10 @@ export function WorkflowCatalog({
             </Alert>
           )}
           {operations.length > 0 && groups.length === 0 && (
-            <Alert severity="info">No workflows match that search.</Alert>
+            <Alert severity="info">
+              No tasks match. Try fewer words or turn off “Available here” to
+              see other workflows.
+            </Alert>
           )}
           {groups.map(([domain, entries]) => (
             <section className="clinic-assistant__workflow-group" key={domain}>
@@ -169,19 +188,24 @@ export function WorkflowCatalog({
                   ) : (
                     <ListItem
                       key={operation.key}
-                      sx={{ alignItems: "flex-start", py: 1, opacity: 0.8 }}
-                      secondaryAction={
-                        internalPath(operation.source_path) ? (
-                          <Link
-                            href={internalPath(operation.source_path)}
-                            underline="hover"
-                          >
-                            Open workflow
-                          </Link>
-                        ) : undefined
-                      }
+                      sx={{
+                        alignItems: "stretch",
+                        flexDirection: "column",
+                        py: 1,
+                      }}
                     >
-                      {content}
+                      <Stack direction="row" sx={{ alignItems: "flex-start" }}>
+                        {content}
+                      </Stack>
+                      {internalPath(operation.source_path) && (
+                        <Link
+                          href={internalPath(operation.source_path)}
+                          underline="hover"
+                          sx={{ alignSelf: "flex-start", mt: 0.5 }}
+                        >
+                          Open workflow
+                        </Link>
+                      )}
                     </ListItem>
                   );
                 })}

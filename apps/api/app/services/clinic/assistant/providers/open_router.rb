@@ -16,6 +16,7 @@ module Clinic
         ATTEMPT_DEADLINE_SECONDS = 20
         MAX_RESPONSE_BYTES = 12_000
         MAX_COMPLETION_TOKENS = 300
+        MAX_WORKFLOW_COMPLETION_TOKENS = 1_200
 
         attr_reader :response_metadata
 
@@ -28,12 +29,13 @@ module Clinic
         end
 
         def call_workflow(input, schema:, schema_name:, system_prompt:)
-          parse_json(request(input, response_format: build_response_format(schema:, schema_name:), system_prompt:))
+          parse_json(request(input, response_format: build_response_format(schema:, schema_name:), system_prompt:,
+            max_tokens: MAX_WORKFLOW_COMPLETION_TOKENS))
         end
 
         private
 
-        def request(input = nil, response_format: nil, system_prompt: ModelGateway::SYSTEM_PROMPT, **request_input)
+        def request(input = nil, response_format: nil, system_prompt: ModelGateway::SYSTEM_PROMPT, max_tokens: MAX_COMPLETION_TOKENS, **request_input)
           input ||= request_input
           input = input.to_h
           response_format ||= booking_response_format
@@ -45,7 +47,7 @@ module Clinic
           request.body = JSON.generate(
             model: @model,
             temperature: 0,
-            max_tokens: MAX_COMPLETION_TOKENS,
+            max_tokens:,
             reasoning: { enabled: false },
             provider: { max_price: { prompt: 0, completion: 0 }, require_parameters: true },
             response_format:,
@@ -108,6 +110,7 @@ module Clinic
         def parse_json(body)
           payload = JSON.parse(body)
           @response_metadata = safe_response_metadata(payload)
+          raise Error, "OpenRouter returned an incomplete structured result." if @response_metadata[:finish_reason] == "length"
           content = payload.dig("choices", 0, "message", "content")
           raise Error, "OpenRouter returned no structured result." unless content.is_a?(String) && content.bytesize <= 8_000
 
