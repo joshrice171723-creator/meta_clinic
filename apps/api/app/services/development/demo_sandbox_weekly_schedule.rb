@@ -34,8 +34,8 @@ module Development
             saved = latest.flat_map(&:shift_snapshot)
             draft = Clinic::Workforce::CreateScheduleDraft.call(practice:, actor: run.operator_user,
               site:, week_start_on: week, timezone: zone.tzinfo.name)
-            prior&.shift_snapshot&.each do |shift|
-              draft.shifts.create!(practice:, **shift.slice(*SHIFT_FIELDS).symbolize_keys)
+            prior&.schedule_draft&.shifts&.each do |shift|
+              draft.shifts.create!(practice:, **shift.attributes.slice(*SHIFT_FIELDS).symbolize_keys)
             end
 
             employments.each do |employment|
