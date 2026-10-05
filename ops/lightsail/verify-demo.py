@@ -62,8 +62,8 @@ sandbox.headers['Origin'] = origin
 base = origin + '/api/demo-workspace'
 demo_configuration = sandbox.get(base + '/csrf', timeout=20).json()
 check(demo_configuration.get('development_login') is True, 'isolated demo login enabled')
-check(any(account['id'] == 'omni' for account in demo_configuration['development_accounts']),
-      'Omni available in isolated demo')
+check(demo_configuration.get('development_accounts') == [],
+      'isolated demo session bootstrap skips the full account catalog')
 sandbox.headers['X-CSRF-Token'] = demo_configuration['csrf_token']
 demo_entry = sandbox.post(base + '/development_session', json={
     'profile': 'omni', 'portal': 'clinic', 'new_organization': {
