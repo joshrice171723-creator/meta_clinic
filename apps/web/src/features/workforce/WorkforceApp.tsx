@@ -17,16 +17,16 @@ export function WorkforceApp({ path }: { path: string }) {
   const { navigate } = useClinicNavigation();
   const pages = [
     {
-      id: "hours",
-      label: "My hours",
-      allowed: c.workforce_self,
-      page: <EmployeeHoursPage />,
-    },
-    {
       id: "my-schedule",
       label: "My schedule",
       allowed: c.workforce_self,
       page: <EmployeeSchedulePage />,
+    },
+    {
+      id: "hours",
+      label: "My hours",
+      allowed: c.workforce_self,
+      page: <EmployeeHoursPage />,
     },
     {
       id: "my-requests",
