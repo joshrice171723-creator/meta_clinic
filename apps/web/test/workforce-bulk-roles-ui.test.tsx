@@ -91,7 +91,7 @@ beforeAll(async () => {
         },
         load(id) {
           if (id === "\0bulk-test")
-            return `import React from 'react'; import {createRoot} from 'react-dom/client'; import {EmploymentAdminPage} from '/src/features/workforce/EmploymentAdminPage.tsx'; import {collectDemoNavigationBlockers} from '/src/features/demo/navigationBlockers.ts'; window.readBlockers = collectDemoNavigationBlockers; createRoot(document.getElementById('root')).render(React.createElement(EmploymentAdminPage));`;
+            return `import React from 'react'; import {createRoot} from 'react-dom/client'; import {EmploymentAdminPage} from '/src/features/workforce/EmploymentAdminPage.tsx'; import {collectDemoNavigationBlockers} from '/src/features/demo/navigationBlockers.ts'; import {ClinicNavigationProvider, createClinicNavigationGuard} from '/src/features/clinic/clinicNavigation.tsx'; const guard = createClinicNavigationGuard(); window.readBlockers = collectDemoNavigationBlockers; window.confirmAccessNavigation = () => guard.confirmNavigation(); createRoot(document.getElementById('root')).render(React.createElement(ClinicNavigationProvider, {value: {navigate: () => true, registerBlocker: guard.registerBlocker, confirmNavigation: guard.confirmNavigation}}, React.createElement(EmploymentAdminPage)));`;
         },
         configureServer(vite) {
           vite.middlewares.use((request, response, next) => {
@@ -674,6 +674,13 @@ it("individual access controls stay inert during a delayed write and saved-acces
           ).readBlockers().blocked,
       ),
     ).toBe(true);
+    expect(
+      await page.evaluate(() =>
+        (
+          window as unknown as { confirmAccessNavigation: () => boolean }
+        ).confirmAccessNavigation(),
+      ),
+    ).toBe(false);
     expect(writes).toEqual([
       {
         id: 1,

@@ -225,3 +225,16 @@ The target-decline transition now finishes before acceptance eligibility checks.
 - Before repair, Morgan clicked the visible Decline button and received Target employee has approved time off during this shift. The request remained submitted and needed a response.
 - After repair, the same browser action showed Swap declined and zero requests needing a response. Database read-back confirmed swap 3 declined at revision 2, target employment 1, decided at 13:55:20.097Z. It retained source publication 6; the week still had five publications and latest publication 9, proving decline created no successor.
 - Ruby syntax, scoped RuboCop, and diff checks passed. One regression retaining blocked acceptance while allowing decline was added but not run.
+
+## Employee-access saves keep their recovery screen
+
+The individual access editor now registers a hard clinic navigation blocker during saving and while an access result is unconfirmed. Unsaved ordinary edits keep their existing discard confirmation. The busy message explicitly says that employee access is still saving. The suspected restore-confirmation gap was withdrawn after source review: the existing sameRoleScope check already requires active employment and account state.
+
+### Local browser and database evidence at 14:04 UTC
+
+- A guarded fixture used the normal LinkEmployment service to create Casey Example (employment 5, account 11) at Main clinic with the catalogued Front Desk Coordinator role. An initial attempt using the old default employee role was rejected and transactionally rolled back; the final fixture explicitly chose the catalogued role. A generated fixture password remained inside Rails process memory and was never printed or copied.
+- In the browser, the administrator added Payroll journey to Casey's work sites. Only that PATCH response was held after HTTP 200. Clicking Team schedule left the browser on Employees while the save was pending.
+- Dropping that response produced the unconfirmed-access message. Clicking Team schedule still left the recovery screen open. All temporary interception was cleared immediately after the dropped response.
+- Check saved access confirmed the stored role and work sites. The administrator then restored Main clinic only through the UI, revoked Casey's clinic account through its explicit confirmation dialog, and successfully navigated to Team schedule.
+- Read-back confirmed Casey inactive for work and login, Main clinic as the sole active work-site assignment, zero active role grants, and retained history of all three Front Desk Coordinator grants as revoked. No existing employee's role or work-site assignment was changed for this walkthrough.
+- Scoped Prettier, TypeScript, and diff checks passed. The existing UI regression now includes the ordinary clinic navigation guard; it was not executed. No automated tests were run.

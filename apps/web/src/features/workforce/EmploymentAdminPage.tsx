@@ -210,10 +210,14 @@ function EmploymentAccessEditor({
   }));
   useEffect(() => {
     if (!changed && !saving && !accessUnknown) return;
-    const message = accessUnknown
-      ? "Employee access outcome is unconfirmed. Keep this page open and check saved access."
-      : "Discard unsaved employee access changes?";
-    const unregister = registerBlocker(() => message);
+    const message = saving
+      ? "Employee access is still saving."
+      : accessUnknown
+        ? "Employee access outcome is unconfirmed. Keep this page open and check saved access."
+        : "Discard unsaved employee access changes?";
+    const unregister = registerBlocker(() => message, {
+      preventNavigation: saving || accessUnknown,
+    });
     const unload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = message;
