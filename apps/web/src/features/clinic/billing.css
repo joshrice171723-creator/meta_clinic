@@ -243,7 +243,7 @@
   background: transparent;
   color: var(--clinic-accent);
   font-weight: 750;
-  padding: 3px 0;
+  padding: 3px 0 3px 4px;
 }
 .clinic-theme .billing-badge {
   display: inline-flex;
