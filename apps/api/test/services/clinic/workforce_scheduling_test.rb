@@ -314,6 +314,26 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     assert_equal "declined", declined.request.status
   end
 
+  test "target can decline a swap blocked by approved time off" do
+    request = expiring_swap(Current.business_time + 1.day)
+    offered = request.offered_shift
+    Clinic::Workforce::TimeOffRequest.create!(practice: @practice, site: @site, employment: @target,
+      requested_by_id: @target.membership.user_id, public_id: SecureRandom.uuid, status: "approved",
+      timezone: "America/Chicago", reason: "Personal time", starts_at: Time.iso8601(offered.fetch("starts_at")),
+      ends_at: Time.iso8601(offered.fetch("ends_at")), submitted_at: Time.current, decided_at: Time.current,
+      revision: 1, idempotency_key: "swap-time-off", request_digest: "a" * 64)
+
+    error = assert_raises(ArgumentError) do
+      decide_expiring_swap(request, "target_accept", @target, 1, "time-off-accept")
+    end
+    assert_includes error.message, "approved time off"
+    assert_equal "submitted", request.reload.status
+
+    declined = decide_expiring_swap(request, "target_decline", @target, 1, "time-off-decline")
+    assert_equal "declined", declined.request.status
+    assert_equal 1, Clinic::Workforce::SchedulePublication.where(practice: @practice).count
+  end
+
   test "expiry blocks new approval while preserving exact consent replay and manager denial" do
     expires_at = Current.business_time + 1.hour
     request = expiring_swap(expires_at)

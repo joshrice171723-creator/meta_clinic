@@ -214,3 +214,14 @@ The request index now projects all three request types as disabled when employee
 - A guarded call through the ordinary schedule services copied the current October 26 week into publication 9, version 5, superseding publication 6 without changing either assignment or clock interval.
 - Refreshing request history preserved the original saved retry. Retry then reported Request saved, cleared the pending action and draft, and left seven history entries. Database read-back confirmed exactly one new submitted swap at revision 1, still referencing source publication 6, alongside the two earlier approved swaps. It did not create a duplicate request or another publication.
 - Queued Ruby syntax and scoped RuboCop passed for the controller and its two added regression cases. Those tests were not run. The new regression fixture schedules next week's shift so its employment effective dates precede the offered work.
+
+## Declining a swap after availability changes
+
+The target-decline transition now finishes before acceptance eligibility checks. Acceptance still checks expiry and target eligibility, and publication still rechecks eligibility. A refusal cannot assign coverage or create a schedule revision.
+
+### Local evidence at 13:56 UTC
+
+- A guarded local fixture added approved Morgan time off for November 1 03:00-04:00 CST, overlapping the offered shift on saved swap 3. This time-off approval was fixture setup, not a browser approval claim.
+- Before repair, Morgan clicked the visible Decline button and received Target employee has approved time off during this shift. The request remained submitted and needed a response.
+- After repair, the same browser action showed Swap declined and zero requests needing a response. Database read-back confirmed swap 3 declined at revision 2, target employment 1, decided at 13:55:20.097Z. It retained source publication 6; the week still had five publications and latest publication 9, proving decline created no successor.
+- Ruby syntax, scoped RuboCop, and diff checks passed. One regression retaining blocked acceptance while allowing decline was added but not run.

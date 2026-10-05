@@ -100,12 +100,12 @@ module Clinic
           raise Clinic::Authorization::Denied unless target&.id == request.target_employment_id
           raise ArgumentError, "Only a submitted swap can be answered." unless request.status == "submitted"
           ensure_swap_not_expired! if decision == "target_accept"
-          ensure_target_eligible!
           if decision == "target_decline"
             request.update!(status: "declined", target_decided_by_id: actor.id, target_reason: reason,
               target_decided_at: Current.business_time, revision: request.revision + 1)
             return nil
           end
+          ensure_target_eligible!
           request.update!(status: "accepted", target_decided_by_id: actor.id, target_reason: reason,
             target_decided_at: Current.business_time, revision: request.revision + 1)
           return approve_swap! unless setting_enabled?("shift_swap_approval_required")
