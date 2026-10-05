@@ -289,3 +289,21 @@ Timecard calculation and its final read-scope check now share a database transac
 - Ruby syntax, scoped RuboCop, and diff checks passed. One integration regression was added but not run. Its employment predates the historical punch while its current Main assignment remains unchanged.
 
 Taylor's employee-facing My hours also showed approved current-week version 3, 2h 15m, and both correction review outcomes before the scoped reviewer walkthrough.
+
+## Payroll history cancellation and retry
+
+At 15:16 UTC, the administrator held Main clinic's older-history response after HTTP 200, then switched the payroll page to Payroll journey. The browser canceled the old request; the new location retained exactly exports 55, 54, and 53, with no Main clinic rows appended.
+
+After returning to Main clinic, a second older-history response was deliberately dropped. The page retained its 50 loaded exports and the temporary configuration-name draft, exposed Retry loading older exports, and kept the cursor. Retry loaded all 52 Main clinic exports, removed the retry/load-more control, and preserved the draft. Discard file-setting changes then restored the saved configuration and removed the unsaved-settings notice. All response interception was cleared. No export or configuration was created by these checks.
+
+The final source review included employee timecard history, payroll history/candidate loading, schedule validation, availability date/clock boundaries, kiosk recovery, and individual employee-access navigation. No additional change was required from that review. A fresh fetch and merge of origin/main reported Already up to date; the owned worktree remained clean before this evidence append.
+
+## Final filter recovery and visual check
+
+At 15:20 UTC, dropping a successful response for the October 5 Payroll journey candidate filter left no stale checkbox selections and disabled preview/export creation. Retry returned only Taylor's approved version 3 for that week, with no preselected card, and retained the three saved exports. All interception was cleared.
+
+A visual check found the singular export-row label rendered as "1 rows". The label now renders "1 row"; Chrome confirmed the correction. The final web build passed TypeScript and both Vite bundles on this source, retaining only the existing marketing static/dynamic-import warning. No automated tests were run.
+
+The application again confirmed the export 55 download request. A focused attempt to inspect Chrome's downloads page was blocked by browser URL policy and stopped without a workaround. Completed browser/on-disk delivery therefore remains unverified.
+
+An independent final read-only review found no additional actionable defect in payroll candidate/history scoping, cursor pagination, stale response handling, employee history authorization, or schedule preflight permissions. This review adds no broader release or security acceptance.

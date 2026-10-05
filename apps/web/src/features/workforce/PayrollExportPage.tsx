@@ -1047,8 +1047,8 @@ export function PayrollExportPage() {
                   </Button>
                   <Typography variant="body2" color="text.secondary">
                     {new Date(batch.created_at).toLocaleString()} ·{" "}
-                    {batch.row_count} rows · {batch.totals.paid_hours} paid
-                    hours
+                    {batch.row_count} {batch.row_count === 1 ? "row" : "rows"} ·{" "}
+                    {batch.totals.paid_hours} paid hours
                     {batch.supersedes_batch_id
                       ? ` · corrects export ${batch.supersedes_batch_id}`
                       : ""}
