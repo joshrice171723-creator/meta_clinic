@@ -452,18 +452,18 @@ function makeBrief(path: string, specialty: Specialty, slug?: string): Partial<G
     searchIntent: slug ? `${pageLabel.toLowerCase()} software evaluation for ${specialty.name.toLowerCase()} clinics` : `${specialty.name.toLowerCase()} clinic software and workflow evaluation`,
     funnel: slug ? "Evaluation: explain one clinic workflow, then invite a product walkthrough." : "Awareness to evaluation: understand specialty fit, then request a workflow walkthrough.",
     visualBrief: `Future visual: a real, approved product screen or clearly labeled schematic showing the ${pageLabel.toLowerCase()} workflow for a ${specialty.name.toLowerCase()} clinic. Annotate the relevant handoff, staff role, and next action. Use synthetic records in demo imagery; do not imply unavailable features.`,
-    primaryCta: { label: "Try the demo", path: "/demo" },
+    primaryCta: { label: "Try Our Sandbox", path: "/demo" },
     secondaryCta: growthTour(path)
       ? { label: "Explore the steps", path: "#product-walkthrough" }
-      : { label: "Request a walkthrough", path: "/book-demo" },
+      : { label: "Try Our Sandbox", path: "/demo" },
     sections: overview?.sections ?? sections,
     questions: objections,
     links: [
       ...(slug ? [{ label: `${specialty.name} overview`, path: Object.keys(specialties).find((candidate) => path.startsWith(`${candidate}/`)) ?? path }] : []),
       ...(slug ? [{ label: "Shared platform capability", path: platformCapabilityFor(slug) }] : []),
       ...(guide ? [guide] : []),
-      { label: "Explore the demo", path: "/demo" },
-      { label: "Request a demo", path: "/book-demo" },
+      { label: "Try Our Sandbox", path: "/demo" },
+      { label: "Try Our Sandbox", path: "/demo" },
       ...(specialty.name === "Weight loss" && slug && /intake|forms|portal/.test(slug) ? [
         { label: "Weight loss intake form template", path: "/resources/templates/weight-loss-intake-form" },
       ] : []),

@@ -157,13 +157,10 @@ export function MembershipWalkthrough() {
           disableElevation
           endIcon={<ArrowForwardRoundedIcon />}
         >
-          Try the demo
+          Try Our Sandbox
         </Button>
         <a href="/meta-clinic/membership-care/patient-view">
           Open the patient view <ArrowForwardRoundedIcon aria-hidden="true" />
-        </a>
-        <a href="/meta-clinic/book-demo">
-          Walk through it with us <ArrowForwardRoundedIcon aria-hidden="true" />
         </a>
       </div>
     </section>

@@ -118,10 +118,7 @@ export function ProductWalkthrough({
               variant="contained"
               endIcon={<ArrowForwardRoundedIcon />}
             >
-              Try the demo
-            </Button>
-            <Button href="/meta-clinic/book-demo" variant="outlined">
-              Request a walkthrough
+              Try Our Sandbox
             </Button>
           </div>
         </footer>

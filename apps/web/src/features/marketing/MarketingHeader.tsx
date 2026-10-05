@@ -137,24 +137,24 @@ export function MarketingHeader({
                 "marketing-header__signin",
               )}
               <Button
-                href="/meta-clinic/book-demo"
+                href="/demo"
                 variant="contained"
                 disableElevation
                 className="marketing-header__demo"
               >
-                Request a demo
+                Try Our Sandbox
               </Button>
             </div>
           </>
         ) : (
           <div className="marketing-header__actions">
             <Button
-              href="/meta-clinic/book-demo"
+              href="/demo"
               variant="contained"
               disableElevation
               className="marketing-header__demo"
             >
-              Request a demo
+              Try Our Sandbox
             </Button>
             <IconButton
               className="marketing-header__toggle"
@@ -230,13 +230,13 @@ export function MarketingHeader({
               "marketing-header__drawer-link",
             )}
             <Button
-              href="/meta-clinic/book-demo"
+              href="/demo"
               variant="contained"
               disableElevation
               className="marketing-header__demo"
               onClick={() => setDrawerOpen(false)}
             >
-              Request a demo
+              Try Our Sandbox
             </Button>
           </div>
           {groups.map((group) => (

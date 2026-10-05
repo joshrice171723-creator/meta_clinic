@@ -194,7 +194,7 @@ export function MembershipPatientView({
               variant="contained"
               endIcon={<ArrowForwardRoundedIcon />}
             >
-              Explore the demo
+              Try Our Sandbox
             </Button>
           </DialogActions>
         </Dialog>

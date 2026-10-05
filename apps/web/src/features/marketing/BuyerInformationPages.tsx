@@ -65,10 +65,10 @@ const introductions: Record<
 };
 
 function Actions({
-  primary = "Explore the demo",
+  primary = "Try Our Sandbox",
   primaryHref = "/demo",
-  secondary = "Request a walkthrough",
-  secondaryHref = marketingUrl("/book-demo"),
+  secondary = "Explore the platform",
+  secondaryHref = marketingUrl("/platform"),
 }: {
   primary?: string;
   primaryHref?: string;
@@ -626,8 +626,7 @@ const siteMapGroups = [
     title: "Evaluate the fit",
     description: "Try the software, then focus a conversation on your clinic.",
     links: [
-      ["Interactive demo", "/demo"],
-      ["Request a walkthrough", marketingUrl("/book-demo")],
+      ["Try Our Sandbox", "/demo"],
       ["Pricing", marketingUrl("/pricing")],
     ],
   },
@@ -745,7 +744,7 @@ export function BuyerInformationPage({ path }: { path: BuyerPath }) {
             <Actions
               primary="Request pricing details"
               primaryHref={marketingUrl("/contact")}
-              secondary="Explore the demo"
+              secondary="Try Our Sandbox"
               secondaryHref="/demo"
             />
           )}
