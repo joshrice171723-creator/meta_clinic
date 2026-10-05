@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Box, Button, Stack } from "@mui/material";
 import { api } from "../../api/client";
 import { isDemoFrame, notifyDemo } from "./frame";
+import { ClinicAppearanceScope } from "../clinic/Appearance";
+import { DEFAULT_APPEARANCE } from "../clinic/appearancePreferences";
 import type { NavigationConfirmation } from "./accountSwitch";
 import { confirmClinicNavigation } from "../clinic/clinicNavigation";
 import {
@@ -287,21 +289,26 @@ function EmbeddedFrame({ children }: { children: ReactNode }) {
     !demoRouteAllowed(window.location.href, run, window.location.origin)
   ) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          <Alert severity={error ? "error" : "info"}>
-            {error ||
-              (!run
-                ? "Loading your lesson…"
-                : "Choose a lesson from the catalog to continue.")}
-          </Alert>
-          {error && (
-            <Button onClick={() => setRevision((value) => value + 1)}>
-              Try again
-            </Button>
-          )}
-        </Stack>
-      </Box>
+      <ClinicAppearanceScope
+        preferences={DEFAULT_APPEARANCE}
+        systemDark={false}
+      >
+        <Box sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <Alert severity={error ? "error" : "info"}>
+              {error ||
+                (!run
+                  ? "Loading your lesson…"
+                  : "Choose a lesson from the catalog to continue.")}
+            </Alert>
+            {error && (
+              <Button onClick={() => setRevision((value) => value + 1)}>
+                Try again
+              </Button>
+            )}
+          </Stack>
+        </Box>
+      </ClinicAppearanceScope>
     );
   }
   return (
