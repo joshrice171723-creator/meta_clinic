@@ -62,6 +62,7 @@ type PayrollData = {
   fields: string[];
   default_columns: Column[];
   employees: { id: string; name: string }[];
+  timecards_truncated: boolean;
   timecards: {
     id: string;
     employment_id: string;
@@ -117,11 +118,17 @@ export function PayrollExportPage() {
   const [historyError, setHistoryError] = useState("");
   const historyRequest = useRef<AbortController | null>(null);
   const downloadRequest = useRef<AbortController | null>(null);
+  const candidateRequest = useRef<AbortController | null>(null);
+  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [candidateError, setCandidateError] = useState("");
   useEffect(() => {
     const cancelDownload = () => {
       historyRequest.current?.abort();
       historyRequest.current = null;
       setHistoryLoading(false);
+      candidateRequest.current?.abort();
+      candidateRequest.current = null;
+      setCandidateLoading(false);
       if (!downloadRequest.current) return;
       downloadRequest.current.abort();
       downloadRequest.current = null;
@@ -134,6 +141,8 @@ export function PayrollExportPage() {
       downloadRequest.current = null;
       historyRequest.current?.abort();
       historyRequest.current = null;
+      candidateRequest.current?.abort();
+      candidateRequest.current = null;
       window.removeEventListener(SESSION_CHANGED_EVENT, cancelDownload);
       window.removeEventListener(CLINIC_LOCATION_CHANGED_EVENT, cancelDownload);
     };
@@ -187,12 +196,17 @@ export function PayrollExportPage() {
     missingPayrollEmployees.length > 0 ||
     missingCorrectionPeriods.length > 0 ||
     extraCorrectionCards.length > 0 ||
-    (!!supersedes && !originalBatch);
+    (!!supersedes && !originalBatch) ||
+    candidateLoading ||
+    !!candidateError;
   const employeeName = (id: string) =>
     data?.employees.find((employee) => employee.id === id)?.name ||
     `Employee ${id}`;
   const controlsLocked =
-    busy || unconfirmedExport !== null || configurationUnconfirmed;
+    busy ||
+    candidateLoading ||
+    unconfirmedExport !== null ||
+    configurationUnconfirmed;
   const leaveMessage = busy
     ? "A payroll action is still in progress."
     : unconfirmedExport
@@ -233,6 +247,9 @@ export function PayrollExportPage() {
 
   function refreshRecords() {
     if (!confirmReload()) return;
+    candidateRequest.current?.abort();
+    candidateRequest.current = null;
+    setCandidateLoading(false);
     setSettingsDirty(false);
     setUnconfirmedExport(null);
     setConfigurationUnconfirmed(false);
@@ -253,6 +270,7 @@ export function PayrollExportPage() {
     setError("");
     setHistoryError("");
     setHistoryLoading(false);
+    setCandidateError("");
     setPreview(null);
     setSelected([]);
     setSupersedes("");
@@ -282,6 +300,8 @@ export function PayrollExportPage() {
       controller.abort();
       historyRequest.current?.abort();
       historyRequest.current = null;
+      candidateRequest.current?.abort();
+      candidateRequest.current = null;
     };
   }, [siteId, reload]);
 
@@ -324,6 +344,68 @@ export function PayrollExportPage() {
     setPreview(null);
     setNotice("");
     setRequestKey(crypto.randomUUID());
+  }
+
+  async function loadCandidateCards(batchId: string) {
+    if (!data || candidateRequest.current || busy) return;
+    const original = batchId
+      ? data.batches.find((batch) => batch.id === batchId)
+      : undefined;
+    if (batchId && !original) return;
+    const expectedSiteId = siteId;
+    const controller = new AbortController();
+    candidateRequest.current = controller;
+    setCandidateLoading(true);
+    setCandidateError("");
+    setData(
+      (current) =>
+        current && { ...current, timecards: [], timecards_truncated: false },
+    );
+    setSelected([]);
+    setPreview(null);
+    setNotice("");
+    setRequestKey(crypto.randomUUID());
+    try {
+      const query = new URLSearchParams({ site_id: expectedSiteId });
+      if (batchId) query.set("correction_batch_id", batchId);
+      const result = await api<PayrollData>(
+        `/api/clinic/workforce/payroll-exports?${query.toString()}`,
+        { signal: controller.signal },
+      );
+      if (controller.signal.aborted || candidateRequest.current !== controller)
+        return;
+      setData(
+        (current) =>
+          current && {
+            ...current,
+            timecards: result.timecards,
+            timecards_truncated: result.timecards_truncated,
+          },
+      );
+      setSelected(
+        original
+          ? result.timecards
+              .filter((card) =>
+                original.source_periods.some((period) =>
+                  sameWorkweek(period, card),
+                ),
+              )
+              .map((card) => card.id)
+          : [],
+      );
+    } catch (reason) {
+      if (!controller.signal.aborted && candidateRequest.current === controller)
+        setCandidateError(
+          reason instanceof Error
+            ? reason.message
+            : "Unable to load approved timecards.",
+        );
+    } finally {
+      if (candidateRequest.current === controller) {
+        candidateRequest.current = null;
+        setCandidateLoading(false);
+      }
+    }
   }
 
   async function saveConfiguration() {
@@ -503,6 +585,9 @@ export function PayrollExportPage() {
         value={siteId}
         onChange={(event) => {
           if (!confirmReload()) return;
+          candidateRequest.current?.abort();
+          candidateRequest.current = null;
+          setCandidateLoading(false);
           setSiteId(event.target.value);
           setData(null);
           setSettingsDirty(false);
@@ -588,28 +673,15 @@ export function PayrollExportPage() {
                 <TextField
                   select
                   label="Correct a previous export"
+                  slotProps={{
+                    select: { displayEmpty: true },
+                    inputLabel: { shrink: true },
+                  }}
                   value={supersedes}
                   onChange={(event) => {
                     const batchId = event.target.value;
                     setSupersedes(batchId);
-                    const original = data.batches.find(
-                      (batch) => batch.id === batchId,
-                    );
-                    setSelected(
-                      original
-                        ? data.timecards
-                            .filter((card) =>
-                              original.source_periods.some(
-                                (period) =>
-                                  period.employment_id === card.employment_id &&
-                                  period.period_start === card.period_start &&
-                                  period.period_end === card.period_end,
-                              ),
-                            )
-                            .map((card) => card.id)
-                        : [],
-                    );
-                    invalidatePreview();
+                    void loadCandidateCards(batchId);
                   }}
                   disabled={controlsLocked}
                   sx={{ minWidth: 240 }}
@@ -630,45 +702,83 @@ export function PayrollExportPage() {
                     ))}
                 </TextField>
               </Stack>
+              <Button
+                onClick={() => void loadCandidateCards(supersedes)}
+                disabled={controlsLocked}
+                sx={{ alignSelf: "start" }}
+              >
+                Refresh approved timecards
+              </Button>
+              {candidateLoading && (
+                <Typography role="status">
+                  Loading approved timecards...
+                </Typography>
+              )}
+              {candidateError && (
+                <Alert
+                  severity="error"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => void loadCandidateCards(supersedes)}
+                      disabled={candidateLoading}
+                    >
+                      Retry
+                    </Button>
+                  }
+                >
+                  {candidateError}
+                </Alert>
+              )}
+              {!supersedes && data.timecards_truncated && (
+                <Alert severity="info">
+                  Showing the 250 most recent approved timecards for this
+                  location. Select a previous export to load its exact original
+                  workweeks.
+                </Alert>
+              )}
               {supersedes && (
                 <Alert severity="info">
                   A correction must include the same employees and workweeks as
-                  export {supersedes}. Their latest approved cards have been
-                  selected where available. Recalculate and approve any missing
-                  cards, then refresh before continuing.
+                  export {supersedes}. Its latest approved cards are selected
+                  where available. Recalculate and approve any missing cards,
+                  then refresh approved timecards here.
                 </Alert>
               )}
-              {missingCorrectionPeriods.length > 0 && (
-                <Alert severity="warning">
-                  Select an approved timecard for every employee and workweek in
-                  the original export:
-                  <Stack component="ul" spacing={0.5} sx={{ my: 1, pl: 2 }}>
-                    {missingCorrectionPeriods.map((period) => (
-                      <Typography
-                        component="li"
-                        key={`${period.employment_id}-${period.period_start}-${period.period_end}`}
+              {!candidateLoading &&
+                !candidateError &&
+                missingCorrectionPeriods.length > 0 && (
+                  <Alert severity="warning">
+                    Select an approved timecard for every employee and workweek
+                    in the original export:
+                    <Stack component="ul" spacing={0.5} sx={{ my: 1, pl: 2 }}>
+                      {missingCorrectionPeriods.map((period) => (
+                        <Typography
+                          component="li"
+                          key={`${period.employment_id}-${period.period_start}-${period.period_end}`}
+                        >
+                          {employeeName(period.employment_id)} ·{" "}
+                          {period.period_start} to {period.period_end} (end
+                          exclusive) ·{" "}
+                          {data.timecards.some((card) =>
+                            sameWorkweek(period, card),
+                          )
+                            ? "available below, not selected"
+                            : "no eligible approved card available"}
+                        </Typography>
+                      ))}
+                    </Stack>
+                    {canOpenTimecards && (
+                      <Button
+                        color="inherit"
+                        onClick={() => navigate("/clinic/workforce/timecards")}
                       >
-                        {employeeName(period.employment_id)} ·{" "}
-                        {period.period_start} to {period.period_end} (end
-                        exclusive) ·{" "}
-                        {data.timecards.some((card) =>
-                          sameWorkweek(period, card),
-                        )
-                          ? "available below, not selected"
-                          : "no eligible approved card available"}
-                      </Typography>
-                    ))}
-                  </Stack>
-                  {canOpenTimecards && (
-                    <Button
-                      color="inherit"
-                      onClick={() => navigate("/clinic/workforce/timecards")}
-                    >
-                      Review timecards
-                    </Button>
-                  )}
-                </Alert>
-              )}
+                        Review timecards
+                      </Button>
+                    )}
+                  </Alert>
+                )}
               {configuration && missingPayrollEmployees.length > 0 && (
                 <Alert severity="warning">
                   The selected file configuration has no payroll ID for{" "}
@@ -720,27 +830,31 @@ export function PayrollExportPage() {
                   label={`${data.employees.find((employee) => employee.id === card.employment_id)?.name || "Employee"} · ${card.period_start} to ${card.period_end} (end exclusive) · version ${card.version}`}
                 />
               ))}
-              {!data.timecards.length && (
-                <Alert
-                  severity="info"
-                  action={
-                    canOpenTimecards ? (
-                      <Button
-                        color="inherit"
-                        size="small"
-                        onClick={() => navigate("/clinic/workforce/timecards")}
-                      >
-                        Open Timecards
-                      </Button>
-                    ) : undefined
-                  }
-                >
-                  No approved timecards are available.{" "}
-                  {canOpenTimecards
-                    ? "Check the current cards in Timecards; resolve exceptions and follow the configured submission and approval path before exporting."
-                    : "Ask an authorized employee or timecard reviewer to resolve exceptions and complete the configured submission and approval path before exporting."}
-                </Alert>
-              )}
+              {!candidateLoading &&
+                !candidateError &&
+                !data.timecards.length && (
+                  <Alert
+                    severity="info"
+                    action={
+                      canOpenTimecards ? (
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={() =>
+                            navigate("/clinic/workforce/timecards")
+                          }
+                        >
+                          Open Timecards
+                        </Button>
+                      ) : undefined
+                    }
+                  >
+                    No approved timecards are available.{" "}
+                    {canOpenTimecards
+                      ? "Check the current cards in Timecards; resolve exceptions and follow the configured submission and approval path before exporting."
+                      : "Ask an authorized employee or timecard reviewer to resolve exceptions and complete the configured submission and approval path before exporting."}
+                  </Alert>
+                )}
               <Stack direction="row" sx={{ gap: 2 }}>
                 <Button
                   variant="outlined"

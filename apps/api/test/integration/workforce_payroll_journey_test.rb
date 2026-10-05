@@ -102,6 +102,31 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "correction candidates include an original card older than the newest cap and stay site scoped" do
+    login(@manager)
+    configuration = configure_payroll
+    oldest = create_approved_timecard(@period_start - 251.weeks)
+    250.times { |index| create_approved_timecard(@period_start - index.weeks) }
+    batch = Clinic::Workforce::ExportBatch.create!(practice: @practice, site: @site,
+      configuration_version_id: configuration.fetch("id"), created_by_membership: @manager_membership,
+      request_key: SecureRandom.uuid, payload_digest: "a" * 64, source_digest: "b" * 64,
+      source_versions: [{ "id" => oldest.id.to_s }], rows: [], totals: {}, csv_content: "employee_id\r\n")
+
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id }, headers: @headers
+    assert_response :success
+    assert response.parsed_body.fetch("timecards_truncated")
+    refute_includes response.parsed_body.fetch("timecards").map { |card| card.fetch("id") }, oldest.id.to_s
+
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: @site.id, correction_batch_id: batch.id }, headers: @headers
+    assert_response :success
+    assert_equal [oldest.id.to_s], response.parsed_body.fetch("timecards").map { |card| card.fetch("id") }
+    refute response.parsed_body.fetch("timecards_truncated")
+
+    other_site = @practice.sites.create!(code: "OTHER", name: "Other payroll clinic", status: "active", timezone_override: "UTC")
+    get "/api/clinic/workforce/payroll-exports", params: { site_id: other_site.id, correction_batch_id: batch.id }, headers: @headers
+    assert_response :not_found
+  end
+
   test "saved payroll history reaches older exports without repeating the boundary" do
     login(@manager)
     configuration = configure_payroll
@@ -130,6 +155,21 @@ class WorkforcePayrollJourneyTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def create_approved_timecard(period_start)
+    card = Clinic::Workforce::TimecardVersion.create!(practice: @practice, employment: @employment,
+      period_start: period_start, period_end: period_start + 7.days, version_number: 1, status: "approved",
+      source_digest: SecureRandom.hex(32), settings_provenance: {}, snapshot: {}, unresolved_exceptions: [],
+      raw_total_minutes: 480, rounded_total_minutes: 480, regular_minutes: 480, overtime_minutes: 0,
+      submitted_at: Time.current, submitted_by_membership: @manager_membership,
+      approved_at: Time.current, approved_by_membership: @manager_membership)
+    Clinic::Workforce::TimeSegment.create!(practice: @practice, timecard_version: card, site: @site,
+      segment_kind: "work", local_date: period_start, started_at_utc: period_start.beginning_of_day,
+      ended_at_utc: period_start.beginning_of_day + 8.hours, raw_minutes: 480, rounded_minutes: 480,
+      paid_minutes: 480, regular_minutes: 480, overtime_minutes: 0, source_punch_ids: [],
+      settings_provenance: {}, exception_codes: [])
+    card
+  end
 
   def create_user(label)
     User.create!(email_address: "#{label}-#{SecureRandom.hex(5)}@example.invalid",

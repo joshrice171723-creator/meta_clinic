@@ -124,6 +124,25 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
       employment_queries.join("\n")
   end
 
+  test "an empty successor clears assigned shifts while retaining publication history" do
+    original_draft = draft_with_shift(@site, @employee, "2026-09-07T09:00", "2026-09-07T17:00")
+    original = Clinic::Workforce::PublishSchedule.call(draft: original_draft, actor: @manager.membership.user,
+      expected_revision: 1, idempotency_key: "original-week")
+    empty_draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: @site,
+      created_by_id: @manager.membership.user_id, week_start_on: original.week_start_on, timezone: original.timezone,
+      status: "draft", revision: 1)
+    successor = Clinic::Workforce::PublishSchedule.call(draft: empty_draft, actor: @manager.membership.user,
+      expected_revision: 1, idempotency_key: "empty-week")
+
+    assert_empty successor.shift_snapshot
+    assert_equal original.id, successor.supersedes_id
+    assert_equal 2, successor.version
+    assert_equal 1, original.reload.shift_snapshot.length
+    assert_equal successor.id, Clinic::Workforce::PublishSchedule.call(draft: empty_draft,
+      actor: @manager.membership.user, expected_revision: 1, idempotency_key: "empty-week").id
+    assert_not successor.update(shift_snapshot: [{ "id" => "changed" }])
+  end
+
   test "validation blocks cross-site overlap approved time off and unavailable intervals" do
     published = draft_with_shift(@site, @employee, "2026-09-07T09:00", "2026-09-07T17:00")
     Clinic::Workforce::PublishSchedule.call(draft: published, actor: @manager.membership.user,

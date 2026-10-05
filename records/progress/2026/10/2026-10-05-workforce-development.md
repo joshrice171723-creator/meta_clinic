@@ -52,3 +52,18 @@ The browser walkthrough exposed a premature unconfirmed-decision warning during 
 - Chrome employee sign-in showed the same assigned shift, Published v1, and the approved-time-off warning. This validates the reviewer-to-employee local journey, not hosted acceptance or automatic coverage resolution.
 - TypeScript and both Vite bundles passed; scoped RuboCop passed for all five changed Ruby files. A final selector-only adjustment passed TypeScript again. The preexisting marketing import warning remains.
 - A small serializer regression check was added but not run. It covers own-employee filtering, selective conflict flags, and unchanged stored snapshots. No automated tests were executed.
+
+## Empty schedule publication and older payroll corrections
+
+Publishing an empty draft now creates a valid successor publication. The confirmation describes clearing the location/week while retaining earlier publications, and publish authorization, draft revision, and immutability remain enforced. The former presence validation rejected an empty array after the UI allowed all shifts to be removed.
+
+Payroll correction selection now loads the latest eligible approved cards for the original export's exact employee/workweek population before applying the 250-card ceiling. The server retains practice/site scoping and export authorization. The page preserves settings drafts and loaded history, exposes a candidate-only refresh/retry, and clears stale choices while loading. Normal new-export candidates still show the most recent 250, now with an explicit limit notice; configuration history remains capped at 25.
+
+### Evidence at 11:25 UTC
+
+- Before the model repair, a nonpersisted publication copy with an empty array failed validation with Shift snapshot can't be blank.
+- In Chrome, an administrator published an empty successor for October 5–11 after reviewing the clearing warning. Database read-back showed publication 1/version 1 with one shift and publication 2/version 2 with zero shifts, superseding publication 1. Employee My schedule then showed No assigned published shifts for the same week.
+- A database-guarded ignored script created 252 synthetic history-only approved cards and an export linked to the oldest one. The default page displayed 250 candidates and the limit notice, excluding the oldest period. Selecting export 52 loaded only its original December 13–20, 2021 card and retained an unsaved configuration-name draft. The final loading state showed neither stale candidates nor a false missing-card warning. The temporary draft was discarded through the UI.
+- These historical candidate fixtures do not establish time calculation, approval, or export generation correctness. The missing payroll-ID warning correctly remained visible.
+- TypeScript and both Vite bundles passed; a final loading-copy adjustment passed TypeScript. Scoped RuboCop passed for the four changed Ruby files. The existing marketing import warning remains.
+- Small regression checks for empty successor retention/idempotency and old correction candidates/site isolation were added but not executed. No automated tests were run.

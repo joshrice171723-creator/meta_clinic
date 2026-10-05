@@ -10,6 +10,12 @@ module Clinic
         exporter = workforce_access.allow?("workforce.payroll.export", site: site)
         configurator = workforce_access.allow?("workforce.payroll.configure", site: site)
         workforce_access.authorize!("workforce.payroll.configure", site: site) unless exporter
+        correction_batch = nil
+        if params[:correction_batch_id].present?
+          workforce_access.authorize!("workforce.payroll.export", site: site)
+          correction_batch = ExportBatch.find_by!(practice: current_practice, site: site,
+            id: requested_id!(params[:correction_batch_id], :correction_batch_id))
+        end
         configurations = PayrollConfigurationVersion.where(practice: current_practice, site: site).order(revision: :desc).limit(25)
         batches = ExportBatch.where(practice: current_practice, site: site).order(id: :desc)
         if params[:before_batch_id].present?
@@ -33,7 +39,23 @@ module Clinic
                 AND newer.version_number > clinic_workforce_timecard_versions.version_number
             )
           SQL
-          .order(period_start: :desc, id: :desc).limit(250)
+          .order(period_start: :desc, id: :desc)
+        if correction_batch
+          source_periods = TimecardVersion.where(practice: current_practice,
+            id: correction_batch.source_versions.map { |source| source.fetch("id") })
+            .pluck(:employment_id, :period_start, :period_end)
+          cards = if source_periods.empty?
+            cards.none
+          else
+            conditions = source_periods.map do
+              "(clinic_workforce_timecard_versions.employment_id = ? AND clinic_workforce_timecard_versions.period_start = ? AND clinic_workforce_timecard_versions.period_end = ?)"
+            end
+            cards.where(conditions.join(" OR "), *source_periods.flatten)
+          end
+        end
+        cards = exporter ? cards.limit(correction_batch ? 250 : 251).to_a : []
+        timecards_truncated = correction_batch.nil? && cards.length > 250
+        cards = cards.first(250)
         Clinic::AuditRecorder.record!(practice: current_practice, actor: current_user, action_code: "workforce.payroll.export", outcome: :released)
         render json: { configurations: configurations.map { |configuration| configuration_json(configuration) },
           batches: batches.map { |batch| batch_json(batch, context: context) },
@@ -41,7 +63,8 @@ module Clinic
           permissions: { configure: configurator, export: exporter },
           default_columns: GeneratePayrollExport::DEFAULT_COLUMNS,
           employees: employees.map { |employee| { id: employee.id.to_s, name: employee.staff_member.display_name } },
-          timecards: exporter ? cards.map { |card| { id: card.id.to_s, employment_id: card.employment_id.to_s, period_start: card.period_start, period_end: card.period_end, version: card.version_number } } : [] }
+          timecards_truncated: timecards_truncated,
+          timecards: cards.map { |card| { id: card.id.to_s, employment_id: card.employment_id.to_s, period_start: card.period_start, period_end: card.period_end, version: card.version_number } } }
       end
 
       def configure

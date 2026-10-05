@@ -488,7 +488,7 @@ export function ScheduleBuilderPage() {
       await load();
       if (currentSiteIdRef.current === publishedSiteId)
         setNotice(
-          `Schedule published for the week of ${publishedWeek}. Employees can now see their assigned shifts.`,
+          `Schedule published for the week of ${publishedWeek}. Employee schedules now use this version.`,
         );
     } catch (reason) {
       if (
@@ -1088,9 +1088,17 @@ export function ScheduleBuilderPage() {
           <Stack spacing={1}>
             <Typography>{`${draft?.shifts?.length ?? 0} shifts for the week of ${draft?.week_start_on ?? ""}.`}</Typography>
             <Alert severity="info">
-              Publishing makes this schedule available to employees. To change
-              it later, create a new draft and publish that schedule.
+              Publishing replaces the currently published schedule for this
+              location and week. To change it later, create a new draft and
+              publish that schedule.
             </Alert>
+            {draft?.shifts?.length === 0 && (
+              <Alert severity="warning">
+                This week will have no assigned shifts. Any previously published
+                shifts for this location and week will no longer appear on
+                employee schedules. Earlier publications are retained.
+              </Alert>
+            )}
             {publishError && <Alert severity="error">{publishError}</Alert>}
           </Stack>
         </DialogContent>
@@ -1101,7 +1109,7 @@ export function ScheduleBuilderPage() {
           <Button
             variant="contained"
             onClick={() => void publish()}
-            disabled={busy || !draft?.shifts?.length}
+            disabled={busy || loading || !draft || editorDirty || !canPublish}
           >
             {busy ? "Publishing…" : "Publish schedule"}
           </Button>
