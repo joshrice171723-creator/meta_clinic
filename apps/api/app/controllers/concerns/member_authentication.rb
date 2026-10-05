@@ -24,5 +24,7 @@ module MemberAuthentication
     @current_member_session = replacement
     session[:member_session_id] = @current_member_session.id
     session[:workspace_tools_owner_session_id] = workspace_owner.id if workspace_owner
+    # Seed the rotated cookie before the demo parent and iframe bootstrap in parallel.
+    form_authenticity_token
   end
 end
