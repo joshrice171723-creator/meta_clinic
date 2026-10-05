@@ -160,6 +160,66 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     assert Clinic::Workforce::ValidateSchedule.call(draft: time_off_draft).errors.any? { |message| message.include?("time off") }
   end
 
+  test "availability validation honors prior-day overnight rules and effective-date handoffs" do
+    overnight = availability_version(@employee, effective_from: Date.new(2026, 9, 7), effective_until: Date.new(2026, 9, 7),
+      status: "superseded", rules: [ { "day_of_week" => 1, "available" => true, "start_time" => "22:00", "end_time" => "06:00" } ])
+    early_tuesday = Clinic::Workforce::ResolveLocalInterval.call(timezone: "America/Chicago",
+      local_start: "2026-09-08T01:00", local_end: "2026-09-08T03:00")
+    assert overnight.available_for?(early_tuesday[:starts_at], early_tuesday[:ends_at])
+
+    availability_version(@employee, effective_from: Date.new(2026, 9, 8), status: "approved",
+      rules: [ { "day_of_week" => 2, "available" => false } ])
+    blocked = draft_with_shift(@site, @employee, "2026-09-07T22:00", "2026-09-08T02:00")
+    assert Clinic::Workforce::ValidateSchedule.call(draft: blocked).errors.any? { |message| message.include?("recorded availability") }
+
+    availability_version(@target, effective_from: Date.new(2026, 9, 7), effective_until: Date.new(2026, 9, 7),
+      status: "superseded", rules: [ { "day_of_week" => 1, "available" => true, "start_time" => "22:00", "end_time" => "00:00" } ])
+    availability_version(@target, effective_from: Date.new(2026, 9, 8), status: "approved",
+      rules: [ { "day_of_week" => 2, "available" => true, "start_time" => "00:00", "end_time" => "06:00" } ])
+    allowed = draft_with_shift(@site, @target, "2026-09-07T22:00", "2026-09-08T02:00")
+    refute Clinic::Workforce::ValidateSchedule.call(draft: allowed).errors.any? { |message| message.include?("recorded availability") }
+  end
+
+  test "availability validates DST occurrences and fractional civil endpoints" do
+    availability = availability_version(@employee, effective_from: Date.new(2026, 11, 1), status: "approved", rules: [
+      { "day_of_week" => 0, "available" => true, "start_time" => "01:30", "end_time" => "02:00" },
+      { "day_of_week" => 1, "available" => true, "start_time" => "09:00", "end_time" => "09:30" }
+    ])
+    repeated_hour = Clinic::Workforce::ResolveLocalInterval.call(timezone: "America/Chicago",
+      local_start: "2026-11-01T01:45", local_end: "2026-11-01T01:15", start_occurrence: "first", end_occurrence: "second",
+      infer_overnight: false)
+    refute availability.available_for?(repeated_hour[:starts_at], repeated_hour[:ends_at])
+
+    ordinary = Clinic::Workforce::ResolveLocalInterval.call(timezone: "America/Chicago",
+      local_start: "2026-11-02T09:00", local_end: "2026-11-02T09:30")
+    refute availability.available_for?(ordinary[:starts_at], ordinary[:ends_at] + Rational(1, 2))
+  end
+
+  test "availability selection prefers the approved same-date replacement over higher revisions" do
+    approved_older_id = availability_version(@employee, effective_from: Date.new(2026, 9, 7), status: "approved", revision: 2,
+      decided_at: Time.utc(2026, 9, 7, 13), rules: [ { "day_of_week" => 1, "available" => true, "start_time" => "09:00", "end_time" => "17:00" } ])
+    superseded_higher_revision = availability_version(@employee, effective_from: Date.new(2026, 9, 7), status: "superseded", revision: 9,
+      decided_at: Time.utc(2026, 9, 7, 12), rules: [ { "day_of_week" => 1, "available" => false } ])
+
+    selected = Clinic::Workforce::ValidateSchedule.new(nil).send(:availability_for,
+      [ approved_older_id, superseded_higher_revision ], Time.utc(2026, 9, 7, 15))
+    assert_equal approved_older_id.id, selected.id
+  end
+
+  test "facility hours warnings respect closed dates and overnight boundaries without blocking publication" do
+    @site.operating_hours.create!(practice: @practice, day_of_week: 1, open_time: "09:00", close_time: "17:00", closed: false)
+    ordinary = draft_with_shift(@site, @employee, "2026-09-07T10:00", "2026-09-07T12:00")
+    assert_empty Clinic::Workforce::ValidateSchedule.call(draft: ordinary).warnings
+
+    overnight = draft_with_shift(@site, @employee, "2026-09-07T16:00", "2026-09-08T09:00")
+    assert Clinic::Workforce::ValidateSchedule.call(draft: overnight).warnings.any? { |message| message.include?("facility operating hours") }
+
+    @site.hour_exceptions.create!(practice: @practice, date: Date.new(2026, 9, 7), closed: true)
+    closed_date = Clinic::Workforce::ValidateSchedule.call(draft: ordinary)
+    assert_predicate closed_date, :valid?
+    assert closed_date.warnings.any? { |message| message.include?("facility operating hours") }
+  end
+
   test "schedule validation batches employee eligibility associations" do
     draft = Clinic::Workforce::ScheduleDraft.create!(practice: @practice, site: @site,
       created_by_id: @manager.membership.user_id, week_start_on: Date.new(2026, 9, 7), timezone: "America/Chicago",
@@ -296,6 +356,14 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
       local_start: interval[:local_start], local_end: interval[:local_end], starts_at: interval[:starts_at], ends_at: interval[:ends_at],
       start_occurrence: "only", end_occurrence: "only", break_minutes: 30)
     draft
+  end
+
+  def availability_version(employment, effective_from:, status:, rules:, effective_until: nil, revision: 1, decided_at: nil)
+    Clinic::Workforce::AvailabilityVersion.create!(practice: @practice, site: @site, employment: employment,
+      created_by_id: @manager.membership.user_id, public_id: SecureRandom.uuid, timezone: "America/Chicago", status: status,
+      reason: "Synthetic schedule availability", idempotency_key: SecureRandom.uuid, request_digest: "a" * 64,
+      weekly_rules: rules, effective_from: effective_from, effective_until: effective_until, submitted_at: Time.current,
+      decided_at: decided_at, revision: revision)
   end
 
   def settings

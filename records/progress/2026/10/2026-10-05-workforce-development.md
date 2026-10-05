@@ -154,3 +154,27 @@ The validation endpoint now accepts same-site publish permission when manage per
 - While the browser held revision 3, a guarded call through UpsertScheduleShift changed the saved role and produced revision 4. Preview displayed the stale-draft message, disabled Recheck and Publish, and offered Refresh saved draft. That action loaded revision 4 and the changed role.
 - A fresh review passed with its advisory hours warning, and browser publication succeeded. The page showed November 9 version 1 with one shift; database read-back confirmed exactly one publication for that week.
 - TypeScript and scoped Ruby syntax/diff checks passed. No automated tests were run. Publisher-only access and uncertain-publication retry preservation were source-reviewed; the administrator browser journey does not establish those separate acceptance cases.
+
+## Clock badge, punch, and revocation walkthrough
+
+- At 12:53-12:58 UTC, a temporary badge for Morgan and a Main clinic kiosk enrollment were issued through the local UI, with kiosk temporarily enabled. Credential values stayed in browser runtime memory and were cleared after use; none were logged or persisted in notes.
+- Scanning offered only Clock in. The saved punch was recovered after a browser reload as Clock in saved at 7:55:11 AM. The next scan offered only Clock out; it saved at 7:56:08 AM.
+- Database read-back confirmed exactly two Morgan punches: IDs 3 and 4, clock_in at 12:55:11.008Z and clock_out at 12:56:08.572Z, both site 1 and kiosk session 2. No punches were seeded for this walkthrough.
+- Revoking the badge through administration left the employee account active and caused the next scan to show Badge could not be verified. The kiosk was then revoked; reload returned Enroll this clock. Its temporary browser tab was closed and the Main clinic setting returned to disabled.
+- This verifies the local scanner-input journey, receipt recovery, permitted transitions, and revocation. It does not verify physical barcode hardware, camera scanning, or a simulated uncertain network response. No implementation change was needed.
+- The web TypeScript check and both Vite bundles passed after employee history and schedule preview changes. The existing marketing static/dynamic import warning remains. No automated tests were run.
+
+## Availability boundaries and facility-hours context
+
+Schedule validation now checks availability on each applicable effective-date segment, using each recorded policy's timezone. It honors the previous day's overnight rule, keeps unspecified policy periods unchanged, and selects the current approved replacement ahead of a superseded record sharing its effective date. Historical ties use decision time (creation time fallback) and record identity, not a per-record concurrency revision. The model splits repeated-hour intervals at timezone transitions and checks fractional civil seconds, so a clock rollback cannot hide an unavailable part of the interval.
+
+Facility warnings now use the site's timezone, date-specific hour exceptions, configured closed/missing weekdays, and same-local-day bounds, consistent with existing calendar hours. They remain advisory and identify the affected shift interval. Repeated validation messages use separate UI keys. Availability history remains an employee/site-scoped in-memory scan; per-zone database filtering is a future scaling step.
+
+### Local evidence at 13:14 UTC
+
+- A guarded service fixture created unpublished draft 9 with Taylor shifts on November 16, including 15:00-09:00 overnight, while that date had a closed-hours exception. Before repair, validation returned no warnings. After repair, it returned two advisory warnings; the browser displayed both with their separate shift intervals and left Publish enabled.
+- Taylor submitted Monday 22:00-06:00 availability effective November 23 through My requests. Administrator approval saved availability 2 at revision 2. Draft 10 contained Monday 22:00-Tuesday 02:00 and Tuesday 03:00-05:00. Browser review allowed both, including the early-next-day interval covered by Monday's rule.
+- Taylor also submitted all-unavailable rules effective November 24. Administrator approval saved availability 3 and superseded availability 2 through November 23. Both draft shifts then showed blocking availability conflicts and disabled Publish; the cross-date shift could no longer skip validation at the handoff.
+- Taylor submitted a replacement effective on the same November 24 date, with Tuesday 00:00-06:00. Administrator approval left availability 3 superseded at revision 3 and availability 4 approved at revision 2. Database validation and browser review correctly used the newly approved rules and allowed both shifts. Drafts 9 and 10 remain unpublished.
+- A read-only Rails diagnostic used a 01:45 CDT-01:15 CST interval: Sunday availability 01:30-02:00 rejected the interval, while 01:00-02:00 accepted it. This is runtime calculation evidence; that repeated-hour availability case was not submitted through the browser.
+- Ruby syntax, scoped RuboCop (three files), TypeScript, and diff checks passed. Small regression cases were added for prior-day coverage, allowed/blocked handoffs, same-date replacement ordering, daylight-saving rollback, fractional endpoints, and facility warnings; none were executed. No automated tests were run.

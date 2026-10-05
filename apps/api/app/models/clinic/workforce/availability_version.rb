@@ -23,22 +23,38 @@ module Clinic
       validate :valid_timezone
 
       def available_for?(starts_at, ends_at)
-        local_start = starts_at.in_time_zone(timezone)
-        local_end = ends_at.in_time_zone(timezone)
-        matching = weekly_rules.select { |rule| rule["day_of_week"].to_i == local_start.wday }
-        matching.any? do |rule|
-          next false if rule["available"] == false
+        return false unless ends_at > starts_at
 
-          range_start = clock_minutes(rule["start_time"])
-          range_end = clock_minutes(rule["end_time"])
-          range_end += 1_440 if range_end <= range_start
-          shift_start = local_start.hour * 60 + local_start.min
-          shift_end = local_end.hour * 60 + local_end.min + ((local_end.to_date - local_start.to_date).to_i * 1_440)
-          range_start <= shift_start && range_end >= shift_end
+        availability_boundaries(starts_at, ends_at).each_cons(2).all? do |segment_start, segment_end|
+          available_for_segment?(segment_start, segment_end - Rational(1, 1_000_000))
         end
       end
 
       private
+
+      def availability_boundaries(starts_at, ends_at)
+        transitions = TZInfo::Timezone.get(timezone).transitions_up_to(ends_at, starts_at)
+          .map { |transition| transition.at.to_time }
+          .select { |transition| transition > starts_at && transition < ends_at }
+        [ starts_at, *transitions, ends_at ]
+      end
+
+      def available_for_segment?(starts_at, ends_at)
+        local_start = starts_at.in_time_zone(timezone)
+        local_end = ends_at.in_time_zone(timezone)
+        [ local_start.to_date, local_start.to_date.prev_day ].any? do |anchor_date|
+          weekly_rules.select { |rule| rule["day_of_week"].to_i == anchor_date.wday }.any? do |rule|
+            next false if rule["available"] == false
+
+            range_start = clock_seconds(rule["start_time"])
+            range_end = clock_seconds(rule["end_time"])
+            range_end += 86_400 if range_end <= range_start
+            shift_start = local_seconds(local_start) + ((local_start.to_date - anchor_date).to_i * 86_400)
+            shift_end = local_seconds(local_end) + ((local_end.to_date - anchor_date).to_i * 86_400)
+            range_start <= shift_start && range_end >= shift_end
+          end
+        end
+      end
 
       def rules_shape
         time_pattern = /\A(?:[01]\d|2[0-3]):[0-5]\d\z/
@@ -58,9 +74,13 @@ module Clinic
         errors.add(:timezone, "must be an IANA time zone")
       end
 
-      def clock_minutes(value)
+      def clock_seconds(value)
         hour, minute = value.split(":").map(&:to_i)
-        hour * 60 + minute
+        hour * 3600 + minute * 60
+      end
+
+      def local_seconds(time)
+        time.hour * 3600 + time.min * 60 + time.sec + time.subsec
       end
     end
   end

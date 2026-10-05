@@ -1230,8 +1230,8 @@ export function ScheduleBuilderPage() {
                 <Typography sx={{ fontWeight: 600 }}>
                   Resolve these conflicts before publishing.
                 </Typography>
-                {validation.errors.map((message) => (
-                  <Typography key={message} variant="body2">
+                {validation.errors.map((message, index) => (
+                  <Typography key={index} variant="body2">
                     {message}
                   </Typography>
                 ))}
@@ -1245,8 +1245,8 @@ export function ScheduleBuilderPage() {
                 <Typography sx={{ fontWeight: 600 }}>
                   Review these warnings before publishing.
                 </Typography>
-                {validation.warnings.map((message) => (
-                  <Typography key={message} variant="body2">
+                {validation.warnings.map((message, index) => (
+                  <Typography key={index} variant="body2">
                     {message}
                   </Typography>
                 ))}

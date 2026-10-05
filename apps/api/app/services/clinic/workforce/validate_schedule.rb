@@ -50,13 +50,7 @@ module Clinic
           end
           errors << "#{label}: approved time off overlaps this shift." if approved_time_off?(shift)
 
-          local_start_date = local_start.to_date
-          local_end_date = local_end.to_date
-          availability = AvailabilityVersion.where(practice_id: draft.practice_id, site_id: draft.site_id,
-            employment_id: shift.employment_id, status: %w[approved superseded])
-            .where("effective_from <= ? AND (effective_until IS NULL OR effective_until >= ?)", local_start_date, local_end_date)
-            .order(effective_from: :desc, revision: :desc, id: :desc).first
-          errors << "#{label}: shift is outside recorded availability." if availability && !availability.available_for?(shift.starts_at, shift.ends_at)
+          validate_availability(shift, label)
           operating_hours_warning(shift, label)
         end
       end
@@ -90,14 +84,69 @@ module Clinic
           .overlapping(shift.starts_at, shift.ends_at).exists?
       end
 
+      def validate_availability(shift, label)
+        # ponytail: scan one employee's history; add per-zone database filtering if histories grow.
+        versions = AvailabilityVersion.where(practice_id: draft.practice_id, site_id: draft.site_id,
+          employment_id: shift.employment_id, status: %w[approved superseded]).to_a
+        return if versions.empty?
+
+        availability_boundaries(versions, shift.starts_at, shift.ends_at).each_cons(2) do |segment_start, segment_end|
+          version = availability_for(versions, segment_start)
+          next unless version
+          next if version.available_for?(segment_start, segment_end)
+
+          errors << "#{label}: shift is outside recorded availability."
+          break
+        end
+      end
+
+      def availability_boundaries(versions, starts_at, ends_at)
+        boundaries = [ starts_at, ends_at ]
+        versions.each do |version|
+          zone = ActiveSupport::TimeZone[version.timezone]
+          next unless zone
+
+          first_date = starts_at.in_time_zone(zone).to_date
+          last_date = (ends_at - Rational(1, 1_000_000)).in_time_zone(zone).to_date
+          (first_date + 1).upto(last_date) { |date| add_availability_boundary(boundaries, zone, date, starts_at, ends_at) }
+          [ version.effective_from, version.effective_until&.+(1.day) ].compact.each do |date|
+            add_availability_boundary(boundaries, zone, date, starts_at, ends_at)
+          end
+        end
+        boundaries.uniq.sort
+      end
+
+      def add_availability_boundary(boundaries, zone, date, starts_at, ends_at)
+        boundary = zone.local(date.year, date.month, date.day).utc
+        boundaries << boundary if boundary > starts_at && boundary < ends_at
+      end
+
+      def availability_for(versions, instant)
+        versions.select do |version|
+          date = instant.in_time_zone(version.timezone).to_date
+          version.effective_from <= date && (version.effective_until.nil? || version.effective_until >= date)
+        end.max_by do |version|
+          [ version.effective_from, version.status == "approved" ? 1 : 0, version.decided_at || version.created_at, version.id ]
+        end
+      end
+
       def operating_hours_warning(shift, label)
-        local = shift.starts_at.in_time_zone(draft.timezone)
-        hours = draft.site.operating_hours.find { |item| item.day_of_week == local.wday }
-        return unless hours
-        outside = hours.closed || hours.open_time.blank? || hours.close_time.blank? ||
-          local.strftime("%H:%M") < hours.open_time.strftime("%H:%M") ||
-          shift.ends_at.in_time_zone(draft.timezone).strftime("%H:%M") > hours.close_time.strftime("%H:%M")
-        warnings << "#{label}: shift is outside facility operating hours. Facility hours are context only." if outside
+        timezone = draft.site.timezone_override.presence || draft.practice.timezone
+        local_start = shift.starts_at.in_time_zone(timezone)
+        local_end = shift.ends_at.in_time_zone(timezone)
+        operating_hours = draft.site.operating_hours
+        exception = draft.site.hour_exceptions.find_by(date: local_start.to_date)
+        return if operating_hours.empty? && exception.nil?
+
+        hours = exception || operating_hours.find { |item| item.day_of_week == local_start.wday }
+        outside = hours.nil? || hours.closed || hours.open_time.blank? || hours.close_time.blank? ||
+          local_start.to_date != local_end.to_date ||
+          local_start.strftime("%H:%M") < hours.open_time.strftime("%H:%M") ||
+          local_end.strftime("%H:%M") > hours.close_time.strftime("%H:%M")
+        if outside
+          interval = "#{local_start.strftime('%b %-d, %H:%M %Z')} – #{local_end.strftime('%b %-d, %H:%M %Z')}"
+          warnings << "#{label} (#{interval}): shift is outside facility operating hours. Facility hours are context only."
+        end
       end
     end
   end
