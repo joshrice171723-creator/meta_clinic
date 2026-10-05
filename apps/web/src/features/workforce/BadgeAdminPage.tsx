@@ -579,7 +579,7 @@ export function BadgeAdminPage() {
                     {kiosk.site_name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {kiosk.status} · expires{" "}
+                    {kiosk.status} · enrollment code expires{" "}
                     {formatDisplayDateTime(kiosk.expires_at, {
                       timeZone: clinic.practice.timezone,
                     })}

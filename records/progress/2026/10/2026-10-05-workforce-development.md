@@ -111,3 +111,21 @@ The earlier history-only payroll candidate fixtures deliberately lacked calculat
 - In Chrome, Taylor requested the 90-minute shift back to Morgan. Morgan accepted; the page explicitly retained the manager-approval requirement. A Clinic Administrator approved through Request review and saw the saved decision with an empty review queue.
 - Database read-back showed the request approved at revision 3 and publication 6/version 4 superseding publication 5/version 3. The transferred shift kept 06:15Z–07:45Z and recovered first/second occurrences; the unrelated shift kept 09:00Z–10:00Z and recovered only/only. Versions 1–3 remained intact, including the occurrence-free version-3 snapshot. Team schedule displayed version 4 with Morgan's CDT–CST shift and Taylor's unchanged CST shift.
 - Schedule builder's existing empty choices now visibly say No draft selected and Blank schedule; the empty draft selector is disabled. Browser read-back confirmed both defaults and the selected blank-template option. TypeScript passed. No automated tests were run.
+
+## Availability and weekly template walkthrough
+
+- With only the existing availability and approval settings enabled in the isolated fixture, Morgan submitted Monday 09:00–17:00 availability effective November 2, with all other days unavailable. Request history and the administrator queue displayed the same seven-day rules. Administrator approval saved revision 2.
+- A November 2 draft accepted a Tuesday shift for editing, but publication correctly rejected it with Morgan Example: shift is outside recorded availability. The dialog retained the draft and Keep editing action.
+- The administrator changed the shift to Monday, saved the Monday coverage template, and published successfully. Database read-back showed only publication 7/version 1 for November 2, containing the corrected 09:00–17:00 interval; the rejected Tuesday draft did not create a publication.
+- Creating November 9 from the saved template produced draft 8 with Morgan's Monday 09:00–17:00 shift. Browser and database read-back matched. That next-week schedule remains a saved draft. No implementation change was needed for this journey.
+
+## Disabled kiosk feedback and recovery
+
+Kiosk configuration now includes the existing effective `kiosk_enabled` setting. When disabled, the page shows an unavailable message, hides new badge/camera/punch actions, and stops an active camera stream. Existing saved-request status/retry controls remain available; the server still rechecks clock settings for new challenges and punches. Check availability reloads configuration after a manager restores access. The badge administration expiry label now explicitly identifies enrollment-code expiry, which differs from the clock session lifetime.
+
+### Local evidence at 12:28 UTC
+
+- A temporary Main clinic enrollment was created and redeemed through the owned local browser. The one-time value stayed within browser runtime memory and was not written to notes or tool output. The enabled configuration showed an active scan field.
+- An immutable local settings revision disabled the kiosk. Reload showed the unavailable message with no badge input. After a settings revision re-enabled it, Check availability restored the scan field without re-enrollment.
+- The fixture returned the kiosk to disabled, and the temporary enrollment was revoked through the UI. The administrative row displayed revoked with the clarified enrollment-code expiry label. No badge was issued and no punch was created in this walkthrough.
+- TypeScript and Ruby syntax checks passed. A small API regression for disabled configuration projection and challenge rejection was added but not run. Active-camera cleanup and uncertain-punch recovery were source-reviewed, not exercised in this browser walkthrough. No automated tests were run.

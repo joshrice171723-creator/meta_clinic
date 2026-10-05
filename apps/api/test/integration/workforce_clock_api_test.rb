@@ -165,6 +165,21 @@ class WorkforceClockApiTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "enrolled kiosk projects a disabled site before accepting a badge" do
+    post "/api/workforce/kiosk/enroll", params: { enrollment_token: @enrollment_token }, headers: csrf_headers, as: :json
+    assert_response :created
+    Clinic::Workforce::SettingsVersion.create!(practice: @practice, site: @site, scope_kind: "site", revision: 1,
+      effective_from: 1.minute.ago, created_by_membership: @manager_membership, values: { "kiosk_enabled" => false })
+
+    get "/api/workforce/kiosk", headers: @headers
+    assert_response :success
+    assert_equal false, response.parsed_body.fetch("kiosk_enabled")
+
+    post "/api/workforce/kiosk/challenges", params: { badge: @badge.token, input_method: "manual" }, headers: csrf_headers, as: :json
+    assert_response :unauthorized
+    assert_equal "Clock kiosk is unavailable", response.parsed_body.fetch("error")
+  end
+
   private
 
   def with_kiosk_environment(deployment, public_login:)

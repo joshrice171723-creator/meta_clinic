@@ -118,6 +118,9 @@ export function KioskClockPage() {
       .then((formats) => setCameraAvailable(formats.includes("code_128")))
       .catch(() => setCameraAvailable(false));
   }, [configuration]);
+  useEffect(() => {
+    if (configuration?.kiosk_enabled === false) stopCamera();
+  }, [configuration?.kiosk_enabled]);
   useEffect(
     () => () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -183,7 +186,8 @@ export function KioskClockPage() {
         busyRef.current ||
         pendingRef.current ||
         challengeRef.current ||
-        configurationLoading
+        configurationLoading ||
+        !configuration?.kiosk_enabled
       )
         return;
       if (clearTimer.current) window.clearTimeout(clearTimer.current);
@@ -220,7 +224,7 @@ export function KioskClockPage() {
         setWorking(false);
       }
     },
-    [configurationLoading, setWorking],
+    [configurationLoading, configuration?.kiosk_enabled, setWorking],
   );
 
   async function submitScan(event: FormEvent) {
@@ -235,7 +239,8 @@ export function KioskClockPage() {
     if (
       busyRef.current ||
       (!challenge && !retry) ||
-      (pendingRef.current && !retry)
+      (pendingRef.current && !retry) ||
+      (!configuration?.kiosk_enabled && !retry)
     )
       return;
     const recovering = pendingRef.current !== null;
@@ -323,7 +328,8 @@ export function KioskClockPage() {
       busyRef.current ||
       pendingRef.current ||
       challengeRef.current ||
-      configurationLoading
+      configurationLoading ||
+      !configuration?.kiosk_enabled
     )
       return;
     const Detector = (
@@ -423,9 +429,11 @@ export function KioskClockPage() {
               {configuration?.site_name ?? "Employee clock"}
             </Typography>
             <Typography variant="h1">Time clock</Typography>
-            <Typography color="text.secondary">
-              Scan your badge, confirm the intended action, then wait for Saved.
-            </Typography>
+            {configuration?.kiosk_enabled !== false && (
+              <Typography color="text.secondary">
+                Scan your badge, confirm the intended action, then wait for Saved.
+              </Typography>
+            )}
           </Box>
           {result && (
             <Alert
@@ -443,6 +451,21 @@ export function KioskClockPage() {
               {result.text}
             </Alert>
           )}
+          {configuration?.kiosk_enabled === false && (
+            <Alert
+              severity="warning"
+              action={
+                <Button
+                  disabled={busy || configurationLoading || !!pending}
+                  onClick={() => void loadConfiguration()}
+                >
+                  Check availability
+                </Button>
+              }
+            >
+              Clock access is unavailable for this site. Ask a manager for help.
+            </Alert>
+          )}
           {configurationLoading && (
             <Typography role="status">Connecting to the clock…</Typography>
           )}
@@ -456,56 +479,60 @@ export function KioskClockPage() {
               Next employee
             </Button>
           )}
-          {!challenge && !pending && result?.kind !== "saved" && (
-            <Stack component="form" spacing={2} onSubmit={submitScan}>
-              <TextField
-                autoFocus
-                label={
-                  configuration?.scanner_enabled ? "Scan badge" : "Badge code"
-                }
-                value={badge}
-                onChange={(event) => setBadge(event.target.value)}
-                disabled={
-                  busy ||
-                  configurationLoading ||
-                  (!configuration?.scanner_enabled &&
-                    !configuration?.manual_badge_entry_enabled)
-                }
-                helperText={
-                  configuration?.scanner_enabled
-                    ? "USB and Bluetooth scanners can type into this field."
-                    : configuration?.manual_badge_entry_enabled
-                      ? "Manual badge entry is enabled for this site."
-                      : "Badge entry is disabled."
-                }
-                autoComplete="off"
-              />
-              {configuration?.pin_required && (
+          {!challenge &&
+            !pending &&
+            result?.kind !== "saved" &&
+            configuration?.kiosk_enabled !== false && (
+              <Stack component="form" spacing={2} onSubmit={submitScan}>
                 <TextField
-                  label="PIN"
-                  disabled={busy || configurationLoading}
-                  type="password"
-                  value={pin}
-                  onChange={(event) => setPin(event.target.value)}
+                  autoFocus
+                  label={
+                    configuration?.scanner_enabled ? "Scan badge" : "Badge code"
+                  }
+                  value={badge}
+                  onChange={(event) => setBadge(event.target.value)}
+                  disabled={
+                    busy ||
+                    configurationLoading ||
+                    !configuration?.kiosk_enabled ||
+                    (!configuration?.scanner_enabled &&
+                      !configuration?.manual_badge_entry_enabled)
+                  }
+                  helperText={
+                    configuration?.scanner_enabled
+                      ? "USB and Bluetooth scanners can type into this field."
+                      : configuration?.manual_badge_entry_enabled
+                        ? "Manual badge entry is enabled for this site."
+                        : "Badge entry is disabled."
+                  }
                   autoComplete="off"
-                  slotProps={{
-                    htmlInput: { inputMode: "numeric", maxLength: 12 },
-                  }}
                 />
-              )}
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                disabled={
-                  busy || configurationLoading || !configuration || !badge
-                }
-              >
-                {busy ? <CircularProgress size={24} /> : "Continue"}
-              </Button>
-            </Stack>
-          )}
-          {configuration?.camera_enabled && (
+                {configuration?.pin_required && (
+                  <TextField
+                    label="PIN"
+                    disabled={busy || configurationLoading}
+                    type="password"
+                    value={pin}
+                    onChange={(event) => setPin(event.target.value)}
+                    autoComplete="off"
+                    slotProps={{
+                      htmlInput: { inputMode: "numeric", maxLength: 12 },
+                    }}
+                  />
+                )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={
+                    busy || configurationLoading || !configuration || !badge
+                  }
+                >
+                  {busy ? <CircularProgress size={24} /> : "Continue"}
+                </Button>
+              </Stack>
+            )}
+          {configuration?.kiosk_enabled && configuration.camera_enabled && (
             <Stack spacing={1}>
               <video
                 ref={videoRef}
@@ -569,17 +596,18 @@ export function KioskClockPage() {
                 spacing={2}
                 sx={{ justifyContent: "center" }}
               >
-                {challenge.allowed_transitions.map((eventType) => (
-                  <Button
-                    key={eventType}
-                    variant="contained"
-                    size="large"
-                    disabled={busy || !!pending}
-                    onClick={() => void sendPunch(eventType, null)}
-                  >
-                    {punchLabels[eventType]}
-                  </Button>
-                ))}
+                {configuration?.kiosk_enabled &&
+                  challenge.allowed_transitions.map((eventType) => (
+                    <Button
+                      key={eventType}
+                      variant="contained"
+                      size="large"
+                      disabled={busy || !!pending}
+                      onClick={() => void sendPunch(eventType, null)}
+                    >
+                      {punchLabels[eventType]}
+                    </Button>
+                  ))}
               </Stack>
               <Button
                 onClick={() => clearEmployee()}

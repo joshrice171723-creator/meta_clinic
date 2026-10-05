@@ -27,6 +27,7 @@ export type KioskConfiguration = {
   enrolled: true;
   site_id: number;
   site_name: string;
+  kiosk_enabled: boolean;
   scanner_enabled: boolean;
   camera_enabled: boolean;
   manual_badge_entry_enabled: boolean;

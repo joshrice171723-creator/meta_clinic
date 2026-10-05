@@ -43,6 +43,7 @@ module Workforce
         enrolled: true,
         site_id: kiosk.site_id,
         site_name: kiosk.site.name,
+        kiosk_enabled: settings.fetch(:values).fetch("kiosk_enabled", false),
         scanner_enabled: settings.fetch(:values).fetch("scanner_enabled", true),
         camera_enabled: settings.fetch(:values).fetch("camera_enabled", false),
         manual_badge_entry_enabled: settings.fetch(:values).fetch("manual_badge_entry_enabled", false),
