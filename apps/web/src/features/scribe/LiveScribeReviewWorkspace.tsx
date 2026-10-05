@@ -26,7 +26,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { api } from "../../api/client";
+import { ApiError, api } from "../../api/client";
 import type { EncounterNoteSummary } from "../../api/contracts";
 import { useClinic } from "../clinic/Workspace";
 import { useClinicNavigation } from "../clinic/clinicNavigation";
@@ -681,7 +681,15 @@ export function LiveScribeReviewWorkspace() {
         setActionError(
           errorMessage(reason, "The scribe action could not be completed."),
         );
-        if (uncertainMessage) setOutcomeUnknown(uncertainMessage);
+        if (
+          uncertainMessage &&
+          (reason instanceof TypeError ||
+            (reason instanceof ApiError &&
+              (reason.code === "outcome_unconfirmed" ||
+                reason.status === 408 ||
+                reason.status >= 500)))
+        )
+          setOutcomeUnknown(uncertainMessage);
       }
       throw reason;
     } finally {
@@ -743,7 +751,9 @@ export function LiveScribeReviewWorkspace() {
       "create-synthetic",
       async () => {
         if (!selectedPatient)
-          throw new Error("Choose a patient before creating a sample encounter.");
+          throw new Error(
+            "Choose a patient before creating a sample encounter.",
+          );
         const result = await api<{ encounter: ScribeEncounter }>(
           "/api/clinic/scribe/encounters/create_synthetic",
           {
@@ -1449,32 +1459,34 @@ export function LiveScribeReviewWorkspace() {
             </Box>
           </Stack>
           {newSession ? (
-            <Stack spacing={0.75} sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}>
+            <Stack
+              spacing={0.75}
+              sx={{ alignItems: { xs: "stretch", sm: "flex-end" } }}
+            >
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <Button
                   variant="contained"
-                  disabled={!canWrite || !selectedPatient || pendingAction !== null}
-                  onClick={() => void createEncounter().catch(() => undefined)}
+                  disabled={
+                    !canWrite || !selectedPatient || pendingAction !== null
+                  }
+                  onClick={() =>
+                    void (
+                      isDemoFrame() && !contextualClinicalEncounterId
+                        ? createSyntheticEncounter()
+                        : createEncounter()
+                    ).catch(() => undefined)
+                  }
                   sx={{ height: 36 }}
                 >
                   {contextualClinicalEncounterId
                     ? "Start linked session"
                     : "Start session"}
                 </Button>
-                {isDemoFrame() && !contextualClinicalEncounterId && (
-                  <Button
-                    variant="outlined"
-                    disabled={!canWrite || !selectedPatient || pendingAction !== null}
-                    onClick={() => void createSyntheticEncounter().catch(() => undefined)}
-                    sx={{ height: 36 }}
-                  >
-                    Create sample encounter
-                  </Button>
-                )}
               </Stack>
               {isDemoFrame() && !contextualClinicalEncounterId && (
                 <Typography variant="caption" color="text.secondary">
-                  Creates local sample facts and an open visit for the Scribe SOAP workflow.
+                  Starts a sample visit session. Recording is unavailable in
+                  this demo.
                 </Typography>
               )}
             </Stack>

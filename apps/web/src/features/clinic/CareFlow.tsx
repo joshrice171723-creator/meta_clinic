@@ -110,6 +110,7 @@ export function encounterDetailPath(
 }
 
 type BookingDraft = {
+  timezone?: string;
   visitModality?: VisitModality;
   patientId: string;
   startsAt: string;
@@ -598,14 +599,89 @@ function bloodPressureValue(observations: Observation[]) {
     : "Paired reading not recorded";
 }
 
-function localDateTimeValue(value: Date) {
-  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+function clinicLocalDateTimeValue(value: Date, timezone: string) {
+  if (!Number.isFinite(value.valueOf())) return "";
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(value);
+    const fields = Object.fromEntries(
+      parts
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    );
+    return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}`;
+  } catch {
+    return "";
+  }
 }
 
-function clinicDateForBooking(value: string, timezone: string) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.valueOf())) return null;
+function clinicInstantFromLocalDateTime(value: string, timezone: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match.map(Number);
+  const wallTime = Date.UTC(year, month - 1, day, hour, minute);
+  const offsets = new Set<number>();
+  try {
+    for (const delta of [-36, -12, 0, 12, 36]) {
+      const sample = new Date(wallTime + delta * 60 * 60_000);
+      const local = clinicLocalDateTimeValue(sample, timezone);
+      const [date, time] = local.split("T");
+      const [localYear, localMonth, localDay] = date.split("-").map(Number);
+      const [localHour, localMinute] = time.split(":").map(Number);
+      offsets.add(
+        Date.UTC(localYear, localMonth - 1, localDay, localHour, localMinute) -
+          sample.getTime(),
+      );
+    }
+  } catch {
+    return null;
+  }
+  const matches = [...offsets]
+    .map((offset) => wallTime - offset)
+    .filter(
+      (instant) =>
+        clinicLocalDateTimeValue(new Date(instant), timezone) === value,
+    );
+  return matches.length === 1 ? new Date(matches[0]) : null;
+}
+
+function clinicDateTimeToIso(value: string, timezone: string) {
+  return clinicInstantFromLocalDateTime(value, timezone)?.toISOString() ?? "";
+}
+
+function bookingDraftInTimezone(draft: BookingDraft, timezone: string) {
+  if (draft.timezone === timezone) return draft;
+  const convert = (value: string) => {
+    const instant = draft.timezone
+      ? clinicInstantFromLocalDateTime(value, draft.timezone)
+      : new Date(value);
+    return instant && Number.isFinite(instant.valueOf())
+      ? clinicLocalDateTimeValue(instant, timezone)
+      : value;
+  };
+  return {
+    ...draft,
+    timezone,
+    startsAt: convert(draft.startsAt),
+    endsAt: convert(draft.endsAt),
+  };
+}
+
+function clinicDateForBooking(value: string | Date, timezone: string) {
+  const date =
+    value instanceof Date
+      ? value
+      : value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value)
+        ? new Date(value)
+        : clinicInstantFromLocalDateTime(value, timezone);
+  if (!date || !Number.isFinite(date.valueOf())) return null;
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
@@ -624,31 +700,41 @@ function clinicDateForBooking(value: string, timezone: string) {
   }
 }
 
-export function appointmentDefaults(now = businessNow()) {
+export function appointmentDefaults(
+  now = businessNow(),
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+) {
   const start = new Date(now);
   start.setSeconds(0, 0);
   start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
   if (start <= now) start.setMinutes(start.getMinutes() + 15);
   const end = new Date(start.getTime() + 30 * 60_000);
   return {
-    startsAt: localDateTimeValue(start),
-    endsAt: localDateTimeValue(end),
+    startsAt: clinicLocalDateTimeValue(start, timezone),
+    endsAt: clinicLocalDateTimeValue(end, timezone),
   };
 }
 
-export function appointmentIntervalError(startsAt: string, endsAt: string) {
-  const start = new Date(startsAt);
-  const end = new Date(endsAt);
+export function appointmentIntervalError(
+  startsAt: string,
+  endsAt: string,
+  timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  requireFuture = false,
+) {
+  const start = clinicInstantFromLocalDateTime(startsAt, timezone);
+  const end = clinicInstantFromLocalDateTime(endsAt, timezone);
   if (
     !startsAt ||
     !endsAt ||
-    !Number.isFinite(start.valueOf()) ||
-    !Number.isFinite(end.valueOf())
+    !start ||
+    !end
   )
-    return "Choose a valid start and end time.";
+    return "Choose valid start and end times in the clinic timezone.";
   if (end <= start) return "End time must be after the start time.";
   if (end.getTime() - start.getTime() > 24 * 60 * 60_000)
     return "An appointment cannot be longer than 24 hours.";
+  if (requireFuture && start <= businessNow())
+    return "Choose a start time in the future.";
   return "";
 }
 
@@ -766,14 +852,15 @@ function BookingFormEditor({
   const { registerBlocker } = useClinicNavigation();
   const clinic = useClinic();
   const defaultDraft = useMemo<BookingDraft>(() => {
-    const defaults = appointmentDefaults();
+    const defaults = appointmentDefaults(businessNow(), timezone);
     return {
+      timezone,
       patientId: initialPatientId ? String(initialPatientId) : "",
       startsAt: initialSlot?.starts_at
-        ? localDateTimeValue(new Date(initialSlot.starts_at))
+        ? clinicLocalDateTimeValue(new Date(initialSlot.starts_at), timezone)
         : defaults.startsAt,
       endsAt: initialSlot?.ends_at
-        ? localDateTimeValue(new Date(initialSlot.ends_at))
+        ? clinicLocalDateTimeValue(new Date(initialSlot.ends_at), timezone)
         : defaults.endsAt,
       siteId: initialSlot ? String(initialSlot.site_id) : "",
       roomId: initialSlot?.room_id ? String(initialSlot.room_id) : "",
@@ -790,8 +877,11 @@ function BookingFormEditor({
       seriesResolutions: [],
       visitModality: initialVisitModality,
     };
-  }, [initialPatientId, initialVisitModality, initialSlot]);
-  const restoredDraft = initialDraft?.draft ?? defaultDraft;
+  }, [initialPatientId, initialVisitModality, initialSlot, timezone]);
+  const restoredDraft = bookingDraftInTimezone(
+    initialDraft?.draft ?? defaultDraft,
+    timezone,
+  );
   const initialHold = initialSlot?.hold ?? null;
   const initialHoldDeferred = Boolean(
     initialHold &&
@@ -966,6 +1056,7 @@ function BookingFormEditor({
     scheduledResourceParams.set("booked_clinician_id", clinicianId);
   const currentDraft = useMemo<BookingDraft>(
     () => ({
+      timezone,
       patientId,
       startsAt,
       endsAt,
@@ -985,6 +1076,7 @@ function BookingFormEditor({
     }),
     [
       patientId,
+      timezone,
       startsAt,
       endsAt,
       siteId,
@@ -1217,12 +1309,20 @@ function BookingFormEditor({
         appointment.booked_clinician_id === Number(clinicianId)
       );
     }) ?? [];
-  const intervalError = appointmentIntervalError(startsAt, endsAt);
+  const intervalError = appointmentIntervalError(
+    startsAt,
+    endsAt,
+    timezone,
+    true,
+  );
   const setDuration = (minutes: number) => {
-    const start = new Date(startsAt);
-    if (Number.isFinite(start.valueOf()))
+    const start = clinicInstantFromLocalDateTime(startsAt, timezone);
+    if (start)
       setEndsAt(
-        localDateTimeValue(new Date(start.getTime() + minutes * 60_000)),
+        clinicLocalDateTimeValue(
+          new Date(start.getTime() + minutes * 60_000),
+          timezone,
+        ),
       );
   };
   const reset = () => {
@@ -1358,7 +1458,8 @@ function BookingFormEditor({
       );
       return;
     }
-    const starts = new Date(startsAt).getTime();
+    const starts =
+      clinicInstantFromLocalDateTime(startsAt, timezone)?.getTime() ?? NaN;
     const now = businessNow().getTime();
     if (!holdAttempt && (!Number.isFinite(starts) || starts <= now + 60_000)) {
       setHoldError(
@@ -1376,8 +1477,8 @@ function BookingFormEditor({
             site_id: siteId,
             clinician_id: clinicianId,
             room_id: visitModality === "video" ? "" : roomId,
-            starts_at: new Date(startsAt).toISOString(),
-            ends_at: new Date(endsAt).toISOString(),
+            starts_at: clinicDateTimeToIso(startsAt, timezone),
+            ends_at: clinicDateTimeToIso(endsAt, timezone),
             expires_at: new Date(
               Math.min(starts, now + 10 * 60_000),
             ).toISOString(),
@@ -1497,8 +1598,8 @@ function BookingFormEditor({
         booked_clinician_id: clinicianId,
         visit_type_id: visitTypeId,
         ...(serviceOfferingId ? { service_offering_id: serviceOfferingId } : {}),
-        starts_at: new Date(startsAt).toISOString(),
-        ends_at: new Date(endsAt).toISOString(),
+        starts_at: clinicDateTimeToIso(startsAt, timezone),
+        ends_at: clinicDateTimeToIso(endsAt, timezone),
         visit_modality: visitModality,
         interval_weeks: repeatIntervalWeeks,
         occurrence_count: repeatCount,
@@ -1801,8 +1902,8 @@ function BookingFormEditor({
                 body: {
                   appointment: {
                     patient_id: patientId,
-                    starts_at: new Date(startsAt).toISOString(),
-                    ends_at: new Date(endsAt).toISOString(),
+                    starts_at: clinicDateTimeToIso(startsAt, timezone),
+                    ends_at: clinicDateTimeToIso(endsAt, timezone),
                     site_id: siteId,
                     room_id: roomId,
                     booked_clinician_id: firstAvailable ? null : clinicianId,
@@ -1958,21 +2059,29 @@ function BookingFormEditor({
                   Boolean(heldSlot)
                 }
                 value={startsAt}
+                error={Boolean(intervalError)}
+                helperText={intervalError || `Clinic time: ${timezone}`}
+                slotProps={{
+                  htmlInput: {
+                    min: clinicLocalDateTimeValue(businessNow(), timezone),
+                  },
+                  inputLabel: { shrink: true },
+                }}
                 onChange={(event) => {
                   const value = event.target.value;
                   setStartsAt(value);
-                  const start = new Date(value);
-                  if (Number.isFinite(start.valueOf()))
+                  const start = clinicInstantFromLocalDateTime(value, timezone);
+                  if (start)
                     setEndsAt(
-                      localDateTimeValue(
+                      clinicLocalDateTimeValue(
                         new Date(
                           start.getTime() +
                             (selectedOffering?.duration_minutes ?? 30) * 60_000,
                         ),
+                        timezone,
                       ),
                     );
                 }}
-                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 label="Ends"
@@ -2019,10 +2128,7 @@ function BookingFormEditor({
               ))}
             </Stack>
             <Alert severity="info" variant="outlined">
-              Enter times using this device’s timezone (
-              {Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"}
-              ). Confirm the clinic time shown on the schedule in {timezone}{" "}
-              before finishing.
+              Enter appointment times in the clinic timezone ({timezone}).
             </Alert>
             <TelehealthBookingFormat
               value={visitModality}
@@ -2353,13 +2459,13 @@ function BookingFormEditor({
                                 <TextField
                                   type="datetime-local"
                                   label="Change this visit start"
-                                  value={resolution?.starts_at ? localDateTimeValue(new Date(resolution.starts_at)) : ""}
+                                  value={resolution?.starts_at ? clinicLocalDateTimeValue(new Date(resolution.starts_at), timezone) : ""}
                                   onChange={(event) => updateSeriesResolution(row.sequence, {
-                                    starts_at: event.target.value ? new Date(event.target.value).toISOString() : "",
+                                    starts_at: event.target.value ? clinicDateTimeToIso(event.target.value, timezone) : "",
                                   })}
                                   disabled={busy || Boolean(seriesAttempt)}
                                   slotProps={{ inputLabel: { shrink: true } }}
-                                  helperText={`Uses this device's timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Leave blank to keep the weekly time.`}
+                                  helperText={`Uses ${timezone}. Leave blank to keep the weekly time.`}
                                 />
                                 <TextField
                                   select
