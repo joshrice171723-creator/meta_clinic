@@ -2,9 +2,13 @@ require "action_dispatch/middleware/session/cookie_store"
 
 # Keep tutorial authentication and CSRF state separate from ordinary app tabs.
 class GuidedDemoSessionStore
+  def self.cookie_key(name)
+    Rails.env.development? ? "#{name}_#{ENV.fetch('APPLY_WEB_PORT', '3000')}" : name.to_s
+  end
+
   def initialize(app, options = {})
     @regular = ActionDispatch::Session::CookieStore.new(app, options)
-    @demo = ActionDispatch::Session::CookieStore.new(app, options.merge(key: "_apply_demo_session"))
+    @demo = ActionDispatch::Session::CookieStore.new(app, options.merge(key: self.class.cookie_key("_apply_demo_session")))
   end
 
   def call(env)

@@ -31,6 +31,7 @@ module Development
             actor:, membership:)
         end
       end
+      DemoSandboxWeeklySchedule.prepare!(run)
     end
 
     def self.ensure_settings!(practice:, membership:, window_start:)
