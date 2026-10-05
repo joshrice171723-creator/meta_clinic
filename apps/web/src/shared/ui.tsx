@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -41,46 +48,78 @@ export function useResource<T>(
     path: string;
     data?: T;
     error?: string;
-  }>({ path });
-  const [revision, revise] = useState(0);
+    loading: boolean;
+  }>({ path, loading: enabled });
+  const requestRefresh = useRef<(() => void) | null>(null);
+  const refresh = useCallback(() => requestRefresh.current?.(), []);
   useEffect(() => {
     if (!enabled) {
-      setResult({ path });
+      setResult({ path, loading: false });
       return;
     }
     const abort = new AbortController();
-    setResult((current) =>
-      retainDataOnRefresh && current.path === path && current.data !== undefined
-        ? { path, data: current.data }
-        : { path },
-    );
-    api<T>(path, { signal: abort.signal })
-      .then((data) =>
-        applyResourceResultIfActive(abort.signal, data, (activeData) =>
-          setResult({ path, data: activeData }),
-        ),
-      )
-      .catch((error: unknown) => {
-        if (abort.signal.aborted) return;
-        if (error instanceof ApiError && error.status === 401) {
-          window.location.replace(
-            `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+    let inFlight = false;
+    let refreshQueued = false;
+    const load = async () => {
+      if (abort.signal.aborted) return;
+      // Finish the current read, then reconcile once more for any invalidations
+      // received while it was running. Repeated refreshes must not starve it.
+      if (inFlight) {
+        refreshQueued = true;
+        return;
+      }
+      inFlight = true;
+      do {
+        refreshQueued = false;
+        setResult((current) =>
+          retainDataOnRefresh && current.path === path
+            ? { path, data: current.data, loading: true }
+            : { path, loading: true },
+        );
+        try {
+          const data = await api<T>(path, { signal: abort.signal });
+          applyResourceResultIfActive(abort.signal, data, (activeData) =>
+            setResult({ path, data: activeData, loading: refreshQueued }),
           );
-          return;
+        } catch (error: unknown) {
+          if (abort.signal.aborted) return;
+          if (error instanceof ApiError && error.status === 401) {
+            window.location.replace(
+              `/login?next=${encodeURIComponent(currentLoginDestination())}`,
+            );
+            return;
+          }
+          // Never retry an authorization/context denial just because a refresh
+          // arrived before it. The caller must explicitly recover that state.
+          if (error instanceof ApiError && [403, 409].includes(error.status))
+            refreshQueued = false;
+          setResult({
+            path,
+            loading: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unable to load this page.",
+          });
         }
-        setResult({
-          path,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to load this page.",
-        });
-      });
-    return () => abort.abort();
-  }, [path, retainDataOnRefresh, enabled, revision]);
+      } while (refreshQueued && !abort.signal.aborted);
+      inFlight = false;
+    };
+    requestRefresh.current = () => void load();
+    void load();
+    return () => {
+      requestRefresh.current = null;
+      abort.abort();
+    };
+  }, [path, retainDataOnRefresh, enabled]);
+  const current =
+    enabled && result.path === path
+      ? result
+      : { path, loading: enabled, data: undefined, error: undefined };
   return {
-    ...(result.path === path ? result : { path }),
-    refresh: () => revise((n) => n + 1),
+    ...current,
+    refreshing: current.loading && current.data !== undefined,
+    refresh,
   };
 }
 export function LoadState({
