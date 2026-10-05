@@ -279,7 +279,7 @@ Download export 55 produced the application's explicit Download requested messag
 
 Timecard calculation and its final read-scope check now share a database transaction. A location-limited reviewer whose employee has historical work elsewhere still receives the existing permission denial, but a newly calculated card and its segments roll back instead of remaining saved. Successful authorized calculations keep their ordinary response.
 
-### Local evidence at 15:07 UTC
+### Local evidence at 15:04 UTC
 
 - A guarded fixture created Drew Example (employment 6) with current eligibility at Main clinic and Payroll journey, plus September 28 clock punches only at Payroll journey. The reviewer received one temporary Main-only Workforce Location Manager grant (13). Read-back confirmed no practice-wide timecard read, Main read allowed, and Payroll journey read denied.
 - The development sign-in picker initially selected Drew's same-named Front Desk Coordinator role rather than Morgan's combined-role entry. A context read limited to actor IDs and workforce booleans identified that fixture account. Its unnecessary fixture role grant 14 was revoked, and the explicit Front Desk Coordinator / Workforce Location Manager entry selected the intended reviewer. This was a fixture selection issue; no capability-projection change was made.

@@ -2,11 +2,13 @@
 
 type: progress-log
 status: active
-updated: 2026-10-04
+updated: 2026-10-05
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+**2026-10-05 — Workforce implementation and connected local journeys:** Source through `bd8c68b1` improves payroll/history access, schedule preflight and availability boundaries, request recovery, kiosk break completion, employee-access recovery, invitation replay, and rollback of denied timecard calculations. The isolated browser/database workspace verified payroll correction/export chains, schedule and request transitions, clock events, and allowed/denied access paths. Focused source checks and the consolidated web build passed; no automated tests or deployment ran. Browser-completed CSV delivery, one stalled draft-discard confirmation, and invitation replay browser verification remain open. A revoked synthetic activation link appeared in one tool response; the affected inspection stopped and the user was notified. [Detailed outcomes and evidence limits](../../records/progress/2026/10/2026-10-05-workforce-development.md).
 
 **2026-10-04 — Three-hour workforce session closed:** The renewed window ended at 15:39 UTC and its heartbeat is paused. Twenty-seven implementation batches are committed and pushed on `codex/workforce-three-hour-20261004`; source checks passed as recorded, with connected runtime/browser acceptance still pending. No deployment or tests ran. [Final session outcome and remaining gaps](../../records/progress/2026/10/2026-10-04-workforce-development.md).
 
