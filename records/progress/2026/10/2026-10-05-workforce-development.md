@@ -192,3 +192,11 @@ The settings scope selector also explicitly shows Practice defaults instead of a
 - After the two-service repair, Cancel and a fresh scan offered End break. Saving created punch 7 at 13:22:15.129Z. A subsequent scan offered only Clock out, which created punch 8 at 13:23:00.171Z. Database read-back confirmed all four events at Main clinic and kiosk session 3, in order; none were seeded.
 - The temporary badge and kiosk were revoked through administration; the employee account remained active, kiosk reload required enrollment, and the tab was closed. Credential variables were cleared and Main clinic kiosk access returned to disabled. No badge/PIN value was logged or persisted in evidence.
 - Browser verification confirmed Practice defaults is visible before choosing Main clinic. TypeScript, scoped Ruby syntax/RuboCop, and diff checks passed. One state-transition regression was added but not executed. No automated tests were run.
+
+## Availability input and employee cancellation
+
+At 13:34 UTC, the shared availability model now rejects duplicate weekdays, including mixed string/integer representations. This prevents an unavailable rule and a conflicting available rule from being approved for the same weekday. A small regression was added but not executed; queued Ruby syntax, scoped RuboCop, and diff checks passed.
+
+Taylor submitted availability 5 for December 1 in the browser, began a separate draft, refreshed history, and canceled the saved request. The UI reported Request canceled and retained the new draft text. Database read-back confirmed availability 5 cancelled at revision 2; availability 4 remained approved at revision 2. No change was needed for this journey.
+
+The subsequent discard-draft confirmation stalled the browser control channel. The supported dialog API, one direct dialog recovery attempt, and closing the owned tab could not clear the focus-emulation timeout. The canceled request is persisted; final draft-discard completion and later browser journeys remain unverified until browser access recovers. No browser policy or security setting was changed.

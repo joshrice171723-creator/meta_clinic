@@ -195,6 +195,19 @@ class WorkforceSchedulingTest < ActiveSupport::TestCase
     refute availability.available_for?(ordinary[:starts_at], ordinary[:ends_at] + Rational(1, 2))
   end
 
+  test "availability rejects duplicate weekday rules" do
+    availability = Clinic::Workforce::AvailabilityVersion.new(practice: @practice, site: @site, employment: @employee,
+      created_by_id: @manager.membership.user_id, timezone: "America/Chicago", status: "submitted", reason: "Duplicate weekday",
+      idempotency_key: SecureRandom.uuid, request_digest: "a" * 64, effective_from: Date.new(2026, 9, 7), submitted_at: Time.current,
+      revision: 1, weekly_rules: [
+        { "day_of_week" => "1", "available" => false },
+        { "day_of_week" => 1, "available" => true, "start_time" => "09:00", "end_time" => "17:00" }
+      ])
+
+    refute_predicate availability, :valid?
+    assert_includes availability.errors[:weekly_rules], "must contain valid, non-duplicate weekday rules"
+  end
+
   test "availability selection prefers the approved same-date replacement over higher revisions" do
     approved_older_id = availability_version(@employee, effective_from: Date.new(2026, 9, 7), status: "approved", revision: 2,
       decided_at: Time.utc(2026, 9, 7, 13), rules: [ { "day_of_week" => 1, "available" => true, "start_time" => "09:00", "end_time" => "17:00" } ])
