@@ -24,13 +24,14 @@ module Clinic
         value
       end
 
-      def self.publication(record, employee_id: nil)
+      def self.publication(record, employee_id: nil, time_off_conflict_shift_ids: [])
         shifts = record.shift_snapshot
         shifts = shifts.select { |row| row["employment_id"].to_i == employee_id } if employee_id
         { id: record.id.to_s, site_id: record.site_id.to_s, site_name: record.site.name,
           week_start_on: record.week_start_on.iso8601, timezone: record.timezone, version: record.version,
           published_at: record.published_at.iso8601(6), supersedes_id: record.supersedes_id&.to_s,
-          shifts: shifts.map { |row| row.merge("employment_id" => row["employment_id"].to_s) } }
+          shifts: shifts.map { |row| row.merge("employment_id" => row["employment_id"].to_s,
+            "time_off_conflict" => time_off_conflict_shift_ids.include?(row["id"])) } }
       end
 
       def self.response(**payload)

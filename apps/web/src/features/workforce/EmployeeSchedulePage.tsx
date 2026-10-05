@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import {
+  Alert,
   Button,
   Chip,
   MenuItem,
@@ -107,6 +108,10 @@ export function EmployeeSchedulePage() {
             <TextField
               select
               label="Location"
+              slotProps={{
+                select: { displayEmpty: true },
+                inputLabel: { shrink: true },
+              }}
               value={locations.some(([id]) => id === siteId) ? siteId : ""}
               disabled={!data}
               onChange={(event) => setSiteId(event.target.value)}
@@ -169,6 +174,12 @@ export function EmployeeSchedulePage() {
                     {shift.role_name || "Assigned shift"} ·{" "}
                     {shift.break_minutes} min planned break · {shift.timezone}
                   </Typography>
+                  {shift.time_off_conflict && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      Approved time off overlaps this published shift. Your
+                      manager must update the schedule separately.
+                    </Alert>
+                  )}
                 </div>
                 <Chip
                   label={`Published v${publication.version}`}

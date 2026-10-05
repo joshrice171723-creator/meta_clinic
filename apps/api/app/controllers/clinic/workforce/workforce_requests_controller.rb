@@ -25,9 +25,10 @@ module Clinic
         end
         requests.sort_by!(&:created_at).reverse!
         sites = eligible_sites(employment)
+        conflicts = review_time_off_conflicts(requests, site)
         serialized = requests.map do |item|
           owner_id = item.respond_to?(:requester_employment_id) ? item.requester_employment_id : item.employment_id
-          RequestSerializer.call(item).merge(can_target_decide: employment.present? && item.is_a?(ShiftSwapRequest) &&
+          RequestSerializer.call(item, published_shift_conflict_count: conflicts[item.public_id]).merge(can_target_decide: employment.present? && item.is_a?(ShiftSwapRequest) &&
             item.target_employment_id == employment.id && item.status == "submitted",
             can_cancel: employment.present? && owner_id == employment.id && %w[submitted accepted].include?(item.status))
         end
@@ -194,6 +195,22 @@ module Clinic
 
       def review_states(klass)
         klass == ShiftSwapRequest ? %w[accepted] : %w[submitted]
+      end
+
+      def review_time_off_conflicts(requests, site)
+        return {} unless params[:review] == "true"
+        requests = requests.grep(TimeOffRequest)
+        return {} if requests.empty?
+
+        publications = SchedulePublication.where(practice_id: current_practice.id, site_id: site.id)
+        latest = publications.where(id: publications.group(:week_start_on).maximum(:id).values)
+        shifts_by_employment = latest.flat_map(&:shift_snapshot).group_by { |shift| shift["employment_id"].to_i }
+        requests.to_h do |request|
+          count = Array(shifts_by_employment[request.employment_id]).count do |shift|
+            Time.iso8601(shift.fetch("starts_at")) < request.ends_at && Time.iso8601(shift.fetch("ends_at")) > request.starts_at
+          end
+          [ request.public_id, count ]
+        end
       end
 
       def request_details(scope, klass)

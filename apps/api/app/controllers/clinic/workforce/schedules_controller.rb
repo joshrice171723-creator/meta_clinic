@@ -41,7 +41,9 @@ module Clinic
             employment.eligible_site?(item.site, at: Current.business_time) &&
               visibility_by_site.fetch(item.site_id) { visibility_by_site[item.site_id] = schedule_visible?(item.site) }
           end
-        render json: ScheduleSerializer.response(publications: publications.map { |item| ScheduleSerializer.publication(item, employee_id: employment.id) })
+        conflicts = employee_time_off_conflicts(publications, employment)
+        render json: ScheduleSerializer.response(publications: publications.map { |item| ScheduleSerializer.publication(item,
+          employee_id: employment.id, time_off_conflict_shift_ids: conflicts) })
       end
 
       def show_draft
@@ -161,6 +163,23 @@ module Clinic
       def latest_publications
         scope = SchedulePublication.where(practice_id: current_practice.id)
         scope.where(id: scope.group(:site_id, :week_start_on).maximum(:id).values)
+      end
+
+      def employee_time_off_conflicts(publications, employment)
+        shifts = publications.flat_map(&:shift_snapshot).filter_map do |shift|
+          next unless shift["employment_id"].to_i == employment.id
+
+          [ shift, Time.iso8601(shift.fetch("starts_at")), Time.iso8601(shift.fetch("ends_at")) ]
+        end
+        return [] if shifts.empty?
+
+        earliest_start = shifts.map { |shift| shift[1] }.min
+        latest_end = shifts.map { |shift| shift[2] }.max
+        time_off = TimeOffRequest.where(practice_id: current_practice.id, employment_id: employment.id, status: "approved")
+          .overlapping(earliest_start, latest_end).to_a
+        shifts.filter_map do |shift, starts_at, ends_at|
+          shift["id"] if time_off.any? { |request| request.starts_at < ends_at && request.ends_at > starts_at }
+        end
       end
 
       def eligible_employments(site)

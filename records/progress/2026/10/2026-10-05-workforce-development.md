@@ -32,6 +32,23 @@ Material UI v9 controls reuse existing components. The [official pagination guid
 - Opening the oldest export returned the application's digest-checked download-request notice. The browser download event timed out and no expected file was found in Downloads; an on-disk CSV download is not verified.
 - No test suite or added regression test was run. Repeated-hour swap publication and session/location cancellation remain source-reviewed, not browser-accepted.
 
-### Remaining boundaries
+### First-batch remaining boundaries
 
-Payroll's initial candidate list still caps approved timecards at 250 and configuration history at 25; loading older export files does not remove those separate limits. Actual persisted pagination, downloads, session/location cancellation, and swap publication remain to be checked in the owned runtime. A separate source finding is that approving time off does not modify already-published shifts or warn the employee about an overlap; no automatic reassignment is implied.
+Payroll's initial candidate list still caps approved timecards at 250 and configuration history at 25; loading older export files does not remove those separate limits. On-disk downloads, session/location cancellation, and swap publication remain to be checked in the owned runtime. The separate time-off warning finding is addressed below; no automatic reassignment is implied.
+
+## Published schedule and time-off conflicts
+
+Request review now reports the number of overlapping currently published shifts at the selected location, under the existing review authorization. It reads the latest publication snapshots once per nonempty time-off review queue. Approval remains the existing request decision; it never deletes or reassigns published shifts.
+
+The employee schedule annotates only the employee's already-authorized returned shifts when approved time off overlaps them. The leave query is bounded to displayed shift times and covers the employee's approved leave across locations. Empty own-shift results do not query leave. These are read projections; immutable publication snapshots are not modified.
+
+The browser walkthrough exposed a premature unconfirmed-decision warning during ordinary saving. The page now shows neutral saving feedback while the request is running and reserves recovery details for an unconfirmed completed attempt. The employee location selector now visibly displays its default All locations option.
+
+### Evidence at 11:13 UTC
+
+- In the isolated development database, existing scheduling services created one published synthetic shift for Morgan Example on October 7, 09:00–17:00 America/Chicago. A submitted time-off request covered 12:00–16:00 on that day.
+- Chrome request review displayed one overlapping published shift at this location. Approval returned Request approval saved and removed the item from the pending queue.
+- Database read-back confirmed request status approved at revision 2, with publication version 1 and the original one-shift snapshot retained.
+- Chrome employee sign-in showed the same assigned shift, Published v1, and the approved-time-off warning. This validates the reviewer-to-employee local journey, not hosted acceptance or automatic coverage resolution.
+- TypeScript and both Vite bundles passed; scoped RuboCop passed for all five changed Ruby files. A final selector-only adjustment passed TypeScript again. The preexisting marketing import warning remains.
+- A small serializer regression check was added but not run. It covers own-employee filtering, selective conflict flags, and unchanged stored snapshots. No automated tests were executed.

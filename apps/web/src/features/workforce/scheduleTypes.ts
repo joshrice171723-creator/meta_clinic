@@ -31,6 +31,7 @@ export type WorkforceShift = {
   end_occurrence?: "only" | "first" | "second";
   role_name: string | null;
   break_minutes: number;
+  time_off_conflict?: boolean;
 };
 export type ScheduleDraft = {
   id: string;
@@ -106,6 +107,7 @@ export type WorkforceRequest = {
   offered_shift_public_id?: string;
   can_target_decide?: boolean;
   can_cancel?: boolean;
+  published_shift_conflict_count?: number;
 };
 export type SwapOption = {
   site_id: string;

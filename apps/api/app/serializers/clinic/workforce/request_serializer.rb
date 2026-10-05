@@ -3,12 +3,13 @@ module Clinic
     module RequestSerializer
       SCHEMA_VERSION = "workforce-requests.v1"
 
-      def self.call(record)
+      def self.call(record, published_shift_conflict_count: nil)
         employment = record.is_a?(ShiftSwapRequest) ? record.requester_employment : record.employment
         base = { id: record.public_id, type: type(record), site_id: record.site_id.to_s, site_name: record.site.name,
           employee_name: employment.staff_member.display_name, status: record.status,
           reason: record.reason, revision: record.revision, created_at: record.created_at.iso8601(6),
           decided_at: record.try(:decided_at)&.iso8601(6), decision_reason: record.try(:decision_reason) }
+        base[:published_shift_conflict_count] = published_shift_conflict_count unless published_shift_conflict_count.nil?
         case record
         when AvailabilityVersion
           base.merge(employment_id: record.employment_id.to_s, timezone: record.timezone,

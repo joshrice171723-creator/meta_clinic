@@ -143,7 +143,8 @@ export function RequestReviewPage() {
     <>
       {error && <Alert severity="error">{error}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
-      {pendingAttempt && (
+      {busyId && <Alert severity="info">Saving request decision…</Alert>}
+      {pendingAttempt && !busyId && (
         <Alert severity="warning">
           The decision for{" "}
           {pendingAttempt.request.employee_name || "this employee"} is
@@ -277,6 +278,17 @@ export function RequestReviewPage() {
                     <Chip size="small" label={request.status} />
                   </Stack>
                   <WorkforceRequestDetails request={request} />
+                  {request.published_shift_conflict_count ? (
+                    <Alert severity="warning">
+                      {request.published_shift_conflict_count} currently
+                      published{" "}
+                      {request.published_shift_conflict_count === 1
+                        ? "shift overlaps"
+                        : "shifts overlap"}{" "}
+                      this time off at this location. Approval does not change
+                      them; update the schedule separately.
+                    </Alert>
+                  ) : null}
                   <TextField
                     label="Review reason (optional)"
                     value={reasons[request.id]?.text ?? ""}
