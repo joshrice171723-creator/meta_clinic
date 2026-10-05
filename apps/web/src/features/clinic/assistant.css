@@ -27,6 +27,35 @@
   background: inherit;
 }
 
+.clinic-assistant__header {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+
+.clinic-assistant__header > div:first-child {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.clinic-assistant .MuiIconButton-root {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.clinic-assistant .MuiButton-root {
+  min-height: 44px;
+}
+
+.clinic-assistant__body :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.clinic-assistant__body .MuiAlert-root {
+  flex-wrap: wrap;
+}
+
 .clinic-assistant__header,
 .clinic-assistant__context,
 .clinic-assistant__composer {
@@ -202,6 +231,7 @@
   .clinic-assistant__header,
   .clinic-assistant__body,
   .clinic-assistant__context,
+  .clinic-assistant__progress,
   .clinic-assistant__composer {
     padding-inline: 16px;
   }

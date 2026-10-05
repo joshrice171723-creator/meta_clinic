@@ -71,7 +71,7 @@ export type WorkflowProposal = {
   status: string;
   expires_at: string;
   title: string;
-  preview: Array<{ label: string; value: unknown }>;
+  preview: Array<{ label: string; value: unknown; before?: unknown }>;
   confirmation_required: true;
 };
 

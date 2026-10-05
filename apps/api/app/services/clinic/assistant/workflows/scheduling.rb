@@ -159,6 +159,20 @@ module Clinic
           values
         end
 
+        def preview(key:, resolved:)
+          appointment = resolved["_appointment"]
+          case key
+          when "scheduling.status"
+            [{ label: "Appointment status", before: appointment.status.humanize, value: resolved.fetch("status").humanize }]
+          when "scheduling.reschedule"
+            [{ label: "Start time", before: local_time(appointment.starts_at), value: local_time(resolved.fetch("_starts_at")) },
+              { label: "End time", before: local_time(appointment.ends_at), value: local_time(resolved.fetch("_ends_at")) }]
+          when "scheduling.room"
+            [{ label: "Room assignment", before: resolved.fetch("_encounter").room&.code, value: resolved.fetch("_room").code }]
+          else []
+          end
+        end
+
         def execute(key:, resolved:)
           authorize!(key:, inputs: resolved)
           request_key = resolved["_request_key"]

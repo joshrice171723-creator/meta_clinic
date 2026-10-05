@@ -15,8 +15,12 @@ import {
   Typography,
   FormControlLabel,
   Switch,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import StarOutlineRoundedIcon from "@mui/icons-material/StarOutlineRounded";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import type { WorkflowOperation } from "./workflowTypes";
 
 function internalPath(path?: string) {
@@ -31,6 +35,8 @@ export function WorkflowCatalog({
   hasPatient,
   hasEncounter,
   onSelect,
+  favorites,
+  onToggleFavorite,
 }: {
   operations: WorkflowOperation[];
   selectedKey: string;
@@ -39,31 +45,57 @@ export function WorkflowCatalog({
   hasPatient: boolean;
   hasEncounter: boolean;
   onSelect: (operation: WorkflowOperation) => void;
+  favorites: string[];
+  onToggleFavorite: (key: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [availableOnly, setAvailableOnly] = useState(true);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   useEffect(() => {
     if (selectedKey) setExpanded(false);
   }, [selectedKey]);
   const groups = useMemo(() => {
-    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const filtered = operations.filter((operation) => {
-      const text =
-        `${operation.title} ${operation.domain} ${operation.description}`.toLowerCase();
-      return (
-        (!availableOnly || operation.availability === "available") &&
-        words.every((word) => text.includes(word))
-      );
-    });
+    const normalize = (value: string) =>
+      value
+        .toLowerCase()
+        .replace(/\b(booking|book|appointments?)\b/g, "appointment")
+        .replace(/\b(bills?|billing|invoices?)\b/g, "billing")
+        .replace(/\b(inventory|stock)\b/g, "stock")
+        .replace(/\b(visits?|encounters?)\b/g, "encounter")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    const words = normalize(query).split(/\s+/).filter(Boolean);
+    const filtered = operations
+      .filter((operation) => {
+        const text = normalize(
+          `${operation.title} ${operation.domain} ${operation.description} ${operation.fields.map((field) => field.label).join(" ")}`,
+        );
+        return (
+          (!availableOnly || operation.availability === "available") &&
+          (!favoritesOnly || favorites.includes(operation.key)) &&
+          words.every((word) => text.includes(word))
+        );
+      })
+      .sort((a, b) => {
+        const score = (operation: WorkflowOperation) =>
+          words.filter((word) => normalize(operation.title).includes(word))
+            .length;
+        return score(b) - score(a) || a.title.localeCompare(b.title);
+      });
     const grouped = new Map<string, WorkflowOperation[]>();
     for (const operation of filtered) {
-      const entries = grouped.get(operation.domain) ?? [];
+      const domain = favorites.includes(operation.key)
+        ? "Favorites"
+        : operation.domain;
+      const entries = grouped.get(domain) ?? [];
       entries.push(operation);
-      grouped.set(operation.domain, entries);
+      grouped.set(domain, entries);
     }
-    return [...grouped.entries()];
-  }, [operations, query, availableOnly]);
+    return [...grouped.entries()].sort(([a], [b]) =>
+      a === "Favorites" ? -1 : b === "Favorites" ? 1 : a.localeCompare(b),
+    );
+  }, [operations, query, availableOnly, favoritesOnly, favorites]);
 
   return (
     <Accordion
@@ -102,6 +134,16 @@ export function WorkflowCatalog({
             }
             label="Available here"
           />
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={favoritesOnly}
+                onChange={(_, checked) => setFavoritesOnly(checked)}
+              />
+            }
+            label="Favorites only"
+          />
           {loading && operations.length === 0 && (
             <Alert severity="info">Loading the workflows available here…</Alert>
           )}
@@ -112,8 +154,8 @@ export function WorkflowCatalog({
           )}
           {operations.length > 0 && groups.length === 0 && (
             <Alert severity="info">
-              No tasks match. Try fewer words or turn off “Available here” to
-              see other workflows.
+              No tasks match. Try fewer words or turn off the filters to see
+              other workflows.
             </Alert>
           )}
           {groups.map(([domain, entries]) => (
@@ -175,16 +217,47 @@ export function WorkflowCatalog({
                     </>
                   );
                   return available ? (
-                    <ListItemButton
+                    <ListItem
                       key={operation.key}
-                      selected={selectedKey === operation.key}
-                      disabled={disabled}
-                      onClick={() => onSelect(operation)}
-                      sx={{ alignItems: "flex-start", borderRadius: 1, py: 1 }}
-                      aria-label={`${operation.title}. ${operation.kind === "read" ? "Read" : "Review before save"}`}
+                      disablePadding
+                      secondaryAction={
+                        <Tooltip
+                          title={
+                            favorites.includes(operation.key)
+                              ? "Remove favorite"
+                              : "Add favorite"
+                          }
+                        >
+                          <IconButton
+                            aria-label={`${favorites.includes(operation.key) ? "Remove" : "Add"} ${operation.title} ${favorites.includes(operation.key) ? "from" : "to"} favorites`}
+                            aria-pressed={favorites.includes(operation.key)}
+                            onClick={() => onToggleFavorite(operation.key)}
+                            sx={{ minWidth: 44, minHeight: 44 }}
+                          >
+                            {favorites.includes(operation.key) ? (
+                              <StarRoundedIcon />
+                            ) : (
+                              <StarOutlineRoundedIcon />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      }
                     >
-                      {content}
-                    </ListItemButton>
+                      <ListItemButton
+                        selected={selectedKey === operation.key}
+                        disabled={disabled}
+                        onClick={() => onSelect(operation)}
+                        sx={{
+                          alignItems: "flex-start",
+                          borderRadius: 1,
+                          py: 1,
+                          pr: 7,
+                        }}
+                        aria-label={`${operation.title}. ${operation.kind === "read" ? "Read" : "Review before save"}`}
+                      >
+                        {content}
+                      </ListItemButton>
+                    </ListItem>
                   ) : (
                     <ListItem
                       key={operation.key}
