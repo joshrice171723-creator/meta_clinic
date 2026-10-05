@@ -658,12 +658,15 @@ export function ScheduleBuilderPage() {
           sx={{ alignItems: { sm: "center" }, flexWrap: "wrap" }}
         >
           <FormControl sx={{ minWidth: 260 }}>
-            <InputLabel id={`${fieldId}-1-label`}>Draft week</InputLabel>
+            <InputLabel id={`${fieldId}-1-label`} shrink>
+              Draft week
+            </InputLabel>
             <Select
               labelId={`${fieldId}-1-label`}
               label="Draft week"
+              displayEmpty
               value={draft?.id ?? ""}
-              disabled={busy || loading}
+              disabled={busy || loading || data.drafts.length === 0}
               onChange={(event) => {
                 if (!confirmDiscard()) return;
                 const expectedSiteId = currentSiteId;
@@ -695,6 +698,9 @@ export function ScheduleBuilderPage() {
                   });
               }}
             >
+              <MenuItem value="" disabled>
+                No draft selected
+              </MenuItem>
               {data.drafts.map((item) => (
                 <MenuItem key={item.id} value={item.id}>
                   Week of {item.week_start_on} · revision {item.revision}
@@ -715,12 +721,13 @@ export function ScheduleBuilderPage() {
                 slotProps={{ inputLabel: { shrink: true } }}
               />
               <FormControl sx={{ minWidth: 220 }}>
-                <InputLabel id={`${fieldId}-2-label`}>
+                <InputLabel id={`${fieldId}-2-label`} shrink>
                   Starting template
                 </InputLabel>
                 <Select
                   labelId={`${fieldId}-2-label`}
                   label="Starting template"
+                  displayEmpty
                   value={templateId}
                   onChange={(event) => setTemplateId(event.target.value)}
                   disabled={busy || loading}
