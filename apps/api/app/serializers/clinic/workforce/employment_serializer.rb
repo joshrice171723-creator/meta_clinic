@@ -28,7 +28,7 @@ module Clinic
               role_version_id: grant.role_version_id,
               role_code: grant.role_version.role_code,
               label: Clinic::Authorization::PilotRoleCatalog.definition(grant.role_version.role_code)&.fetch(:label, nil) ||
-                grant.role_version.role_code.sub(/^workforce-/, "").titleize,
+                grant.role_version.role_code.titleize,
               scope_kind: grant.scope_kind,
               site_id: grant.site_id
             } },

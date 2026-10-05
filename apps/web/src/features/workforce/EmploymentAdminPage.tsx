@@ -61,7 +61,6 @@ function localDateTime() {
 
 function roleLabel(roleCode: string) {
   return roleCode
-    .replace(/^workforce-/, "")
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
@@ -1131,8 +1130,8 @@ export function EmploymentAdminPage() {
                   <Typography variant="body2">
                     {Array.from(
                       new Set(
-                        employment.roles.map((role) =>
-                          roleLabel(role.role_code),
+                        employment.roles.map(
+                          (role) => role.label || roleLabel(role.role_code),
                         ),
                       ),
                     ).join(", ") || "Employee"}

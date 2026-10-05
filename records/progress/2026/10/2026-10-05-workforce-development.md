@@ -238,3 +238,9 @@ The individual access editor now registers a hard clinic navigation blocker duri
 - Check saved access confirmed the stored role and work sites. The administrator then restored Main clinic only through the UI, revoked Casey's clinic account through its explicit confirmation dialog, and successfully navigated to Team schedule.
 - Read-back confirmed Casey inactive for work and login, Main clinic as the sole active work-site assignment, zero active role grants, and retained history of all three Front Desk Coordinator grants as revoked. No existing employee's role or work-site assignment was changed for this walkthrough.
 - Scoped Prettier, TypeScript, and diff checks passed. The existing UI regression now includes the ordinary clinic navigation guard; it was not executed. No automated tests were run.
+
+## Distinct access-role labels and invitation revocation
+
+At 14:13 UTC, workforce roles retain their Workforce prefix in API role options, employee grants, and the directory fallback. The browser previously offered two distinct roles with the identical Payroll Operator label. It now distinguishes Payroll Operator from Workforce Payroll Operator and also shows Workforce Administrator and Workforce Location Manager. Role codes, grants, and authorization behavior are unchanged. TypeScript, scoped RuboCop for both API files, formatting, and diff review passed.
+
+An independent browser journey created invitation 1 for synthetic Avery Example at Main clinic with Front Desk Coordinator. The page showed the one-time activation material without that material being read into logs or evidence. The administrator revoked the invitation through the existing confirmation dialog. Token/link fields and pending revoke actions disappeared. Database read-back confirmed revoked status at 14:07:44.918Z, a cleared token digest, no activation timestamp, and no Avery user account. No code change was required for invitation revocation.

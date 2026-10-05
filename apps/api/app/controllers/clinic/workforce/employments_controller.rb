@@ -42,7 +42,7 @@ module Clinic
           role_options: role_versions.map { |role_version|
             Clinic::RoleVersionSerializer.call(role_version).merge(
               label: Clinic::Authorization::PilotRoleCatalog.definition(role_version.role_code)&.fetch(:label, nil) ||
-                role_version.role_code.sub(/^workforce-/, "").titleize)
+                role_version.role_code.titleize)
           },
           invitations: EmployeeInvitation.where(practice_id: current_practice.id, status: "pending")
             .includes(:staff_member, :role_version).order(:expires_at, :id).map { |invitation|
