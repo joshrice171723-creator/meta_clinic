@@ -180,6 +180,8 @@ module Identity
       end
 
       def development_accounts
+        return [] if request.headers["X-Clinic-Demo"] == "1"
+
         DevelopmentAccess.allowed?(request) ? Development::TestAccounts.preview_accounts : []
       end
 

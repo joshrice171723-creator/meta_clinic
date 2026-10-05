@@ -585,8 +585,11 @@ class GuidedClinicDemoTest < ActionDispatch::IntegrationTest
   end
 
   test "demo workspace prefix keeps CSRF and identity separate" do
-    get "/api/demo-workspace/csrf", headers: @headers.except("X-Clinic-Demo")
+    Development::TestAccounts.stub(:preview_accounts, -> { flunk "Demo CSRF must not build the development account directory" }) do
+      get "/api/demo-workspace/csrf", headers: @headers.except("X-Clinic-Demo")
+    end
     assert_response :success
+    assert_empty response.parsed_body.fetch("development_accounts")
     assert response.parsed_body.fetch("csrf_token").present?
     assert response.headers["Set-Cookie"].to_s.include?("_apply_demo_session")
     refute response.headers["Set-Cookie"].to_s.include?("_apply_session=")

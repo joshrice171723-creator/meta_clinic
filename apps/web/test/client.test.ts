@@ -24,6 +24,33 @@ afterEach(() => {
 });
 
 describe("same-origin API boundary", () => {
+  it("reuses CSRF across sandbox preparation but refreshes after account selection", async () => {
+    const fetch = vi
+      .fn()
+      .mockImplementation((path: string) =>
+        Promise.resolve(
+          json(
+            path.endsWith("/csrf")
+              ? { csrf_token: "synthetic" }
+              : { complete: true },
+          ),
+        ),
+      );
+    vi.stubGlobal("fetch", fetch);
+    await api("/api/demo/sandbox/prepare", { method: "POST", body: {} });
+    await api("/api/demo/sandbox/prepare", { method: "POST", body: {} });
+    await api("/api/demo/run/view", { method: "POST", body: {} });
+    await api("/api/demo/run");
+    expect(fetch.mock.calls.map(([path]) => path)).toEqual([
+      "/api/csrf",
+      "/api/demo/sandbox/prepare",
+      "/api/demo/sandbox/prepare",
+      "/api/demo/run/view",
+      "/api/csrf",
+      "/api/demo/run",
+    ]);
+    expect(fetch.mock.calls[2][1].headers["X-CSRF-Token"]).toBe("synthetic");
+  });
   it.each([
     ["/api/clinic/assistant/context", "POST", false],
     ["/api/clinic/assistant/context", "DELETE", false],
