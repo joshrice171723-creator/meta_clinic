@@ -51,7 +51,7 @@ module Development
           session[:guided_clinic_demo_run_id] = selected.id
           session[:sandbox_preparing_visitor_id] = visitor.id
           session[:sandbox_requested_account] = account_key
-          cookies.encrypted[:guided_clinic_demo_run] = cookie_value(selected.id)
+          cookies.encrypted[GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_run)] = cookie_value(selected.id)
         else
           establish_demo_session(session_user_for(selected), selected, view: DemoLessonCatalog.view_for(lesson_key))
         end
@@ -84,7 +84,7 @@ module Development
         DemoLessonCatalog.sandbox?(run.lesson_key) ? current_member_session&.destroy! : SharedDemoLesson.leave!(run)
       end
       clear_demo_session!
-      cookies.encrypted[:guided_clinic_demo_visitor] = cookie_value(visitor.id)
+      cookies.encrypted[GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_visitor)] = cookie_value(visitor.id)
       render json: inactive_payload(visitor:)
     end
 
@@ -151,7 +151,7 @@ module Development
         DemoLessonCatalog.sandbox?(run.lesson_key) ? current_member_session&.destroy! : SharedDemoLesson.leave!(run)
       end
       clear_demo_session!
-      cookies.delete(:guided_clinic_demo_visitor) if clear_visitor
+      cookies.delete(GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_visitor)) if clear_visitor
       render json: inactive_payload(visitor: clear_visitor ? nil : visitor)
     end
 
@@ -200,7 +200,7 @@ module Development
     end
 
     def current_visitor
-      binding = cookies.encrypted[:guided_clinic_demo_visitor]
+      binding = cookies.encrypted[GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_visitor)]
       DemoVisitor.find_by(id: Integer(binding, 10)) if binding.present?
     rescue ActiveSupport::MessageEncryptor::InvalidMessage, ArgumentError
       nil
@@ -219,10 +219,10 @@ module Development
     end
 
     def bound_run
-      binding = cookies.encrypted[:guided_clinic_demo_run]
+      binding = cookies.encrypted[GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_run)]
       DemoRun.find_by(id: Integer(binding, 10)) if binding.present?
     rescue ActiveSupport::MessageEncryptor::InvalidMessage, ArgumentError
-      cookies.delete(:guided_clinic_demo_run)
+      cookies.delete(GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_run))
       nil
     end
 
@@ -268,7 +268,7 @@ module Development
     def clear_demo_session!
       reset_session
       @current_member_session = nil
-      cookies.delete(:guided_clinic_demo_run)
+      cookies.delete(GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_run))
     end
 
     def establish_demo_session(user, run, view:, account: nil)
@@ -285,7 +285,7 @@ module Development
       end
       session[:guided_clinic_demo_view] = view
       session[:sandbox_account] = account.key if account
-      cookies.encrypted[:guided_clinic_demo_run] = cookie_value(run.id)
+      cookies.encrypted[GuidedDemoSessionStore.cookie_key(:guided_clinic_demo_run)] = cookie_value(run.id)
     end
 
     def session_user_for(run)
