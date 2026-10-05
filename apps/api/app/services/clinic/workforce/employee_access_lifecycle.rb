@@ -35,7 +35,9 @@ module Clinic
             end
             locked.update!(status: :inactive, effective_until: now)
             membership.update!(active: false)
-            user.update!(active: false)
+            preserve_account_access = user.clinic_memberships.active.exists? ||
+              Clinic::PatientPortal::Identity.available.where(user_id: user.id).exists? || user.platform_owner_access?
+            user.update!(active: false) unless preserve_account_access
             action = "workforce.account.revoke"
           end
           Clinic::AuditRecorder.record!(practice: locked.practice, actor: actor, action_code: action,
