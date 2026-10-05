@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Autocomplete,
@@ -6,7 +6,6 @@ import {
   MenuItem,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 import type {
   WorkflowField,
@@ -86,6 +85,7 @@ function RecordField({
       disabled={disabled}
       renderInput={(params) => (
         <TextField
+          data-workflow-field={field.key}
           {...params}
           label={field.label}
           required={field.required}
@@ -116,6 +116,8 @@ export function WorkflowForm({
   onSearchOption: (field: string, query: string) => void;
   onSubmit: () => void;
 }) {
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const focusedOperation = useRef("");
   const unsupported = operation.fields.filter(
     (field) =>
       (field.type === "array" &&
@@ -147,16 +149,60 @@ export function WorkflowForm({
   const missingFields = operation.fields.filter(
     (field) => field.required && isMissingRequiredValue(values[field.key]),
   );
+  const firstMissingKey = missingFields[0]?.key;
+  const focusField = useCallback((key: string) => {
+    const field = Array.from(
+      formRef.current?.querySelectorAll<HTMLElement>("[data-workflow-field]") ??
+        [],
+    ).find((element) => element.dataset.workflowField === key);
+    const control = field?.querySelector<HTMLElement>(
+      'input:not([aria-hidden="true"]), textarea, [role="combobox"]',
+    );
+    if (control) {
+      control.focus({ preventScroll: true });
+      field?.scrollIntoView({ block: "nearest", behavior: "auto" });
+    }
+  }, []);
+  useEffect(() => {
+    if (
+      disabled ||
+      !firstMissingKey ||
+      focusedOperation.current === operation.key
+    )
+      return;
+    focusedOperation.current = operation.key;
+    focusField(firstMissingKey);
+  }, [disabled, firstMissingKey, operation.key, focusField]);
 
   return (
     <Stack
       spacing={2}
       component="form"
+      ref={formRef}
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
       }}
     >
+      {missingFields.length > 0 && (
+        <Alert
+          severity="info"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              disabled={disabled}
+              onClick={() => focusField(missingFields[0].key)}
+            >
+              Go to next field
+            </Button>
+          }
+        >
+          {missingFields.length} required{" "}
+          {missingFields.length === 1 ? "detail" : "details"} left. Next:{" "}
+          {missingFields[0].label}.
+        </Alert>
+      )}
       {operation.fields.map((field) => {
         const value = values[field.key] ?? null;
         const namedOptions = field.options ?? optionsByField[field.key] ?? [];
@@ -177,6 +223,7 @@ export function WorkflowForm({
         if (field.type === "select" || (field.options?.length ?? 0) > 0) {
           return (
             <TextField
+              data-workflow-field={field.key}
               key={field.key}
               select
               label={field.label}
@@ -221,6 +268,7 @@ export function WorkflowForm({
         if (field.type === "boolean") {
           return (
             <TextField
+              data-workflow-field={field.key}
               key={field.key}
               select
               label={field.label}
@@ -277,6 +325,7 @@ export function WorkflowForm({
                 disabled={disabled}
                 renderInput={(params) => (
                   <TextField
+                    data-workflow-field={field.key}
                     {...params}
                     label={field.label}
                     required={field.required}
@@ -300,6 +349,7 @@ export function WorkflowForm({
                 disabled={disabled}
                 renderInput={(params) => (
                   <TextField
+                    data-workflow-field={field.key}
                     {...params}
                     label={field.label}
                     required={field.required}
@@ -329,6 +379,7 @@ export function WorkflowForm({
               disabled={disabled}
               renderInput={(params) => (
                 <TextField
+                  data-workflow-field={field.key}
                   {...params}
                   label={field.label}
                   required={field.required}
@@ -352,6 +403,7 @@ export function WorkflowForm({
         }
         return (
           <TextField
+            data-workflow-field={field.key}
             key={field.key}
             label={field.label}
             type={
@@ -411,11 +463,6 @@ export function WorkflowForm({
           One or more fields need named choices that this clinic has not
           provided. This request cannot be submitted safely.
         </Alert>
-      )}
-      {missingFields.length > 0 && (
-        <Typography variant="body2" color="text.secondary" role="status">
-          Still needed: {missingFields.map((field) => field.label).join(", ")}.
-        </Typography>
       )}
       <Button
         type="submit"

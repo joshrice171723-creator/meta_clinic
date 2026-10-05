@@ -39,6 +39,16 @@
   padding-block: 12px;
   background: var(--clinic-sidebar-ground, rgba(0, 0, 0, 0.03));
   color: var(--clinic-sidebar-on, inherit);
+  flex-shrink: 0;
+  max-height: 25dvh;
+  overflow-y: auto;
+}
+
+.clinic-assistant__progress {
+  display: grid;
+  gap: 8px;
+  padding: 12px 24px;
+  flex-shrink: 0;
 }
 
 .clinic-assistant__body {
