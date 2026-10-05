@@ -244,3 +244,13 @@ The individual access editor now registers a hard clinic navigation blocker duri
 At 14:13 UTC, workforce roles retain their Workforce prefix in API role options, employee grants, and the directory fallback. The browser previously offered two distinct roles with the identical Payroll Operator label. It now distinguishes Payroll Operator from Workforce Payroll Operator and also shows Workforce Administrator and Workforce Location Manager. Role codes, grants, and authorization behavior are unchanged. TypeScript, scoped RuboCop for both API files, formatting, and diff review passed.
 
 An independent browser journey created invitation 1 for synthetic Avery Example at Main clinic with Front Desk Coordinator. The page showed the one-time activation material without that material being read into logs or evidence. The administrator revoked the invitation through the existing confirmation dialog. Token/link fields and pending revoke actions disappeared. Database read-back confirmed revoked status at 14:07:44.918Z, a cleared token digest, no activation timestamp, and no Avery user account. No code change was required for invitation revocation.
+
+## Invitation revoke replay
+
+The shared onboarding service now returns an already-revoked invitation after rechecking the actor's active membership and workforce administration permission and locking the invitation. It preserves the original revocation timestamp and creates no second audit event. Pending invitations retain the ordinary revoke transition; activated invitations remain rejected.
+
+At 14:22 UTC, a synthetic Blair Example invitation (2) was created through the UI. Developer response interception held its revoke PATCH after HTTP 200, then dropped the response. The UI retained its pending invitation action and displayed an unconfirmed-result warning. Interception was cleared. Source inspection showed retry would previously reject this already-revoked record. The service repair addresses that branch; post-repair browser replay was not completed.
+
+One browser alert read inadvertently included the already-revoked synthetic activation link. The affected panel inspection stopped, the user was notified without repeating the value, and existing logs were preserved. No value was copied into files or Git; no independent credential rotation or evidence deletion occurred. Follow-up checks are confined to source and non-sensitive status. This is not a completed incident assessment.
+
+Ruby syntax and scoped RuboCop passed. The existing onboarding regression now checks repeated revoke success and unchanged revocation time; it was not run. The initial lint invocation used the wrong relative resource-runner path, then the corrected invocation passed.

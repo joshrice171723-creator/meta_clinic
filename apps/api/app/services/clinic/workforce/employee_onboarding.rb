@@ -58,6 +58,8 @@ module Clinic
           Clinic::Membership.active.lock.find_by!(practice_id: invitation.practice_id, user_id: actor.id)
           Access.new(actor: actor, practice: invitation.practice, at: now).authorize!("workforce.admin")
           locked = EmployeeInvitation.lock.find(invitation.id)
+          next locked if locked.revoked?
+
           raise ArgumentError, "Only a pending employee invitation can be revoked." unless locked.pending?
 
           locked.update!(status: :revoked, revoked_at: now, token_digest: nil, email_digest: nil)

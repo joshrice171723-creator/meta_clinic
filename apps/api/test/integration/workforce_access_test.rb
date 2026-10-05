@@ -431,6 +431,12 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert invitation.reload.revoked?
     assert_nil invitation.token_digest
+    revoked_at = invitation.revoked_at
+    patch "/api/clinic/workforce/onboarding/#{invitation.id}",
+      params: { employee_invitation: { action: "revoke" } }, headers: csrf_headers, as: :json
+    assert_response :success
+    assert_equal "revoked", response.parsed_body.dig("invitation", "status")
+    assert_equal revoked_at, invitation.reload.revoked_at
     post "/api/clinic/workforce/onboarding", params: muse_invitation_payload,
       headers: csrf_headers, as: :json
     assert_response :created
