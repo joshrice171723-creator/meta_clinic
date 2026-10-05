@@ -170,7 +170,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     @saved_stripe = ENV.to_h.slice("STRIPE_SANDBOX_KEY", "STRIPE_SANDBOX_ACCOUNT_ID",
       "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_RETURN_ORIGIN", "STRIPE_MOTO_READER_ID",
       "APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS")
-    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "1"
+    Rails.env, ENV["APP_DEVELOPMENT_LOGIN"] = "development", "0"
+    ENV.delete("APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS")
     ENV["STRIPE_SANDBOX_KEY"] = "rk_test_storefrontfixture"
     ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = "disabled"
     ENV["STRIPE_CONNECT_WEBHOOK_SECRET"] = "whsec_storefront_fixture"
@@ -458,10 +459,13 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   end
 
   test "account-first local simulator API preserves entitlement through renewal failure and period-end cancellation" do
+    ENV["APP_DEVELOPMENT_LOGIN"] = "1"
     travel_to Time.utc(2026, 9, 22, 12) do
       practice = Clinic::Practice.create!(name: "Local Account First Clinic")
       admin = create_staff(practice, "local-account-admin@example.invalid",
         "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish")
+      site = practice.sites.create!(code: "SIMULATOR", status: "active")
+      configure_site!(site, membership: admin.clinic_membership)
       version_id = publish_catalog(admin, "LocalAccountFirst", renewal: "automatic")
       configure_storefront(admin, "local-account-first", enabled: true)
       ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = practice.id.to_s
@@ -602,6 +606,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
   end
 
   test "loopback synthetic signup activates only with development access" do
+    ENV["APP_DEVELOPMENT_LOGIN"] = "1"
     version_id = publish_catalog(@admin, "LocalSetup")
     configure_storefront(@admin, "local-setup", enabled: true)
     ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = @practice.id.to_s
@@ -729,7 +734,7 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       version_id = publish_catalog(@admin, "Atomic", renewal:)
       configure_storefront(@admin, "atomic-memberships", enabled: true)
       payload = prospect_payload(version_id:, request_key: "atomic-purchase").fetch(:prospect)
-      prepared = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **payload.symbolize_keys)
+      prepared = Clinic::MembershipGrowth::PrepareAccount.call(practice: @practice, **payload.symbolize_keys, date_of_birth: "1990-02-28")
       setup_url = ActionMailer::Base.deliveries.sole.text_part.body.decoded.lines.map(&:strip)
         .find { |line| line.include?("/memberships/account/activate#") }
       token = URI.decode_www_form(URI.parse(setup_url).fragment).to_h.fetch("token")
@@ -934,6 +939,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
     )
     ENV["STRIPE_SANDBOX_ACCOUNT_ID"] = existing_connection.account_id
     connection_attributes = existing_connection.attributes.except("updated_at")
+    site = practice.sites.create!(code: "SIMULATOR", status: "active")
+    configure_site!(site, membership: admin.clinic_membership)
     version_id = publish_catalog(admin, "LocalOneTime", renewal: "automatic")
     ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = practice.id.to_s
     sign_in(admin)
@@ -1120,6 +1127,8 @@ class MembershipGrowthTest < ActionDispatch::IntegrationTest
       admin = create_staff(practice, "local-recurring-admin@example.invalid",
         "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish",
         "patients.write", "patient_portal.identity.invite")
+      site = practice.sites.create!(code: "SIMULATOR", status: "active")
+      configure_site!(site, membership: admin.clinic_membership)
       version_id = publish_catalog(admin, "LocalRecurring", renewal: "automatic")
       configure_storefront(admin, "local-recurring-memberships", enabled: true)
       ENV["APP_LOCAL_MEMBERSHIP_SIMULATOR_PRACTICE_IDS"] = [ practice.id, @foreign_practice.id ].join(",")

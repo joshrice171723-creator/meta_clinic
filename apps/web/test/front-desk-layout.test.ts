@@ -22,7 +22,7 @@ describe("front desk action layout", () => {
 
   it("keeps appointment actions clear of one another when they wrap", () => {
     expect(styles).toMatch(
-      /\.front-desk-actions[\s\S]*?gap: 10px 12px !important;/,
+      /\.front-desk-actions[\s\S]*?gap: 8px 12px !important;/,
     );
   });
 });

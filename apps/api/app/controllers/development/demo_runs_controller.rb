@@ -129,7 +129,7 @@ module Development
 
     def resume
       run = current_run!
-      require_run_user!(run)
+      raise ActiveRecord::RecordNotFound unless valid_run_user?(run) || resumable_lesson?(run)
       if DemoLessonCatalog.sandbox?(run.lesson_key) && session[:sandbox_account]
         with_current_sandbox_run!(run) do
           account = SandboxAccounts.resolve(run, session[:sandbox_account])
@@ -239,6 +239,17 @@ module Development
       return true if pending_sandbox_account?(run)
       return SandboxAccounts.valid_user?(run, current_user) if DemoLessonCatalog.sandbox?(run.lesson_key) && session[:sandbox_account]
       current_user&.id.in?([ run.operator_user_id, run.patient_user_id ].compact)
+    end
+
+    # Only the browser holding both encrypted bindings can recover an expired
+    # lesson session. Sandbox identity selection still requires its live session.
+    def resumable_lesson?(run)
+      return false if current_user || DemoLessonCatalog.sandbox?(run.lesson_key)
+
+      visitor = current_visitor
+      return false unless visitor && visitor.id == run.visitor_id && run.reload.active?
+
+      run.operator_user.active? && run.practice.memberships.active.exists?(user: run.operator_user)
     end
 
     def pending_sandbox_account?(run)

@@ -27,7 +27,7 @@ it.each(["/demo", "/demo/"])(
   "%s starts with one branded demo entry and preserves the sign-in link",
   async (pathname) => {
     const html = await renderPath(pathname);
-    expect(html).toContain("Step inside a");
+    expect(html).toContain("See a clinic day");
     expect(html).toContain("Getting the clinic ready");
     expect(html).toContain('role="status"');
     expect(html).toContain("nightly refresh is scheduled");

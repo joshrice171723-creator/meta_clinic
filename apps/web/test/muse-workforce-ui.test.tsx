@@ -52,7 +52,7 @@ beforeAll(async () => {
         load(id) {
           if (id === "\0qa-workforce") return entry;
           if (id === "\0qa-navigation")
-            return "export const useClinicNavigation = () => ({ navigate: path => { window.qaDestination = path; } });";
+            return "export const useClinicNavigation = () => ({ registerBlocker: () => () => {}, navigate: path => { window.qaDestination = path; return true; } });";
           if (id === "\0qa-context")
             return `export const useClinic = () => ({ current_site: ${JSON.stringify(sites[0])}, sites: ${JSON.stringify(sites)}, practice: { timezone: 'UTC' }, capabilities: { workforce_admin: !location.search.includes("denied"), workforce_badges: !location.search.includes("denied"), workforce_settings: !location.search.includes('denied'), workforce_timecards_read: true, workforce_timecards_review: !location.search.includes('denied'), workforce_timecards_approve: false, workforce_payroll_configure: true, workforce_payroll_export: true } });`;
         },
@@ -295,10 +295,9 @@ it("Muse88 activation entry explicitly asks for an invitation code", async () =>
 });
 it("Muse119 completed clinic profile explicitly separates workforce settings", async () => {
   const page = await open("setup");
-  const text = page.getByText(
-    "Location profile setup is complete. Workforce settings are managed separately under Workforce.",
-    { exact: true },
-  );
+  const text = page
+    .getByRole("alert")
+    .filter({ hasText: "Clinic type and insurance workflow remain protected" });
   await text.waitFor();
   expect(await text.isVisible()).toBe(true);
   await page.close();
@@ -432,6 +431,7 @@ it("Muse67 configured employees can calculate and reload saved timecard hours", 
       },
     );
     await page.goto(base + "qa-workforce?mode=timecards");
+    await page.getByRole("button", { name: "Calculate a timecard" }).click();
     const calculate = page.getByRole("button", {
       name: "Calculate",
       exact: true,
@@ -620,6 +620,7 @@ it("Muse68 configured approved timecards produce preview export and saved histor
 
 it("Muse67 no eligible employees offers management recovery and blocks calculation", async () => {
   const page = await open("timecards&empty=1");
+  await page.getByRole("button", { name: "Calculate a timecard" }).click();
   const button = page.getByRole("button", { name: "Manage employees" });
   await button.waitFor();
   expect(
@@ -645,7 +646,7 @@ it("Muse67 no eligible employees offers management recovery and blocks calculati
 it.each([
   [
     "badges",
-    "The one-time enrollment code creates a secure, clock-only session. It does not sign the device into the clinic workspace.",
+    "The one-time enrollment code creates a secure, clock-only session. It does not sign the device into the clinic workspace. Open the clock on the device you want to enroll, then enter the code there.",
   ],
   [
     "payroll",

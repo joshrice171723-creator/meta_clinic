@@ -75,6 +75,7 @@ module Development
           Clinic::Scheduling::CreateEncounter.call(
             practice: run.practice, actor: run.operator_user, patient: run.patient,
             appointment: run.practice.appointments.where(patient: run.patient).order(:id).last,
+            site: run.patient.primary_site || run.practice.sites.where(status: "active").order(:id).first,
             started_at: Current.business_time
           )
       end

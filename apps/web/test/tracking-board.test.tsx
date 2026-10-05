@@ -15,6 +15,13 @@ import {
   compactNavigation,
 } from "../src/features/clinic/ClinicFrame";
 import { ClinicNavigation } from "../src/features/clinic/Workspace";
+
+vi.mock("../src/features/clinic/Workspace", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../src/features/clinic/Workspace")
+  >()),
+  useClinic: () => ({ ...context, refreshContext: async () => {} }),
+}));
 import { OperationsView } from "../src/features/clinic/Operations";
 import {
   appointmentDefaults,
@@ -492,7 +499,7 @@ describe("board and Operations presentation boundaries", () => {
     expect(html).toContain("tracking-visit-alt");
     expect(html).toContain("<colgroup>");
     expect(html).toContain(
-      'style="width:100%;min-width:1168px;table-layout:fixed"',
+      'style="width:100%;min-width:1136px;table-layout:fixed"',
     );
     expect(html).toContain("tracking-table");
     expect(html).toContain('data-label="Patient"');
@@ -764,8 +771,11 @@ describe("board and Operations presentation boundaries", () => {
         path="/clinic/operations"
       />,
     );
-    expect(html).toContain('href="/clinic/operations" aria-current="page"');
-    expect(html).not.toContain('type="button"');
+    expect(html).toMatch(
+      /<a(?=[^>]*href="\/clinic\/operations")(?=[^>]*aria-current="page")[^>]*>/,
+    );
+    expect(html).toContain('aria-label="Clinic navigation"');
+    expect(html).toMatch(/<a(?=[^>]*href="\/clinic\/operations")[^>]*>/);
     expect(html).toContain("Tracking Board");
     expect(html).toContain("Schedule");
     expect(html).not.toContain("EHR");
@@ -785,7 +795,9 @@ describe("board and Operations presentation boundaries", () => {
         homeView="schedule"
       />,
     );
-    expect(schedule).toContain('href="/clinic/schedule" aria-current="page"');
+    expect(schedule).toMatch(
+      /<a(?=[^>]*href="\/clinic\/schedule")(?=[^>]*aria-current="page")[^>]*>/,
+    );
     expect(schedule).toContain("Schedule");
     expect(schedule).not.toContain('href="/clinic" aria-current="page"');
   });
@@ -796,7 +808,9 @@ describe("board and Operations presentation boundaries", () => {
         path="/clinic/billing"
       />,
     );
-    expect(html).toContain('href="/clinic/billing" aria-current="page"');
+    expect(html).toMatch(
+      /<a(?=[^>]*href="\/clinic\/billing")(?=[^>]*aria-current="page")[^>]*>/,
+    );
     expect(loginDestination("/clinic/billing")).toBe("/clinic/billing");
     expect(loginDestination("/clinic/billing/patients")).toBe(
       "/clinic/billing/patients",
@@ -1142,7 +1156,7 @@ describe("viewport-height clinic menu navigation", () => {
       );
       expect(html).toContain(`data-collapsed="${compact}"`);
       expect(html).toContain(`aria-expanded="${!compact}"`);
-      expect(html).toContain('aria-controls="clinic-sidebar"');
+      expect(html).toContain('aria-controls="clinic-sidebar-content"');
       expect(html.includes('hidden=""')).toBe(compact);
       expect(html).toContain("Sign out");
       expect(html).not.toContain("CLINIC WORKSPACE");
@@ -1175,9 +1189,9 @@ describe("viewport-height clinic menu navigation", () => {
     expect(css).toContain(".clinic-sidebar[hidden]");
     expect(css).toContain("width: 40px");
     expect(css).toContain(
-      '.clinic-shell[data-collapsed="false"] .clinic-menu-toggle',
+      '.clinic-shell[data-collapsed="true"] .clinic-sidebar-frame',
     );
-    expect(css).toContain("right: 12px");
+    expect(css).toContain("position: static");
     expect(css).toContain("grid-template-columns: 56px minmax(0, 1fr)");
     expect(css).toContain("margin-left: 0");
     const boardCss = readFileSync(

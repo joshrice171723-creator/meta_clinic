@@ -167,7 +167,9 @@ module Clinic
     end
 
     def require_clinic
-      unless clinic_membership && (development_omni? || DeploymentAccess.practice_enabled?(current_practice.id))
+      staging_demo = Staging::DemoClinic.available_to?(current_user) &&
+        current_user.clinic_membership == clinic_membership
+      unless clinic_membership && (development_omni? || staging_demo || DeploymentAccess.practice_enabled?(current_practice.id))
         render_error("No active clinic assignment. Contact your clinic administrator.", :forbidden)
       end
     end

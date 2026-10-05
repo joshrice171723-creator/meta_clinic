@@ -1,5 +1,4 @@
 require "test_helper"
-require "digest"
 
 class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
   setup do
@@ -24,6 +23,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
       first_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       first = Development::SharedDemoLesson.enter!("sandbox", visitor:)
       first_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - first_started
+      prepare_demo_sandbox!(first)
       practices = first.practice.organization.practices.order(:id).to_a
       baseline = snapshot(practices)
 
@@ -35,6 +35,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
 
       reset_started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       second = Development::SharedDemoLesson.enter!("sandbox", visitor:, previous_run: first, restart: true)
+      prepare_demo_sandbox!(second)
       reset_seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - reset_started
       assert_equal practices.map(&:id), second.practice.organization.practices.order(:id).pluck(:id)
       restored = snapshot(second.practice.organization.practices.order(:id).to_a)
@@ -59,8 +60,7 @@ class DemoSandboxResetFidelityTest < ActionDispatch::IntegrationTest
             violations << "#{before.fetch(:practice)} table counts: #{differences.inspect}" if differences.any?
             next
           end
-          next if Digest::SHA256.hexdigest(Marshal.dump(value)) ==
-            Digest::SHA256.hexdigest(Marshal.dump(after.fetch(section)))
+          next if value == after.fetch(section)
 
           details = if section == :patients
             old_rows = value.to_h { |reference, name, site| [ reference, [ name, site ] ] }

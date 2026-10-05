@@ -296,7 +296,10 @@ describe("system appearance and UI scope", () => {
       "/clinic/operations#connectors-transmissions",
       "/clinic/settings",
     ]);
-    expect(restricted.match(/<button /g)).toBeNull();
+    expect(restricted).toMatch(
+      /<button[^>]*aria-controls="clinic-account-links"[^>]*>/,
+    );
+    expect(restricted).not.toContain("/clinic/patients");
     expect(restricted).toContain("/clinic/work");
     expect(restricted).toContain("/clinic/operations");
     expect(restricted).toContain("/clinic/settings");

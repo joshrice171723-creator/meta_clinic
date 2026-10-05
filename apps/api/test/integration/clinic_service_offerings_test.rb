@@ -123,7 +123,8 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_includes response.body, "eligible site"
 
-    roomless = @practice.sites.create!(code: "REMOTE", name: "Remote site", status: "draft")
+    roomless = @practice.sites.create!(code: "REMOTE", name: "Remote site", status: "active")
+    configure_site!(roomless, membership: @membership, services: %w[telehealth])
     patch "/api/clinic/service_offerings/#{incomplete.fetch('id')}",
       params: {
         service_offering: {
@@ -161,7 +162,8 @@ class ClinicServiceOfferingsTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "eligible site"
     assert_equal [ @site.id ], @practice.service_offerings.find(draft.fetch("id")).sites.pluck(:id)
 
-    roomless = @practice.sites.create!(code: "ROOMLESS", name: "Roomless site", status: "draft")
+    roomless = @practice.sites.create!(code: "ROOMLESS", name: "Roomless site", status: "active")
+    configure_site!(roomless, membership: @membership, services: %w[telehealth])
     patch "/api/clinic/service_offerings/#{draft.fetch('id')}", params: {
       service_offering: { request_key: "coverage-roomless-site", lock_version: published.fetch("lock_version"), site_ids: [ roomless.id ] }
     }, headers: csrf_headers, as: :json

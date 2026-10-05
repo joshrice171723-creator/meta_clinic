@@ -36,7 +36,7 @@ class ClinicDailyVisitsByStateReportTest < ActionDispatch::IntegrationTest
     assert_equal "America/Los_Angeles", report.fetch("timezone")
     assert_equal 23.hours, Time.iso8601(report.fetch("interval_end")) - Time.iso8601(report.fetch("interval_start"))
     assert_equal "live_source_query_no_cache", report.fetch("freshness")
-    assert_equal 1, report.dig("definition", "revision")
+    assert_equal 2, report.dig("definition", "revision")
     assert_equal "starts_at", report.dig("definition", "date_basis")
     assert Time.iso8601(report.fetch("as_of")) <= Time.current
     assert_not_includes response.body, @patient.display_name

@@ -1,4 +1,11 @@
 module AuthorizationHelpers
+  def prepare_demo_sandbox!(run, visitor: run.visitor)
+    Development::SharedDemoLesson::SANDBOX_PREPARERS.length.times do
+      return run if Development::SharedDemoLesson.prepare_sandbox_step!(run, visitor: visitor)
+    end
+    raise "Synthetic sandbox preparation did not complete"
+  end
+
   def configure_site!(site, membership:, services: [], effective_from: Time.utc(2026, 1, 1))
     features = {
       "clinic_type" => "primary_care", "insurance_workflows" => false,

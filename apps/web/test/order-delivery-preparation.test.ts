@@ -75,10 +75,17 @@ beforeAll(async () => {
     plugins: [
       {
         name: "supplier-request-test-entry",
-        resolveId(id) {
+        resolveId(id, importer) {
+          if (
+            id === "../clinic/Workspace" &&
+            importer?.endsWith("OrderDeliveryPreparation.tsx")
+          )
+            return "\0delivery-context";
           if (id === virtualId) return virtualId;
         },
         load(id) {
+          if (id === "\0delivery-context")
+            return 'export const useClinic=()=>({practice:{id:1,timezone:"UTC"}});';
           if (id === virtualId) return entry;
         },
         configureServer(s) {

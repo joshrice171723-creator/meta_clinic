@@ -32,9 +32,16 @@ class BackendIntegrityTest < ActiveSupport::TestCase
   end
 
   test "cancellation frees a reservation but active overlap remains forbidden" do
-    site = @practice.sites.create!(code: "SYN")
+    site = @practice.sites.create!(code: "SYN", status: "active")
+    configure_site!(site, membership: @membership)
+    clinician = @practice.clinician_profiles.create!(membership: @membership, display_name: "Synthetic integrity clinician")
+    visit_type = @practice.visit_types.create!(code: "INTEGRITY")
+    7.times do |weekday|
+      Clinic::Scheduling::CapacityRule.create!(practice: @practice, site: site, clinician: clinician,
+        kind: "weekly", weekday: weekday, start_minute: 0, end_minute: 1440)
+    end
     room = site.rooms.create!(practice: @practice, code: "ONE")
-    args = { practice: @practice, actor: @user, patient: @patient, site: site, room: room, starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes }
+    args = { practice: @practice, actor: @user, patient: @patient, site: site, room: room, booked_clinician: clinician, visit_type: visit_type, starts_at: 1.day.from_now, ends_at: 1.day.from_now + 30.minutes }
     booking = Clinic::Scheduling::BookAppointment.call(**args)
     assert_raises(ArgumentError) { ApplicationRecord.transaction(requires_new: true) { Clinic::Scheduling::BookAppointment.call(**args) } }
     Clinic::Scheduling::TransitionAppointment.call(appointment: booking, actor: @user, to: "cancelled")

@@ -117,7 +117,7 @@ class SubscriptionAllowancesTest < ActiveSupport::TestCase
     travel_to(Time.utc(2026, 1, 1, 12)) do
       paid_period(Time.current, Time.current + 10.days)
       original = use(1, "historic-use", balance[:allowance_window])
-      @package.update!(draft: @package.draft.merge("components" => [ @package.draft.fetch("components").first.merge("quantity" => 9, "allowance" => nil) ]))
+      @package.reload.update!(draft: @package.draft.merge("components" => [ @package.draft.fetch("components").first.merge("quantity" => 9, "allowance" => nil) ]))
       publish("new-policy")
       assert_equal POLICY, @agreement.reload.snapshot.fetch("selected_components").first.fetch("allowance")
       assert_equal 2, balance[:remaining_quantity]

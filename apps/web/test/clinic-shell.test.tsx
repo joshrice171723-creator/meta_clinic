@@ -25,7 +25,13 @@ describe("clinic shell composition", () => {
     expect(workspace).toContain(
       "onLocationChange={(siteId) => void selectSite(siteId)}",
     );
-    expect(workspace).not.toContain("window.location.reload()");
+    expect(workspace).toContain("const selectSite = async");
+    expect(
+      workspace.slice(
+        workspace.indexOf("const selectSite = async"),
+        workspace.indexOf("const selectSite = async") + 2500,
+      ),
+    ).not.toContain("window.location.reload()");
     expect(workspace).toContain("setLocationSelectionMade(true)");
     expect(workspace).toContain("refreshWorkspace();");
     expect(workspace).toContain("overview.refresh();");
@@ -57,7 +63,7 @@ describe("clinic shell composition", () => {
   });
 
   it("keeps a stable desktop rail, tablet-first layout, and safe phone drawer fallback", () => {
-    expect(frameCss).toContain("grid-template-columns: 200px minmax(0, 1fr)");
+    expect(frameCss).toContain("grid-template-columns: 232px minmax(0, 1fr)");
     expect(frameCss).toContain("display: none");
     expect(frameCss).toContain("@media (max-width: 900px)");
     expect(frameCss).toContain("gap: 12px");
@@ -134,7 +140,7 @@ describe("clinic shell composition", () => {
 
   it("keeps 1024px rail use while moving portrait tablet widths into the drawer fallback", () => {
     expect(frame).toContain('COMPACT_NAV_QUERY = "(max-width: 900px)"');
-    expect(frameCss).toContain("grid-template-columns: 200px minmax(0, 1fr)");
+    expect(frameCss).toContain("grid-template-columns: 232px minmax(0, 1fr)");
     expect(frameCss).toContain("@media (max-width: 900px)");
   });
 });

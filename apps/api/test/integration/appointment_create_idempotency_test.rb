@@ -171,7 +171,7 @@ class AppointmentCreateIdempotencyTest < ActionDispatch::IntegrationTest
     other_site = @own.fetch(:practice).sites.create!(code: "OTHER-SITE")
     submit "/api/clinic/appointments", base.deep_merge(appointment: { service_offering_id: offering.id, site_id: other_site.id })
     assert_response :unprocessable_entity
-    assert_includes response.parsed_body.fetch("error"), "site"
+    assert_includes response.parsed_body.fetch("error"), "location"
 
     submit "/api/clinic/appointments", base.deep_merge(appointment: { service_offering_id: offering.id,
       ends_at: "2026-10-01T10:00:00Z" })

@@ -22,7 +22,7 @@ class ClinicSiteScopedProviderTest < ActionDispatch::IntegrationTest
     @other_note = create_signed_note(@other_encounter, "site-provider-other")
     revoke_all_permissions!(@membership)
     grant_permissions!(@membership, "patients.read")
-    grant_permissions!(@membership, "notes.read", "notes.write", "notes.sign", "encounters.write", "observations.write",
+    grant_permissions!(@membership, "notes.read", "notes.write", "notes.sign", "encounters.write", "observations.write", "clinical_records.read",
       scope_kind: "site", site: @allowed_site)
     login
   end
@@ -84,12 +84,12 @@ class ClinicSiteScopedProviderTest < ActionDispatch::IntegrationTest
     assert_not @other_encounter.observations.exists?(code: "SYN-TEMP")
 
     post "/api/clinic/encounters/#{@allowed_encounter.id}/close", params: {
-      close: { patient_id: @patient.id, ended_at: "2026-09-02T14:30:00Z", request_key: "site-close-allowed" }
+      close: { patient_id: @patient.id, ended_at: "2026-09-02T14:30:00Z", open_work_reviewed: true, request_key: "site-close-allowed" }
     }, headers: csrf_headers, as: :json
     assert_response :success
 
     post "/api/clinic/encounters/#{@other_encounter.id}/close", params: {
-      close: { patient_id: @patient.id, ended_at: "2026-09-02T15:30:00Z", request_key: "site-close-denied" }
+      close: { patient_id: @patient.id, ended_at: "2026-09-02T15:30:00Z", open_work_reviewed: true, request_key: "site-close-denied" }
     }, headers: csrf_headers, as: :json
     assert_response :forbidden
     assert_equal "open", @other_encounter.reload.status

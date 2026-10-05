@@ -4,6 +4,7 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
   PASSWORD = "Workforce-access-only-2026!".freeze
 
   setup do
+    Clinic::Authorization::PilotRoleCatalog.install!
     Rails.cache.clear
     host! "localhost:3000"
     @headers = { "Origin" => "http://localhost:3000", "REMOTE_ADDR" => "127.0.0.1" }
@@ -14,7 +15,7 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
 
     @employee = create_user("workforce-employee")
     @employee_membership = @practice.memberships.create!(user: @employee)
-    RoleVersion.find_or_create_by!(role_code: "workforce-employee", version: 1)
+    Clinic::Workforce::RoleAssignment.default_role_version
     @employee_directory = @practice.staff_members.create!(display_name: "Taylor Morgan",
       job_title: "Clinic coordinator", active: true)
     @employment = Clinic::Workforce::Employment.create!(practice: @practice,
@@ -281,7 +282,7 @@ class WorkforceAccessTest < ActionDispatch::IntegrationTest
   end
 
   test "employee administration creates the directory record employment and role together" do
-    employee_role = RoleVersion.find_or_create_by!(role_code: "workforce-employee", version: 1)
+    employee_role = Clinic::Workforce::RoleAssignment.default_role_version
     linked_user = create_user("linked-workforce-employee")
     linked_membership = @practice.memberships.create!(user: linked_user)
     login(@manager)

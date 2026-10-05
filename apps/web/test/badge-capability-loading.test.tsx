@@ -26,7 +26,7 @@ beforeAll(async () => {
           if (value === "\0badge-context")
             return `export function useClinic(){return window.context;}`;
           if (value === id)
-            return `import React from "react";import {createRoot} from "react-dom/client";import {BadgeAdminPage} from "/src/features/workforce/BadgeAdminPage";window.context={sites:[{id:101,name:"Synthetic A"},{id:102,name:"Synthetic B"}],current_site:{id:101},capabilities:JSON.parse(new URL(location.href).searchParams.get("caps"))};const root=createRoot(document.getElementById("root"));window.changeCapabilities=(caps)=>{window.context={...window.context,capabilities:caps};root.render(React.createElement(BadgeAdminPage));};root.render(React.createElement(BadgeAdminPage));`;
+            return `import React from "react";import {createRoot} from "react-dom/client";import {BadgeAdminPage} from "/src/features/workforce/BadgeAdminPage";window.context={practice:{id:1,timezone:"UTC"},sites:[{id:101,name:"Synthetic A"},{id:102,name:"Synthetic B"}],current_site:{id:101},capabilities:JSON.parse(new URL(location.href).searchParams.get("caps"))};const root=createRoot(document.getElementById("root"));window.changeCapabilities=(caps)=>{window.context={...window.context,capabilities:caps};root.render(React.createElement(BadgeAdminPage));};root.render(React.createElement(BadgeAdminPage));`;
         },
         transform(code, id) {
           if (

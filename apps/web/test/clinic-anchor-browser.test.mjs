@@ -97,6 +97,13 @@ it("scrolls advertised clinic anchors after loading and preserves history, queri
         name: "Connectors & transmissions",
         exact: true,
       });
+      async function activateLink() {
+        if (!(await link.isVisible()))
+          await page
+            .getByRole("button", { name: "Open clinic menu", exact: true })
+            .click();
+        await link.click();
+      }
       async function targetVisible(label) {
         await page.waitForFunction(() => {
           const el = document.getElementById("connectors-transmissions");
@@ -119,12 +126,12 @@ it("scrolls advertised clinic anchors after loading and preserves history, queri
       }
       await page.goto(origin + "/clinic/growth");
       await page.waitForTimeout(1000);
-      await link.click();
+      await activateLink();
       await page.waitForTimeout(500);
       await targetVisible("different route / delayed content");
       const historyLength = await page.evaluate(() => history.length);
       await page.evaluate(() => scrollTo(0, 0));
-      await link.click();
+      await activateLink();
       await targetVisible("repeat activation");
       assert.equal(await page.evaluate(() => history.length), historyLength);
       await page.goBack();
@@ -143,7 +150,7 @@ it("scrolls advertised clinic anchors after loading and preserves history, queri
       assert.equal(new URL(page.url()).search, "");
       await page.getByRole("button", { name: "Block navigation" }).click();
       page.on("dialog", (d) => d.dismiss());
-      await link.click();
+      await activateLink();
       assert.equal(new URL(page.url()).pathname, "/clinic");
       assert.deepEqual(errors, []);
       await page.close();

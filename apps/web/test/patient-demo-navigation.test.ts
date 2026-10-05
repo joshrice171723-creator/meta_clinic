@@ -31,10 +31,10 @@ function fixture(blocked = false, messages: string[] = [], consent = true) {
   return { detail, confirm, cleanup, listeners };
 }
 
-it("registers the Patient listener and answers no-guard frames only after explicit discard consent", () => {
+it("registers the Patient listener and allows clean frames without a discard prompt", () => {
   const { detail, confirm, cleanup, listeners } = fixture();
   expect(detail).toEqual({ handled: true, allowed: true });
-  expect(confirm).toHaveBeenCalledOnce();
+  expect(confirm).not.toHaveBeenCalled();
   cleanup();
   expect(listeners.size).toBe(0);
 });

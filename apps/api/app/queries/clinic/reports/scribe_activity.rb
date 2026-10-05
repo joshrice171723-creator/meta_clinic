@@ -39,12 +39,12 @@ module Clinic
         page = [ page, [ total_pages, 1 ].max ].min
         recording_rows = recordings.select(Arel.sql("'recording' AS record_type"), :id, :encounter_id, :status, :updated_at)
         source_rows = sources.select(Arel.sql("'source' AS record_type"), :id, :encounter_id, :status, :updated_at)
-        sql = <<~SQL
-          SELECT * FROM (#{recording_rows.to_sql} UNION ALL #{source_rows.to_sql}) AS recovery_items
-          ORDER BY updated_at DESC, id DESC, record_type ASC
-          LIMIT #{per_page} OFFSET #{(page - 1) * per_page}
-        SQL
-        items = ApplicationRecord.connection.select_all(sql).cast_values.map do |record_type, id, encounter_id, status, updated_at|
+        recovery = Arel::Table.new(:recovery_items)
+        union = Arel::Nodes::UnionAll.new(recording_rows.arel.ast, source_rows.arel.ast)
+        query = recovery.project(Arel.star).from(Arel::Nodes::TableAlias.new(union, recovery.name))
+          .order(recovery[:updated_at].desc, recovery[:id].desc, recovery[:record_type].asc)
+          .take(per_page).skip((page - 1) * per_page)
+        items = ApplicationRecord.connection.select_all(query).cast_values.map do |record_type, id, encounter_id, status, updated_at|
           { record_type:, id:, encounter_id:, status:, updated_at: updated_at.iso8601(6) }
         end
         origins = encounters.where(id: items.pluck(:encounter_id)).select(:id, :site_id, :clinical_encounter_id)

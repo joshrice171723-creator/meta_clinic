@@ -87,6 +87,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
   end
 
   test "only the managed staging demo identity receives the synthetic clinic workspace" do
+    Clinic::Authorization::PilotRoleCatalog.install!
     demo = User.create!(email_address: Staging::DemoClinic::EMAIL, password: @password)
     deployed("staging") do
       assert_difference "RoleVersion.count", 1 do
@@ -120,7 +121,7 @@ class ProductionDemoTest < ActionDispatch::IntegrationTest
       assert_response :forbidden
       assert_difference "Clinic::Care::Patient.count", 1 do
         post "/api/clinic/patients", params: { clinic_patient: {
-          display_name: "Changed During Demo [Synthetic]", reference: "DEMO-NEW"
+          display_name: "Changed During Demo [Synthetic]", reference: "DEMO-NEW", sex: "unknown"
         } }, headers: csrf, as: :json
         assert_response :created
       end

@@ -12,6 +12,7 @@ class WaitlistOriginalConfiguredEntryTest < ActionDispatch::IntegrationTest
     membership = @practice.memberships.create!(user: @user)
     grant_permissions!(membership, "appointments.book", "appointments.read", "patients.identity.read", "notes.sign", "appointments.status_transition")
     @site = @practice.sites.create!(code: "SYN-WAIT", name: "Synthetic eligible site", status: "active")
+    configure_site!(@site, membership: membership)
     department = @practice.departments.create!(code: "SYN-WAIT-DEPT")
     @clinician = @practice.clinician_profiles.create!(membership: membership, display_name: "Synthetic eligible clinician")
     @clinician.assignments.create!(practice: @practice, site: @site, department: department, effective_from: Time.utc(2026, 1, 1))

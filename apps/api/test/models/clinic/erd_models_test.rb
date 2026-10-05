@@ -149,7 +149,7 @@ class ClinicErdModelsTest < ActiveSupport::TestCase
     version = Clinic::ModelVersion.find_by!(item_type: "Clinic::Site", item_id: site.id)
     assert_equal practice.id, version.practice_id
     assert_equal "create", version.event
-    assert_equal %w[code created_at id practice_id updated_at], version.changed_fields.sort
+    assert_equal %w[code created_at id name practice_id updated_at], version.changed_fields.sort
     assert_not_includes version.attributes.keys, "object"
     assert_not_includes version.attributes.keys, "object_changes"
   end

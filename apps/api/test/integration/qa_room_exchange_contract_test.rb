@@ -23,7 +23,7 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
 
   test "browser send carrier reply and browser acknowledgment correlate without executing tasks" do
     sign_in
-    post_message(message("Dot", "Muse", "Synthetic handshake; reply only"), csrf_headers)
+    post_room_message(room_message("Dot", "Muse", "Synthetic handshake; reply only"), csrf_headers)
     assert_response :created
     root = response.parsed_body
     assert_receipt(root, author: @dot, source: "owner_session")
@@ -37,16 +37,16 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
     assert_equal root.fetch("id"), page.fetch("next_cursor")
     assert_equal false, page.fetch("has_more")
 
-    reply_input = message("Muse", "Dot", "Synthetic nonce read; read/post capability reported", reply_to: root.fetch("id"))
-    post_message(reply_input, carrier_headers)
+    reply_input = room_message("Muse", "Dot", "Synthetic nonce read; read/post capability reported", reply_to: root.fetch("id"))
+    post_room_message(reply_input, carrier_headers)
     assert_response :created
     reply = response.parsed_body
-    assert_receipt(reply, author: @muse_fixture, source: "qa_service:muse")
+    assert_receipt(reply, author: @muse_fixture, source: "qa_service:#{@token.id}:muse")
     assert_equal root.fetch("id"), reply.dig("message", "reply_to")
     assert_equal root.fetch("thread_id"), reply.fetch("thread_id")
     assert_equal @nonce, reply.dig("message", "correlation_nonce")
     assert_no_difference "Qa::Event.count" do
-      post_message(reply_input, carrier_headers)
+      post_room_message(reply_input, carrier_headers)
       assert_response :created
       assert_equal reply, response.parsed_body
     end
@@ -54,7 +54,7 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
     get "/api/qa/room", params: { after_id: root.fetch("id") }
     assert_response :success
     assert_equal reply, response.parsed_body.fetch("messages").sole
-    post_message(message("Dot", "Muse", "Synthetic acknowledgment; no workflow run", reply_to: reply.fetch("id")), csrf_headers)
+    post_room_message(room_message("Dot", "Muse", "Synthetic acknowledgment; no workflow run", reply_to: reply.fetch("id")), csrf_headers)
     assert_response :created
     acknowledgment = response.parsed_body
     assert_receipt(acknowledgment, author: @dot, source: "owner_session")
@@ -67,13 +67,14 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
   end
 
   test "public cursor pickup reaches a correlated reply beyond the first page and empty reads retain the cursor" do
-    root = Qa::AgentRoom.post(@dot, message("Dot", "Muse", "Synthetic paged handshake").stringify_keys, source: "owner_session")
+    root = Qa::AgentRoom.post(@dot, room_message("Dot", "Muse", "Synthetic paged handshake").stringify_keys, source: "owner_session")
     101.times do |number|
       Qa::Workspace.event(user: @dot, kind: Qa::AgentRoom::KIND, summary: "Unrelated synthetic message #{number}",
         payload: { "agent" => "Fixture", "recipient" => "Other", "body" => "Synthetic unrelated coordination" })
     end
+    travel 2.minutes
     reply = Qa::AgentRoom.post(@muse_fixture,
-      message("Muse", "Dot", "Synthetic paged reply", reply_to: root.fetch(:id)).stringify_keys, source: "qa_service:muse")
+      room_message("Muse", "Dot", "Synthetic paged reply", reply_to: root.fetch(:id)).stringify_keys, source: "qa_service:#{@token.id}:muse")
     cursor = root.fetch(:id) - 1
     get "/api/qa/room", params: { after_id: cursor }
     assert_response :success
@@ -106,29 +107,31 @@ class QaRoomExchangeContractTest < ActionDispatch::IntegrationTest
     get "/api/qa/room", params: { after_id: 0 }
     assert_response :success
     assert_equal false, response.parsed_body.fetch("can_post")
-    reply = message("Muse", "Dot", "Synthetic unprivileged reply")
+    reply = room_message("Muse", "Dot", "Synthetic unprivileged reply")
     assert_no_difference "Qa::Event.count" do
-      post_message(reply, csrf_headers)
+      post_room_message(reply, csrf_headers)
       assert_response :unauthorized
       @token.update!(revoked_at: Time.current)
-      post_message(reply, carrier_headers)
-      assert_response :unauthorized
+      post_room_message(reply, carrier_headers)
+      assert_response :unprocessable_entity
+      assert_equal "Your session expired. Please try again.", response.parsed_body.fetch("error")
       @muse_fixture.update!(active: false)
       @token.update!(revoked_at: nil)
-      post_message(reply, carrier_headers)
-      assert_response :unauthorized
+      post_room_message(reply, carrier_headers)
+      assert_response :unprocessable_entity
+      assert_equal "Your session expired. Please try again.", response.parsed_body.fetch("error")
     end
     assert_equal @task_before, @task.reload.attributes
   end
 
   private
 
-  def message(agent, recipient, body, reply_to: nil)
+  def room_message(agent, recipient, body, reply_to: nil)
     { message_key: SecureRandom.uuid, agent: agent, recipient: recipient, body: body,
       correlation_nonce: @nonce, reference_revision: REVISION }.tap { |input| input[:reply_to] = reply_to if reply_to }
   end
 
-  def post_message(input, headers)
+  def post_room_message(input, headers)
     post "/api/qa/room/messages", params: { message: input }, headers:, as: :json
   end
 

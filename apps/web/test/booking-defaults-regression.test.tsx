@@ -92,16 +92,16 @@ describe("Muse 180 booking form timezone defaults", () => {
 
   it("preserves October 6 at 09:00 UTC clinic time even when the device shows 04:00", () => {
     const html = bookingHtml("2026-10-06T09:00:00Z", "2026-10-06T09:30:00Z");
-    expect(html).toContain(`value="${deviceValue("2026-10-06T09:00:00Z")}"`);
-    expect(html).toContain(`value="${deviceValue("2026-10-06T09:30:00Z")}"`);
-    expect(html).toContain("9:00 AM clinic time");
+    expect(html).toContain('value="2026-10-06T09:00"');
+    expect(html).toContain('value="2026-10-06T09:30"');
+    expect(html).toContain(`Clinic time: ${scenario.timezone}`);
   });
 
   it("uses the clinic's Chicago opening instant instead of interpreting it as device time", () => {
     scenario.timezone = "America/Chicago";
     const html = bookingHtml("2026-10-06T14:00:00Z", "2026-10-06T14:30:00Z");
-    expect(html).toContain(`value="${deviceValue("2026-10-06T14:00:00Z")}"`);
-    expect(html).toContain(`value="${deviceValue("2026-10-06T14:30:00Z")}"`);
-    expect(html).toContain("9:00 AM clinic time");
+    expect(html).toContain('value="2026-10-06T09:00"');
+    expect(html).toContain('value="2026-10-06T09:30"');
+    expect(html).toContain(`Clinic time: ${scenario.timezone}`);
   });
 });

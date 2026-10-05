@@ -144,7 +144,12 @@ class DevelopmentBackendSamplesTest < ActiveSupport::TestCase
     assert_not practice.encounters.open.exists?(id: completed.id)
     replacement = practice.encounters.open.joins(appointment: :visit_type)
       .find_by!(patient: completed.patient, clinic_visit_types: { id: completed.appointment.visit_type_id })
-    assert_operator replacement.started_at, :>, 12.hours.ago
+    zone = Time.find_zone!(practice.timezone)
+    prior_weekday = Time.current.in_time_zone(zone).to_date - 1.day
+    prior_weekday -= 1.day while [0, 6].include?(prior_weekday.wday)
+    assert_equal prior_weekday, replacement.started_at.in_time_zone(zone).to_date
+    assert_operator replacement.started_at, :<, Time.current
+    assert_equal replacement.started_at, replacement.appointment.starts_at
     assert_equal "Locally edited synthetic patient", edited_patient.reload.display_name
   end
 

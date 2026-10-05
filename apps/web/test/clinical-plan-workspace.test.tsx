@@ -78,7 +78,10 @@ vi.mock("../src/shared/ui", () => ({
 }));
 
 vi.mock("../src/features/clinic/Workspace", () => ({
-  useClinic: () => ({ practice: { timezone: "UTC" } }),
+  useClinic: () => ({
+    practice: { timezone: "UTC" },
+    capabilities: { facilities_read: false },
+  }),
 }));
 
 vi.mock("../src/features/clinic/clinicNavigation", () => ({

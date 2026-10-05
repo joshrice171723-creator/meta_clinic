@@ -16,9 +16,12 @@ beforeAll(async () => {
         enforce: "pre",
         resolveId(v, importer) {
           if (v === id) return id;
-          if (importer?.endsWith("CareFlow.tsx") && v === "./Workspace")
+          if (importer?.endsWith("CareBookingForm.tsx") && v === "./Workspace")
             return "\0recovery-context";
-          if (importer?.endsWith("CareFlow.tsx") && v === "./clinicNavigation")
+          if (
+            importer?.endsWith("CareBookingForm.tsx") &&
+            v === "./clinicNavigation"
+          )
             return "\0recovery-navigation";
         },
         load(v) {
@@ -27,7 +30,7 @@ beforeAll(async () => {
           if (v === "\0recovery-navigation")
             return `export function useClinicNavigation(){return {registerBlocker:()=>()=>{}};}`;
           if (v === id)
-            return `import React from "react";import {createRoot} from "react-dom/client";import {BookingFormEditor} from "/src/features/clinic/CareFlow";
+            return `import React from "react";import {createRoot} from "react-dom/client";import {BookingFormEditor} from "/src/features/clinic/CareBookingForm";
 const params=new URL(location.href).searchParams;const kind=params.get("kind");const uncertain=params.get("uncertain")==="true";
 const draft={patientId:"71",siteId:"101",roomId:"103",clinicianId:"105",visitTypeId:"107",startsAt:"2026-12-01T10:00",endsAt:"2026-12-01T10:30",reason:"Synthetic",repeat:kind==="series"?"weekly":"none",repeatIntervalWeeks:1,repeatCount:2,seriesResolutions:[],visitModality:"in_person"};
 const body={patient_id:"71",site_id:"101",room_id:"103",booked_clinician_id:"105",clinician_id:"105",visit_type_id:"107",starts_at:"2026-12-01T10:00:00.000Z",ends_at:"2026-12-01T10:30:00.000Z",request_key:"synthetic-exact-attempt",occurrence_count:2};
@@ -36,14 +39,14 @@ const workingDraft={updatedAt:null,status:"saved",save:async value=>{window.save
 createRoot(document.getElementById("root")).render(React.createElement(BookingFormEditor,{timezone:"UTC",initialPatientId:71,initialDraft:initial,workingDraft,onClose:()=>window.closeCount++,onReloadDraft:()=>{}}));`;
         },
         transform(code, id) {
-          if (id.endsWith("/features/clinic/CareFlow.tsx"))
+          if (id.endsWith("/features/clinic/CareBookingForm.tsx"))
             return (
               (process.env.PATCH_BASELINE
                 ? execFileSync(
                     "git",
                     [
                       "show",
-                      "890dc7eb5507a5b9eee3d02c58c1fa36d350dfb6:apps/web/src/features/clinic/CareFlow.tsx",
+                      "890dc7eb5507a5b9eee3d02c58c1fa36d350dfb6:apps/web/src/features/clinic/CareBookingForm.tsx",
                     ],
                     { encoding: "utf8" },
                   )
@@ -122,7 +125,13 @@ it.each([
           ],
         };
       else if (url.pathname.includes("booking_options"))
-        data = { data: { enabled: false, allowed_modalities: ["in_person"] } };
+        data = {
+          data: {
+            enabled: false,
+            allowed_modalities: ["in_person"],
+            visit_type_rules: [],
+          },
+        };
       else if (url.pathname.includes("service_offerings"))
         data = { service_offerings: [] };
       else if (url.pathname === "/api/clinic/facilities")

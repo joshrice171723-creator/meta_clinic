@@ -1,9 +1,18 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ClinicCapabilities } from "../src/api/contracts";
 import { OperationsProviderReadiness } from "../src/features/clinic/OperationsProviderReadiness";
 import { OperationsReportsCatalog } from "../src/features/clinic/OperationsReportsCatalog";
 import { OperationsWorkflowGuide } from "../src/features/clinic/OperationsWorkflowGuide";
+vi.mock("@mui/material", async (original) => {
+  const mui = await original<typeof import("@mui/material")>();
+  return {
+    ...mui,
+    Accordion: (props: import("@mui/material").AccordionProps) => (
+      <mui.Accordion {...props} defaultExpanded />
+    ),
+  };
+});
 
 const capabilities = (
   overrides: Partial<ClinicCapabilities> = {},
@@ -82,9 +91,15 @@ describe("operations review surfaces", () => {
     expect(html).toContain("Invoice ledger");
     expect(html).toContain("Inventory movement ledger");
     expect(html).toContain("Payroll exports");
-    expect(html).toContain("Source:");
-    expect(html).toContain("Freshness:");
-    expect(html).toContain("Access:");
+    expect(html).toContain(
+      "Posted invoices, payments, balances, and collection records.",
+    );
+    expect(html).toContain(
+      "The billing workspace reloads server records when opened.",
+    );
+    expect(html).toContain(
+      "Requires billing read access. Payment and refund actions have separate permissions.",
+    );
     expect(html).toContain('href="/clinic/billing"');
     expect(html).toContain('href="/clinic/inventory/activity"');
     expect(html).toContain('href="/clinic/workforce/payroll"');

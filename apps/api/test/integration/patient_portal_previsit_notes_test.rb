@@ -14,7 +14,8 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     @practice = @identity.practice
     @patient = @practice.patients.create!(display_name: "Pre-visit Patient", reference: "PREVISIT")
     @identity.update!(patient: @patient)
-    @site = @practice.sites.create!(code: "PREVISIT")
+    @site = @practice.sites.create!(code: "PREVISIT", status: "active")
+    @visit_type = @practice.visit_types.create!(code: "PREVISIT")
     @staff_password = SecureRandom.hex(18)
     @staff = User.create!(email_address: "previsit-clinician@example.invalid", password: @staff_password)
     @staff_membership = @practice.memberships.create!(user: @staff)
@@ -356,7 +357,7 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
     )
     assert_equal 1, Clinic::Care::PrevisitIntake.decode(prior).fetch("questionnaire_version")
 
-    future = prior.sub('"questionnaire_version":1', '"questionnaire_version":3')
+    future = prior.sub('"questionnaire_version":1', '"questionnaire_version":999')
     malformed = prior.sub('"questionnaire_version":1', '"questionnaire_version":"future"')
     assert_nil Clinic::Care::PrevisitIntake.decode(future)
     assert_nil Clinic::Care::PrevisitIntake.decode(malformed)
@@ -372,7 +373,7 @@ class PatientPortalPrevisitNotesTest < ActionDispatch::IntegrationTest
   def create_appointment(patient:, starts_at:, status: "scheduled")
     @practice.appointments.create!(
       patient: patient,
-      site: @site,
+      site: @site, visit_type: @visit_type,
       starts_at: starts_at,
       ends_at: starts_at + 30.minutes,
       status: status

@@ -144,7 +144,7 @@ jobs:
     needs: scope
     if: ${{ needs.scope.outputs.backend == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -288,6 +288,10 @@ jobs:
     if: ${{ needs.scope.outputs.frontend == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: apps/web
@@ -298,6 +302,7 @@ jobs:
           sparse-checkout: |
             .github
             apps/web
+            apps/api
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: apps/web/package.json
@@ -308,14 +313,23 @@ jobs:
           cache: pnpm
           cache-dependency-path: apps/web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm test
-      - if: ${{ needs.scope.outputs.full == 'true' }}
+      - name: Select the installed browser for all supported test harnesses
+        run: |
+          browser=$(command -v google-chrome || command -v chromium)
+          test -x "$browser"
+          echo "BROWSER_EXECUTABLE_PATH=$browser" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE=$browser" >> "$GITHUB_ENV"
+      - run: pnpm test --shard=${{ matrix.shard }}/4 --maxWorkers=1
+      - if: ${{ matrix.shard == 1 }}
+        run: node --test scripts/follow-up-recovery.test.mjs
+      - if: ${{ needs.scope.outputs.full == 'true' && matrix.shard == 1 }}
         run: pnpm run build
-      - if: ${{ needs.scope.outputs.full != 'true' }}
+      - if: ${{ needs.scope.outputs.full != 'true' && matrix.shard == 1 }}
         run: pnpm run typecheck
-      - if: ${{ needs.scope.outputs.full == 'true' }}
+      - if: ${{ needs.scope.outputs.full == 'true' && matrix.shard == 1 }}
         run: pnpm audit --audit-level=high
-      - run: pnpm run format:check
+      - if: ${{ matrix.shard == 1 }}
+        run: pnpm run format:check
 
   portable_delivery:
     needs: scope

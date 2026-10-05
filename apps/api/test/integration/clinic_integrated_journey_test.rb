@@ -484,12 +484,12 @@ class ClinicIntegratedJourneyTest < ActionDispatch::IntegrationTest
   private
 
   def enable_clinic_day_immunization_administration!(practice:, site:, membership:)
-    optional_features = {
-      "clinic_type" => "primary_care", "service_scope" => [ "vaccinations" ],
-      "assessment_scope" => [], "immunization_administration_enabled" => true
-    }
+    optional_features = practice.practice_feature_versions.where(site: site).order(revision: :desc).first!.optional_features.deep_dup
+    optional_features["immunization_administration_enabled"] = true
+    optional_features["service_scope"] = (Array(optional_features["service_scope"]) + [ "vaccinations" ]).uniq
+    optional_features["selected_services"] = (Array(optional_features["selected_services"]) + [ "vaccinations" ]).uniq
     Clinic::PracticeFeatureVersion.create!(
-      practice:, site:, created_by_membership: membership, revision: 1, optional_features:,
+      practice:, site:, created_by_membership: membership, revision: practice.practice_feature_versions.where(site: site).maximum(:revision).to_i + 1, optional_features:,
       effective_from: Current.business_time, request_key: "clinic-day-authorized-immunization-administration",
       content_digest: Digest::SHA256.hexdigest(optional_features.to_json)
     )

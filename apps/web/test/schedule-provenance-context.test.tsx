@@ -49,6 +49,7 @@ vi.mock("@mui/material", () =>
       "ToggleButton",
       "ToggleButtonGroup",
       "Typography",
+      "Tooltip",
     ].map((name) => [name, name]),
   ),
 );

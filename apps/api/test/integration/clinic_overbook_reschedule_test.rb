@@ -119,9 +119,9 @@ class ClinicOverbookRescheduleTest < ActionDispatch::IntegrationTest
     inputs[2][:appointment][:visit_type_id] = @practice.visit_types.create!(code: "Other type").id
     inputs[3][:appointment].delete(:expected_policy_revision)
     inputs[4][:appointment][:room_id] = nil
-    inputs.each do |input|
+    inputs.each_with_index do |input, index|
       patch_appointment(input)
-      assert_response :unprocessable_entity
+      assert_response(index.zero? ? :bad_request : :unprocessable_entity)
       assert_equal original, @moving.reload.attributes
       assert_equal 0, @moving.overbook_exceptions.count
     end

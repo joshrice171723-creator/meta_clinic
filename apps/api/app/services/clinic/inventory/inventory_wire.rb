@@ -496,7 +496,8 @@ module Clinic
         first_offer = first_line&.supplier_product || SupplierProduct.joins(:product)
           .where(practice_id: practice.id).merge(PharmacyProduct.where(active: true)).order(:id).first
         first_supplier = first_offer&.supplier || practice.inventory_suppliers.order(:id).first
-        first_product = first_offer&.product || practice.pharmacy_products.where(active: true).order(:id).first
+        product_scope = first_offer ? practice.pharmacy_products.where(id: first_offer.product_id) : practice.pharmacy_products.where(active: true).order(:id)
+        first_product_id, first_product_name = product_scope.pick(:id, :name)
         first_order = first_line&.purchase_order
         received_line = first_line && ReceiptLine.joins(:receipt).where(practice_id: practice.id, purchase_order_line_id: first_line.id)
           .where.not(clinic_inventory_receipts: { shipment_id: nil }).order("clinic_inventory_receipt_lines.id DESC").first
@@ -516,14 +517,14 @@ module Clinic
           can_create_purchase_order: destinations.exists?, attention_count: result.attention_count,
           first_run: {
             supplier: first_supplier.present?,
-            product: first_product.present?,
+            product: first_product_id.present?,
             offer: first_offer.present?,
             purchase_order: first_order.present?,
             received: received_lines ? received_lines.exists? : false,
             binned: received_lines ? received_lines.joins(:batch).where.not(clinic_pharmacy_batches: { location_id: nil }).exists? : false,
             supplier_id: first_supplier&.id&.to_s,
-            product_id: first_product&.id&.to_s,
-            product_name: first_product&.name,
+            product_id: first_product_id&.to_s,
+            product_name: first_product_name,
             purchase_order_id: first_order&.id&.to_s,
             purchase_order_status: first_order&.status,
             shipment_id: first_shipment&.id&.to_s

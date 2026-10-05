@@ -1,6 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkInbox } from "../src/features/clinic/WorkInbox";
+vi.mock("@mui/material", async (original) => {
+  const mui = await original<typeof import("@mui/material")>();
+  return {
+    ...mui,
+    Accordion: (props: import("@mui/material").AccordionProps) => (
+      <mui.Accordion {...props} defaultExpanded />
+    ),
+  };
+});
 
 const fixture = vi.hoisted(() => ({
   assignment: "all" as "all" | "overdue",
@@ -133,7 +142,7 @@ describe("Work Inbox overdue lab page coverage", () => {
     const firstPage = renderToStaticMarkup(<WorkInbox />);
     expect(firstPage).toContain("No matching work on the loaded pages");
     expect(firstPage).toContain(
-      "Navigate source pages to check the remaining work",
+      "Open More queue pages to check the remaining work",
     );
     expect(firstPage).toContain('aria-label="Next Lab follow-up page"');
     expect(firstPage).toContain("51 source items");

@@ -35,7 +35,7 @@ module Clinic
         )
         summary_rows.each { |row| summary[row.fetch("projected_status")] = row.fetch("count").to_i }
 
-        records = status == "all" ? scope : scope.where(Arel.sql("#{projected_status_sql} = #{quoted(status)}"))
+        records = status == "all" ? scope : scope.where(Arel.sql(projected_status_sql).eq(status))
         records = records.includes(:patient, :encounter, :follow_up_appointment, assigned_to_membership: :user)
           .order(Arel.sql("#{effective_due_sql} ASC NULLS FIRST, clinic_encounter_follow_ups.id ASC"))
           .limit(LIMIT + 1).to_a

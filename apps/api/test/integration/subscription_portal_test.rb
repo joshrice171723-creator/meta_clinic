@@ -12,6 +12,8 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     @practice = Clinic::Practice.create!(name: "Dev Seed HTTP Clinic")
     @membership = @practice.memberships.create!(user: @admin)
     grant_permissions!(@membership, "subscription_catalog.read", "subscription_catalog.write", "subscription_catalog.publish", "billing.read", "billing.payment_record", "subscriptions.review", "facilities.write")
+    @site = @practice.sites.create!(code: "SUBSCRIPTIONS", status: "active")
+    configure_site!(@site, membership: @membership)
     @patient = @practice.patients.create!(display_name: "Dev Seed HTTP Patient", reference: "HTTP-SUB-1")
     @user = User.create!(email_address: "synthetic-patient@example.invalid", password: Development::TestAccounts.send(:password_for, "patient"))
     @identity = Clinic::PatientPortal::Identity.create!(practice: @practice, patient: @patient, user: @user, status: "active", invited_at: Time.current, activated_at: Time.current)
@@ -34,6 +36,10 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
       post "/api/session", params: { email_address: user.email_address, password: @password }, headers: headers, as: :json
     end
     assert_response :success
+    if user == @admin
+      get "/api/clinic/context", headers: @headers
+      assert_response :success
+    end
   end
 
   def submit(path, params)
@@ -100,7 +106,7 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
     assert_equal 1, response.parsed_body.fetch("receipts").length
     @identity.update!(status: "revoked", revoked_at: Time.current)
     get "/api/patient_portal/subscriptions", headers: @headers
-    assert_response :forbidden
+    assert_response :not_found
   end
 
   test "cross practice catalog references cannot be saved and publisher is separately authorized" do
@@ -214,10 +220,13 @@ class SubscriptionPortalTest < ActionDispatch::IntegrationTest
   end
 
   test "clinic type selects an idempotent unpublished membership starter" do
-    Clinic::Configuration::PracticeFeatures.revise(practice: @practice, actor: @membership,
+    @site = @practice.sites.create!(code: "WEIGHT-LOSS", status: "active")
+    Clinic::Configuration::PracticeFeatures.revise(practice: @practice, actor: @membership, site: @site,
       request_key: "weight-loss-membership-profile", expected_revision: 0, insurance_workflows_enabled: false,
-      clinic_type: "weight_loss", service_scope: [], assessment_scope: [])
+      clinic_type: "weight_loss", service_scope: [], assessment_scope: [], finalize: true)
     sign_in(@admin)
+    patch "/api/clinic/context", params: { context: { site_id: @site.id } }, headers: headers, as: :json
+    assert_response :success
     get "/api/clinic/subscription_catalog", headers: headers
     assert_response :success
     assert_equal "weight_loss", response.parsed_body.fetch("clinic_type")

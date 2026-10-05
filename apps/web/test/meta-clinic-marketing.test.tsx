@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MetaClinicMarketing } from "../src/features/marketing/MetaClinicMarketing";
 import {
   featureHref,
@@ -15,6 +15,8 @@ import {
 } from "../src/features/marketing/clinicTypeFeatures";
 
 describe("Meta Clinic marketing pages", () => {
+  beforeEach(() => vi.stubGlobal("window", { location: { pathname: "/" } }));
+  afterEach(() => vi.unstubAllGlobals());
   it("offers a distinct page for every feature in the homepage catalog", () => {
     const home = renderToStaticMarkup(<MetaClinicMarketing />);
     const slugs = marketingFeatures.map((feature) => feature.slug);

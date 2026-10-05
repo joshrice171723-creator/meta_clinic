@@ -266,7 +266,7 @@ describe("NurseEncounterWorkspace", () => {
     expect(html).toContain("Symptoms &amp; changes");
     expect(html).toContain("What brings you in?");
     expect(html).toContain("What would you like help with?");
-    expect(html).toContain("Record an exception");
+    expect(html).toContain("Choose a response");
     expect(html).not.toContain("What brings you in? status");
     expect(html).toContain("Room is still required.");
   });
@@ -300,7 +300,7 @@ describe("NurseEncounterWorkspace", () => {
     expect(html).toContain("0 of 11 groups saved");
     expect(html).toContain("Save each group to unlock the next.");
     expect(html).toMatch(
-      /disabled=""[^>]*id="intake-group-patient_coordination"/,
+      /<button(?=[^>]*aria-expanded="false")(?=[^>]*id="intake-group-patient_coordination")[^>]*>/,
     );
     expect(html).toContain('aria-expanded="true"');
     expect(html).not.toContain("Current medicines and supplements</label>");

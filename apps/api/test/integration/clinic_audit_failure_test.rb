@@ -190,7 +190,7 @@ class ClinicAuditFailureTest < ActionDispatch::IntegrationTest
     payload = response.parsed_body
     row = payload.fetch("events").sole
     assert_equal second.id, row.fetch("id")
-    assert_equal %w[action_code actor_reference id occurred_at outcome policy_version resource_references], row.keys.sort
+    assert_equal %w[action_code actor_display_name actor_reference id occurred_at outcome policy_version resource_references], row.keys.sort
     assert_equal "user:#{@user.id}", row.fetch("actor_reference")
     assert_equal [ "synthetic-note:1:revision:2" ], row.fetch("resource_references")
     assert_equal 2, payload.fetch("pagination").fetch("total")

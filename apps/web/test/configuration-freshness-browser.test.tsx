@@ -506,7 +506,7 @@ describe("configuration labels and freshness", () => {
     await page.keyboard.press("Escape");
     expect(
       await page
-        .getByText("Clinic timezone · America/Chicago", { exact: true })
+        .getByLabel("Clinic timezone: America/Chicago", { exact: true })
         .count(),
     ).toBe(1);
     await page.close();

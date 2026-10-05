@@ -255,7 +255,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
   test "behavioral health starter reuses explicit visits and retries without duplication" do
     practice = @membership.practice
     initial = practice.visit_types.create!(code: "Behavioral health initial visit")
-    payload = profile_payload(clinic_type: "behavioral_health", service_scope: [])
+    payload = profile_payload(clinic_type: "behavioral_health", service_scope: %w[psychiatric_evaluation adhd_evaluation medication_management individual_therapy urgent_clinical_follow_up])
     starter = nil
     2.times do
       put "/api/clinic/practice_features", params: { features: payload }, headers: csrf_headers, as: :json
@@ -275,7 +275,7 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     sites = %w[MAP-WEIGHT MAP-BEHAVIOR].map { |code| practice.sites.create!(code: code, status: "active") }
     starters = sites.zip(%w[weight_loss behavioral_health]).map do |site, clinic_type|
       put "/api/clinic/practice_features", params: {
-        features: profile_payload(site_id: site.id, clinic_type: clinic_type, service_scope: [])
+        features: profile_payload(site_id: site.id, clinic_type: clinic_type, service_scope: [], finalize: true)
       }, headers: csrf_headers, as: :json
       assert_response :success
       response.parsed_body.dig("features", "starter_profile")
@@ -512,10 +512,10 @@ class PracticeFeaturesTest < ActionDispatch::IntegrationTest
     get "/api/clinic/practice_features", params: { site_id: site.id }, headers: @headers
     assert_response :success
     inherited = response.parsed_body.fetch("features")
-    assert_equal "clinic_default", inherited.fetch("profile_scope")
+    assert_equal "unconfigured", inherited.fetch("profile_scope")
     assert_equal 0, inherited.fetch("revision")
     assert_equal false, inherited.fetch("configured")
-    assert_equal %w[telehealth], inherited.fetch("service_scope")
+    assert_equal [], inherited.fetch("service_scope")
     payload = profile_payload(site_id: site.id, service_scope: inherited.fetch("recommended_service_scope"),
       expected_revision: 0, request_key: "inherited-location-save")
     2.times do

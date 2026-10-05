@@ -171,7 +171,7 @@ module Identity
       def session_user(user)
         demo = development_demo?
         preview = Development::TestAccounts.preview_account_for(user,
-          profile: session[:development_test_profile]) if demo && DevelopmentAccess.allowed?(request)
+          profile: session[:development_test_profile]) if demo && !GuidedDemoAccess.hosted? && DevelopmentAccess.allowed?(request)
         user.as_json(only: %i[id email_address admin platform_owner]).merge(
           workspace_tools: DevelopmentAccess.allowed?(request),
           development_demo: !!demo,

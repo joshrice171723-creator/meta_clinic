@@ -16,6 +16,7 @@ beforeAll(async () => {
     "OperationsReportsCatalog",
     "OperationsWorkflowGuide",
     "OwnerMorningView",
+    "OwnerCloseOfDayView",
   ];
   server = await createServer({
     configFile: false,
