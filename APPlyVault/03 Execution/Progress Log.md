@@ -2,11 +2,13 @@
 
 type: progress-log
 status: active
-updated: 2026-10-05
+updated: 2026-10-06
 lifecycle: active
 canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
+
+**2026-10-06 — Current main and portfolio published:** Released `3ab2a398` to aimetaclinic.com with matched images, both database restore checks, encrypted recovery round trip and all 26 hosted checks passing. Public build identity matches; health returns 200. The separate portfolio release includes all nine static files and removes the career-automation section; HTTPS hashes and browser inspection passed. Original dirty worktrees remain preserved. Automated application suites and broad regression were not run. [Release and static-publication evidence](../../records/progress/2026/10/2026-10-06-current-main-publication.md).
 
 **2026-10-05 — All branches, worktrees and dirty source reconciled and published:** Combined source includes every inventoried local/remote branch and all 41 worktree histories, with dirty originals preserved and source snapshots pushed. Released `9c8ce61f` to aimetaclinic.com after fixing an outdated demo bootstrap release assertion and compatibility with older published shift snapshots. Builds, database recovery gates and all 26 hosted checks passed; live Workforce opens on My schedule, and all 49 existing eligible demo employees have the current Monday–Friday week planned. Main is current; the final evidence commit is documentation only. GitHub CI remains billing-blocked and automated test suites were not run. [Reconciliation, preservation, rollback and final release evidence](../../records/progress/2026/10/2026-10-05-all-work-reconciliation.md).
 
