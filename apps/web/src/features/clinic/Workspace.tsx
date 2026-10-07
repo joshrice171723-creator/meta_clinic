@@ -28,6 +28,7 @@ import {
 } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import PersonSearchIcon from "@mui/icons-material/PersonSearch";
@@ -261,6 +262,15 @@ export function ClinicNavigation({
           description: "Arrival and encounters",
           Icon: DashboardIcon,
           allowed: capabilities.patients === true,
+        },
+        {
+          href: "/clinic/map",
+          label: "Clinic map",
+          description: "Rooms and recorded visits",
+          Icon: MapOutlinedIcon,
+          allowed:
+            capabilities.patients === true &&
+            capabilities.facilities_read === true,
         },
         {
           href: "/clinic/patients",

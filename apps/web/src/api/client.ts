@@ -472,6 +472,7 @@ export function loginDestination(value: string | null): string {
     "/clinic/memberships",
     "/clinic/updates",
     "/clinic/operations",
+    "/clinic/map",
     "/clinic/facilities",
     "/clinic/inventory",
     "/clinic/staff",

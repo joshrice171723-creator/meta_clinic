@@ -1,0 +1,190 @@
+.clinic-map-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.clinic-map-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  border-block: 1px solid var(--clinic-border);
+  padding: 16px 0;
+  color: var(--clinic-muted);
+}
+.clinic-map-summary strong {
+  color: var(--clinic-text);
+  font-variant-numeric: tabular-nums;
+}
+.clinic-map-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+.clinic-map-floor-panel {
+  overflow: hidden;
+  min-width: 0;
+}
+.clinic-map-toolbar {
+  padding: 20px;
+  border-bottom: 1px solid var(--clinic-border);
+}
+.clinic-map-floor {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 24px;
+  background-color: var(--clinic-background);
+  background-image: radial-gradient(
+    var(--clinic-border) 0.8px,
+    transparent 0.8px
+  );
+  background-size: 12px 12px;
+}
+.clinic-map-page .clinic-map-room {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  position: relative;
+  gap: 12px;
+  padding: 20px 16px 26px;
+  min-height: 236px;
+  border: 3px solid var(--clinic-control);
+  border-radius: 3px;
+  text-align: left;
+  color: var(--clinic-text);
+  background: var(--clinic-surface);
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.clinic-map-page .clinic-map-room:hover {
+  border-color: var(--clinic-accent);
+}
+.clinic-map-page .clinic-map-room.is-selected {
+  border-color: var(--clinic-accent);
+  background: var(--clinic-soft);
+}
+.clinic-map-page .clinic-map-room:focus-visible {
+  outline: 3px solid var(--clinic-accent);
+  outline-offset: 4px;
+}
+.clinic-map-room-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.clinic-map-room-heading strong {
+  font-size: 16px;
+}
+.clinic-map-furniture {
+  display: block;
+  width: 100%;
+  height: 72px;
+  opacity: 0.8;
+}
+.clinic-map-table {
+  fill: var(--clinic-soft);
+  stroke: var(--clinic-control);
+  stroke-width: 2;
+}
+.clinic-map-pillow {
+  fill: var(--clinic-surface);
+  stroke: var(--clinic-border);
+}
+.clinic-map-chair {
+  fill: var(--clinic-control);
+}
+.clinic-map-room-count,
+.clinic-map-room-stages {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.clinic-map-room-stages {
+  color: var(--clinic-muted);
+}
+.clinic-map-door {
+  position: absolute;
+  bottom: -3px;
+  right: 16px;
+  width: 32px;
+  border-bottom: 3px solid var(--clinic-background);
+}
+.clinic-map-south .clinic-map-door {
+  top: -3px;
+  bottom: auto;
+}
+.clinic-map-corridor {
+  padding: 10px 24px;
+  border-block: 1px dashed var(--clinic-border);
+  background: var(--clinic-background);
+  color: var(--clinic-muted);
+  text-align: center;
+  font-size: 14px;
+}
+.clinic-map-queue,
+.clinic-map-detail,
+.clinic-map-resources {
+  padding: 20px;
+}
+.clinic-map-detail {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.clinic-map-detail-note {
+  border-block: 1px solid var(--clinic-border);
+  padding: 12px 0;
+}
+.clinic-map-facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.clinic-map-facts dt {
+  font-size: 14px;
+  color: var(--clinic-muted);
+  margin-top: 12px;
+}
+.clinic-map-facts dd {
+  margin: 0;
+}
+.clinic-map-page .clinic-map-visit {
+  text-transform: none;
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 44px;
+}
+.clinic-map-page .clinic-map-visit[aria-pressed="true"] {
+  background: var(--clinic-soft);
+}
+.clinic-map-virtual {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+@media (max-width: 1200px) {
+  .clinic-map-workspace {
+    grid-template-columns: 1fr;
+  }
+  .clinic-map-detail {
+    border-left: 4px solid var(--clinic-accent);
+  }
+}
+@media (max-width: 700px) {
+  .clinic-map-floor,
+  .clinic-map-virtual {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 16px;
+  }
+}
+@media (max-width: 420px) {
+  .clinic-map-floor,
+  .clinic-map-virtual {
+    grid-template-columns: 1fr;
+  }
+}
