@@ -1,9 +1,15 @@
 ---
 type: decision-log
 status: active
-updated: 2026-10-04
+updated: 2026-10-06
 ---
 # Decisions
+
+## Clinic floor reference — 2026-10-06
+
+**D-083 — explicit founder direction in the clinic-map task:** learn from the 3D clinic experiment and build a new branch with an extraction layer and a 2D clinic view inside Meta Clinic. The founder supplied the "A little perspective on the day" screenshot and clarified that the image is the requested design. Use its isometric clinic floor, light sage presentation, selected-room inspector and companion worklist as the page's visual target.
+
+This is bounded local feature work. The displayed room and visit facts continue to come from the existing authorized clinic records; the screenshot's invented occupancy, room readiness, staff availability and durations do not become application facts. The floor artwork is schematic. This page-specific composition does not change the workspace's saved appearance preferences, tracking-board design, business workflow authority or release gates. [Implementation ownership](../../docs/development/clinic-map.md) records the extraction and presentation boundaries.
 
 ## Embedded assistant and login-free demo — 2026-10-04
 

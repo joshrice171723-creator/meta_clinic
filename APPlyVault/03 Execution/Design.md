@@ -1,7 +1,7 @@
 ---
 type: design-system
 status: active
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 # Clinic Software Design
 
@@ -16,6 +16,8 @@ The tracking board is the first design-defining clinic surface. Existing clinic 
 **Status:** the founder confirmed this direction and selected the Continuous Ledger composition on 2026-09-02. This direction authorizes bounded local design and implementation, not deployment, real-data use, clinical acceptance or silent loss of provider-flow behavior.
 
 ## Direction — Clinical Wayfinding Ledger
+
+The `/clinic/map` exploration has a page-specific visual target under [[Decisions#Clinic floor reference — 2026-10-06|D-083]]: an isometric clinic illustration, local Green/light presentation, selected-room inspector and companion room worklist. This applies to the floor page rather than replacing the shared tracking-board composition or account appearance defaults. Backend records own the displayed assignments; the illustration's furniture and geometry remain schematic. [Source ownership and reference applicability](../../docs/development/clinic-map.md).
 
 The clinic should feel like a calm, high-trust operational ledger. Each row is a recorded location-and-time fact pattern with a deliberate next action, not an alert, score or clinical-priority ranking.
 
