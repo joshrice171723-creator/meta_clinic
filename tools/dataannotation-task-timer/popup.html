@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Time</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header><span class="eyebrow">PERSONAL WORK LOG</span><h1>Task Time<span class="mark" aria-hidden="true">↗</span></h1><p>For your DataAnnotation sessions.</p></header>
+  <main>
+    <form id="task-form">
+      <label for="task-name">Task label</label>
+      <input id="task-name" maxlength="120" placeholder="e.g. Task 01" required autocomplete="off">
+      <div class="clock"><span id="status" role="status">Ready when you are</span><output id="elapsed" aria-label="Elapsed time">00:00:00</output><span id="exact-minutes">0.00 minutes</span></div>
+      <div class="controls"><button id="start" type="submit" disabled>Start task</button><button id="pause" type="button" class="secondary" disabled>Pause</button></div>
+      <div id="save-panel" hidden>
+        <label for="minutes">Minutes to log</label>
+        <div class="save-row"><input id="minutes" type="number" min="0" step="any" inputmode="decimal"><button id="finish" type="button">Save task</button></div>
+        <p class="hint">Adjust this if you forgot to pause.</p>
+      </div>
+    </form>
+    <p class="hint">Keeps counting until paused, even if you close Chrome.</p>
+    <p id="error" role="alert" hidden></p>
+    <section aria-labelledby="history-title">
+      <div class="section-heading"><h2 id="history-title">Saved tasks</h2><button id="export" type="button" class="text-button" disabled>Export CSV</button></div>
+      <div class="total"><span>Total logged</span><strong id="total">0h 00m</strong></div>
+      <p id="empty" class="hint">Save your first task to start your work log.</p>
+      <ol id="history"></ol>
+    </section>
+  </main>
+  <footer>Stored on this device · Independent of DataAnnotation</footer>
+</body>
+</html>
