@@ -15,6 +15,7 @@ module Qa
       state = Workspace.state
       defects = mirror ? mirror.fetch("defects") : state.fetch("known_issues", [])
       coverage = mirror ? mirror.fetch("coverage") : state.fetch("coverage", [])
+      coverage = recorded_coverage(coverage)
       batches = mirror ? mirror.fetch("batches") : state.fetch("batches", [])
       recorded_tasks = defects.filter_map { |item| item["originating_task_id"] }
       counts = mirror && %w[open pending_retest fixed].to_h { |status| [ status, defects.count { |item| item["status"] == status } ] }
@@ -37,6 +38,40 @@ module Qa
     rescue OfficeActorPolicy::Denied
       nil
     end
+
+    # Ledger imports are historical. Signed workflow receipts are stored
+    # independently, so a later import cannot replace their displayed results.
+    def self.recorded_coverage(coverage)
+      rows = coverage.index_by { |item| item["id"] }
+      Snapshot.where("key LIKE ?", "#{MuseWrites::WORKFLOW_SNAPSHOT}%").find_each do |snapshot|
+        data = snapshot.data
+        status = data["status"]
+        next unless %w[pass fail blocked in_progress expired].include?(status)
+
+        terminal = %w[pass fail blocked].include?(status)
+        receipt = terminal ? data["verdict"] : data["receipt"]
+        next unless receipt.is_a?(Hash)
+        id = receipt["workflow_id"]
+        next unless snapshot.key == "#{MuseWrites::WORKFLOW_SNAPSHOT}#{id}"
+
+        observation = data["submission_build_observation"] || {}
+        revision = data["build_pin"]
+        version = revision == observation["revision"] ? observation["version"] : nil
+        evidence = receipt["evidence"]
+        unavailable = terminal ? receipt["metadata_unavailable"] != false : observation["revision"].blank? || observation["dirty"] == true
+        rows[id] = (rows[id] || { "id" => id }).merge(
+          "status" => status, "result" => status, "historical" => false,
+          "revision" => revision, "version" => version, "last_version" => version,
+          "last_attempted_at" => receipt["recorded_at"] || receipt["claimed_at"],
+          "agent" => "Muse", "evidence" => evidence,
+          "evidence_ref" => evidence&.find { |item| item["kind"] == "screenshot" }&.fetch("url"),
+          "mixed_build" => receipt["mixed_build"], "metadata_unavailable" => unavailable,
+          "server_build_observations" => receipt["server_build_observations"], "seal" => data["seal"]
+        )
+      end
+      rows.values.sort_by { |item| item["id"] }
+    end
+    private_class_method :recorded_coverage
 
     def self.import_ledger(user:, token:, input:)
       raise OfficeActorPolicy::Denied, "Only bound Muse can mirror its authoritative ledger." unless OfficeWork.identity(user, token)[:name] == "muse"
