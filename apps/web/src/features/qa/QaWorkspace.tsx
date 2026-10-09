@@ -191,7 +191,7 @@ const verdictDone = (status: string) =>
   !/pending|queued|not.?started|not.?retested|unattempted/i.test(status);
 
 export function qaWorkspaceView(search: string) {
-  const view = new URLSearchParams(search).get("view") ?? "overview";
+  const view = new URLSearchParams(search).get("view") ?? "office";
   return [
     "overview",
     "atlas",
@@ -204,7 +204,7 @@ export function qaWorkspaceView(search: string) {
     "office",
   ].includes(view)
     ? view
-    : "overview";
+    : "office";
 }
 
 const nav = [
