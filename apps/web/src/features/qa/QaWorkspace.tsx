@@ -1322,7 +1322,9 @@ export function QaWorkspace() {
                         <th>Attempted at</th>
                         <th>Version / revision</th>
                         <th>Evidence reference</th>
-                        <th>Selected release impact</th>
+                        <th className="qa-coverage-impact">
+                          Selected release impact
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1372,7 +1374,7 @@ export function QaWorkspace() {
                                   : item.evidence),
                             )}
                           </td>
-                          <td>
+                          <td className="qa-coverage-impact">
                             <QaImpactDetail
                               scope={impact.scope}
                               workflowId={String(

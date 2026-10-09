@@ -390,6 +390,11 @@
   display: block;
   max-width: 230px;
 }
+.qa-workspace .qa-coverage-impact {
+  width: 280px;
+  min-width: 280px;
+  overflow-wrap: anywhere;
+}
 .qa-workspace .qa-text-button {
   text-align: left;
   justify-content: flex-start;
