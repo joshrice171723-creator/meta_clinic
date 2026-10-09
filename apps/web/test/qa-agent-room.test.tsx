@@ -36,8 +36,8 @@ describe("agent coordination room", () => {
   it("opens the room bootstrap URL while retaining known views and the fallback", () => {
     expect(qaWorkspaceView("?view=room")).toBe("room");
     expect(qaWorkspaceView("?view=inbox")).toBe("inbox");
-    expect(qaWorkspaceView("?view=unknown")).toBe("overview");
-    expect(qaWorkspaceView("")).toBe("overview");
+    expect(qaWorkspaceView("?view=unknown")).toBe("office");
+    expect(qaWorkspaceView("")).toBe("office");
   });
   it("merges cursor pages without duplicate messages and bounds the visible history", () => {
     expect(

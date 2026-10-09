@@ -8,6 +8,8 @@ canonical_for: recent-progress-and-history-index
 ---
 # Progress Log
 
+**2026-10-09 — Office is the QA landing page:** Released `89a7692e` to aimetaclinic.com. Opening `/qa` now selects Office, and explicit QA views remain available. TypeScript and both web bundles, matched-image release, database recovery gates and all 26 hosted checks passed. The in-chat browser verified the direct `/qa` entry resolves to `/qa?view=office` with Office visible. Public revision matches and health returns 200. Existing route expectations were updated afterward without adding or running tests; broader Office workflow acceptance was not performed.
+
 **2026-10-09 — QA coverage column fix published:** Merged and released `75920419` to aimetaclinic.com. The populated coverage table's release-impact column increased from approximately 73px to 280px at the same 1625px browser viewport. Typecheck and bundle, matched-image release, database recovery gates, all 26 hosted checks and public revision/health verification passed. Automated application tests were not run. [Release receipt](../../records/progress/2026/10/2026-10-09-qa-column-release.md).
 
 **2026-10-06 — Current main and portfolio published:** Released `3ab2a398` to aimetaclinic.com with matched images, both database restore checks, encrypted recovery round trip and all 26 hosted checks passing. Public build identity matches; health returns 200. The separate portfolio release includes all nine static files and removes the career-automation section; HTTPS hashes and browser inspection passed. Original dirty worktrees remain preserved. Automated application suites and broad regression were not run. [Release and static-publication evidence](../../records/progress/2026/10/2026-10-06-current-main-publication.md).
