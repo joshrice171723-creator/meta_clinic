@@ -43,8 +43,6 @@ const directLinks: Destination[] = [
   { label: "Platform", href: "/meta-clinic/platform" },
   { label: "AI", href: "/meta-clinic/ai" },
   { label: "Tutorials", href: "/meta-clinic/resources" },
-  { label: "Security", href: "/meta-clinic/security" },
-  { label: "Pricing", href: "/meta-clinic/pricing" },
 ];
 
 export function MarketingHeader({
