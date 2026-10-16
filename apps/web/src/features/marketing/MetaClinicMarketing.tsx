@@ -183,14 +183,14 @@ export function MetaClinicMarketing({
                   sx={{
                     // Override the shared marketing sandbox action's specificity.
                     "&&&&&": {
-                      backgroundColor: "#2563eb",
-                      borderColor: "#2563eb",
+                      backgroundColor: "#a83e1d",
+                      borderColor: "#a83e1d",
                       color: "#fff",
-                      boxShadow: "0 4px 0 #1e40af, 0 8px 18px #1e40af26",
+                      boxShadow: "0 4px 0 #762b14, 0 8px 18px #762b1426",
                     },
                     "&&&&&:hover": {
-                      backgroundColor: "#1d4ed8",
-                      borderColor: "#1d4ed8",
+                      backgroundColor: "#873117",
+                      borderColor: "#873117",
                     },
                   }}
                   href="/demo"
