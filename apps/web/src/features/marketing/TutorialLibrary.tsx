@@ -48,6 +48,17 @@ export function TutorialLibrary() {
             href="/demo"
             variant="contained"
             disableElevation
+            sx={{
+              "&&&&&": {
+                backgroundColor: "#a6401e",
+                borderColor: "#a6401e",
+                color: "#fff",
+              },
+              "&&&&&:hover": {
+                backgroundColor: "#853318",
+                borderColor: "#853318",
+              },
+            }}
             endIcon={<ArrowForwardRoundedIcon />}
           >
             Try Our Sandbox
