@@ -1,9 +1,9 @@
 /**
- * Read-only future server projection, not a browser identity/control grant.
+ * Read-only server projection, not a browser identity/control grant.
  * The server must bind Muse to a verified principal and issue immutable,
  * uniquely identified receipts after authenticating that principal. Room
  * labels, owner-posted messages, QA timestamps and visitor input are not receipts.
- * No backend supplies this projection yet; actor writes remain unavailable.
+ * OfficeActors supplies authenticated receipts; absent bindings remain unavailable.
  */
 export type MuseReceipt = Readonly<{
   id: string;

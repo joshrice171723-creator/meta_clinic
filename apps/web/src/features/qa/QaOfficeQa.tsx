@@ -70,7 +70,7 @@ type Workflow = {
   notes?: string;
   stale_build?: boolean;
   seal?: { reason?: string };
-  evidence?: ArchivedEvidence[];
+  evidence?: ArchivedEvidence[] | string;
 };
 type Batch = {
   id?: string | number;
@@ -1080,21 +1080,27 @@ export function QaOfficeQa({
             <Typography sx={{ whiteSpace: "pre-wrap" }}>
               {workflow?.notes ?? "No notes supplied."}
             </Typography>
-            {workflow?.evidence?.map((item, index) =>
-              item.kind === "observation" ? (
-                <Typography key={index} sx={{ whiteSpace: "pre-wrap" }}>
-                  {item.text}
-                </Typography>
-              ) : item.id ? (
-                <a
-                  key={index}
-                  href={officeLink(`/api/qa/evidence/${item.id}`)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Archived screenshot #{item.id} · SHA-256 {item.sha256}
-                </a>
-              ) : null,
+            {typeof workflow?.evidence === "string" && (
+              <Typography sx={{ whiteSpace: "pre-wrap" }}>
+                {workflow.evidence}
+              </Typography>
+            )}
+            {(Array.isArray(workflow?.evidence) ? workflow.evidence : []).map(
+              (item, index) =>
+                item.kind === "observation" ? (
+                  <Typography key={index} sx={{ whiteSpace: "pre-wrap" }}>
+                    {item.text}
+                  </Typography>
+                ) : item.id ? (
+                  <a
+                    key={index}
+                    href={officeLink(`/api/qa/evidence/${item.id}`)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Archived screenshot #{item.id} · SHA-256 {item.sha256}
+                  </a>
+                ) : null,
             )}
             {workflow && (
               <MuseGridEditor

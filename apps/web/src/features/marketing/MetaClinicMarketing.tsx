@@ -180,6 +180,10 @@ export function MetaClinicMarketing({
               <div className="meta-marketing__actions">
                 <Button
                   className="meta-marketing__button-primary"
+                  sx={{
+                    "&&&": { backgroundColor: "#7041b8", color: "#fff" },
+                    "&&&:hover": { backgroundColor: "#56318f" },
+                  }}
                   href="/demo"
                   variant="contained"
                   endIcon={<ArrowForwardRoundedIcon />}
