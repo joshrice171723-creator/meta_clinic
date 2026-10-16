@@ -1,5 +1,4 @@
 import { lateArrivalMessage } from "./arrivalTiming";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -1433,7 +1432,6 @@ function AppointmentRow({
           <Button
             size="small"
             variant="outlined"
-            startIcon={<CheckCircleOutlineIcon />}
             disabled={anyActionBusy}
             onClick={() => void onTransition(appointment, "confirmed")}
           >
@@ -1446,7 +1444,6 @@ function AppointmentRow({
           <Button
             size="small"
             variant="contained"
-            startIcon={<CheckCircleOutlineIcon />}
             disabled={anyActionBusy}
             onClick={() => void onStartVisit(appointment)}
           >

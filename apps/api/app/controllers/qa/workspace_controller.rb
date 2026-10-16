@@ -75,6 +75,11 @@ module Qa
       render json: OfficeWork.read(user: @service_token&.user || current_user, token: @service_token)
     end
 
+    def office_work_evidence
+      item = OfficeWork.save_evidence(user: actor, token: @service_token, id: params[:id], input: object!(:evidence))
+      render json: evidence_json(item), status: :created
+    end
+
     def office_work_transition
       render json: OfficeWork.transition(user: actor, token: @service_token, id: params[:id],
         input: params.to_unsafe_h.except("controller", "action", "id", "format", "workspace"))
@@ -432,7 +437,7 @@ module Qa
 
     def require_qa_access
       if service_authenticated?
-        if @service_token.office? && !%w[office office_actors office_work office_work_transition office_position office_check_in office_qa office_qa_ledger office_qa_defect office_qa_retest office_qa_poll room create_room_message tasks create_task].include?(action_name)
+        if @service_token.office? && !%w[office office_actors office_work office_work_transition office_work_evidence office_position office_check_in office_qa office_qa_ledger office_qa_defect office_qa_retest office_qa_poll room create_room_message tasks create_task].include?(action_name)
           render json: { error: "This Office credential cannot access QA operations." }, status: :forbidden
         end
         return

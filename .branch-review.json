@@ -1,39 +1,58 @@
 {
   "version": 2,
-  "title": "Blue sandbox button",
-  "summary": "The homepage hero Try Our Sandbox button changes from purple to blue, with a darker blue hover state. Review its appearance and sandbox entry before publishing.",
-  "source": "Committed review plan for this interview demonstration.",
+  "title": "Muse browser QA and centered queue buttons",
+  "summary": "Add Start Muse QA in Office, require exact-build screenshots for browser QA completion, and center Confirm and Check in labels in the app and marketing capture.",
+  "source": "Committed review plan for Muse browser QA and front-desk button alignment.",
   "scenarios": [
     {
-      "id": "sandbox-button-color",
-      "title": "Compare the sandbox button color",
-      "path": "/",
-      "focus": "One clinic day.",
-      "description": "Only the homepage hero's Try Our Sandbox button changes color.",
-      "instructions": "Toggle Original and Changed. Compare the large Try Our Sandbox button beneath the headline.",
-      "expected": "Original is purple (#7041b8). Changed is blue (#2563eb), with white readable text and the same label, size and position.",
+      "id": "office-start-muse",
+      "title": "Start Muse QA from Office",
+      "path": "/qa?view=office",
+      "focus": "Start Muse QA",
+      "description": "Office gains a manual trigger for the same bounded browser QA route used after publishing.",
+      "instructions": "Compare Original and Changed. Changed shows Start Muse QA near the coverage grid. Public visitors see it disabled with a sign-in explanation. On the published build, an Office operator can start one run; an active request disables duplicate submission.",
+      "expected": "The control explains access, shows task status, and never reports missing browser evidence as verified. Local preview requests must not run against a different live build.",
       "steps": [
-        "Original shows the purple hero button.",
-        "Changed shows the blue hero button with readable white text."
+        "The QA trigger and access explanation are clear.",
+        "Queued, blocked and evidence-missing states are distinguishable."
       ],
       "files": [
-        "apps/web/src/features/marketing/MetaClinicMarketing.tsx"
+        "apps/web/src/features/qa/StartMuseQa.tsx",
+        "apps/web/src/features/qa/QaOfficeQa.tsx"
       ]
     },
     {
-      "id": "sandbox-button-interaction",
-      "title": "Check hover, keyboard focus and sandbox entry",
+      "id": "front-desk-button-image",
+      "title": "Compare the front-desk button image",
       "path": "/",
-      "focus": "Try Our Sandbox",
-      "description": "The color change must preserve the existing sandbox journey.",
-      "instructions": "In Changed, hover the hero button and use Tab to focus it. Activate it and confirm sandbox entry loads. Use Reset item to return to the homepage.",
-      "expected": "Hover is darker blue (#1d4ed8), focus remains visible, and activation opens /demo.",
+      "description": "The marketing image reflects the current queue with text-only Confirm and Check in buttons.",
+      "instructions": "Toggle Original and Changed. Inspect all three populated morning rows. The updated image also reflects the current queue layout and readiness information.",
+      "expected": "Both labels are centered without a checkmark, and all actions remain readable.",
       "steps": [
-        "Hover and keyboard focus are clear.",
-        "The button opens the existing sandbox entry without an error."
+        "Confirm is centered in all three rows.",
+        "Check in is centered in all three rows."
       ],
       "files": [
-        "apps/web/src/features/marketing/MetaClinicMarketing.tsx"
+        "apps/web/src/features/clinic/FrontDesk.tsx",
+        "apps/web/public/marketing/captures/care-front-desk-october-morning-queue.png"
+      ],
+      "focus": "The front-desk morning queue"
+    },
+    {
+      "id": "sandbox-browser-regression",
+      "title": "Keep the blue sandbox journey working",
+      "path": "/",
+      "focus": "Try Our Sandbox",
+      "description": "The blue button remains the bounded smoke check for post-publish browser QA.",
+      "instructions": "Hover and keyboard-focus Try Our Sandbox, then activate it. After publishing, watch Office for Muse pickup and stored screenshots.",
+      "expected": "The hero remains blue, hover and focus are visible, /demo opens, and automatic QA stores exact-build screenshots or reports an actionable blocker.",
+      "steps": [
+        "Blue button hover and focus remain visible.",
+        "Activation opens sandbox entry."
+      ],
+      "files": [
+        "apps/api/app/services/qa/office_work.rb",
+        "apps/api/app/controllers/qa/workspace_controller.rb"
       ]
     }
   ]

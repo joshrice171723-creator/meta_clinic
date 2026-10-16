@@ -235,6 +235,50 @@ async function open(
   return { page, writes };
 }
 
+it("starts one browser QA request and resumes its status without duplicate work", async () => {
+  const { page } = await open();
+  const tasks: Record<string, unknown>[] = [];
+  let submissions = 0;
+  try {
+    await page.route("**/api/qa/office/work", (route) =>
+      route.fulfill({ json: { can_post: true, tasks } }),
+    );
+    await page.route("**/api/qa/tasks", async (route) => {
+      submissions++;
+      const { task } = route.request().postDataJSON();
+      expect(task.assigned_actor).toBe("muse");
+      expect(task.revision).toBe(revision);
+      expect(task.request_key).toMatch(/^office-browser-qa-/);
+      expect(Object.keys(task.payload)).toEqual(["description"]);
+      tasks.push({
+        ...task,
+        id: 42,
+        status: "queued",
+        office_status: "queued",
+        created_at: new Date().toISOString(),
+      });
+      await route.fulfill({ json: tasks[0], status: 201 });
+    });
+    await page.reload();
+    await page
+      .getByRole("button", { name: "Start Muse QA", exact: true })
+      .click();
+    await page.getByText("Task 42: queued", { exact: true }).waitFor();
+    expect(
+      await page.getByRole("button", { name: "Muse QA requested" }).isEnabled(),
+    ).toBe(false);
+    await page.reload();
+    await page.getByText("Task 42: queued", { exact: true }).waitFor();
+    expect(submissions).toBe(1);
+    tasks[0].office_status = "completed";
+    tasks[0].result = { summary: "No evidence", evidence_refs: [] };
+    await page.reload();
+    await page.getByText(/browser evidence missing; not verified/).waitFor();
+  } finally {
+    await page.close();
+  }
+}, 60_000);
+
 it("bootstraps Office with one current navigation item and no inferred live presence", async () => {
   const { page, writes } = await open();
   try {

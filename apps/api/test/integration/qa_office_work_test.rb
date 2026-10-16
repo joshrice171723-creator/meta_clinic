@@ -87,6 +87,53 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, @muse_raw
   end
 
+  test "browser QA completion requires screenshots of the exact clean live build" do
+    @input[:request_key] = "office-browser-qa-evidence-test"
+    send_request
+    id = response.parsed_body.fetch("id")
+    advance(id, "acknowledged")
+    evidence = Qa::Evidence.create!(user: @owner, issue_number: 1, caption: "Synthetic screenshot", revision: "b" * 40, content_type: "image/png", phase: "observation", image: "synthetic-image", digest: Digest::SHA256.hexdigest("synthetic-image"))
+    with_build do
+      advance(id, "completed", result: { summary: "No screenshots", evidence_refs: [] })
+      assert_response :unprocessable_entity
+      advance(id, "completed", result: { summary: "Wrong build screenshot", evidence_refs: [evidence.id] })
+      assert_response :unprocessable_entity
+      current = Qa::Evidence.create!(user: @owner, issue_number: 1, caption: "Current synthetic screenshot", revision: @revision, content_type: "image/png", phase: "observation", image: "current-image", digest: Digest::SHA256.hexdigest("current-image"))
+      @build["dirty"] = true
+      advance(id, "completed", result: { summary: "Dirty build", evidence_refs: [current.id] })
+      assert_response :conflict
+      @build["dirty"] = false
+      advance(id, "completed", result: { summary: "Browser pass with stored screenshot", evidence_refs: [current.id] })
+      assert_response :success
+    end
+  end
+
+  test "task screenshot upload is scoped to its claimant and exact live revision" do
+    @input[:request_key] = "office-browser-qa-upload-test"
+    send_request
+    id = response.parsed_body.fetch("id")
+    input = { revision: @revision, caption: "Synthetic browser screenshot", content_type: "image/png", data_base64: Base64.strict_encode64("\x89PNG\r\n\x1a\n".b + "synthetic"), workflow_ids: [Qa::WorkflowContract::IDS.first] }
+    upload = ->(raw, data = input) { post "/api/qa/office/work/#{id}/evidence", params: { evidence: data }, headers: { "Authorization" => "Bearer #{raw}" }, as: :json }
+    with_build do
+      upload.call(@muse_raw)
+      assert_response :forbidden
+      advance(id, "acknowledged")
+      upload.call(@dot_raw)
+      assert_response :forbidden
+      upload.call(@muse_raw, input.merge(revision: "b" * 40))
+      assert_response :conflict
+      upload.call(@muse_raw)
+      assert_response :created
+      evidence_id = response.parsed_body.fetch("id")
+      upload.call(@muse_raw)
+      assert_equal evidence_id, response.parsed_body.fetch("id")
+      advance(id, "completed", result: { summary: "Observed with screenshot", evidence_refs: [evidence_id] })
+      assert_response :success
+      upload.call(@muse_raw)
+      assert_response :forbidden
+    end
+  end
+
   test "expired work cannot finish and explicit owner recovery preserves history" do
     send_request
     id = response.parsed_body.fetch("id")

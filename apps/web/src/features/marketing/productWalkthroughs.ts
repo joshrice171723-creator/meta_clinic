@@ -52,8 +52,8 @@ const arrival: WalkthroughStep = {
   detail:
     "Look for: the expected visit, appointment time, and current arrival state.",
   image: capture("care-front-desk-october-morning-queue"),
-  width: 947,
-  height: 640,
+  width: 1176,
+  height: 752,
   caption: "The front-desk morning queue, organized around scheduled visits.",
   href: "/meta-clinic/features/tracking-board",
 };

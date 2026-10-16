@@ -1,3 +1,4 @@
+import { StartMuseQa } from "./StartMuseQa";
 import {
   QaChangeImpact,
   QaImpactDetail,
@@ -606,6 +607,7 @@ export function QaOfficeQa({
                 : "Coverage unavailable"}
             </Typography>
           </Stack>
+          <StartMuseQa revision={revision} dirty={snapshot?.build.dirty} />
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
             <Box
               component="span"

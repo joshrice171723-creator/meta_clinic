@@ -116,6 +116,11 @@ module Qa
           when "working", "blocked"
             changes.merge!(lease_expires_at: LEASE.from_now, result:)
           when "completed"
+            if task.request_key.start_with?("branch-review-publish-", "office-browser-qa-")
+              build = Workspace.build
+              raise Conflict, "Browser QA completion requires the exact clean live build." unless build["revision"] == task.revision && !build["dirty"]
+              raise ArgumentError, "Browser QA completion requires stored screenshots from this build." if refs.empty? || Evidence.where(id: refs, revision: task.revision, content_type: %w[image/png image/jpeg]).count != refs.length
+            end
             changes.merge!(status: "completed", result:, lease_expires_at: nil)
           when "decision"
             changes = { payload: task.payload.merge("owner_decision" => result["summary"], "decision_at" => Time.current.iso8601) }
@@ -131,6 +136,32 @@ module Qa
           Event.create!(user:, kind: "office_work_transition", event_key:, summary: "#{principal[:name]}: #{task.title} - #{status}", revision: task.revision,
             payload: { input: operation, result: receipt, task_id: task.id, actor: principal[:name], status: })
           receipt
+        end
+      end
+    end
+
+    def self.save_evidence(user:, token:, id:, input:)
+      locked(user, token) do
+        principal = identity(user, token)
+        task = Task.where(kind: "coordination").find(id)
+        task.with_lock do
+          raise OfficeActorPolicy::Denied, "Evidence requires your active browser QA task lease." unless allowed(task, principal).include?("working") && task.request_key.start_with?("branch-review-publish-", "office-browser-qa-")
+          build = Workspace.build
+          raise Conflict, "Evidence requires the exact clean live build." unless build["revision"] == task.revision && !build["dirty"] && input["revision"] == task.revision
+          raise ArgumentError, "Only screenshot evidence fields are accepted." unless (input.keys - %w[revision caption content_type data_base64 workflow_ids]).empty?
+          caption = AgentRoom.text!(input, "caption", 500)
+          data = Base64.strict_decode64(AgentRoom.text!(input, "data_base64", 5_600_000))
+          type = input["content_type"]
+          valid = type == "image/png" ? data.start_with?("\x89PNG\r\n\x1a\n".b) : type == "image/jpeg" && data.start_with?("\xff\xd8\xff".b)
+          raise ArgumentError, "Upload a PNG or JPEG of 4 MB or less." unless valid && data.bytesize.between?(1, 4.megabytes)
+          workflows = input["workflow_ids"]
+          raise ArgumentError, "Identify the canonical workflows tested." unless workflows.is_a?(Array) && workflows.any? && workflows.uniq == workflows && (workflows - WorkflowContract::IDS).empty?
+          digest = Digest::SHA256.hexdigest(data)
+          item = Evidence.where(user:, revision: task.revision, digest:).find { |evidence| evidence.context["office_task_id"] == task.id }
+          item ||= Evidence.create!(user:, revision: task.revision, caption:, content_type: type, image: data, digest:, workflow_ids: workflows,
+            phase: "observation", context: { office_task_id: task.id, authenticated_actor: principal[:name], observed_at: Time.current.iso8601 })
+          Workspace.event(user:, kind: "evidence_saved", summary: item.caption, revision: item.revision, payload: { evidence_id: item.id, task_id: task.id }, event_key: "office:evidence:#{task.id}:#{item.id}")
+          item
         end
       end
     end

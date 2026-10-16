@@ -25,6 +25,7 @@ Rails.application.routes.draw do
     post "qa/office/qa/batches/poll", to: "qa/workspace#office_qa_poll"
     get "qa/office/work", to: "qa/workspace#office_work"
     post "qa/office/work/:id/transition", to: "qa/workspace#office_work_transition"
+    post "qa/office/work/:id/evidence", to: "qa/workspace#office_work_evidence"
     post "qa/tasks/:id/accept", to: "qa/workspace#accept_task"
     post "qa/tasks/:id/recover", to: "qa/workspace#recover_task"
   get "qa/status.json", to: "qa/workspace#status"

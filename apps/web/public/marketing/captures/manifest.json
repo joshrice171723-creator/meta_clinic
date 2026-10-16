@@ -27,11 +27,11 @@
       "clinic": "Omni Test Clinic",
       "data": "synthetic",
       "dimensions": {
-        "width": 947,
-        "height": 640
+        "width": 1176,
+        "height": 752
       },
       "sourceQuality": "authentic app capture; cropped real pixels only; no UI synthesis",
-      "provenanceNote": "Captured from the running synthetic Meta Clinic app and visually reviewed. Cropping retains actual app pixels."
+      "provenanceNote": "Recaptured October 16, 2026 from the current FrontDesk component in the running local app, using independent synthetic morning-queue API fixtures and the existing Classic blue light theme. Confirm and Check in render without icons. Real browser pixels only; no UI synthesis."
     },
     {
       "file": "apps/web/public/marketing/captures/care-front-desk-october-seven-visits.png",
