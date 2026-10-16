@@ -50,13 +50,13 @@ export function TutorialLibrary() {
             disableElevation
             sx={{
               "&&&&&": {
-                backgroundColor: "#2563eb",
-                borderColor: "#2563eb",
+                backgroundColor: "#db2777",
+                borderColor: "#db2777",
                 color: "#fff",
               },
               "&&&&&:hover": {
-                backgroundColor: "#1d4ed8",
-                borderColor: "#1d4ed8",
+                backgroundColor: "#be185d",
+                borderColor: "#be185d",
               },
             }}
             endIcon={<ArrowForwardRoundedIcon />}
