@@ -44,6 +44,12 @@ class TrackerTests(unittest.TestCase):
         self.assertEqual(rows[-1]['build'], 20)
         for invalid in [text.replace('80%', '101%', 1), text.replace('80%', 'unknown', 1), text.split('\n', 1)[1], text+'\n'+text.splitlines()[0]]:
             with self.assertRaises(ValueError): server.milestones(invalid)
+    def test_original_relationships_are_preserved(self):
+        rows=server.relationship_map()
+        self.assertEqual(len(rows),6)
+        self.assertEqual(rows[0]['milestones'],['MC-03','MC-05','MC-06','MC-08','MC-10','MC-12'])
+        self.assertEqual(rows[1]['milestones'],['MC-05','MC-10','MC-12'])
+        self.assertTrue(all((server.ROOT/row['plan']).is_file() for row in rows))
     def test_snapshot(self):
         data=server.snapshot()
         self.assertGreater(len(data['plans']), 5)

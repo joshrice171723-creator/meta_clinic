@@ -8,6 +8,11 @@
 <p class="score-note">Recorded estimates across 15 core milestones. Build, local QA, and external acceptance are separate measures—not an overall readiness score. Optional insurance is shown separately below.</p>
 <div class="milestone-heading"><div><span class="eyebrow">PROGRESS BY WORKFLOW</span><h2>Your milestones</h2></div><div class="legend"><span class="build-key">● Built</span><span class="qa-key">● Local QA</span><span class="external-key">● External / human</span></div></div>
 <div id="milestone-chart"></div></section>
+<section id="relationships" aria-labelledby="relations-title">
+<div id="relationship-selection"></div>
+<div class="relation-heading"><div><span class="eyebrow">RELATIONSHIP MAP</span><h2 id="relations-title">Which plans cover each milestone?</h2></div><p>Colored cells show recorded plan coverage, not completion. Select a milestone number for its evidence, or a plan name for its work items.</p></div>
+<div class="relation-scroll" tabindex="0" role="region" aria-label="Plan coverage table; scroll horizontally on small screens"><table id="relation-table"><caption>Original Atlas plan relationships · milestone evidence comes from the current tracker</caption></table></div>
+</section>
 <details id="plan-details"><summary><span class="eyebrow">WHEN YOU WANT TO GO DEEPER</span><h2>Plans &amp; remaining work</h2><span id="detail-count">Open the detailed view ↓</span></summary>
 <p class="notice">Choose a plan to see its recorded build work, QA gaps and blockers. Overlapping plans may describe the same work; entry counts are not completion percentages.</p>
 <main><aside><label for="search">Find a plan</label><input id="search" type="search" placeholder="Search plans and work…"><div id="plan-count"></div><nav id="plans" aria-label="Plans"></nav></aside>

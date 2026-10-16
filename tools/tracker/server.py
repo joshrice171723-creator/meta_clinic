@@ -116,6 +116,26 @@ def milestones(text):
         raise ValueError('Expected 16 distinct milestone records.')
     return rows
 
+def relationship_map():
+    archive = (ROOT / 'records/implementation/2026-09-27-meta-clinic-tracker-atlas.html').read_text(encoding='utf-8-sig')
+    overlay = archive.split('const overlayRows = [', 1)[1].split('].map(', 1)[0]
+    groups = [
+        ('intake', 'Weight-management intake', 'docs/development/weight-management-intake-tracking.md'),
+        ('behavioral', 'Behavioral health', 'docs/development/clinic-workflow-plans/behavioral-health-therapy.md'),
+        ('review', 'Full application review', 'docs/product-review/meta-clinic-full-application-review.md'),
+        ('hardening', 'Non-vendor hardening', 'docs/development/non-vendor-clinic-hardening-plan.md'),
+        ('journey', 'Patient journey', 'PATIENT_JOURNEY_PLAN.md'),
+        ('sandbox', 'Multi-clinic sandbox', 'docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md'),
+    ]
+    recorded = re.findall(r"\['[^']*','[^']*','([^']*)','(MC-[^']*)'", overlay)
+    rows = []
+    for group, title, path in groups:
+        ids = sorted({code for kind, parents in recorded if kind == group for code in parents.split()})
+        if not ids or not (ROOT / path).is_file():
+            raise ValueError('Original plan coverage could not be loaded.')
+        rows.append({'group': group, 'title': title, 'plan': path, 'milestones': ids})
+    return rows
+
 def snapshot():
     paths, missing = discover()
     register = (ROOT / TRACKER).read_text(encoding='utf-8-sig')
@@ -144,7 +164,7 @@ def snapshot():
         plans.append({'milestones': milestone_ids, 'trackerNotes': tracker_notes, 'lastChanged': last_change, 'latestMentionedDate': max(reported) if reported else None, 'id': path.as_posix(), 'title': clean(title.group(1)) if title else path.stem.replace('-', ' '), 'items': items})
     history = git('log', '-30', '--date=iso-strict', '--format=%h%x09%aI%x09%s', '--', str(TRACKER), 'docs/development', 'docs/product-review', 'PATIENT_JOURNEY_PLAN.md')
     dates = {line.split('\t')[1] for line in history.splitlines() if '\t' in line}
-    return {'overview': overview, 'plans': plans, 'missing': missing, 'readAt': dt.datetime.now(dt.timezone.utc).isoformat(), 'recordChangedAt': max(dates) if dates else None, 'commit': git('rev-parse', '--short', 'HEAD'), 'branch': git('branch', '--show-current'), 'history': [dict(zip(['commit','date','title'], line.split('\t', 2))) for line in history.splitlines()]}
+    return {'relationships': relationship_map(), 'overview': overview, 'plans': plans, 'missing': missing, 'readAt': dt.datetime.now(dt.timezone.utc).isoformat(), 'recordChangedAt': max(dates) if dates else None, 'commit': git('rev-parse', '--short', 'HEAD'), 'branch': git('branch', '--show-current'), 'history': [dict(zip(['commit','date','title'], line.split('\t', 2))) for line in history.splitlines()]}
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):

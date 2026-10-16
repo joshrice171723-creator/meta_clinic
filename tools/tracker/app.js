@@ -17,6 +17,32 @@ function showPlan(id){
   $('search').value='';history.replaceState(null,'','?plan='+encodeURIComponent(id));
   $('plan-details').open=true;render();$('plan-details').scrollIntoView({block:'start'});
 }
+let relationshipMilestone='MC-01';
+function renderRelationships(){
+  const table=$('relation-table');table.querySelectorAll('thead,tbody').forEach(node=>node.remove());
+  const head=element('thead'),header=element('tr');header.append(element('th','Plan or review'));
+  for(const milestone of data.overview.milestones){
+    const th=element('th');th.scope='col';const button=element('button',String(Number(milestone.id.slice(3))));
+    button.title=milestone.title;button.setAttribute('aria-label',milestone.id+': '+milestone.title);button.setAttribute('aria-pressed',String(milestone.id===relationshipMilestone));
+    button.onclick=()=>{relationshipMilestone=milestone.id;renderRelationships();};th.append(button);header.append(th);
+  }
+  head.append(header);table.append(head);const body=element('tbody');
+  for(const plan of data.relationships){
+    const row=element('tr',undefined,'relation-'+plan.group),label=element('th');label.scope='row';const button=element('button',plan.title+' ↗');button.onclick=()=>showPlan(plan.plan);label.append(button);row.append(label);
+    for(const milestone of data.overview.milestones){
+      const cell=element('td'),covered=plan.milestones.includes(milestone.id);const block=element('span',undefined,covered?'coverage-cell covered':'coverage-cell');
+      block.setAttribute('role','img');block.setAttribute('aria-label',plan.title+' / '+milestone.title+': '+(covered?'Recorded connection':'No recorded connection'));block.title=milestone.title+': '+(covered?'covered':'not mapped');cell.append(block);row.append(cell);
+    }
+    body.append(row);
+  }
+  table.append(body);
+  const selected=data.overview.milestones.find(row=>row.id===relationshipMilestone);const panel=$('relationship-selection');panel.replaceChildren();
+  if(selected){
+    const title=element('div');title.append(element('span',selected.id+' · SELECTED MILESTONE','eyebrow'),element('h3',selected.title),element('p',data.relationships.filter(plan=>plan.milestones.includes(selected.id)).length+' mapped plans reference this milestone.'));
+    const evidence=element('div');evidence.append(element('span','CURRENT EVIDENCE','eyebrow'),element('p',selected.evidence));
+    const remaining=element('div');remaining.append(element('span','STILL OPEN','eyebrow'),element('p',selected.remaining));panel.append(title,evidence,remaining);
+  }
+}
 function renderOverview(){
   $('scorecards').replaceChildren();$('milestone-chart').replaceChildren();
   $('overview-error').textContent=data.overview.error||'';
@@ -103,9 +129,9 @@ async function refresh(){
     $('source').textContent=`Repository branch: ${data.branch} · Commit: ${data.commit}. Status categories are conservative text extraction from source records; they are not new acceptance results.`;
     $('missing').textContent=data.missing.length?`${data.missing.length} missing source links: ${data.missing.join(', ')}`:'All discovered local Markdown links resolve.';
     $('history').replaceChildren(...data.history.map(item=>element('li',`${date(item.date)} · ${item.title} · ${item.commit}`)));
-    renderOverview();render();
+    renderOverview();renderRelationships();render();
   }catch{
-    data=null;$('scorecards').replaceChildren();$('milestone-chart').replaceChildren();$('overview-error').textContent='Progress unavailable. Refresh when the repository connection is restored.';$('plans').replaceChildren();$('plan-count').textContent='';$('history').replaceChildren();$('source').textContent='Source records unavailable.';$('missing').textContent='';$('content').hidden=true;$('empty').hidden=false;$('empty').textContent='Records unavailable. Start the tracker server and click Refresh records.';$('connection').textContent='Connection failed — no cached progress is being shown.';
+    data=null;$('relationship-selection').replaceChildren();$('relation-table').querySelectorAll('thead,tbody').forEach(node=>node.remove());$('scorecards').replaceChildren();$('milestone-chart').replaceChildren();$('overview-error').textContent='Progress unavailable. Refresh when the repository connection is restored.';$('plans').replaceChildren();$('plan-count').textContent='';$('history').replaceChildren();$('source').textContent='Source records unavailable.';$('missing').textContent='';$('content').hidden=true;$('empty').hidden=false;$('empty').textContent='Records unavailable. Start the tracker server and click Refresh records.';$('connection').textContent='Connection failed — no cached progress is being shown.';
   }finally{$('refresh').disabled=false;}
 }
 $('browse-plans').onclick=()=>{$('plan-details').open=true;};
