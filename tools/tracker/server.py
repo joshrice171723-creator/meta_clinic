@@ -116,7 +116,7 @@ def milestones(text):
         raise ValueError('Expected 16 distinct milestone records.')
     return rows
 
-def relationship_map():
+def legacy_relationships():
     archive = (ROOT / 'records/implementation/2026-09-27-meta-clinic-tracker-atlas.html').read_text(encoding='utf-8-sig')
     overlay = archive.split('const overlayRows = [', 1)[1].split('].map(', 1)[0]
     groups = [
@@ -135,6 +135,54 @@ def relationship_map():
             raise ValueError('Original plan coverage could not be loaded.')
         rows.append({'group': group, 'title': title, 'plan': path, 'milestones': ids})
     return rows
+
+# Explicit ownership avoids mistaking every linked reference for a separate plan.
+SUPPORTING_DOCUMENTS = {
+    'docs/development/behavioral-health-journey.md': 'docs/development/clinic-workflow-plans/behavioral-health-therapy.md',
+    'docs/development/clinic-workflow-plans/multi-clinic-sandbox-coverage-matrix.md': 'docs/development/clinic-workflow-plans/multi-clinic-demo-sandbox.md',
+    'docs/development/in-app-assistant-workflow-map.md': 'docs/development/in-app-assistant-checkpoint.md',
+    'docs/development/patient-journey-implementation-evidence.md': 'PATIENT_JOURNEY_PLAN.md',
+    'docs/product-review/meta-clinic-remaining-work.md': 'docs/product-review/meta-clinic-full-application-review.md',
+}
+SHARED_DOCUMENTS = {
+    'docs/development/meta-clinic-build-and-acceptance.md',
+    'docs/development/focused-coding-workflow.md',
+    'docs/development/twilio.md',
+}
+
+
+def milestone_references(text):
+    ids = set()
+    for match in re.finditer(r'\bMC-?(\d{2})(?:\s*[–—-]\s*(?:MC-?)?(\d{2}))?((?:/\d{2})*)', text):
+        first = int(match[1])
+        ids.update(range(first, int(match[2]) + 1) if match[2] else [first])
+        ids.update(int(number) for number in re.findall(r'\d{2}', match[3]))
+    return [f'MC-{number:02}' for number in sorted(ids) if 1 <= number <= 16]
+
+
+def group_documents(documents, legacy):
+    by_id = {doc['id']: doc for doc in documents}
+    # Keep a document visible as a plan if its expected parent is unavailable.
+    parents = {child: parent for child, parent in SUPPORTING_DOCUMENTS.items() if parent in by_id}
+    plans = []
+    for document in documents:
+        if document['id'] in parents or document['id'] in SHARED_DOCUMENTS:
+            continue
+        plan = dict(document)
+        plan['supportingDocuments'] = [doc for doc in documents if parents.get(doc['id']) == plan['id']]
+        sources = [document, *plan['supportingDocuments']]
+        plan['items'] = [dict(item, source=doc['id'], sourceTitle=doc['title']) for doc in sources for item in doc['items']]
+        plan['milestones'] = sorted({code for doc in sources for code in doc['milestones']})
+        plan['trackerNotes'] = list(dict.fromkeys(note for doc in sources for note in doc['trackerNotes']))
+        plan['coverageSource'] = 'Recorded milestone references in plan and supporting documents'
+        historical = next((row for row in legacy if parents.get(row['plan'], row['plan']) == plan['id']), None)
+        if historical:
+            plan['milestones'] = sorted(set(plan['milestones']) | set(historical['milestones']))
+            plan['coverageSource'] += '; includes original Atlas relationships'
+        plan['group'] = historical['group'] if historical else 'current'
+        plans.append(plan)
+    return plans, [doc for doc in documents if doc['id'] in SHARED_DOCUMENTS]
+
 
 def snapshot():
     paths, missing = discover()
@@ -160,11 +208,12 @@ def snapshot():
                 if (ROOT / TRACKER.parent / unquote(link.split('#')[0])).resolve() == (ROOT / path).resolve():
                     tracker_notes.append(clean(line.strip('|').split('|')[-1]))
                     break
-        milestone_ids = sorted(set(re.findall(r'\bMC-\d{2}\b', content)))
+        milestone_ids = milestone_references(content)
         plans.append({'milestones': milestone_ids, 'trackerNotes': tracker_notes, 'lastChanged': last_change, 'latestMentionedDate': max(reported) if reported else None, 'id': path.as_posix(), 'title': clean(title.group(1)) if title else path.stem.replace('-', ' '), 'items': items})
+    plans, shared_documents = group_documents(plans, legacy_relationships())
     history = git('log', '-30', '--date=iso-strict', '--format=%h%x09%aI%x09%s', '--', str(TRACKER), 'docs/development', 'docs/product-review', 'PATIENT_JOURNEY_PLAN.md')
     dates = {line.split('\t')[1] for line in history.splitlines() if '\t' in line}
-    return {'relationships': relationship_map(), 'overview': overview, 'plans': plans, 'missing': missing, 'readAt': dt.datetime.now(dt.timezone.utc).isoformat(), 'recordChangedAt': max(dates) if dates else None, 'commit': git('rev-parse', '--short', 'HEAD'), 'branch': git('branch', '--show-current'), 'history': [dict(zip(['commit','date','title'], line.split('\t', 2))) for line in history.splitlines()]}
+    return {'sharedDocuments': shared_documents, 'overview': overview, 'plans': plans, 'missing': missing, 'readAt': dt.datetime.now(dt.timezone.utc).isoformat(), 'recordChangedAt': max(dates) if dates else None, 'commit': git('rev-parse', '--short', 'HEAD'), 'branch': git('branch', '--show-current'), 'history': [dict(zip(['commit','date','title'], line.split('\t', 2))) for line in history.splitlines()]}
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):

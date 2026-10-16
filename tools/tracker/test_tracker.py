@@ -45,11 +45,34 @@ class TrackerTests(unittest.TestCase):
         for invalid in [text.replace('80%', '101%', 1), text.replace('80%', 'unknown', 1), text.split('\n', 1)[1], text+'\n'+text.splitlines()[0]]:
             with self.assertRaises(ValueError): server.milestones(invalid)
     def test_original_relationships_are_preserved(self):
-        rows=server.relationship_map()
+        rows=server.legacy_relationships()
         self.assertEqual(len(rows),6)
         self.assertEqual(rows[0]['milestones'],['MC-03','MC-05','MC-06','MC-08','MC-10','MC-12'])
         self.assertEqual(rows[1]['milestones'],['MC-05','MC-10','MC-12'])
         self.assertTrue(all((server.ROOT/row['plan']).is_file() for row in rows))
+    def test_milestone_references(self):
+        self.assertEqual(server.milestone_references('MC05/06, MC-09–12; MC-99'), ['MC-05','MC-06','MC-09','MC-10','MC-11','MC-12'])
+
+    def test_grouping_preserves_documents_and_source_context(self):
+        data=server.snapshot()
+        paths,_=server.discover()
+        visible=[p['id'] for p in data['plans']]+[d['id'] for p in data['plans'] for d in p['supportingDocuments']]+[d['id'] for d in data['sharedDocuments']]
+        self.assertCountEqual(visible,[p.as_posix() for p in paths])
+        self.assertEqual(len(visible),len(set(visible)))
+        for child,parent in server.SUPPORTING_DOCUMENTS.items():
+            plan=next(p for p in data['plans'] if p['id']==parent)
+            self.assertIn(child,[d['id'] for d in plan['supportingDocuments']])
+            self.assertTrue(any(i['source']==child for i in plan['items']))
+        self.assertNotIn('relationships',data)
+
+    def test_new_unmapped_plan_and_missing_parent_remain_visible(self):
+        child=next(iter(server.SUPPORTING_DOCUMENTS))
+        docs=[dict(id=id,title=id,items=[{'id':'one','section':'Checkpoint'}],milestones=[],trackerNotes=[]) for id in ['new-plan.md',child]]
+        plans,shared=server.group_documents(docs,[])
+        self.assertEqual([p['id'] for p in plans],['new-plan.md',child])
+        self.assertTrue(all(p['milestones']==[] for p in plans))
+        self.assertFalse(shared)
+
     def test_snapshot(self):
         data=server.snapshot()
         self.assertGreater(len(data['plans']), 5)

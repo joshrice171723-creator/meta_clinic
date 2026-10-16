@@ -27,18 +27,18 @@ function renderRelationships(){
     button.onclick=()=>{relationshipMilestone=milestone.id;renderRelationships();};th.append(button);header.append(th);
   }
   head.append(header);table.append(head);const body=element('tbody');
-  for(const plan of data.relationships){
-    const row=element('tr',undefined,'relation-'+plan.group),label=element('th');label.scope='row';const button=element('button',plan.title+' ↗');button.onclick=()=>showPlan(plan.plan);label.append(button);row.append(label);
+  for(const plan of data.plans){
+    const row=element('tr',undefined,'relation-'+plan.group),label=element('th');label.scope='row';const button=element('button',plan.title+' ↗');button.onclick=()=>showPlan(plan.id);label.append(button);if(!plan.milestones.length)label.append(element('small','Not mapped','unmapped'));button.title=plan.coverageSource;row.append(label);
     for(const milestone of data.overview.milestones){
       const cell=element('td'),covered=plan.milestones.includes(milestone.id);const block=element('span',undefined,covered?'coverage-cell covered':'coverage-cell');
       block.setAttribute('role','img');block.setAttribute('aria-label',plan.title+' / '+milestone.title+': '+(covered?'Recorded connection':'No recorded connection'));block.title=milestone.title+': '+(covered?'covered':'not mapped');cell.append(block);row.append(cell);
     }
     body.append(row);
   }
-  table.append(body);
+  table.append(body);table.querySelector('caption').textContent=`All ${data.plans.length} plans · Same inventory as the plan list · Pale cells mean no recorded connection, not absence of work.`;
   const selected=data.overview.milestones.find(row=>row.id===relationshipMilestone);const panel=$('relationship-selection');panel.replaceChildren();
   if(selected){
-    const title=element('div');title.append(element('span',selected.id+' · SELECTED MILESTONE','eyebrow'),element('h3',selected.title),element('p',data.relationships.filter(plan=>plan.milestones.includes(selected.id)).length+' mapped plans reference this milestone.'));
+    const title=element('div');title.append(element('span',selected.id+' · SELECTED MILESTONE','eyebrow'),element('h3',selected.title),element('p',data.plans.filter(plan=>plan.milestones.includes(selected.id)).length+' mapped plans reference this milestone.'));
     const evidence=element('div');evidence.append(element('span','CURRENT EVIDENCE','eyebrow'),element('p',selected.evidence));
     const remaining=element('div');remaining.append(element('span','STILL OPEN','eyebrow'),element('p',selected.remaining));panel.append(title,evidence,remaining);
   }
@@ -68,11 +68,11 @@ function renderOverview(){
     else {const button=element('button','Read milestone in tracker');button.onclick=()=>openDocument('APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md');body.append(button);}
     detail.append(summary,body);$('milestone-chart').append(detail);
   }
-  $('detail-count').textContent=`${data.plans.length} plans & supporting records · Open the detailed view ↓`;
+  $('detail-count').textContent=`${data.plans.length} plans · ${data.plans.reduce((n,p)=>n+p.supportingDocuments.length,0)} supporting documents · Open the detailed view ↓`;
 }
 function render(){
   const query=$('search').value.toLowerCase();
-  const plans=data.plans.filter(plan=>(plan.title+' '+plan.id+' '+plan.items.map(i=>i.text).join(' ')).toLowerCase().includes(query));
+  const plans=data.plans.filter(plan=>(plan.title+' '+plan.id+' '+plan.supportingDocuments.map(d=>d.title).join(' ')+' '+plan.items.map(i=>i.text).join(' ')).toLowerCase().includes(query));
   $('plan-count').textContent=`${plans.length} of ${data.plans.length} plans`;
   $('plans').replaceChildren();
   for(const plan of plans){
@@ -85,6 +85,8 @@ function render(){
   if(!plan){$('empty').textContent='Choose a plan to see its remaining work.';return;}
   $('title').textContent=plan.title;$('path').textContent=`Document committed ${date(plan.lastChanged)} · Latest dated section: ${plan.latestMentionedDate||'Not recorded'} · ${plan.id}`;
   $('tracker-note').hidden=!plan.trackerNotes.length;$('tracker-note-body').replaceChildren(...plan.trackerNotes.map(note=>element('p',note)));
+  const support=$('supporting-documents');support.replaceChildren();
+  if(plan.supportingDocuments.length){const details=element('details');details.append(element('summary',`Supporting documents (${plan.supportingDocuments.length})`));for(const doc of plan.supportingDocuments){const button=element('button',doc.title);button.onclick=()=>openDocument(doc.id);details.append(button);}support.append(details);}
   $('filters').replaceChildren();
   for(const [key,label] of Object.entries(labels)){
     const button=element('button',`${label} (${count(plan,key)})`);button.setAttribute('aria-pressed',String(filter===key));button.onclick=()=>{filter=key;render();};$('filters').append(button);
@@ -94,9 +96,9 @@ function render(){
   if(!items.length)$('items').append(element('p','No entries explicitly recorded in this category. This does not establish completion.'));
   for(const item of items){
     const card=element('article',undefined,'work '+item.status);card.append(element('span',labels[item.status],'badge'),element('h3',item.title||item.section));
-    const brief=item.text.length>360?item.text.slice(0,360)+'…':item.text;card.append(element('p',brief));
+    const brief=item.text.length>360?item.text.slice(0,360)+'…':item.text;card.append(element('p',brief));if(item.source!==plan.id)card.append(element('small','From: '+item.sourceTitle));
     if(item.text.length>360){const details=element('details');details.append(element('summary','Read full evidence and next steps'),element('p',item.text));card.append(details);}
-    const button=element('button',item.status==='qa'?'View QA context':item.status==='blocked'?'View blocker context':'View in plan');button.onclick=()=>openDocument(plan.id,item.section);card.append(button);$('items').append(card);
+    const button=element('button',item.status==='qa'?'View QA context':item.status==='blocked'?'View blocker context':'View in plan');button.onclick=()=>openDocument(item.source,item.section);card.append(button);$('items').append(card);
   }
   $('document').onclick=()=>openDocument(plan.id);
 }
@@ -124,6 +126,8 @@ async function refresh(){
   $('refresh').disabled=true;$('connection').textContent='Reading repository records…';
   try{
     const response=await fetch('/api/tracker');if(!response.ok)throw Error();data=await response.json();
+    const owner=data.plans.find(p=>p.supportingDocuments.some(doc=>doc.id===selected));if(owner){selected=owner.id;history.replaceState(null,'','?plan='+encodeURIComponent(selected));}
+    const shared=$('shared-documents');shared.replaceChildren();for(const doc of data.sharedDocuments){const button=element('button',doc.title);button.onclick=()=>openDocument(doc.id);shared.append(button);}
     if(!data.plans.some(p=>p.id===selected)){selected=data.plans[0]?.id;const first=data.plans[0];filter=first?(['qa','build','blocked','review'].find(key=>count(first,key))||'all'):'all';}
     $('connection').textContent=`Records read ${date(data.readAt)} · Latest tracked document commit ${date(data.recordChangedAt)} · This is not live work status.`;
     $('source').textContent=`Repository branch: ${data.branch} · Commit: ${data.commit}. Status categories are conservative text extraction from source records; they are not new acceptance results.`;
@@ -131,7 +135,7 @@ async function refresh(){
     $('history').replaceChildren(...data.history.map(item=>element('li',`${date(item.date)} · ${item.title} · ${item.commit}`)));
     renderOverview();renderRelationships();render();
   }catch{
-    data=null;$('relationship-selection').replaceChildren();$('relation-table').querySelectorAll('thead,tbody').forEach(node=>node.remove());$('scorecards').replaceChildren();$('milestone-chart').replaceChildren();$('overview-error').textContent='Progress unavailable. Refresh when the repository connection is restored.';$('plans').replaceChildren();$('plan-count').textContent='';$('history').replaceChildren();$('source').textContent='Source records unavailable.';$('missing').textContent='';$('content').hidden=true;$('empty').hidden=false;$('empty').textContent='Records unavailable. Start the tracker server and click Refresh records.';$('connection').textContent='Connection failed — no cached progress is being shown.';
+    data=null;$('shared-documents').replaceChildren();$('detail-count').textContent='Plans unavailable';$('relationship-selection').replaceChildren();$('relation-table').querySelectorAll('thead,tbody').forEach(node=>node.remove());$('scorecards').replaceChildren();$('milestone-chart').replaceChildren();$('overview-error').textContent='Progress unavailable. Refresh when the repository connection is restored.';$('plans').replaceChildren();$('plan-count').textContent='';$('history').replaceChildren();$('source').textContent='Source records unavailable.';$('missing').textContent='';$('content').hidden=true;$('empty').hidden=false;$('empty').textContent='Records unavailable. Start the tracker server and click Refresh records.';$('connection').textContent='Connection failed — no cached progress is being shown.';
   }finally{$('refresh').disabled=false;}
 }
 $('browse-plans').onclick=()=>{$('plan-details').open=true;};
