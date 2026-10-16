@@ -29,6 +29,7 @@ import { MuseGridEditor, MuseKeyConnection } from "./MuseGridEditor";
 import type { MuseBrowserKey } from "./museBrowserKey";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import { useOfficeRequest, useOfficeLink } from "./officeTransport";
+import { museQaActivity, type MuseCheckIn } from "./museCheckIn";
 
 type ArchivedEvidence = {
   kind: "observation" | "screenshot";
@@ -164,8 +165,12 @@ const batchLink = (batch: Batch) =>
 /** QA is a server ledger projection. Browser actions submit requests, never verdicts. */
 export function QaOfficeQa({
   buildBannerTarget,
+  museCheckIn,
+  officeUnavailable = false,
 }: {
   buildBannerTarget?: HTMLElement | null;
+  museCheckIn?: MuseCheckIn;
+  officeUnavailable?: boolean;
 }) {
   const api = useOfficeRequest();
   const officeLink = useOfficeLink();
@@ -175,6 +180,7 @@ export function QaOfficeQa({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [refreshedAt, setRefreshedAt] = useState(0);
   const [selected, setSelected] = useState<Defect>();
   const [workflow, setWorkflow] = useState<Workflow & { id: string }>();
   const [report, setReport] = useState(false);
@@ -203,6 +209,7 @@ export function QaOfficeQa({
           throw new Error("QA ledger projection is unavailable.");
         if (!active.current || request !== version.current) return;
         setSnapshot(received);
+        setRefreshedAt(Date.now());
         setWorkflow((previous) =>
           previous
             ? {
@@ -323,6 +330,21 @@ export function QaOfficeQa({
   const failures = countResults(/^(failed|fail)$/i);
   const blocked = countResults(/^blocked$/i);
   const inProgress = countResults(/^(in_progress|working|running)$/i);
+  const activeWorkflows = currentRecords.filter((item) =>
+    /^(in_progress|working|running)$/i.test(item.result ?? item.status ?? ""),
+  );
+  const museActivity = museQaActivity(
+    museCheckIn,
+    now,
+    ready &&
+      verified &&
+      !build?.dirty &&
+      !officeUnavailable &&
+      now >= refreshedAt &&
+      now - refreshedAt < 30_000,
+    inProgress,
+    blocked,
+  );
   const importedCoverage =
     !!snapshot?.coverage.source ||
     !!snapshot?.coverage.imported_at ||
@@ -584,6 +606,40 @@ export function QaOfficeQa({
                 : "Coverage unavailable"}
             </Typography>
           </Stack>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <Box
+              component="span"
+              aria-hidden="true"
+              data-testid="muse-qa-light"
+              data-working={museActivity.working}
+              sx={{
+                width: 14,
+                height: 14,
+                flexShrink: 0,
+                borderRadius: "50%",
+                bgcolor: museActivity.working ? "#1976d2" : "#767d78",
+                animation: museActivity.working
+                  ? "museQaPulse 1.6s ease-out infinite"
+                  : "none",
+                "@keyframes museQaPulse": {
+                  "0%": { boxShadow: "0 0 0 0 #1976d280" },
+                  "100%": { boxShadow: "0 0 0 9px #1976d200" },
+                },
+                "@media (prefers-reduced-motion: reduce)": {
+                  animation: "none",
+                },
+              }}
+            />
+            <Typography role="status" variant="subtitle2">
+              {museActivity.label}
+              {museActivity.working &&
+                ` · ${activeWorkflows.map((item) => item.id ?? item.workflow).join(", ")}`}
+            </Typography>
+          </Stack>
+          <Typography variant="caption" color="text.secondary">
+            Activity requires a current Muse check-in and an active check on
+            this build. Results refresh every 15 seconds.
+          </Typography>
           {importedCoverage && (
             <Typography variant="body2" role="status">
               Recorded QA on this revision: {passes} pass · {failures} fail ·{" "}

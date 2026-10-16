@@ -776,7 +776,15 @@ export function QaOffice({
           )}
         </section>
       </div>
-      <QaOfficeQa buildBannerTarget={buildBannerTarget} />
+      <QaOfficeQa
+        buildBannerTarget={buildBannerTarget}
+        museCheckIn={{
+          musePrincipalId: principal,
+          receipt,
+          cadenceMs: cadence ?? undefined,
+        }}
+        officeUnavailable={!!error}
+      />
     </Box>
   );
 }

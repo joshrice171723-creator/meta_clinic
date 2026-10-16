@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptMuseReceipt,
   museCountdown,
+  museQaActivity,
 } from "../src/features/qa/museCheckIn";
 
 const principal = "synthetic-muse-principal";
@@ -10,6 +11,22 @@ const receipt = {
   authenticatedActorId: principal,
   receivedAtMs: 10_000,
 };
+
+it("pulses only for fresh authenticated presence and current active QA", () => {
+  const checkIn = { musePrincipalId: principal, receipt, cadenceMs: 60_000 };
+  expect(museQaActivity(checkIn, 20_000, true, 1, 0).working).toBe(true);
+  expect(museQaActivity(checkIn, 20_000, true, 0, 0).label).toContain("idle");
+  expect(museQaActivity(checkIn, 20_000, true, 0, 1).label).toContain(
+    "blocked",
+  );
+  expect(museQaActivity(checkIn, 70_000, true, 1, 0).working).toBe(false);
+  expect(museQaActivity(checkIn, 20_000, false, 1, 0).working).toBe(false);
+  expect(museQaActivity(undefined, 20_000, true, 1, 0).working).toBe(false);
+  expect(
+    museQaActivity({ ...checkIn, musePrincipalId: "other" }, 20_000, true, 1, 0)
+      .working,
+  ).toBe(false);
+});
 
 describe("Muse authenticated check-in contract", () => {
   it("requires a matching verified actor receipt, independent of QA timestamps", () => {

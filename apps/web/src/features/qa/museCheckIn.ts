@@ -70,3 +70,33 @@ export function museCountdown(
         : "Overdue";
   return { label, fraction: remainingMs / cadenceMs, remainingMs };
 }
+
+/** A check-in alone is presence, not evidence of an active QA workflow. */
+export function museQaActivity(
+  checkIn: MuseCheckIn | undefined,
+  now: number,
+  recordsFresh: boolean,
+  activeWorkflows: number,
+  blockedWorkflows: number,
+) {
+  const connected =
+    checkIn &&
+    museCountdown(
+      checkIn.receipt,
+      checkIn.musePrincipalId,
+      checkIn.cadenceMs,
+      now,
+    ).remainingMs > 0;
+  if (!recordsFresh)
+    return { working: false, label: "Muse status unavailable" };
+  if (!connected)
+    return { working: false, label: "Muse check-in overdue or unavailable" };
+  if (activeWorkflows > 0) return { working: true, label: "Muse is testing" };
+  return {
+    working: false,
+    label:
+      blockedWorkflows > 0
+        ? "Muse has blocked checks"
+        : "Muse is idle · no active checks",
+  };
+}
