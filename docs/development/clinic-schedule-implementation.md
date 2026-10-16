@@ -1,5 +1,14 @@
 # Clinic Schedule implementation brief
 
+## Tracker milestone connections
+
+Reviewed 2026-10-16 against this plan’s scope and the implementation tracker. These connections identify related work and explicit dependency boundaries, not completion or new QA evidence.
+
+| Milestone | Area | Connection in this plan |
+| --- | --- | --- |
+| MC-04 | Scheduling / capacity | Calendar month/day views, availability, capacity guards, booking and patient-scoped draft recovery. |
+| MC-05 | Intake / rooms / handoffs | Arrival/check-in is the boundary for entry into the Tracking Board; booking alone must not create a board entry. |
+
 Revision: 2026-09-17. Local implementation authorized by the founder; synthetic development only. Baseline: `149b45e`.
 
 ## Scope and continuity

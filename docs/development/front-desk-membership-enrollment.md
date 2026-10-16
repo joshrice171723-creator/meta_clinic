@@ -1,5 +1,17 @@
 # Front-desk membership enrollment
 
+## Tracker milestone connections
+
+Reviewed 2026-10-16 against this plan’s scope and the implementation tracker. These connections identify related work and explicit dependency boundaries, not completion or new QA evidence.
+
+| Milestone | Area | Connection in this plan |
+| --- | --- | --- |
+| MC-02 | Digital front door / Growth | Staff creates a contact-first prospective-patient enrollment and preserves follow-up permission. |
+| MC-03 | Registration / walk-ins | The conversion boundary forbids patient creation before server-verified payment; existing conversion owns registration. |
+| MC-08 | Cash billing | The existing phone-payment flow, verified payment, receipt and uncertain-payment recovery are explicit dependencies. |
+| MC-09 | Memberships / packages | Published membership terms, service choices and review-required eligibility govern enrollment. |
+| MC-12 | Portal / messaging / follow-up | Receipt/invitation and later portal setup follow only the established verified-payment completion path. |
+
 ## Purpose and boundary
 
 This is the staff-led counterpart to the public membership path. It lets an authorized front-desk member select a **published** clinic membership, record a prospective patient's contact details and move that enrollment into a dedicated telephone-style payment step.

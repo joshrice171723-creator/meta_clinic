@@ -1,5 +1,28 @@
 # In-app assistant — Phase 2 checkpoint
 
+## Tracker milestone connections
+
+Reviewed 2026-10-16 against this plan’s scope and the implementation tracker. These connections identify related work and explicit dependency boundaries, not completion or new QA evidence.
+
+| Milestone | Area | Connection in this plan |
+| --- | --- | --- |
+| MC-01 | Clinic setup | Workflow-map facilities/profile criteria cover configuration reads and reviewed setup proposals. |
+| MC-02 | Digital front door / Growth | The map includes membership prospects and public entry criteria, retaining their partial/dependency gaps. |
+| MC-03 | Registration / walk-ins | Patient search, registration, demographics and identity-review criteria. |
+| MC-04 | Scheduling / capacity | The locally verified booking slice and mapped scheduling, cancellation and waitlist criteria. |
+| MC-05 | Intake / rooms / handoffs | Intake workspace, record-field drafts, rooming and check-in criteria. |
+| MC-06 | Encounters / clinical work | Clinical history, observations, note drafts, care plans and lab criteria; signing remains human-gated. |
+| MC-07 | Telehealth | WF-103 and WF-104 preserve video/eligibility dependencies; this connection does not establish a working assistant video workflow. |
+| MC-08 | Cash billing | Billing service/catalog, invoice, payment eligibility and recovery criteria; card execution retains its dependency boundary. |
+| MC-09 | Memberships / packages | Package/service authoring and membership enrollment-draft/prospect criteria, including incomplete public workflows. |
+| MC-10 | Medication / refills / fulfillment | Medication, refill and fulfillment criteria; clinical decisions and external sends stay gated. |
+| MC-11 | Inventory / procurement | Stock lookup and mapped receiving, count, ledger and inventory-exception criteria. |
+| MC-12 | Portal / messaging / follow-up | Reminder, message and follow-up criteria, including missing patient-facing operations. |
+| MC-13 | Workforce / locations | Employee invitation/access, scheduling, leave, timecards and kiosk criteria. |
+| MC-14 | Reporting / clinic ownership | Report reads, operations overview and owner-workspace criteria with their recorded gaps. |
+| MC-15 | Onboarding / integrations / operations | Demo/session, configuration snapshot and provider/connector boundaries. |
+| MC-16 | Optional insurance | Boundary only: WF-020 checks the disabled insurance-workflow switch. No insurance processing implementation or acceptance is credited. |
+
 Updated: 2026-10-04. Owner: current Codex task (integrator); synthetic development only.
 
 ## Loading and usability repair

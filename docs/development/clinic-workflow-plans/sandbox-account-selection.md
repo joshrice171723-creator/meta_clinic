@@ -1,5 +1,16 @@
 # Sandbox Account Selection
 
+## Tracker milestone connections
+
+Reviewed 2026-10-16 against this plan’s scope and the implementation tracker. These connections identify related work and explicit dependency boundaries, not completion or new QA evidence.
+
+| Milestone | Area | Connection in this plan |
+| --- | --- | --- |
+| MC-02 | Digital front door / Growth | Visitor registration and the pre-login Sandbox account picker form the entry journey. |
+| MC-12 | Portal / messaging / follow-up | Patient-role entry and patient pending-write vetoes preserve portal session and recovery boundaries. |
+| MC-13 | Workforce / locations | Staff-role selection preserves existing grants, revocation and site/practice authority; it does not create new workforce permissions. |
+| MC-15 | Onboarding / integrations / operations | Shared demo preparation, account switching, session isolation and guarded reset/restore are the operating scope. |
+
 ## Assignment and authority
 
 Joshua approved the additional sandbox experience item on 2026-10-02: five real seeded accounts, a picker before login, a top-bar account switcher and a guarded nightly reset at 02:00 America/Chicago. This is item 75, additional to the original 74 modernization packets. A owns integration and shared/session boundaries. Reviewed source6992ce4 was published14:43UTC. Parent created one enabled daily02:00America/Chicago automation, first2026-10-03; no duplicate host timer, actual nightly reset, new credentials or provider connection was created by A.

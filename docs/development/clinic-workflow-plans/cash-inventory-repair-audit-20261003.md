@@ -1,5 +1,20 @@
 # Cash and inventory repair audit — 2026-10-03
 
+## Tracker milestone connections
+
+Reviewed 2026-10-16 against this plan’s scope and the implementation tracker. These connections identify related work and explicit dependency boundaries, not completion or new QA evidence.
+
+| Milestone | Area | Connection in this plan |
+| --- | --- | --- |
+| MC-03 | Registration / walk-ins | FIX-01 protects current patient contact identity in lookup and recovery. |
+| MC-04 | Scheduling / capacity | FIX-04, FIX-08, FIX-15, FIX-22 and FIX-24 cover capacity, reminders, waitlist recovery, series resources and no-show eligibility. |
+| MC-06 | Encounters / clinical work | FIX-03, FIX-05, FIX-10 and FIX-11 preserve laboratory provenance, review receipts and follow-up prerequisites. |
+| MC-08 | Cash billing | FIX-02, FIX-09 and FIX-18 through FIX-21 cover allocations, invoice versions, drawer retries, receipts and patient balances. |
+| MC-11 | Inventory / procurement | FIX-16 and FIX-17 cover uncertain stock mutations and late-response ownership; the checkpoint also records purchase-order revision recovery. |
+| MC-12 | Portal / messaging / follow-up | FIX-01 and FIX-05 through FIX-14 include portal invitations, contact follow-up, reminders and source-owned Work Inbox retry/completion. |
+| MC-13 | Workforce / locations | FIX-06 and FIX-07 preserve separate staff-request task identity and source-owned finalization. |
+| MC-14 | Reporting / clinic ownership | FIX-21 keeps income outlook and patient-ledger aggregate balances consistent. |
+
 Assignment: integration owner, bounded repairs and maintainability. Joshua authorized implementation and focused synthetic verification through the parent task. Preserve the complete application; the cash/inventory demonstration selects verification journeys and does not narrow product scope. This assignment does not itself grant a new production release.
 
 Baseline: `3da3ca67355f45d10cf4980ca9c1e492dd393534`, branch `codex/cash-inventory-slice-20261003`. The diligence document was read at SHA-256 `EF5CC355E6DB0A2311AFF7486905098DFFD0C71AE8616900A77025DB4A6F28D8`. Its older source pin and CI evidence are historical, not current acceptance. Existing original QA and modernization packet counts remain unchanged.
