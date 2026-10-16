@@ -7,6 +7,43 @@ function element(tag, text, cls) { const node = document.createElement(tag); if(
 function readable(text){return text.replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/[*`]/g,'');}
 function date(value){return value ? new Date(value).toLocaleString() : 'Not recorded';}
 function count(plan, status){return plan.items.filter(item=>status==='all'||item.status===status).length;}
+function progress(value, label, key){
+  const bar=element('progress',undefined,key);bar.max=100;bar.value=value;bar.setAttribute('aria-label',label);return bar;
+}
+function showPlan(id){
+  selected=id;const plan=data.plans.find(p=>p.id===id);
+  if(!plan)return;
+  filter=['qa','build','blocked','review'].find(key=>count(plan,key))||'all';
+  $('search').value='';history.replaceState(null,'','?plan='+encodeURIComponent(id));
+  $('plan-details').open=true;render();$('plan-details').scrollIntoView({block:'start'});
+}
+function renderOverview(){
+  $('scorecards').replaceChildren();$('milestone-chart').replaceChildren();
+  $('overview-error').textContent=data.overview.error||'';
+  const rows=data.overview.milestones;
+  if(!rows.length)return;
+  const core=rows.filter(row=>row.id!=='MC-16');
+  const dimensions=[['build','Built','Recorded implementation coverage.'],['qa','Local QA','Recorded local verification coverage.'],['external','External / human','Recorded external or human acceptance. Zero means none recorded, not necessarily blocked.']];
+  for(const [key,title,description] of dimensions){
+    const average=core.reduce((sum,row)=>sum+row[key],0)/core.length;
+    const card=element('article',undefined,'scorecard');card.append(element('h3',title),element('strong',average.toFixed(1)+'%'),progress(average,title+' estimate',key),element('p',description));$('scorecards').append(card);
+  }
+  for(const row of rows){
+    const detail=element('details',undefined,'milestone');const summary=element('summary');const name=element('div',undefined,'milestone-name');name.append(element('span',row.id+(row.id==='MC-16'?' · OPTIONAL':'') ,'milestone-code'),document.createTextNode(row.title));
+    const bars=element('div');
+    for(const [key,label] of [['build','Built'],['qa','QA'],['external','External']]){
+      const line=element('div',undefined,'bar-line');line.append(element('span',label),progress(row[key],row.title+' '+label,key),element('span',row[key]+'%'));bars.append(line);
+    }
+    summary.append(name,bars);const body=element('div',undefined,'milestone-body');
+    body.append(element('h3','What’s left'),element('p',row.remaining),element('h3','Next step'),element('p',row.next));
+    const evidence=element('details');evidence.append(element('summary','Evidence & acceptance limits'),element('p',row.evidence));body.append(evidence);
+    const related=data.plans.filter(plan=>plan.milestones.includes(row.id));
+    if(related.length){body.append(element('h3','Plans that reference this milestone'));const links=element('div',undefined,'related-plans');for(const plan of related){const button=element('button',plan.title+' →');button.onclick=()=>showPlan(plan.id);links.append(button);}body.append(links);}
+    else {const button=element('button','Read milestone in tracker');button.onclick=()=>openDocument('APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md');body.append(button);}
+    detail.append(summary,body);$('milestone-chart').append(detail);
+  }
+  $('detail-count').textContent=`${data.plans.length} plans & supporting records · Open the detailed view ↓`;
+}
 function render(){
   const query=$('search').value.toLowerCase();
   const plans=data.plans.filter(plan=>(plan.title+' '+plan.id+' '+plan.items.map(i=>i.text).join(' ')).toLowerCase().includes(query));
@@ -66,9 +103,10 @@ async function refresh(){
     $('source').textContent=`Repository branch: ${data.branch} · Commit: ${data.commit}. Status categories are conservative text extraction from source records; they are not new acceptance results.`;
     $('missing').textContent=data.missing.length?`${data.missing.length} missing source links: ${data.missing.join(', ')}`:'All discovered local Markdown links resolve.';
     $('history').replaceChildren(...data.history.map(item=>element('li',`${date(item.date)} · ${item.title} · ${item.commit}`)));
-    render();
+    renderOverview();render();
   }catch{
-    data=null;$('plans').replaceChildren();$('plan-count').textContent='';$('history').replaceChildren();$('source').textContent='Source records unavailable.';$('missing').textContent='';$('content').hidden=true;$('empty').hidden=false;$('empty').textContent='Records unavailable. Start the tracker server and click Refresh records.';$('connection').textContent='Connection failed — no cached progress is being shown.';
+    data=null;$('scorecards').replaceChildren();$('milestone-chart').replaceChildren();$('overview-error').textContent='Progress unavailable. Refresh when the repository connection is restored.';$('plans').replaceChildren();$('plan-count').textContent='';$('history').replaceChildren();$('source').textContent='Source records unavailable.';$('missing').textContent='';$('content').hidden=true;$('empty').hidden=false;$('empty').textContent='Records unavailable. Start the tracker server and click Refresh records.';$('connection').textContent='Connection failed — no cached progress is being shown.';
   }finally{$('refresh').disabled=false;}
 }
+$('browse-plans').onclick=()=>{$('plan-details').open=true;};
 $('refresh').onclick=refresh;$('search').oninput=()=>{if(data)render();};$('close').onclick=()=>$('reader').close();$('register').onclick=()=>openDocument('APPlyVault/03 Execution/Meta Clinic Implementation Tracker.md');refresh();

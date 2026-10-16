@@ -35,10 +35,21 @@ class TrackerTests(unittest.TestCase):
             paths, missing=server.discover(root)
             self.assertEqual(paths, [server.PLAN_DIR/'new-plan.md'])
             self.assertEqual(missing, ['docs/development/missing.md'])
+    def test_milestone_scores_and_optional_scope(self):
+        text = '\n'.join(f'| MC-{i:02} — Area {i} | {20 if i == 16 else 80}% | 40% | 0% | Gap | Next | Evidence |' for i in range(1,17))
+        rows = server.milestones(text)
+        self.assertEqual(len(rows), 16)
+        core = [row for row in rows if row['id'] != 'MC-16']
+        self.assertEqual(sum(row['build'] for row in core)/len(core), 80)
+        self.assertEqual(rows[-1]['build'], 20)
+        for invalid in [text.replace('80%', '101%', 1), text.replace('80%', 'unknown', 1), text.split('\n', 1)[1], text+'\n'+text.splitlines()[0]]:
+            with self.assertRaises(ValueError): server.milestones(invalid)
     def test_snapshot(self):
         data=server.snapshot()
         self.assertGreater(len(data['plans']), 5)
         self.assertTrue(data['history'])
+        self.assertEqual(len(data['overview']['milestones']),16)
+        self.assertIsNone(data['overview']['error'])
         self.assertTrue(all(p['items'] for p in data['plans']))
         self.assertEqual(len({p['id'] for p in data['plans']}),len(data['plans']))
 

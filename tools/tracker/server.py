@@ -102,9 +102,27 @@ def extract(text):
             items.append({'id': hashlib.sha256((section + status + entry).encode()).hexdigest()[:12], 'section': section, 'title': title, 'text': entry, 'status': status})
     return list({item['id']: item for item in items}.values())
 
+def milestones(text):
+    rows = []
+    for line in text.splitlines():
+        cells = [clean(cell) for cell in line.strip().strip('|').split('|')]
+        match = re.fullmatch(r'(MC-\d{2}) [—–-] (.+)', cells[0])
+        if not match:
+            continue
+        if len(cells) != 7 or not all(re.fullmatch(r'\d{1,3}%', value) and int(value[:-1]) <= 100 for value in cells[1:4]):
+            raise ValueError('Milestone percentages are incomplete or invalid.')
+        rows.append(dict(id=match[1], title=match[2], build=int(cells[1][:-1]), qa=int(cells[2][:-1]), external=int(cells[3][:-1]), remaining=cells[4], next=cells[5], evidence=cells[6]))
+    if sorted(row['id'] for row in rows) != [f'MC-{number:02}' for number in range(1,17)]:
+        raise ValueError('Expected 16 distinct milestone records.')
+    return rows
+
 def snapshot():
     paths, missing = discover()
     register = (ROOT / TRACKER).read_text(encoding='utf-8-sig')
+    try:
+        overview = {'milestones': milestones(register), 'error': None}
+    except ValueError as error:
+        overview = {'milestones': [], 'error': str(error)}
     plans = []
     for path in paths:
         content = (ROOT / path).read_text(encoding='utf-8-sig')
@@ -122,10 +140,11 @@ def snapshot():
                 if (ROOT / TRACKER.parent / unquote(link.split('#')[0])).resolve() == (ROOT / path).resolve():
                     tracker_notes.append(clean(line.strip('|').split('|')[-1]))
                     break
-        plans.append({'trackerNotes': tracker_notes, 'lastChanged': last_change, 'latestMentionedDate': max(reported) if reported else None, 'id': path.as_posix(), 'title': clean(title.group(1)) if title else path.stem.replace('-', ' '), 'items': items})
+        milestone_ids = sorted(set(re.findall(r'\bMC-\d{2}\b', content)))
+        plans.append({'milestones': milestone_ids, 'trackerNotes': tracker_notes, 'lastChanged': last_change, 'latestMentionedDate': max(reported) if reported else None, 'id': path.as_posix(), 'title': clean(title.group(1)) if title else path.stem.replace('-', ' '), 'items': items})
     history = git('log', '-30', '--date=iso-strict', '--format=%h%x09%aI%x09%s', '--', str(TRACKER), 'docs/development', 'docs/product-review', 'PATIENT_JOURNEY_PLAN.md')
     dates = {line.split('\t')[1] for line in history.splitlines() if '\t' in line}
-    return {'plans': plans, 'missing': missing, 'readAt': dt.datetime.now(dt.timezone.utc).isoformat(), 'recordChangedAt': max(dates) if dates else None, 'commit': git('rev-parse', '--short', 'HEAD'), 'branch': git('branch', '--show-current'), 'history': [dict(zip(['commit','date','title'], line.split('\t', 2))) for line in history.splitlines()]}
+    return {'overview': overview, 'plans': plans, 'missing': missing, 'readAt': dt.datetime.now(dt.timezone.utc).isoformat(), 'recordChangedAt': max(dates) if dates else None, 'commit': git('rev-parse', '--short', 'HEAD'), 'branch': git('branch', '--show-current'), 'history': [dict(zip(['commit','date','title'], line.split('\t', 2))) for line in history.splitlines()]}
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
