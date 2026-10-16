@@ -10,10 +10,10 @@
       "path": "/qa?view=office",
       "focus": "116-workflow coverage",
       "description": "Office gains a manual trigger for the same bounded browser QA route used after publishing.",
-      "instructions": "Compare Original and Changed. Changed shows Start Muse QA near the coverage grid. Public visitors see it disabled with a sign-in explanation. On the published build, an Office operator can start one run; an active request disables duplicate submission.",
-      "expected": "The control explains access, shows task status, and never reports missing browser evidence as verified. Local preview requests must not run against a different live build.",
+      "instructions": "Compare Original and Changed. Changed shows Start Muse QA near the coverage grid. Without signing in, start one shared browser QA request for this build. Refresh and confirm the same request remains visible without creating duplicates.",
+      "expected": "The control works without sign-in, shows task status, and never reports missing browser evidence as verified. Local preview requests must not run against a different live build.",
       "steps": [
-        "The QA trigger and access explanation are clear.",
+        "The QA trigger works without sign-in.",
         "Queued, blocked and evidence-missing states are distinguishable."
       ],
       "files": [

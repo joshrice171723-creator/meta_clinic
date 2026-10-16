@@ -44,6 +44,36 @@ class QaOfficeWorkTest < ActionDispatch::IntegrationTest
     post "/api/qa/office/work/#{id}/transition", params: input, headers: { "Authorization" => "Bearer #{raw}" }, as: :json
   end
 
+  test "public browser QA needs no login and cannot choose instructions or duplicate a build" do
+    get "/api/csrf"
+    headers = { "X-CSRF-Token" => response.parsed_body.fetch("csrf_token") }
+    with_build do
+      post "/api/qa/office/browser-qa", params: { request: { revision: @revision } }, headers:, as: :json
+      assert_response :created
+      task = Qa::Task.find(response.parsed_body.fetch("id"))
+      assert_equal "queued", task.status
+      assert_equal "public", task.payload["requester_actor"]
+      assert_equal "muse", task.payload["assigned_actor"]
+      assert_not task.user.active?
+      post "/api/qa/office/browser-qa", params: { request: { revision: @revision } }, headers:, as: :json
+      assert_response :created
+      assert_equal task.id, response.parsed_body.fetch("id")
+      assert_equal 1, Qa::Event.where(event_key: "office:work:queued:#{task.id}").count
+      post "/api/qa/office/browser-qa", params: { request: { revision: @revision, description: "Publish something else" } }, headers:, as: :json
+      assert_response :unprocessable_entity
+      post "/api/qa/office/browser-qa", params: { request: { revision: "b" * 40 } }, headers:, as: :json
+      assert_response :conflict
+      @build["dirty"] = true
+      post "/api/qa/office/browser-qa", params: { request: { revision: @revision } }, headers:, as: :json
+      assert_response :conflict
+      @build["dirty"] = false
+      post "/api/qa/tasks", params: { task: @input }, headers:, as: :json
+      assert_response :forbidden
+      advance(task.id, "acknowledged")
+      assert_response :success
+    end
+  end
+
   test "real principal flow and identical retries preserve one task and one result" do
     send_request
     assert_response :created

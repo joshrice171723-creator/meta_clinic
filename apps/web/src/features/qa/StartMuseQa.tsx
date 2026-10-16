@@ -29,9 +29,6 @@ export function StartMuseQa({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const pending = useRef<{ revision: string; key: string } | undefined>(
-    undefined,
-  );
   const sending = useRef(false);
   const refresh = useCallback(async () => {
     try {
@@ -58,11 +55,14 @@ export function StartMuseQa({
     ["queued", "acknowledged", "working", "picked_up"].includes(
       latest.office_status,
     );
+  const publicRequested = work?.tasks.some(
+    (task) => task.request_key === `office-browser-qa-public-${revision}`,
+  );
   const delayed =
     latest?.office_status === "queued" &&
     now - Date.parse(latest.created_at) > 120000;
   const start = async () => {
-    if (sending.current || !revision || dirty || !work?.can_post) return;
+    if (sending.current || !revision || dirty) return;
     sending.current = true;
     setBusy(true);
     setError("");
@@ -83,28 +83,10 @@ export function StartMuseQa({
         setWork(fresh);
         return;
       }
-      if (pending.current?.revision !== revision)
-        pending.current = {
-          revision,
-          key: `office-browser-qa-${crypto.randomUUID()}`,
-        };
-      await api("/api/qa/tasks", {
+      await api("/api/qa/office/browser-qa", {
         method: "POST",
-        body: {
-          task: {
-            kind: "coordination",
-            request_key: pending.current.key,
-            title: "Office browser QA",
-            recipient: "muse",
-            assigned_actor: "muse",
-            revision,
-            payload: {
-              description: `Run one real browser QA pass on exact live build ${revision}. Route to the browser-capable main agent; never substitute code or HTTP inspection. Use the latest published review scope for this build from Office; if none exists, check homepage sandbox entry and its destination. Verify build.json before and after. Send authenticated check-ins and current-build workflow claims/verdicts while actually working so Office reflects real activity. Attach stored screenshot evidence IDs for this revision. If browser access or routing is unavailable, mark blocked with the reason; do not mark completed or passed. No merge, publish, fixture reset, or recurring QA. Stop after this bounded pass.`,
-            },
-          },
-        },
+        body: { request: { revision } },
       });
-      pending.current = undefined;
       await refresh();
     } catch (reason) {
       setError(
@@ -122,19 +104,19 @@ export function StartMuseQa({
       <Button
         variant="contained"
         onClick={() => void start()}
-        disabled={busy || running || !work?.can_post || !revision || dirty}
+        disabled={
+          busy || running || publicRequested || !work || !revision || dirty
+        }
       >
         {busy
           ? "Requesting QA…"
-          : running
+          : running || publicRequested
             ? "Muse QA requested"
             : "Start Muse QA"}
       </Button>
-      {!work?.can_post && (
-        <Typography variant="caption">
-          Sign in as an Office operator to start QA.
-        </Typography>
-      )}
+      <Typography variant="caption">
+        No sign-in needed. One shared QA request per build.
+      </Typography>
       {latest && (
         <Typography role="status" variant="body2">
           Task {latest.id}: {latest.office_status.replaceAll("_", " ")}

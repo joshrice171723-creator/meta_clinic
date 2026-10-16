@@ -241,17 +241,22 @@ it("starts one browser QA request and resumes its status without duplicate work"
   let submissions = 0;
   try {
     await page.route("**/api/qa/office/work", (route) =>
-      route.fulfill({ json: { can_post: true, tasks } }),
+      route.fulfill({ json: { can_post: false, tasks } }),
     );
-    await page.route("**/api/qa/tasks", async (route) => {
+    await page.route("**/api/qa/office/browser-qa", async (route) => {
       submissions++;
-      const { task } = route.request().postDataJSON();
-      expect(task.assigned_actor).toBe("muse");
-      expect(task.revision).toBe(revision);
-      expect(task.request_key).toMatch(/^office-browser-qa-/);
-      expect(Object.keys(task.payload)).toEqual(["description"]);
+      expect(route.request().postDataJSON()).toEqual({ request: { revision } });
       tasks.push({
-        ...task,
+        revision,
+        recipient: "muse",
+        request_key: `office-browser-qa-public-${revision}`,
+        payload: {
+          assigned_actor: "muse",
+          requester_actor: "public",
+          description: "Bounded browser QA",
+        },
+        allowed_transitions: [],
+        receipts: [],
         id: 42,
         status: "queued",
         office_status: "queued",

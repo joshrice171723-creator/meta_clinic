@@ -23,6 +23,7 @@ Rails.application.routes.draw do
     post "qa/office/qa/defects", to: "qa/workspace#office_qa_defect"
     post "qa/office/qa/retests", to: "qa/workspace#office_qa_retest"
     post "qa/office/qa/batches/poll", to: "qa/workspace#office_qa_poll"
+    post "qa/office/browser-qa", to: "qa/workspace#office_browser_qa"
     get "qa/office/work", to: "qa/workspace#office_work"
     post "qa/office/work/:id/transition", to: "qa/workspace#office_work_transition"
     post "qa/office/work/:id/evidence", to: "qa/workspace#office_work_evidence"

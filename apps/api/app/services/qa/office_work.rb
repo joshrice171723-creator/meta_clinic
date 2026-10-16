@@ -48,6 +48,23 @@ module Qa
         can_post: principal.present?, controlled_actor: principal&.fetch(:name) }
     end
 
+    def self.request_browser_qa(user:, input:)
+      raise ArgumentError, "Only the displayed revision is accepted." unless input.keys == [ "revision" ]
+      build = Workspace.build
+      revision = build["revision"]
+      raise Conflict, "Refresh QA to request the exact clean build." unless revision.to_s.match?(/\A[0-9a-f]{40}\z/) && !build["dirty"] && input["revision"] == revision
+      key = "office-browser-qa-public-#{revision}"
+      description = "Run one real browser QA pass on exact live build #{revision}. Route to the browser-capable main agent; never substitute code or HTTP inspection. Use the latest published review scope for this build from Office; if none exists, check homepage sandbox entry and its destination. Verify build.json before and after. Send authenticated check-ins and current-build workflow claims/verdicts while actually working. Attach stored screenshot evidence IDs for this revision. If browser access or routing is unavailable, mark blocked with the reason; never report completion without evidence. No merge, publish, fixture reset, or recurring QA. Stop after this bounded pass."
+      # One shared public request per build makes retries and concurrent visitors idempotent.
+      task = Task.create_or_find_by!(request_key: key) do |record|
+        record.assign_attributes(user:, kind: "coordination", title: "Public Office browser QA", recipient: "muse", revision:,
+          payload: { description:, office_status: "queued", requester_actor: "public", request_source: "public_browser_qa", assigned_actor: "muse" })
+      end
+      Workspace.event(user: task.user, kind: "office_work_queued", summary: task.title, revision:,
+        payload: { task_id: task.id, actor: "public" }, event_key: "office:work:queued:#{task.id}")
+      task_json(task)
+    end
+
     def self.create(user:, token:, input:, revision:)
       principal = identity(user, token)
       key = AgentRoom.text!(input, "request_key", 100)
