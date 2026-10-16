@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Meta Clinic · Plans</title><link rel="stylesheet" href="style.css"></head>
+<body><header><div><span class="eyebrow">META CLINIC</span><h1>Plans & remaining work</h1></div><button id="refresh">Refresh records</button></header>
+<div id="connection" role="status">Reading repository records…</div>
+<p class="notice">Recorded plan evidence, not live agent activity or a fresh code audit. Overlapping plans can describe the same work. Counts are recorded entries, not unique features.</p>
+<main><aside><label for="search">Find a plan</label><input id="search" type="search" placeholder="Search plans and work…"><div id="plan-count"></div><nav id="plans" aria-label="Plans"></nav></aside>
+<section aria-label="Selected plan"><div id="empty">Loading plans…</div><div id="content" hidden><div class="plan-heading"><div><span class="eyebrow">SELECTED PLAN</span><h2 id="title"></h2></div><button id="document">Open plan</button></div><p id="path"></p><details id="tracker-note"><summary>What the main tracker records</summary><div id="tracker-note-body"></div></details><div id="filters" role="group" aria-label="Work status"></div><p id="explanation"></p><div id="items"></div></div></section></main>
+<footer><details><summary>Source details & recent changes</summary><p id="source"></p><p id="missing"></p><button id="register">Open canonical tracker</button> <a href="/archive" target="_blank" rel="noopener">Historical atlas (dated snapshot)</a><ol id="history"></ol></details></footer>
+<dialog id="reader"><div class="reader-head"><h2 id="reader-title">Plan</h2><button id="close">Close</button></div><article id="reader-content"></article></dialog><script src="app.js"></script></body></html>
