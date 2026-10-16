@@ -1,7 +1,7 @@
 {
   "version": 2,
   "title": "Interview demo · purple sandbox button and live Muse activity",
-  "summary": "The homepage hero's Try Our Sandbox button changes from green to purple. Its destination stays /demo. Office adds a pulsing activity light beside workflow coverage, backed by authenticated Muse check-ins and current-build work. Older text evidence opens without crashing.",
+  "summary": "The homepage hero's Try Our Sandbox button changes from rust to purple. Its destination stays /demo. Office adds a pulsing activity light beside workflow coverage, backed by authenticated Muse check-ins and current-build work. Older text evidence opens without crashing.",
   "source": "Committed review plan for this interview demonstration.",
   "scenarios": [
     {
@@ -11,8 +11,8 @@
       "focus": "One clinic day.",
       "description": "Only the homepage hero's Try Our Sandbox button changes color.",
       "instructions": "Toggle Original and Changed. Compare the large Try Our Sandbox button beneath the headline.",
-      "expected": "Original is green. Changed is purple (#7041b8), with white readable text and the same label, size and position.",
-      "steps": ["Original shows the green hero button.", "Changed shows the purple hero button with readable white text."],
+      "expected": "Original is rust (#a83e1d). Changed is purple (#7041b8), with white readable text and the same label, size and position.",
+      "steps": ["Original shows the rust hero button.", "Changed shows the purple hero button with readable white text."],
       "files": ["apps/web/src/features/marketing/MetaClinicMarketing.tsx"]
     },
     {
