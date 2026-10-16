@@ -2,11 +2,33 @@
 
 type: implementation-tracker
 status: active
-updated: 2026-10-04
+updated: 2026-10-16
 lifecycle: active
 canonical_for: meta-clinic-implementation-tracking
 ---
 # Meta Clinic Implementation Tracker
+
+## Current reconciliation — 2026-10-16
+
+Read this summary and [[Meta Clinic Implementation Tracker#Current work|Current work]] first. Older dated checkpoints retain their original evidence boundaries; their references to “current main,” pending integration, live versions, schedules and agent availability describe that date, not today's state.
+
+**Source baseline:** reconciliation against fetched `origin/main` at `b938ccba1a1e16da26a134f82b6c5cc85cc1751c`, plus the tracker dashboard on `codex/tracker-plan-dashboard`. The September score cutoff `6099fc5523b5d82ac2437767bec10f168aceeafd` is an ancestor of this main. Source inclusion does not transfer acceptance to a newer build. This pass reconciled Git history and saved evidence; it did not rerun clinic workflows or inspect the current hosted revision or Muse session.
+
+| Plan / area | Reconciled evidence | What remains / next action |
+| --- | --- | --- |
+| Core MC-01–15 and optional MC-16 | Preserve the milestone dashboard (in this note): core averages **80.5% build / 49.5% local validation / 0% external-human**, recorded against the September 30 cutoff. These are disputed historical planning estimates, not measured current completion. MC-16 is excluded from core averages. | Reassess each changed contract against exact source and evidence before changing a score. Do not add QA findings, plan rows or assistant criteria to these milestone counts. |
+| Workforce / MC-13 | The October 5 [development record](../../records/progress/2026/10/2026-10-05-workforce-development.md) records connected local payroll, scheduling, clock and access checks. The [all-work reconciliation](../../records/progress/2026/10/2026-10-05-all-work-reconciliation.md) records integrated source, hosted release `9c8ce61f`, and the existing demo workweek refresh. Earlier “awaiting integration/publication” checkpoints are historical. | Needs QA: completed CSV delivery, stalled draft-discard confirmation and repaired invitation replay remain unverified in that development record. Preserve its incident-assessment boundary; release checks do not close these gaps. |
+| Embedded assistant | [Current checkpoint](../../docs/development/in-app-assistant-checkpoint.md) records local booking, representative expanded operations and the subsequent loading/reopen repair. The 116-criterion map contains 52 mapped implementations, 53 partial/dependency criteria and 11 human gates. | Needs building/review: resolve the partial criteria individually; a partial classification alone does not identify missing code. Needs QA: complete criterion-specific assistant acceptance and hosted proof. Human gates remain separate. |
+| QA page and Office | [October 9 release receipt](../../records/progress/2026/10/2026-10-09-qa-column-release.md) records the coverage-column repair at `75920419`. [[Progress Log]] records the subsequent Office landing-page release at `89a7692e`, including direct-entry browser verification. | Historical release evidence only. Later source changes require their own exact-build evidence; these records do not establish today's live revision. |
+| Muse launch and Branch Review demo | Main includes `5d504baf` (task-scoped Muse request UI and queue-button alignment), `0e19c951` (bounded public QA requests), and later sandbox-button/review fixes through `b938ccba`. This is source-history evidence only. | Needs QA: publish-to-request handoff, browser-capable agent execution, visible Office progress and persisted completion evidence tied to the exact published revision. Current connection/agent availability is **not checked**, not assumed failed or working. |
+| Existing clinic plans and sandbox coverage | The planning registry (in this note), each plan's dated checkpoints and linked milestone rows retain their scope. The September 27 build queue already records delivered source in several rows. | Do not rebuild a delivered item because its older planning paragraph remains open. Check the later evidence first; separate missing implementation from browser/reload/denial checks and external dependencies. No all-plan acceptance sweep was performed here. |
+| External dependencies and CI | Vendor, professional/human and policy gates remain scoped to their owning plans. The October 5 release record reports CI blocked by account billing, independently of successful local/release checks. | That CI restriction is a **last-recorded blocker**, not a fresh account-status observation. Verify current availability before relying on it. Do not mark pending QA blocked merely because it has not been run. |
+
+**What changed in this reconciliation:** corrected the September “Current work” pointer; incorporated the October assistant, Workforce and QA release evidence; separated source-only Muse/demo changes from observed QA; and retained the percentage estimates without inventing new scores. The 70-finding Muse export, 81-row historical Atlas inventory, 116 assistant criteria and core milestone counts describe different, overlapping inventories. None is an additive count of completed features or current defects.
+
+**Using the tracker:** the [local dashboard](../../tools/tracker/README.md) retains the percentages, milestone charts and plan relationship map above the detailed plan view. It rereads this checkout, not GitHub or live agent telemetry. Historical plan-to-milestone coverage means related work, not completion. The original Atlas remains a dated archive.
+
+## Dated implementation checkpoints
 
 **2026-10-04 — Embedded assistant expansion implemented locally:** Explicit
 clinical, configuration, scheduling, billing, inventory, workforce and office
@@ -856,7 +878,7 @@ CF-04 maps to MC-01/13/15: classify transition, protect team-managed changes and
 
 **2026-09-30 - Current combined-source reconciliation:** **Build 76.3% (was 73.2%); local Validation 48.1% (was 46.3%); External / human 0% (unchanged).** [All MC-01-15 before/after values, source SHAs, test receipts, arithmetic and remaining gaps](../../records/progress/2026/09/2026-09-30-tracker-score-reconciliation.md) credit previously unscored local recovery and retained product slices. Fresh read-only checks: PR66 OPEN at `8c3d2358073acd14bb135a93a3adb1d7aa9034c8`, main `c2d30609d656cf71ab3c7a8806b1ac3585923f04`, live build.json `4eed814c524449bb6c0b0b5948d2b4f37c565e7a` (0.2.3). Scores describe the inspected combined candidate, including preserved PR36/race repair; they do not imply a main merge/deployment. Office/QA/DevOps, simulated vendor success and PR/line counts earn no credit. Integer estimates have judgment uncertainty; averaged tenths are display arithmetic, not measured precision. The 90%+ goal is about 13.7 aggregate Build points away, not a release/approval gate. Earlier unchanged-score and 74%/75% sequencing statements are dated history. Detailed intake primitives are integrated, but complete original-field/M1-M12 and connected clinical/provider acceptance remain open. Nova's newer MC-13/14 timecard slice `6b8dcc526ad12ba89052034dba6df7be579939c1` is outside this frozen cutoff and pending the next assessment; reported eleven synthetic checks/type/build passes and pending Sage review do not change these scores.
 
-This is the founder-requested delivery view for the current audit. It is a planning estimate, not a platform-wide score or a claim of clinical, legal, security, vendor, pilot, or release acceptance. Percentages use three independent dimensions: **build** means the known local source contract is present; **validation** means current local automated and/or rendered-browser proof exists for that contract; **external/human** means the required policy, vendor, operational, or acceptance evidence exists. Values are deliberately not averaged: the lowest applicable dimension controls a slice's usable readiness. Recalculate a row when its contract or evidence changes.
+This is the founder-requested delivery view for the current audit. It is a planning estimate, not a platform-wide score or a claim of clinical, legal, security, vendor, pilot, or release acceptance. Percentages use three independent dimensions: **build** means the known local source contract is present; **validation** means current local automated and/or rendered-browser proof exists for that contract; **external/human** means the required policy, vendor, operational, or acceptance evidence exists. The three dimensions are never averaged into one readiness score: the lowest applicable dimension controls a slice's usable readiness. Per-dimension dashboard averages use MC-01–15 only and retain the dated estimate boundary. Recalculate a row when its contract or evidence changes.
 
 BH-01 and BH-02 are tracked in the specialty checkpoint above; their scope-specific percentages are not yet assessed and must not be inferred from the MC rows.
 
@@ -1056,14 +1078,14 @@ Older navigation may also route here from guidance-portal, mentoring or historic
 
 ## Current work
 
-The atlas reads this section directly. Record meaningful task changes and hourly checkpoints here; do not log individual tool calls or tiny edits. The activity feed is a tracker log, not direct telemetry from the coding session.
+This is the current recorded follow-up, not live agent telemetry. The local dashboard reads repository documents; refreshing it does not fetch GitHub, run QA or verify the hosted build. Earlier activity entries below remain dated history.
 
 | Field | Value |
 | --- | --- |
-| Now | Keep the 70 Muse report findings and the 81 named Atlas inventory rows distinct. The [70-finding disposition ledger](../../records/audits/2026-09-28-muse-qa-70-disposition.md) records 23 source-backed dispositions and 47 evidence-based no-code/decision dispositions; that is not 70 browser passes. The separate private QA findings/retest page is /qa?view=atlas. |
-| State | Current fixed combined-source cutoff `6099fc5523b5d82ac2437767bec10f168aceeafd`: Build **80.5%**, local Validation **49.5%**, External / human **0%**. See [batch source/matrix evidence](../../records/progress/2026/09/2026-09-30-tracker-score-batch-6099fc55.md). Describes retained candidate source, not main/live/clinical acceptance; target 95 remains unmet. |
-| Updated (UTC) | 2026-09-29 23:22 UTC |
-| Up next | Record Muse’s live retest against the verified 0.2.0 revision; integrate further eligible work only after preserving its ownership and evidence. Keep the independent 90% Build target separate from QA disposition counts and local/external proof. |
+| Now | Tracker reconciled against main `b938ccba` and saved October evidence. See current reconciliation (in this note) for the separate implementation, QA and dependency lanes. No agent run is implied. |
+| State | Historical September 30 estimates remain Build **80.5%**, local Validation **49.5%**, External / human **0%**; no current-head rescore. October integration and release records supersede older pending-publication statements only within their recorded scope. Current hosted/Muse state was not checked. |
+| Updated (UTC) | 2026-10-16 (documentation reconciliation; not a QA execution timestamp) |
+| Up next | Validate the exact current build's Muse handoff and Office evidence; close the saved Workforce acceptance gaps; then reassess changed milestone contracts against their own evidence. Older 90/95 targets are historical planning goals, not measured release gates. |
 
 ### Activity log
 
@@ -1088,6 +1110,8 @@ The atlas reads this section directly. Record meaningful task changes and hourly
 **2026-09-27 demo feedback source checkpoint:** [Dated evidence](../../records/implementation/2026-09-27-public-demo-feedback.md) records the sandbox form, visitor/session binding, owner-only review surface, local migration and checks. This is outside MC-01–MC-15 scoring; browser acceptance and hosted release remain open.
 
 ## Build-ready queue — 2026-09-27 preparation
+
+Historical preparation queue. Later source-delivery and verification checkpoints supersede the original missing-code wording where their scope matches. Use the current reconciliation above before selecting work; source-delivered rows still awaiting browser proof belong in QA, not a new implementation queue.
 
 The autonomous >90% build goal resumed after Joshua started it; the separate hourly worker remains paused. This is a rolling queue targeting five build-ready workflows, not another roadmap. Rank reflects connected staff value and reuse, not expected percentage gain. Open rows below are **missing code**; delivered rows are explicitly labeled. Use [working commands and execution rules](../../docs/development/focused-coding-workflow.md). Refresh this section at material hourly checkpoints; preserve completed evidence elsewhere in this tracker. One next workflow is source-scoped below; four replacement candidates still require targeted code discovery rather than invented finish lines.
 
@@ -1256,6 +1280,8 @@ Local browser process inspection found no exposed Chrome/Edge control listener. 
 Parent-relayed exact3fa74691 cloud report: kiosk routing4/4, selected Muse2471/1, Office16/16 after two stale assertion fixes, final formatted repair2/2, TypeScript/both bundles/format/whitespace PASS. Earlier c9a2 two Office failures remain historical and are resolved by scoping the zero-combobox assertion to the Office floor, waiting for the displayed revision, then asserting deployment-boundary banner layout. Authentication/no-write/layout expectations remain. Integrated only qa-office.test.tsx from the inline patch; final file SHA256ebde1ec1076e5d76a1d3f1292c5af7364ca82b4360a39926d9c1465943f9369f matches the owner. Full-context patch hash61f0cc8e9958eaaf8d4cfae894cb016a242b3e823ec06c12268f8af0cd53e09a applies to the cloud artifact, not reconstructed inline bytes. Raw evidence remains /workspace/scratch/3fa74691-office-repair-evidence.json on cloud, not locally ingested. Production source remains exact3fa74691; frontend evidence is reused with that explicit boundary. No backend/DB/actual kiosk enrollment/publication/full-candidate CI or hosted acceptance inferred.
 
 ## Reconciled current status — 2026-10-03
+
+Historical checkpoint. The [[Meta Clinic Implementation Tracker#Current reconciliation — 2026-10-16|October 16 reconciliation]] now owns the current recorded summary; preserve the evidence limits below.
 
 This heading preserves the historical checkpoint link from branch `45ccf2e1988d06cb83037bb1652181f9308cec58`. Its earlier release identities and score estimates remain dated source evidence in that commit; the active repair audit above supersedes them. Cloud consolidation includes all accessible remote branch tips, preserves automatic QA observations, and does not establish startup, worker, database, browser workflow or release acceptance.
 
