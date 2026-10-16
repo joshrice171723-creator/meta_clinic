@@ -8,7 +8,7 @@
       "id": "office-start-muse",
       "title": "Start Muse QA from Office",
       "path": "/qa?view=office",
-      "focus": "Start Muse QA",
+      "focus": "116-workflow coverage",
       "description": "Office gains a manual trigger for the same bounded browser QA route used after publishing.",
       "instructions": "Compare Original and Changed. Changed shows Start Muse QA near the coverage grid. Public visitors see it disabled with a sign-in explanation. On the published build, an Office operator can start one run; an active request disables duplicate submission.",
       "expected": "The control explains access, shows task status, and never reports missing browser evidence as verified. Local preview requests must not run against a different live build.",
@@ -24,7 +24,7 @@
     {
       "id": "front-desk-button-image",
       "title": "Compare the front-desk button image",
-      "path": "/",
+      "path": "/#workflow-2",
       "description": "The marketing image reflects the current queue with text-only Confirm and Check in buttons.",
       "instructions": "Toggle Original and Changed. Inspect all three populated morning rows. The updated image also reflects the current queue layout and readiness information.",
       "expected": "Both labels are centered without a checkmark, and all actions remain readable.",
@@ -36,7 +36,7 @@
         "apps/web/src/features/clinic/FrontDesk.tsx",
         "apps/web/public/marketing/captures/care-front-desk-october-morning-queue.png"
       ],
-      "focus": "The front-desk morning queue"
+      "focus": "Turn the schedule into a front-desk plan."
     },
     {
       "id": "sandbox-browser-regression",
