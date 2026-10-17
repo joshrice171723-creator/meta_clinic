@@ -252,7 +252,7 @@
   outline-offset: 5px;
 }
 
-:is(.marketing-header, .marketing-header__drawer)
+.marketing-header__drawer
   .MuiButton-root.MuiButton-root.marketing-header__demo {
   border-color: #2563eb;
   background: #2563eb;
@@ -260,7 +260,7 @@
   box-shadow: none;
 }
 
-:is(.marketing-header, .marketing-header__drawer)
+.marketing-header__drawer
   .MuiButton-root.MuiButton-root.marketing-header__demo:hover {
   border-color: #1d4ed8;
   background: #1d4ed8;
