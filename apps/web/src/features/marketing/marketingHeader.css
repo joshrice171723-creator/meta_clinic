@@ -257,6 +257,7 @@
   border-color: #2563eb;
   background: #2563eb;
   color: #fff;
+  box-shadow: none;
 }
 
 :is(.marketing-header, .marketing-header__drawer)
