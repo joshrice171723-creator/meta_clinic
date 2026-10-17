@@ -270,7 +270,7 @@
 .meta-marketing:has(.demo-entry)
   .marketing-header__actions
   .MuiButton-root.marketing-header__demo {
-  border-radius: 20px;
+  border-radius: 12px;
 }
 
 @media (min-width: 1400px) {
