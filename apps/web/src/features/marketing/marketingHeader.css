@@ -252,6 +252,20 @@
   outline-offset: 5px;
 }
 
+:is(.marketing-header, .marketing-header__drawer)
+  .MuiButton-root.MuiButton-root.marketing-header__demo {
+  border-color: #c62828;
+  background: #c62828;
+  color: #fff;
+}
+
+:is(.marketing-header, .marketing-header__drawer)
+  .MuiButton-root.MuiButton-root.marketing-header__demo:hover {
+  border-color: #b71c1c;
+  background: #b71c1c;
+  color: #fff;
+}
+
 @media (min-width: 1400px) {
   .marketing-header__nav {
     gap: 10px;
