@@ -254,15 +254,15 @@
 
 :is(.marketing-header, .marketing-header__drawer)
   .MuiButton-root.MuiButton-root.marketing-header__demo {
-  border-color: #2563eb;
-  background: #2563eb;
+  border-color: #db2777;
+  background: #db2777;
   color: #fff;
 }
 
 :is(.marketing-header, .marketing-header__drawer)
   .MuiButton-root.MuiButton-root.marketing-header__demo:hover {
-  border-color: #1d4ed8;
-  background: #1d4ed8;
+  border-color: #be185d;
+  background: #be185d;
   color: #fff;
 }
 
