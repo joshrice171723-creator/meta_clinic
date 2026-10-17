@@ -267,6 +267,12 @@
   color: #fff;
 }
 
+.meta-marketing:has(.demo-entry)
+  .marketing-header__actions
+  .MuiButton-root.marketing-header__demo {
+  border-radius: 16px;
+}
+
 @media (min-width: 1400px) {
   .marketing-header__nav {
     gap: 10px;
