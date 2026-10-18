@@ -1,4 +1,4 @@
-# APPly Rails API
+# Meta Clinic Rails API
 
 See [the repository README](../../README.md) for orientation, [developer documentation](../../docs/development/README.md) for workflow, and [Software Architecture](../../APPlyVault/03%20Execution/Software%20Architecture.md) for module ownership. Local startup and verification are below.
 

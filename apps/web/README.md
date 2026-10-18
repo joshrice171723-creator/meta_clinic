@@ -1,4 +1,4 @@
-# APPly frontend
+# Meta Clinic frontend
 
 React/TypeScript with Vite and pnpm. Owns screens, navigation, forms, accessibility and styles. Rails in [../api](../api/README.md) owns sessions, permissions, domain rules, records and integrations.
 

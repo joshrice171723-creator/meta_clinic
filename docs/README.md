@@ -1,6 +1,6 @@
 # Developer documentation
 
-This is the current, source-adjacent handbook for building and operating APPly. It contains developer mechanics rather than product status or historical evidence.
+This is the current, source-adjacent handbook for building and operating Meta Clinic and its shared infrastructure. It contains developer mechanics rather than product status or historical evidence.
 
 - [Development](development/README.md): setup, local lifecycle, contribution workflow and CI.
 - [Architecture](architecture/README.md): code ownership, system boundaries and implementation contracts.

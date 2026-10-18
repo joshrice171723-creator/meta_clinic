@@ -1,6 +1,6 @@
 # Developer documentation
 
-These documents explain how to work on APPly. They describe current source mechanics; the repository root and nested `AGENTS.md` files describe agent policy, and `APPlyVault/` records product context, decisions, risks and dated evidence.
+These documents explain how to work on Meta Clinic and its shared infrastructure. They describe current source mechanics; the repository root and nested `AGENTS.md` files describe agent policy, and `APPlyVault/` records product context, decisions, risks and dated evidence.
 
 - [Getting started](getting-started.md): local prerequisites and the managed development lifecycle.
 - [Contributing](contributing.md): branches, focused changes, checks and review.
