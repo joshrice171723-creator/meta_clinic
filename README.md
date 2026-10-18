@@ -4,6 +4,10 @@ Software for connecting an independent clinic's day: scheduling, front-desk hand
 
 **[Explore the synthetic sandbox](https://aimetaclinic.com/demo)** · **[Product walkthroughs](https://aimetaclinic.com/meta-clinic/resources)** · [Run locally](#run-locally) · [Engineering guide](DEVELOPMENT.md)
 
+![Meta Clinic's public sandbox entry with care-model and demo-account selection](docs/images/sandbox-entry.png)
+
+Actual public sandbox entry, captured in Microsoft Edge on October 18, 2026. This screen contains no patient records; the demo uses fictional data. It is a browser screenshot, not a design mockup.
+
 ## What to explore
 
 - **Scheduling and Tracking Board:** follow a visit from booking through arrival and team handoffs.
