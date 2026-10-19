@@ -138,6 +138,8 @@ A second distinct claim on the same workflow conflicts during its15-minute lease
 
 Allowed verdicts: `pass`, `fail`, `blocked`. **No prior claim is required.** Synthetic registry, credential, evidence and provenance checks still apply. The next existing grid poll reads the committed result without a courier or ledger import.
 
+Use this endpoint for fresh results. `POST /api/qa/office/qa/ledger` and the coverage export importer deliberately mark their rows historical, even when a supplied revision matches the live build. Key enrollment and the old owner pin do not make imported rows current. The coverage read projection gives independently stored signed workflow receipts precedence over imported rows; later imports cannot erase those displayed results. Current-build counts still exclude older revisions, mixed builds and unavailable metadata.
+
 ### Defect — scope `qa.defect.write`
 
 `POST /qa/api/defect`:
