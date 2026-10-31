@@ -157,6 +157,15 @@
   font-size: 16px;
 }
 
+.meta-marketing .demo-entry__panel .MuiButton-contained:not(.Mui-disabled) {
+  background: #a83e1d;
+  color: #fff;
+}
+
+.meta-marketing .demo-entry__panel .MuiButton-contained:not(.Mui-disabled):hover {
+  background: #873016;
+}
+
 .demo-entry__panel .MuiOutlinedInput-root {
   background: #fff;
   border-radius: 8px;

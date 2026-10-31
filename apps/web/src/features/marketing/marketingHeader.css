@@ -252,6 +252,27 @@
   outline-offset: 5px;
 }
 
+.marketing-header__drawer
+  .MuiButton-root.MuiButton-root.marketing-header__demo {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: none;
+}
+
+.marketing-header__drawer
+  .MuiButton-root.MuiButton-root.marketing-header__demo:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.meta-marketing:has(.demo-entry)
+  .marketing-header__actions
+  .MuiButton-root.marketing-header__demo {
+  border-radius: 12px;
+}
+
 @media (min-width: 1400px) {
   .marketing-header__nav {
     gap: 10px;

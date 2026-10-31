@@ -1048,7 +1048,9 @@ export function DemoJourney() {
                     component="h1"
                     variant={sandbox ? "body2" : "h5"}
                     sx={
-                      sandbox ? { lineHeight: 1.5, fontWeight: 600 } : undefined
+                      sandbox
+                        ? { lineHeight: 1.5, fontWeight: 600, letterSpacing: 0 }
+                        : undefined
                     }
                   >
                     {sandbox ? "Meta Clinic demo" : activeLesson?.title}
