@@ -38,7 +38,7 @@ export function TutorialLibrary() {
         </nav>
         <header className="tutorial-library__intro">
           <p className="tutorial-library__eyebrow">The tutorial library</p>
-          <h1>Learn the workflow, one screen at a time.</h1>
+          <h1>Find your workflow. Follow the steps.</h1>
           <p className="tutorial-library__lead">
             Start with the work you want to understand. Each tutorial follows
             the actual app screens, explains what to look for, and connects each

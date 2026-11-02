@@ -41,7 +41,7 @@ const introductions: Record<
   "/pricing": {
     title: "Pricing",
     eyebrow: "Software + implementation",
-    headline: "A clear scope before a price.",
+    headline: "Know what is included before you commit.",
     lead: "Meta Clinic does not publish subscription rates yet. Pricing discussions are quote-based, with software, implementation, optional support, and external service costs considered separately.",
   },
   "/security": {

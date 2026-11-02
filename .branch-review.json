@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "title": "Interview demo: three pages",
+  "summary": "Review one clear heading change on each of three different pages. No sign-in required.",
+  "source": "Human-authored interview demo checklist; outcomes remain unverified until reviewed.",
+  "scenarios": [
+    {
+      "id": "interview-home",
+      "title": "Homepage: clearer headline",
+      "path": "/meta-clinic",
+      "steps": [
+        "Changed shows \"Your clinic day, connected.\"; the heading is readable and the rest of the page still loads."
+      ],
+      "description": "Request: Change the heading from \"One clinic day.\" to \"Your clinic day, connected.\" on /meta-clinic.",
+      "instructions": "Toggle Original and Changed. Original: \"One clinic day.\" Changed: \"Your clinic day, connected.\".",
+      "expected": "Changed shows \"Your clinic day, connected.\"; the heading is readable and the rest of the page still loads.",
+      "files": [
+        "apps/web/src/features/marketing/MetaClinicMarketing.tsx"
+      ]
+    },
+    {
+      "id": "interview-tutorials",
+      "title": "Tutorial library: clearer heading",
+      "path": "/meta-clinic/resources",
+      "steps": [
+        "Changed shows \"Find your workflow. Follow the steps.\"; the heading is readable and the rest of the page still loads."
+      ],
+      "description": "Request: Change the heading from \"Learn the workflow, one screen at a time.\" to \"Find your workflow. Follow the steps.\" on /meta-clinic/resources.",
+      "instructions": "Toggle Original and Changed. Original: \"Learn the workflow, one screen at a time.\" Changed: \"Find your workflow. Follow the steps.\".",
+      "expected": "Changed shows \"Find your workflow. Follow the steps.\"; the heading is readable and the rest of the page still loads.",
+      "files": [
+        "apps/web/src/features/marketing/TutorialLibrary.tsx"
+      ]
+    },
+    {
+      "id": "interview-pricing",
+      "title": "Pricing: clearer heading",
+      "path": "/meta-clinic/pricing",
+      "steps": [
+        "Changed shows \"Know what is included before you commit.\"; the heading is readable and the rest of the page still loads."
+      ],
+      "description": "Request: Change the heading from \"A clear scope before a price.\" to \"Know what is included before you commit.\" on /meta-clinic/pricing.",
+      "instructions": "Toggle Original and Changed. Original: \"A clear scope before a price.\" Changed: \"Know what is included before you commit.\".",
+      "expected": "Changed shows \"Know what is included before you commit.\"; the heading is readable and the rest of the page still loads.",
+      "files": [
+        "apps/web/src/features/marketing/BuyerInformationPages.tsx"
+      ]
+    }
+  ]
+}
