@@ -48,3 +48,8 @@ The two images are read-only public browser captures from `https://aimetaclinic.
 The usage figures are transcribed from Joshua's supplied dashboard screenshot: 24.8B lifetime tokens, 2.3B peak tokens, 12h 35m longest task, and 53-day longest/current streak. The reporting tool, interval, and whether it covers other projects were not supplied. They are labeled an owner-supplied snapshot and are not attributed exclusively to Meta Clinic.
 
 Local preview verification at 1440, 390, and 320 pixels found loaded images, no horizontal overflow, and no page JavaScript errors. A separate visual review accepted the local preview. The mechanical design detector ran in degraded regex mode because optional parser modules were unavailable; this does not establish complete accessibility or contrast acceptance. No application tests or full CI pass were claimed.
+
+
+## Hiring-facing refinement (2026-11-03)
+
+The homepage now names the Rails/React stack in the introduction, links directly to the Meta Clinic repository, and features Branch Review beside Astra Company OS. The usage-volume snapshot was removed from the public page in favor of inspectable work; its original provenance above is retained as history. Employment dates, education, and owner-reported impact claims were not changed. Publication and browser verification must be recorded separately.

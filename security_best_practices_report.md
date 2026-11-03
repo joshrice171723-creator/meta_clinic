@@ -1,4 +1,6 @@
-# APPly software production-readiness audit
+# Historical APPly software production-readiness audit
+
+> **Historical assessment:** This report evaluates commit `e023e771313079a78f286c8777c95f668e800501` and was last revised on September 3, 2026. Its scores, findings, and checks describe that snapshot, not the current source or hosted application. Findings are retained for traceability; this note does not establish that any blocker is resolved. For the current work inventory and evidence boundaries, see the [implementation tracker](APPlyVault/03%20Execution/Meta%20Clinic%20Implementation%20Tracker.md) and [engineering guide](docs/development/meta-clinic-build-and-acceptance.md).
 
 **Scope:** software only; source, configuration, local runtime and automated checks. This is not a HIPAA certification or legal assessment. The local/synthetic environment and intentional production clinic lock are excluded from feature-readiness scoring.
 
