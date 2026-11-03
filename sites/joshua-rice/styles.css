@@ -1290,3 +1290,7 @@ details p {
  .ai-stats > div:nth-child(even) { border-left: 1px solid var(--line); }
  .ai-stats > div:last-child { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid var(--line); }
 }
+
+.portfolio-tour { margin: 0 0 48px; }
+.portfolio-tour video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; }
+.portfolio-tour figcaption { margin-top: 14px; color: var(--muted); font-size: 14px; max-width: 72ch; }

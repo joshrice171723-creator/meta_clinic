@@ -32,7 +32,7 @@ HIPAA knowledge is owner-reported and presented as engineering judgment, not cer
 
 The existing Lightsail HTTPS nginx server includes `/etc/nginx/snippets/joshua-portfolio.conf`, sourced from `deploy-nginx.conf`. Only `/joshua` and `/joshua/` are added; application proxies, images, credentials, and databases are outside this deployment.
 
-Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, `joshua-rice.png`, `Joshua_Rice_resume_2026.docx`, `assets/agent-office.png`, and `assets/workflow-coverage.png`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
+Publish an explicit allowlist from one committed revision: `index.html`, `resume.html`, `styles.css`, `resume.js`, `favicon.svg`, `joshua-rice.png`, `Joshua_Rice_resume_2026.docx`, `assets/agent-office.png`, `assets/workflow-coverage.png`, `assets/meta-clinic-tour.mp4`, and `assets/meta-clinic-tour.jpg`. Do not publish this README, deployment configuration, the repository root, or other files. Store each release under `/var/www/joshua-portfolio/releases/<commit>/joshua/`, and point `/var/www/joshua-portfolio/current` at that release directory.
 
 Before changing nginx, retain its existing site configuration and the previous static symlink target in a timestamped backup under `/var/backups/joshua-portfolio/`. Run `nginx -t` before reloading. On failure, restore the saved configuration/snippet and previous symlink before testing and reloading again. Keep old releases for recovery. Static-only publication does not run application migrations or restart containers.
 
@@ -53,3 +53,8 @@ Local preview verification at 1440, 390, and 320 pixels found loaded images, no 
 ## Hiring-facing refinement (2026-11-03)
 
 The homepage now names the Rails/React stack in the introduction, links directly to the Meta Clinic repository, and features Branch Review beside Astra Company OS. The usage-volume snapshot was removed from the public page in favor of inspectable work; its original provenance above is retained as history. Employment dates, education, and owner-reported impact claims were not changed. Publication and browser verification must be recorded separately.
+
+
+## Muse walkthrough (2026-11-03)
+
+The native video player uses the approved October 26, 2026 Muse tour from the owner's LinkedIn package, SHA-256 `8c85ae9b548e47f48e4216c0f3eda751033defb8f20b9fa78f757ed64ed71043`. Duration: 299.994 seconds; H.264, 1920 × 1080, with audio. The poster is a frame at 15 seconds. The player has controls, inline playback, and no autoplay or eager video download. The caption identifies the historical capture and fictional data. No caption track was supplied. The portfolio CSP allows media only from its own origin; existing script and framing restrictions remain. Include both media assets in the static release allowlist.
