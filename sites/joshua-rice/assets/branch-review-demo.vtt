@@ -1,0 +1,322 @@
+WEBVTT
+
+00:00.000 --> 00:02.202
+Start in the branch list on the left.
+
+00:02.202 --> 00:04.625
+I'll click Find a branch and type observation.
+
+00:04.625 --> 00:07.413
+That narrows the list to the notebook change.
+
+00:07.413 --> 00:10.139
+Click Add a notebook for field observations.
+
+00:10.139 --> 00:12.119
+That click opens the review.
+
+00:12.119 --> 00:15.149
+Branch Review prepares the original and changed previews,
+
+00:15.149 --> 00:19.000
+and the list on the left fills with the checks for this commit.
+
+00:19.000 --> 00:21.172
+The application opens in the middle.
+
+00:21.172 --> 00:22.998
+I'll move up to Original and click it.
+
+00:22.998 --> 00:26.361
+Here's the starting point, a page with one Add a note button.
+
+00:26.361 --> 00:29.110
+Now follow the pointer across to Changed.
+
+00:29.110 --> 00:31.782
+The proposed version has an observation field,
+
+00:31.782 --> 00:33.550
+a button to record an entry,
+
+00:33.550 --> 00:37.740
+and a list underneath. I can switch back and forth without touching
+
+00:37.740 --> 00:40.000
+the branch in my own working directory.
+
+00:40.000 --> 00:42.237
+Where did the checks on the left come from?
+
+00:42.237 --> 00:44.245
+Open Settings in the top right.
+
+00:44.245 --> 00:46.869
+Under Coding agent, this project uses Codex CLI.
+
+00:46.869 --> 00:48.331
+When I opened the branch,
+
+00:48.331 --> 00:50.444
+Branch Review collected the changed files,
+
+00:50.444 --> 00:52.928
+the Git diff, and the project scenario.
+
+00:52.928 --> 00:56.503
+It started the installed Codex command line program in a separate
+
+00:56.503 --> 00:59.832
+checkout with read-only access. Codex uses that material to identify
+
+00:59.832 --> 01:02.000
+things a reviewer can actually try.
+
+01:02.000 --> 01:04.408
+Close Settings to get back to the review.
+
+01:04.408 --> 01:06.050
+Click a title in the left column.
+
+01:06.050 --> 01:08.645
+Watch the panel on the right change with it.
+
+01:08.645 --> 01:11.557
+Each item tells you what to do in the running application and what
+
+01:11.557 --> 01:13.255
+you should expect to see.
+
+01:13.255 --> 01:15.756
+Codex returned these items in a structured plan,
+
+01:15.756 --> 01:18.369
+and Branch Review saved that plan for this revision.
+
+01:18.369 --> 01:22.000
+You can move between checks in any order by clicking their titles.
+
+01:22.000 --> 01:25.331
+Let's try the journal. I'll click the observation field,
+
+01:25.331 --> 01:26.570
+type a note about the ridge,
+
+01:26.570 --> 01:30.559
+and click Record entry. The new note appears above the sample note,
+
+01:30.559 --> 01:33.716
+the field clears, and the app confirms the save.
+
+01:33.716 --> 01:36.950
+Now I'll click Record entry again with the field empty.
+
+01:36.950 --> 01:39.642
+The message changes to Write an observation first.
+
+01:39.642 --> 01:42.000
+The list still has the same two entries.
+
+01:42.000 --> 01:44.762
+There's one thing I'd change before approving this.
+
+01:44.762 --> 01:46.210
+The field says New observation,
+
+01:46.210 --> 01:47.791
+but the button says Record entry.
+
+01:47.791 --> 01:50.324
+Watch the pointer go back to that button.
+
+01:50.324 --> 01:53.162
+I right-click it directly inside the preview.
+
+01:53.162 --> 01:55.124
+That opens the change request.
+
+01:55.124 --> 01:58.381
+The attached screenshot shows the screen I was looking at,
+
+01:58.381 --> 02:02.000
+and the selected element tells the agent which button I meant.
+
+02:02.000 --> 02:04.678
+Click in the request field and describe the edit.
+
+02:04.678 --> 02:06.503
+Rename Record entry to Save observation,
+
+02:06.503 --> 02:08.328
+and keep the save behavior unchanged.
+
+02:08.328 --> 02:10.290
+Now scroll down inside this dialog.
+
+02:10.290 --> 02:13.104
+Click Add to queue. That saves the instruction,
+
+02:13.104 --> 02:15.816
+the screenshot, and the selected button together.
+
+02:15.816 --> 02:19.159
+I can finish reviewing the other items before handing the request
+
+02:19.159 --> 02:20.000
+to Codex.
+
+02:20.000 --> 02:23.330
+I use the list on the left to pick up each remaining check.
+
+02:23.330 --> 02:25.123
+I'll save a second entry with Enter,
+
+02:25.123 --> 02:28.252
+try the blank field, and remove the saved entries.
+
+02:28.252 --> 02:31.747
+After each test I move to the right-hand panel and click Looks good
+
+02:31.747 --> 02:35.132
+and Next. Watch the completed count on the left.
+
+02:35.132 --> 02:38.882
+The check I passed changes status while the item with my fix request
+
+02:38.882 --> 02:41.572
+stays flagged. Once every item has an outcome,
+
+02:41.572 --> 02:44.115
+Review results shows my queued request.
+
+02:44.115 --> 02:47.000
+Click Apply one queued change to send it to Codex.
+
+02:47.000 --> 02:49.776
+The planning job could only read the code.
+
+02:49.776 --> 02:53.095
+The fix job runs in an isolated checkout where Codex can edit files.
+
+02:53.095 --> 02:55.549
+Branch Review commits the change.
+
+02:55.549 --> 02:59.773
+When it's ready, click through to review the update.
+
+02:59.773 --> 03:03.113
+I'll go back to the button and try saving another observation.
+
+03:03.113 --> 03:04.883
+The label now reads Save observation,
+
+03:04.883 --> 03:07.055
+and the new note appears in the list.
+
+03:07.055 --> 03:10.000
+That checks both halves of the request.
+
+03:10.000 --> 03:12.236
+Field Notes keeps entries in browser storage.
+
+03:12.236 --> 03:14.894
+What if the application writes to a real database?
+
+03:14.894 --> 03:17.500
+Here's a recorded review of a Meta Clinic intake form.
+
+03:17.500 --> 03:20.862
+Both sides start from a known scenario with fictional records.
+
+03:20.862 --> 03:24.383
+We want to answer two questions: can we save an answer in the changed
+
+03:24.383 --> 03:27.728
+version without affecting Original, and will that answer still be
+
+03:27.728 --> 03:30.000
+there after the desktop app restarts?
+
+03:30.000 --> 03:33.429
+For this Rails project, the preview adapter assigns the two checkouts
+
+03:33.429 --> 03:37.042
+separate runtime slots. Each slot has its own PostgreSQL container
+
+03:37.042 --> 03:40.619
+and port. The database name includes the side of the comparison and
+
+03:40.619 --> 03:42.905
+the first twelve characters of the Git commit.
+
+03:42.905 --> 03:46.315
+When Rails starts, the adapter points it at that database.
+
+03:46.315 --> 03:50.426
+The two screens look alike because they started with comparable records,
+
+03:50.426 --> 03:53.000
+not because they share a live patient record.
+
+03:53.000 --> 03:54.705
+Watch the saved intake on Changed.
+
+03:54.705 --> 03:57.281
+The reviewer edited the reason for the visit,
+
+03:57.281 --> 03:59.345
+and the form advanced to revision eight.
+
+03:59.345 --> 04:01.864
+That's a revision of the intake record,
+
+04:01.864 --> 04:04.364
+distinct from the Git commit above it.
+
+04:04.364 --> 04:06.448
+Original retained its seeded answer.
+
+04:06.448 --> 04:10.407
+And here is Changed reopened after a desktop restart: the edited answer
+
+04:10.407 --> 04:14.517
+is still present. That verifies both separation and persistence for
+
+04:14.517 --> 04:16.000
+this project's adapter.
+
+04:16.000 --> 04:19.810
+Back in Field Notes, I'll finish the checks for the updated version
+
+04:19.810 --> 04:23.560
+and open Review results. The review lists what passed.
+
+04:23.560 --> 04:27.230
+Approval is a separate action tied to the commit and scenario we just
+
+04:27.230 --> 04:31.678
+checked. Branch Review checks the remote again before delivery.
+
+04:31.678 --> 04:34.072
+If main has moved and the combined code changes,
+
+04:34.072 --> 04:38.000
+the reviewer has to check that new version before it can ship.
+
+04:38.000 --> 04:41.689
+With this version approved, click Merge and push to main.
+
+04:41.689 --> 04:45.437
+The confirmation identifies the commit and the remote branch.
+
+04:45.437 --> 04:48.478
+This example uses a local Git remote created for the demo.
+
+04:48.478 --> 04:53.030
+Branch Review pushes the commit and checks the remote's copy of main.
+
+04:53.030 --> 04:55.876
+The Merged and pushed message is the receipt.
+
+04:55.876 --> 05:00.000
+The commit beside Changed is the same one that reached the remote.

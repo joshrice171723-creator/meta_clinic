@@ -1294,3 +1294,7 @@ details p {
 .portfolio-tour { margin: 0 0 48px; }
 .portfolio-tour video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; }
 .portfolio-tour figcaption { margin-top: 14px; color: var(--muted); font-size: 14px; max-width: 72ch; }
+
+.branch-walkthrough { margin-top: 72px; }
+.branch-post { max-width: 76ch; font-size: 16px; line-height: 1.75; }
+.branch-post p + p { margin-top: 22px; }

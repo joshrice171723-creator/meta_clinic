@@ -346,6 +346,27 @@
             </details>
           </article>
                   </div>
+        <article class="branch-walkthrough" aria-labelledby="branch-walkthrough-title">
+          <div class="section-heading">
+            <div><h2 id="branch-walkthrough-title">Reviewing AI-generated work</h2></div>
+            <p>Branch Review · Five-minute walkthrough</p>
+          </div>
+          <figure class="portfolio-tour">
+            <video controls playsinline preload="none" poster="assets/branch-review-demo.jpg" width="1280" height="720" aria-label="Branch Review walkthrough" aria-describedby="branch-review-caption">
+              <source src="assets/branch-review-demo.mp4" type="video/mp4" />
+              <track src="assets/branch-review-demo.vtt" kind="captions" srclang="en" label="English" />
+              <a href="assets/branch-review-demo.mp4">Watch the Branch Review walkthrough</a>.
+            </video>
+            <figcaption id="branch-review-caption">A demonstration of reviewing a coding agent’s work, requesting a change, and checking it before merging.</figcaption>
+          </figure>
+          <div class="branch-post">
+            <p>When I leave a coding agent working overnight, my first question in the morning is “What do I need to try before I merge this?” I built Branch Review with Codex to help me answer that.</p>
+            <p>I can switch between Codex CLI and Claude Code CLI in Settings. When I open a branch, Branch Review gives the selected agent the Git diff, the list of changed files, and details about the test scenario. The agent turns that into a checklist I can work through in the running app. In this demo, that means trying things like saving a note and reloading the page to see if it’s still there, or submitting a blank entry and checking that it stays out of the list.</p>
+            <p>Codex wrote the setup script for the Meta Clinic intake example when I built Branch Review. It worked out what the test needed: a staff member who could edit an intake, a fictional patient, and a form with an answer already on file. When I open an intake branch, Branch Review runs that script in separate PostgreSQL databases for Original and Changed. The coding agent I select reads the branch changes and the script, then writes the review questions. Can I save a new answer in Changed? Does Original still show the old one? Is my edit still there when I reopen Changed? I pick the branch and go straight to testing. The records and questions are ready for me.</p>
+            <p>My favorite part is asking for a fix right where I notice it. In the notebook demo, the field says “New observation,” but the button says “Record entry.” I right-click the button and ask for “Save observation.” The request includes the selected button and a screenshot. I can finish the other checks, send the queued fix to the agent, and try the updated button before I approve the commit and push it to main.</p>
+            <p>I’m looking for product engineering and applied AI engineering roles. If your team is working on how people review and ship AI-written software, I’d love to talk.</p>
+          </div>
+        </article>
       </section>
 
       <section
